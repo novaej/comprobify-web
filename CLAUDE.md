@@ -162,6 +162,7 @@ This project runs Next.js **16** (not 13-15). Key differences from older version
 | `docs/guides/code-flow.md` | Request lifecycle walkthrough |
 | `docs/guides/coding-guidelines.md` | How to add screens, actions, and components |
 | `docs/adr/` | Architecture Decision Records |
+| `docs/deployment.md` | Branching strategy, Vercel setup, env vars, production checklist |
 | `src/lib/api.ts` | Typed Comprobify API client — all API calls go through here |
 | `src/lib/errors.ts` | `ApiError` + `ProblemDetails` types |
 | `src/middleware.ts` | next-intl routing middleware (locale detection + redirect) |
