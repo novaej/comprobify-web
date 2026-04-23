@@ -47,6 +47,14 @@ export default async function InvoiceDetailPage({
           <p className="text-muted-foreground">{t('total')}</p>
           <p className="font-medium">${document.total}</p>
         </div>
+        <div>
+          <p className="text-muted-foreground">{t('buyer')}</p>
+          <p className="font-medium">{document.buyer.name}</p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">{t('buyerId')}</p>
+          <p className="font-medium">{document.buyer.id}</p>
+        </div>
       </div>
 
       {/* TODO Phase 3: Contextual action buttons based on status */}

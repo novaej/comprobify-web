@@ -28,10 +28,12 @@ export interface Document {
   status: DocumentStatus;
   issueDate: string; // DD/MM/YYYY
   total: string; // Decimal string, e.g. "115.00"
-  // NOTE: buyerName and buyerId are not yet returned by the presenter.
-  // They will be added in a future API update. See NEXT_STEPS.md.
-  buyerName?: string;
-  buyerId?: string;
+  buyer: {
+    id: string;
+    idType: string;
+    name: string;
+    email: string;
+  };
   authorizationNumber?: string;
   authorizationDate?: string;
   email: {
