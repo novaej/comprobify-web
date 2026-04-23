@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# comprobify-web
 
-## Getting Started
+Next.js 16 frontend for the [Comprobify](../comprobify/) electronic invoice API. Lets non-technical users create, send, and authorize Ecuadorian electronic invoices (facturas electrónicas SRI) from a browser.
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Stack
+
+| Layer | Choice |
+|---|---|
+| Framework | Next.js 16 (App Router) |
+| Language | TypeScript |
+| Styling | Tailwind CSS v4 + shadcn/ui |
+| Forms | React Hook Form + Zod |
+| Data fetching | TanStack Query (polling only) |
+| Localization | next-intl (Spanish default) |
+
+## Architecture
+
+```
+Browser ──────────────────► Next.js (this repo)
+        (no API key visible)       │  reads API key from env
+                                   ▼
+                            Comprobify API
+                     (Authorization: Bearer <api-key>)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+All Comprobify API calls happen server-side (BFF pattern). The API key is never sent to the browser. See [docs/adr/002-bff-pattern.md](docs/adr/002-bff-pattern.md).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Screens
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Route | Screen |
+|---|---|
+| `/es/dashboard` | Invoice list + summary |
+| `/es/invoices/new` | Create invoice form |
+| `/es/invoices/:key` | Invoice detail + actions |
+| `/es/settings` | Issuer info + API key reveal |
 
-## Learn More
+## Getting started
 
-To learn more about Next.js, take a look at the following resources:
+See [GETTING_STARTED.md](GETTING_STARTED.md).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Documentation
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Resource | Location |
+|---|---|
+| Setup guide | [GETTING_STARTED.md](GETTING_STARTED.md) |
+| Architecture decisions | [docs/adr/](docs/adr/) |
+| Code flow walkthrough | [docs/guides/code-flow.md](docs/guides/code-flow.md) |
+| Coding guidelines | [docs/guides/coding-guidelines.md](docs/guides/coding-guidelines.md) |
+| Documentation checklist | [docs/guides/documentation-checklist.md](docs/guides/documentation-checklist.md) |
+| Screen specs | [docs/site/screens/](docs/site/screens/) |
+| Architecture deep-dives | [docs/site/architecture/](docs/site/architecture/) |
+| AI assistant rules | [CLAUDE.md](CLAUDE.md) |
 
-## Deploy on Vercel
+## Related
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Comprobify API** — `../comprobify/` — the backend this frontend calls

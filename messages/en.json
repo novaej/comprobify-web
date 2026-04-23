@@ -1,0 +1,204 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "save": "Save",
+    "close": "Close",
+    "copy": "Copy",
+    "copied": "Copied",
+    "download": "Download",
+    "reveal": "Reveal",
+    "hide": "Hide",
+    "back": "Back"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "newInvoice": "New invoice",
+    "settings": "Settings"
+  },
+  "sandbox": {
+    "banner": "You are in sandbox mode — documents are sent to the SRI test environment.",
+    "badge": "Sandbox (SRI test)",
+    "productionBadge": "Production (SRI live)"
+  },
+  "status": {
+    "SIGNED": "Signed",
+    "RECEIVED": "Received by SRI",
+    "AUTHORIZED": "Authorized",
+    "RETURNED": "Returned",
+    "NOT_AUTHORIZED": "Not authorized"
+  },
+  "emailStatus": {
+    "PENDING": "Pending",
+    "SENT": "Sent",
+    "FAILED": "Failed",
+    "SKIPPED": "Skipped",
+    "DELIVERED": "Delivered",
+    "COMPLAINED": "Reported as spam"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "newInvoice": "New invoice",
+    "summary": {
+      "total": "Total documents",
+      "authorizedThisMonth": "Authorized this month",
+      "pending": "Pending"
+    },
+    "table": {
+      "sequential": "Number",
+      "buyer": "Customer",
+      "total": "Total",
+      "status": "Status",
+      "date": "Date",
+      "empty": "No documents yet."
+    }
+  },
+  "invoiceForm": {
+    "title": "New invoice",
+    "rebuildTitle": "Rebuild invoice",
+    "submit": "Generate document",
+    "submitRebuild": "Rebuild",
+    "submitting": "Processing...",
+    "buyer": {
+      "title": "Buyer",
+      "idType": "ID type",
+      "id": "ID number",
+      "name": "Name / Company name",
+      "email": "Email address",
+      "address": "Address (optional)"
+    },
+    "idTypes": {
+      "04": "RUC",
+      "05": "Cédula",
+      "06": "Passport",
+      "07": "Final Consumer",
+      "08": "Foreign ID"
+    },
+    "items": {
+      "title": "Products / Services",
+      "add": "Add item",
+      "remove": "Remove",
+      "mainCode": "Main code",
+      "description": "Description",
+      "quantity": "Quantity",
+      "unitPrice": "Unit price (USD)",
+      "discount": "Discount (%)",
+      "tax": "VAT"
+    },
+    "taxOptions": {
+      "2-4": "VAT 15%",
+      "2-0": "VAT 0%",
+      "2-5": "VAT 5%",
+      "2-6": "Not subject to VAT",
+      "2-7": "VAT exempt"
+    },
+    "payment": {
+      "title": "Payment",
+      "method": "Payment method",
+      "total": "Amount (USD)",
+      "term": "Term (days, optional)"
+    },
+    "paymentMethods": {
+      "01": "Without financial system",
+      "15": "Debt compensation",
+      "16": "Debit card",
+      "17": "Ecuador electronic money",
+      "18": "Prepaid card",
+      "19": "Credit card",
+      "20": "Other with financial system",
+      "21": "Title endorsement"
+    },
+    "totals": {
+      "title": "Summary",
+      "subtotal": "Subtotal (excl. VAT)",
+      "discount": "Discount",
+      "taxableBase": "Taxable base",
+      "iva": "VAT 15%",
+      "total": "Total due"
+    }
+  },
+  "invoiceDetail": {
+    "notFound": "Document not found.",
+    "accessKey": "Access key",
+    "sequential": "Document number",
+    "status": "Status",
+    "issueDate": "Issue date",
+    "buyer": "Buyer",
+    "buyerId": "ID",
+    "total": "Total",
+    "authorization": "SRI authorization",
+    "authorizationNumber": "Authorization number",
+    "authorizationDate": "Authorization date",
+    "actions": {
+      "send": "Send to SRI",
+      "sending": "Sending...",
+      "authorize": "Check authorization",
+      "authorizing": "Checking...",
+      "rebuild": "Rebuild",
+      "downloadPdf": "Download PDF (RIDE)",
+      "downloadXml": "Download XML",
+      "resendEmail": "Resend email",
+      "sriErrors": "View SRI errors"
+    },
+    "polling": {
+      "waiting": "Waiting for SRI response...",
+      "timeout": "SRI is taking longer than expected. Check manually when ready."
+    },
+    "items": {
+      "title": "Line items",
+      "description": "Description",
+      "quantity": "Qty",
+      "unitPrice": "Unit price",
+      "discount": "Disc.",
+      "subtotal": "Subtotal"
+    },
+    "events": {
+      "title": "Event history",
+      "type": "Event",
+      "date": "Date",
+      "detail": "Detail",
+      "empty": "No events recorded."
+    },
+    "eventTypes": {
+      "CREATED": "Created",
+      "SENT": "Sent to SRI",
+      "STATUS_CHANGED": "Status updated",
+      "ERROR": "Error",
+      "REBUILT": "Rebuilt",
+      "EMAIL_SENT": "Email sent",
+      "EMAIL_FAILED": "Email failed",
+      "EMAIL_DELIVERED": "Email delivered",
+      "EMAIL_TEMP_FAILED": "Email temporary failure",
+      "EMAIL_COMPLAINED": "Email reported as spam"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "issuer": {
+      "title": "Issuer information",
+      "name": "Name / Company name",
+      "ruc": "RUC",
+      "environment": "Environment",
+      "certExpiry": "Certificate expiry",
+      "certFingerprint": "Certificate fingerprint (SHA-1)"
+    },
+    "apiKey": {
+      "title": "API Key",
+      "description": "Use this key to access the Comprobify API directly from scripts or external integrations.",
+      "reveal": "Reveal key",
+      "masked": "••••••••••••••••••••••••••••••••"
+    }
+  },
+  "apiError": {
+    "DOCUMENT_NOT_FOUND": "Document not found.",
+    "VALIDATION_ERROR": "Please review the highlighted fields.",
+    "TOO_MANY_REQUESTS": "Too many requests. Please try again in a moment.",
+    "UNAUTHORIZED": "Unauthorized. Please verify your API key is valid.",
+    "CONFLICT": "A document with that idempotency key already exists with a different body.",
+    "SRI_ERROR": "The SRI returned an error. Review the detail messages.",
+    "INTERNAL_ERROR": "Internal server error. Please contact support.",
+    "UNKNOWN": "An unexpected error occurred."
+  }
+}

@@ -1,0 +1,204 @@
+{
+  "common": {
+    "loading": "Cargando...",
+    "error": "Ha ocurrido un error",
+    "retry": "Reintentar",
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "close": "Cerrar",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "download": "Descargar",
+    "reveal": "Mostrar",
+    "hide": "Ocultar",
+    "back": "Volver"
+  },
+  "nav": {
+    "dashboard": "Panel",
+    "newInvoice": "Nueva factura",
+    "settings": "Configuración"
+  },
+  "sandbox": {
+    "banner": "Estás en modo sandbox — los comprobantes se envían al ambiente de pruebas del SRI.",
+    "badge": "Sandbox (SRI pruebas)",
+    "productionBadge": "Producción (SRI real)"
+  },
+  "status": {
+    "SIGNED": "Firmado",
+    "RECEIVED": "Recibido por SRI",
+    "AUTHORIZED": "Autorizado",
+    "RETURNED": "Devuelto",
+    "NOT_AUTHORIZED": "No autorizado"
+  },
+  "emailStatus": {
+    "PENDING": "Pendiente",
+    "SENT": "Enviado",
+    "FAILED": "Fallido",
+    "SKIPPED": "Omitido",
+    "DELIVERED": "Entregado",
+    "COMPLAINED": "Reportado como spam"
+  },
+  "dashboard": {
+    "title": "Panel",
+    "newInvoice": "Nueva factura",
+    "summary": {
+      "total": "Total de comprobantes",
+      "authorizedThisMonth": "Autorizados este mes",
+      "pending": "Pendientes"
+    },
+    "table": {
+      "sequential": "Número",
+      "buyer": "Cliente",
+      "total": "Total",
+      "status": "Estado",
+      "date": "Fecha",
+      "empty": "No hay comprobantes aún."
+    }
+  },
+  "invoiceForm": {
+    "title": "Nueva factura",
+    "rebuildTitle": "Reconstruir factura",
+    "submit": "Generar comprobante",
+    "submitRebuild": "Reconstruir",
+    "submitting": "Procesando...",
+    "buyer": {
+      "title": "Comprador",
+      "idType": "Tipo de identificación",
+      "id": "Número de identificación",
+      "name": "Nombre / Razón social",
+      "email": "Correo electrónico",
+      "address": "Dirección (opcional)"
+    },
+    "idTypes": {
+      "04": "RUC",
+      "05": "Cédula",
+      "06": "Pasaporte",
+      "07": "Consumidor Final",
+      "08": "Identificación del exterior"
+    },
+    "items": {
+      "title": "Productos / Servicios",
+      "add": "Agregar ítem",
+      "remove": "Eliminar",
+      "mainCode": "Código principal",
+      "description": "Descripción",
+      "quantity": "Cantidad",
+      "unitPrice": "Precio unitario (USD)",
+      "discount": "Descuento (%)",
+      "tax": "IVA"
+    },
+    "taxOptions": {
+      "2-4": "IVA 15%",
+      "2-0": "IVA 0%",
+      "2-5": "IVA 5%",
+      "2-6": "No objeto de IVA",
+      "2-7": "Exento de IVA"
+    },
+    "payment": {
+      "title": "Pago",
+      "method": "Forma de pago",
+      "total": "Monto (USD)",
+      "term": "Plazo (días, opcional)"
+    },
+    "paymentMethods": {
+      "01": "Sin utilización del sistema financiero",
+      "15": "Compensación de deudas",
+      "16": "Tarjeta de débito",
+      "17": "Dinero electrónico Ecuador",
+      "18": "Tarjeta prepago",
+      "19": "Tarjeta de crédito",
+      "20": "Otros con utilización del sistema financiero",
+      "21": "Endoso de títulos"
+    },
+    "totals": {
+      "title": "Resumen",
+      "subtotal": "Subtotal sin IVA",
+      "discount": "Descuento",
+      "taxableBase": "Base imponible",
+      "iva": "IVA 15%",
+      "total": "Total a pagar"
+    }
+  },
+  "invoiceDetail": {
+    "notFound": "Comprobante no encontrado.",
+    "accessKey": "Clave de acceso",
+    "sequential": "Número de comprobante",
+    "status": "Estado",
+    "issueDate": "Fecha de emisión",
+    "buyer": "Comprador",
+    "buyerId": "Identificación",
+    "total": "Total",
+    "authorization": "Autorización SRI",
+    "authorizationNumber": "Número de autorización",
+    "authorizationDate": "Fecha de autorización",
+    "actions": {
+      "send": "Enviar al SRI",
+      "sending": "Enviando...",
+      "authorize": "Verificar autorización",
+      "authorizing": "Verificando...",
+      "rebuild": "Reconstruir",
+      "downloadPdf": "Descargar PDF (RIDE)",
+      "downloadXml": "Descargar XML",
+      "resendEmail": "Reenviar correo",
+      "sriErrors": "Ver errores SRI"
+    },
+    "polling": {
+      "waiting": "Esperando respuesta del SRI...",
+      "timeout": "El SRI tardó más de lo esperado. Verifica manualmente cuando estés listo."
+    },
+    "items": {
+      "title": "Detalle de productos / servicios",
+      "description": "Descripción",
+      "quantity": "Cant.",
+      "unitPrice": "P. unitario",
+      "discount": "Desc.",
+      "subtotal": "Subtotal"
+    },
+    "events": {
+      "title": "Historial",
+      "type": "Evento",
+      "date": "Fecha",
+      "detail": "Detalle",
+      "empty": "Sin eventos registrados."
+    },
+    "eventTypes": {
+      "CREATED": "Creado",
+      "SENT": "Enviado al SRI",
+      "STATUS_CHANGED": "Estado actualizado",
+      "ERROR": "Error",
+      "REBUILT": "Reconstruido",
+      "EMAIL_SENT": "Correo enviado",
+      "EMAIL_FAILED": "Error en correo",
+      "EMAIL_DELIVERED": "Correo entregado",
+      "EMAIL_TEMP_FAILED": "Error temporal en correo",
+      "EMAIL_COMPLAINED": "Correo reportado como spam"
+    }
+  },
+  "settings": {
+    "title": "Configuración",
+    "issuer": {
+      "title": "Información del emisor",
+      "name": "Nombre / Razón social",
+      "ruc": "RUC",
+      "environment": "Ambiente",
+      "certExpiry": "Vencimiento del certificado",
+      "certFingerprint": "Huella del certificado (SHA-1)"
+    },
+    "apiKey": {
+      "title": "API Key",
+      "description": "Usa esta clave para acceder directamente a la API de Comprobify desde scripts o integraciones externas.",
+      "reveal": "Mostrar clave",
+      "masked": "••••••••••••••••••••••••••••••••"
+    }
+  },
+  "apiError": {
+    "DOCUMENT_NOT_FOUND": "El comprobante no existe.",
+    "VALIDATION_ERROR": "Revise los campos marcados en rojo.",
+    "TOO_MANY_REQUESTS": "Demasiadas solicitudes. Intente nuevamente en un momento.",
+    "UNAUTHORIZED": "No autorizado. Verifique que su API key sea válida.",
+    "CONFLICT": "Ya existe un comprobante con esa clave de idempotencia y un cuerpo diferente.",
+    "SRI_ERROR": "El SRI devolvió un error. Revise los mensajes de detalle.",
+    "INTERNAL_ERROR": "Error interno del servidor. Contacte al soporte.",
+    "UNKNOWN": "Ha ocurrido un error inesperado."
+  }
+}
