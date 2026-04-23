@@ -9,8 +9,8 @@ electronic invoices — no API knowledge required.
 
 ## Goals
 
-- ⬜ You can create, send, and authorize your own invoices from a browser
-- ⬜ A non-developer client can do the same without touching the API
+- 🔧 You can create, send, and authorize your own invoices from a browser
+- 🔧 A non-developer client can do the same without touching the API
 - ✅ The API product remains unchanged — the frontend is a UI layer on top of it
 - ✅ Deployable for free or near-free alongside the existing API (Vercel, see Deployment)
 
@@ -74,7 +74,7 @@ No user database needed. API key is read from `COMPROBIFY_API_KEY` on the server
 All Server Components and Server Actions read it from `process.env`. No login screen.
 
 ```bash
-# .env.local
+# .env.local.local
 COMPROBIFY_API_KEY=your-api-key-here
 COMPROBIFY_API_URL=http://localhost:8080
 COMPROBIFY_SANDBOX=true   # controls the yellow sandbox banner
@@ -140,13 +140,13 @@ client-side polling. See `docs/adr/002-bff-pattern.md`.
 
 | Use case | Approach | API key visible to browser? | Status |
 |---|---|---|---|
-| Dashboard invoice list | Server Component | No | ⬜ Not implemented |
-| Invoice detail page | Server Component | No | 🔧 Stub |
-| Create invoice | Server Action | No | ⬜ Not implemented |
-| Send to SRI | Server Action | No | ⬜ Not implemented |
-| Rebuild invoice | Server Action | No | ⬜ Not implemented |
-| Status polling (RECEIVED → AUTHORIZED) | API Route proxy + TanStack Query | No | ✅ Proxy wired, hook not yet |
-| Download PDF / XML | Server Action → stream | No | ⬜ Not implemented |
+| Dashboard invoice list | Server Component | No | ✅ Implemented |
+| Invoice detail page | Server Component | No | ✅ Implemented |
+| Create invoice | Server Action | No | ✅ Implemented |
+| Send to SRI | Server Action | No | ✅ Implemented |
+| Rebuild invoice | Server Action | No | ⬜ Blocked — needs requestPayload in API presenter |
+| Status polling (RECEIVED → AUTHORIZED) | API Route proxy + TanStack Query | No | ✅ Implemented |
+| Download PDF / XML | API Route proxy | No | ✅ Implemented |
 
 ---
 
@@ -178,50 +178,49 @@ See `docs/adr/006-next-intl-localization.md` and `docs/site/architecture/localiz
 
 ### 2. 🔧 Dashboard (`/es/dashboard`)
 
-**Page file:** `src/app/[locale]/dashboard/page.tsx` — stub exists, displays placeholder text.
+**Page file:** `src/app/[locale]/dashboard/page.tsx`
 
 **Remaining work:**
 - [ ] Summary cards (total invoices, authorized this month, pending count)
-- [ ] Invoice list table (sequential, buyer name, total, status badge, date)
 - [ ] Pagination controls
-- [ ] Empty state when no documents exist
-- [ ] Sandbox banner is wired ✅ — shows when `COMPROBIFY_SANDBOX=true`
-- [ ] "Nueva factura" button is wired ✅ — links to `/invoices/new`
+- [x] Invoice list table (sequential, buyer name, total, status badge, date) ✅
+- [x] Empty state when no documents exist ✅
+- [x] Sandbox banner ✅
+- [x] "Nueva factura" button ✅
 
 **API calls needed:** `GET /api/documents` ✅ (endpoint exists and is typed in `src/lib/api.ts`)
 
 See `docs/site/screens/dashboard.md`.
 
-### 3. ⬜ Create Invoice (`/es/invoices/new`)
+### 3. ✅ Create Invoice (`/es/invoices/new`)
 
-**Page file:** `src/app/[locale]/invoices/new/page.tsx` — stub exists, no form yet.
+**Page file:** `src/app/[locale]/invoices/new/page.tsx`
 
-**Remaining work:**
-- [ ] Buyer section (idType selector, id, name, email, address)
-- [ ] Line items section (add/remove rows, description, quantity, unit price, discount, IVA selector)
-- [ ] Payment section (method, total, term)
-- [ ] Live totals calculation (client-side as user types)
-- [ ] Zod schema mirroring the API validator
-- [ ] Server Action (`createInvoiceAction`) calling `createDocument()`
-- [ ] On success → redirect to Invoice Detail
-- [ ] On `VALIDATION_ERROR` → highlight fields
+- [x] Buyer section (idType selector, id, name, email, address) ✅
+- [x] Line items section (add/remove rows, description, quantity, unit price, discount, IVA selector) ✅
+- [x] Payment section (method, total, term) ✅
+- [x] Live totals calculation ✅
+- [x] Zod schema ✅
+- [x] Server Action (`createInvoiceAction`) ✅
+- [x] On success → redirect to Invoice Detail ✅
+- [x] On API error → show error message ✅
 
 **API calls needed:** `POST /api/documents` ✅ (typed in `src/lib/api.ts`)
 
 See `docs/site/screens/create-invoice.md`.
 
-### 4. 🔧 Invoice Detail (`/es/invoices/:key`)
+### 4. ✅ Invoice Detail (`/es/invoices/:key`)
 
-**Page file:** `src/app/[locale]/invoices/[key]/page.tsx` — stub exists, shows basic header fields.
+**Page file:** `src/app/[locale]/invoices/[key]/page.tsx`
 
-**Remaining work:**
-- [ ] Contextual action buttons by status (Send, Authorize, Download PDF/XML, Rebuild, Resend email)
-- [ ] TanStack Query polling hook when `status === 'RECEIVED'` (proxy route ✅ exists)
-- [ ] 2-minute polling timeout → show manual "Check again" button
-- [ ] Line items table
-- [ ] Events timeline (`GET /:key/events`)
-- [ ] SRI error messages display for RETURNED / NOT_AUTHORIZED
-- [ ] Access key copy button
+- [x] Contextual action buttons by status (Send, Authorize, Download PDF/XML, Resend email) ✅
+- [x] TanStack Query polling when `status === 'RECEIVED'` ✅
+- [x] 2-minute timeout → manual Authorize button ✅
+- [x] Events timeline ✅
+- [x] Authorization info when AUTHORIZED ✅
+- [x] Access key copy button ✅
+- [ ] Line items table — blocked: API presenter doesn't return items yet
+- [ ] Rebuild button — blocked: API presenter doesn't return requestPayload yet
 
 **API calls needed:** All typed in `src/lib/api.ts` ✅
 
@@ -229,11 +228,11 @@ See `docs/site/screens/invoice-detail.md`.
 
 ### 5. 🔧 Settings (`/es/settings`)
 
-**Page file:** `src/app/[locale]/settings/page.tsx` — stub exists, shows environment badge.
+**Page file:** `src/app/[locale]/settings/page.tsx`
 
-**Remaining work:**
-- [ ] Issuer info card (name, RUC, cert expiry, fingerprint) — requires `GET /api/issuer/me` endpoint (not yet built in the API)
-- [ ] API key reveal (masked input + Server Action on "Mostrar clave" click)
+- [x] Environment badge with i18n strings ✅
+- [ ] Issuer info card — blocked: requires `GET /api/issuer/me` (not yet in API)
+- [ ] API key reveal — masked input + Server Action on "Mostrar clave" click
 
 See `docs/site/screens/settings.md`.
 

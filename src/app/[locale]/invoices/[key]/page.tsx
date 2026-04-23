@@ -1,9 +1,20 @@
 import { setRequestLocale } from 'next-intl/server';
 import { getTranslations } from 'next-intl/server';
-import { getDocument } from '@/lib/api';
+import { getDocument, getDocumentEvents } from '@/lib/api';
 import { ApiError } from '@/lib/errors';
 import { notFound } from 'next/navigation';
 import { StatusBadge } from '@/components/status-badge';
+import { InvoiceActions } from '@/components/invoice-actions';
+import { InvoicePolling } from '@/components/invoice-polling';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { AccessKeyCopy } from '@/components/access-key-copy';
 
 export default async function InvoiceDetailPage({
   params,
@@ -15,8 +26,12 @@ export default async function InvoiceDetailPage({
   const t = await getTranslations('invoiceDetail');
 
   let document;
+  let events;
   try {
-    document = await getDocument(key);
+    [document, events] = await Promise.all([
+      getDocument(key),
+      getDocumentEvents(key),
+    ]);
   } catch (err) {
     if (err instanceof ApiError && err.isNotFound()) {
       notFound();
@@ -26,11 +41,14 @@ export default async function InvoiceDetailPage({
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs text-muted-foreground font-mono">
-            {t('accessKey')}: {document.accessKey}
-          </p>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
+            <span>{t('accessKey')}:</span>
+            <span>{document.accessKey}</span>
+            <AccessKeyCopy value={document.accessKey} />
+          </div>
           <h1 className="text-2xl font-bold mt-1">
             {t('sequential')}: {document.sequential}
           </h1>
@@ -38,7 +56,8 @@ export default async function InvoiceDetailPage({
         <StatusBadge status={document.status} />
       </div>
 
-      <div className="grid grid-cols-2 gap-4 text-sm">
+      {/* Key info */}
+      <div className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
         <div>
           <p className="text-muted-foreground">{t('issueDate')}</p>
           <p className="font-medium">{document.issueDate}</p>
@@ -57,13 +76,64 @@ export default async function InvoiceDetailPage({
         </div>
       </div>
 
-      {/* TODO Phase 3: Contextual action buttons based on status */}
-      {/* TODO Phase 3: Line items table */}
-      {/* TODO Phase 3: Events timeline */}
-      {/* TODO Phase 3: TanStack Query polling when status === RECEIVED */}
-      <p className="text-sm text-muted-foreground">
-        Vista detalle en construcción — agrega acciones contextuales y timeline de eventos.
-      </p>
+      {/* Authorization info */}
+      {document.authorizationNumber && (
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <p className="text-muted-foreground">{t('authorizationNumber')}</p>
+            <p className="font-mono text-xs break-all">{document.authorizationNumber}</p>
+          </div>
+          {document.authorizationDate && (
+            <div>
+              <p className="text-muted-foreground">{t('authorizationDate')}</p>
+              <p className="font-medium">{document.authorizationDate}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Polling banner */}
+      {document.status === 'RECEIVED' && (
+        <InvoicePolling accessKey={document.accessKey} />
+      )}
+
+      {/* Action buttons */}
+      <InvoiceActions accessKey={document.accessKey} status={document.status} />
+
+      {/* Events timeline */}
+      {events.length > 0 && (
+        <div className="space-y-2">
+          <h2 className="font-semibold">{t('events.title')}</h2>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t('events.type')}</TableHead>
+                <TableHead>{t('events.date')}</TableHead>
+                <TableHead>{t('events.detail')}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {events.map((event) => (
+                <TableRow key={event.id}>
+                  <TableCell>
+                    {t.has(`eventTypes.${event.eventType}` as Parameters<typeof t>[0])
+                      ? t(`eventTypes.${event.eventType}` as Parameters<typeof t>[0])
+                      : event.eventType}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                    {new Date(event.createdAt).toLocaleString('es-EC')}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{event.detail ?? '—'}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      {events.length === 0 && (
+        <p className="text-sm text-muted-foreground">{t('events.empty')}</p>
+      )}
     </div>
   );
 }

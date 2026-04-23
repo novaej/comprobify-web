@@ -9,6 +9,7 @@ export default async function SettingsPage({
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations('settings');
+  const tSandbox = await getTranslations('sandbox');
 
   const isSandbox = process.env.COMPROBIFY_SANDBOX === 'true';
 
@@ -16,19 +17,13 @@ export default async function SettingsPage({
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">{t('title')}</h1>
 
-      {/* Environment badge */}
       <div className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm">
-        <span
-          className={`h-2 w-2 rounded-full ${isSandbox ? 'bg-yellow-400' : 'bg-green-500'}`}
-        />
-        {isSandbox ? 'Sandbox (SRI pruebas)' : 'Producción (SRI real)'}
+        <span className={`h-2 w-2 rounded-full ${isSandbox ? 'bg-yellow-400' : 'bg-green-500'}`} />
+        {isSandbox ? tSandbox('badge') : tSandbox('productionBadge')}
       </div>
 
-      {/* TODO Phase 3: Issuer info card (name, RUC, cert expiry, fingerprint) */}
-      {/* TODO Phase 3: API key reveal (Server Action + dialog) */}
-      <p className="text-sm text-muted-foreground">
-        Configuración en construcción — agrega info del emisor y opción de mostrar API key.
-      </p>
+      {/* TODO: Issuer info card — requires GET /api/issuer/me (not yet in API) */}
+      {/* TODO: API key reveal — Server Action + masked input */}
     </div>
   );
 }
