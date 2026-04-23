@@ -2,7 +2,17 @@ import { setRequestLocale } from 'next-intl/server';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { SandboxBanner } from '@/components/sandbox-banner';
+import { StatusBadge } from '@/components/status-badge';
 import { buttonVariants } from '@/components/ui/button';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { listDocuments } from '@/lib/api';
 import { Plus } from 'lucide-react';
 
 export default async function DashboardPage({
@@ -13,6 +23,8 @@ export default async function DashboardPage({
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations('dashboard');
+
+  const { data: documents } = await listDocuments({ limit: 50 });
 
   return (
     <div className="space-y-6">
@@ -26,11 +38,45 @@ export default async function DashboardPage({
         </Link>
       </div>
 
-      {/* TODO Phase 3: Summary cards (total, authorized this month, pending) */}
-      {/* TODO Phase 3: Invoice list table with StatusBadge, pagination */}
-      <p className="text-sm text-muted-foreground">
-        Panel en construcción — conecta con la API y agrega la tabla de comprobantes.
-      </p>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>{t('table.sequential')}</TableHead>
+            <TableHead>{t('table.buyer')}</TableHead>
+            <TableHead>{t('table.date')}</TableHead>
+            <TableHead className="text-right">{t('table.total')}</TableHead>
+            <TableHead>{t('table.status')}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {documents.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={5} className="text-center text-muted-foreground py-10">
+                {t('table.empty')}
+              </TableCell>
+            </TableRow>
+          ) : (
+            documents.map((doc) => (
+              <TableRow key={doc.accessKey}>
+                <TableCell className="font-mono">
+                  <Link
+                    href={`/invoices/${doc.accessKey}`}
+                    className="hover:underline"
+                  >
+                    {doc.sequential}
+                  </Link>
+                </TableCell>
+                <TableCell>{doc.buyer.name}</TableCell>
+                <TableCell>{doc.issueDate}</TableCell>
+                <TableCell className="text-right">${doc.total}</TableCell>
+                <TableCell>
+                  <StatusBadge status={doc.status} />
+                </TableCell>
+              </TableRow>
+            ))
+          )}
+        </TableBody>
+      </Table>
     </div>
   );
 }
