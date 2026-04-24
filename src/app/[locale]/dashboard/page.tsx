@@ -38,45 +38,47 @@ export default async function DashboardPage({
         </Link>
       </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{t('table.sequential')}</TableHead>
-            <TableHead>{t('table.buyer')}</TableHead>
-            <TableHead>{t('table.date')}</TableHead>
-            <TableHead className="text-right">{t('table.total')}</TableHead>
-            <TableHead>{t('table.status')}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {documents.length === 0 ? (
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell colSpan={5} className="text-center text-muted-foreground py-10">
-                {t('table.empty')}
-              </TableCell>
+              <TableHead>{t('table.sequential')}</TableHead>
+              <TableHead>{t('table.buyer')}</TableHead>
+              <TableHead>{t('table.date')}</TableHead>
+              <TableHead className="text-right">{t('table.total')}</TableHead>
+              <TableHead>{t('table.status')}</TableHead>
             </TableRow>
-          ) : (
-            documents.map((doc) => (
-              <TableRow key={doc.accessKey}>
-                <TableCell className="font-mono">
-                  <Link
-                    href={`/invoices/${doc.accessKey}`}
-                    className="hover:underline"
-                  >
-                    {doc.sequential}
-                  </Link>
-                </TableCell>
-                <TableCell>{doc.buyer.name}</TableCell>
-                <TableCell>{doc.issueDate}</TableCell>
-                <TableCell className="text-right">${doc.total}</TableCell>
-                <TableCell>
-                  <StatusBadge status={doc.status} />
+          </TableHeader>
+          <TableBody>
+            {documents.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center text-muted-foreground py-10">
+                  {t('table.empty')}
                 </TableCell>
               </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
+            ) : (
+              documents.map((doc) => (
+                <TableRow key={doc.accessKey}>
+                  <TableCell className="font-mono">
+                    <Link
+                      href={`/invoices/${doc.accessKey}`}
+                      className="hover:underline"
+                    >
+                      {doc.sequential}
+                    </Link>
+                  </TableCell>
+                  <TableCell>{doc.buyer.name}</TableCell>
+                  <TableCell>{doc.issueDate}</TableCell>
+                  <TableCell className="text-right">${doc.total}</TableCell>
+                  <TableCell>
+                    <StatusBadge status={doc.status} />
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }

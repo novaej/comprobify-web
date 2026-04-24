@@ -42,11 +42,11 @@ export default async function InvoiceDetailPage({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
-            <span>{t('accessKey')}:</span>
-            <span>{document.accessKey}</span>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground font-mono">
+            <span className="shrink-0">{t('accessKey')}:</span>
+            <span className="break-all">{document.accessKey}</span>
             <AccessKeyCopy value={document.accessKey} />
           </div>
           <h1 className="text-2xl font-bold mt-1">
@@ -104,30 +104,32 @@ export default async function InvoiceDetailPage({
       {events.length > 0 && (
         <div className="space-y-2">
           <h2 className="font-semibold">{t('events.title')}</h2>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t('events.type')}</TableHead>
-                <TableHead>{t('events.date')}</TableHead>
-                <TableHead>{t('events.detail')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {events.map((event) => (
-                <TableRow key={event.id}>
-                  <TableCell>
-                    {t.has(`eventTypes.${event.eventType}` as Parameters<typeof t>[0])
-                      ? t(`eventTypes.${event.eventType}` as Parameters<typeof t>[0])
-                      : event.eventType}
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                    {new Date(event.createdAt).toLocaleString('es-EC')}
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{event.detail ?? '—'}</TableCell>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t('events.type')}</TableHead>
+                  <TableHead>{t('events.date')}</TableHead>
+                  <TableHead>{t('events.detail')}</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {events.map((event) => (
+                  <TableRow key={event.id}>
+                    <TableCell>
+                      {t.has(`eventTypes.${event.eventType}` as Parameters<typeof t>[0])
+                        ? t(`eventTypes.${event.eventType}` as Parameters<typeof t>[0])
+                        : event.eventType}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                      {new Date(event.createdAt).toLocaleString('es-EC')}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{event.detail ?? '—'}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       )}
 

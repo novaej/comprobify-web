@@ -302,7 +302,7 @@ See `docs/deployment.md` for the full guide (branching strategy, Vercel setup, e
 - ⬜ Multi-user (invite accountant to view/download, not create)
 - ⬜ Notas de crédito UI (once the API supports document type `04`)
 - ⬜ Language switcher (English locale file exists — just needs a switcher UI)
-- ⬜ Mobile-responsive layout (functional on mobile now, not optimized)
+- ✅ Mobile-responsive layout (hamburger drawer nav, responsive grids, scrollable tables)
 
 ---
 

@@ -31,9 +31,9 @@ export default async function LocaleLayout({
   return (
     <NextIntlClientProvider messages={messages}>
       <QueryProvider>
-        <div className="flex h-full">
+        <div className="flex h-full flex-col md:flex-row">
           <Nav />
-          <main className="flex-1 overflow-y-auto p-8">{children}</main>
+          <main className="flex-1 overflow-y-auto p-4 md:p-8">{children}</main>
         </div>
         <Toaster />
       </QueryProvider>

@@ -100,6 +100,7 @@ messages/
 8. **Client components must have `'use client'` at the top** — hooks (`useTranslations`, `usePathname`, `useState`) require it. Server Components must not have it.
 9. **Server Actions must have `'use server'` at the top** — mutation functions called from forms or buttons.
 10. **Keep TanStack Query only for polling** — page-level data fetching uses Server Components (no `useQuery` for initial load). See ADR-005.
+11. **All UI changes must be mobile-responsive** — use Tailwind responsive prefixes (`sm:`, `md:`) throughout. Stack layouts on mobile (`flex-col`, single-column grids) and expand on larger screens. Wrap every `<Table>` in `<div className="overflow-x-auto">`. Do not hardcode widths that would overflow on small screens.
 
 ---
 

@@ -171,6 +171,40 @@ export async function newApiCall(param: string): Promise<SomeType> {
 
 ---
 
+## Mobile responsiveness
+
+All UI changes must work on mobile. Follow these patterns:
+
+**Layout stacking** — default to column, expand at `sm:` or `md:`:
+```tsx
+<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+```
+
+**Grids** — single column on mobile, multi-column on larger screens:
+```tsx
+<div className="grid gap-4 sm:grid-cols-2">        // 1 → 2 cols
+<div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">  // 1 → 2 → 4 cols
+```
+
+**Tables** — always wrap in a scroll container:
+```tsx
+<div className="overflow-x-auto">
+  <Table>...</Table>
+</div>
+```
+
+**Long text / codes** — prevent overflow with `break-all` or `truncate`:
+```tsx
+<span className="break-all font-mono">{longCode}</span>
+```
+
+**Page padding** — use less padding on mobile:
+```tsx
+<main className="p-4 md:p-8">
+```
+
+---
+
 ## Adding a new shadcn component
 
 ```bash
