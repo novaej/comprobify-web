@@ -1,6 +1,6 @@
-# ADR-003: MVP Authentication — Single Env Var API Key
+# ADR-003: Authentication — Single Env Var (MVP) → Multi-user (Phase 2)
 
-**Status:** Accepted  
+**Status:** Superseded — Phase 2 implemented (2026-04-26)
 **Date:** 2026-04-22
 
 ## Context
@@ -23,20 +23,22 @@ The first user is the developer (the issuer). There is one Comprobify API key, s
 - The API key pattern is already established in the Comprobify API — nothing new to build there
 - NextAuth can be added later without touching the Comprobify API (ADR-002 pattern is preserved)
 
-## Phase 2 upgrade path
+## Phase 2 — implemented
 
-When multi-user is needed:
-1. Add NextAuth.js credentials provider
-2. Create a `users` table in a separate database (see FRONTEND_MVP.md Phase 2 schema)
-3. Store `comprobify_api_key` in the encrypted NextAuth JWT `token` (not `session`)
-4. Replace `process.env.COMPROBIFY_API_KEY` with `getToken({ req }).apiKey` in server-side code
-5. Add a login page at `[locale]/login/page.tsx`
+Multi-user auth is live. Implementation decisions:
 
-The BFF pattern (ADR-002) is unchanged by this upgrade — only the source of the API key changes.
+1. **Auth.js v5** (next-auth@beta) with a credentials provider (email + password)
+2. **Prisma + PostgreSQL** — `users` table: `email`, `password_hash`, `comprobify_api_key`, `comprobify_issuer_id`, `environment`
+3. **`comprobify_api_key` is NOT stored in the JWT or session** — it stays in the DB and is fetched via `requireApiKey()` (`src/lib/auth-token.ts`) on each server request. This avoids JWT-refresh complexity after issuer setup.
+4. **Session exposes only safe fields** — `{ id, email, environment, hasIssuer }`, read fresh from the DB on every `auth()` call so the UI reflects changes immediately without a sign-out/sign-in cycle.
+5. **Issuer provisioning** — registration creates only an account. Issuer setup (company details + P12 cert) happens in Settings and calls `POST /api/admin/issuers` via `src/lib/admin-api.ts` using `COMPROBIFY_ADMIN_SECRET`.
+6. **Sandbox → production** — one-way promotion via `POST /api/admin/issuers/:id/promote` + new production API key. The `environment` column flips from `'sandbox'` to `'production'`.
 
-## Consequences
+The BFF pattern (ADR-002) is unchanged — only the source of the API key changed (DB instead of env var).
 
-- No login screen in MVP
-- `COMPROBIFY_API_KEY` is a required environment variable — the app throws at startup if missing
-- Any person with access to the deployment URL can use the frontend (acceptable for a single-operator MVP)
-- The Settings screen has a "Reveal API key" button that returns `COMPROBIFY_API_KEY` from the server via a Server Action — same UX as GitHub's "show token once"
+## Consequences of Phase 2
+
+- `COMPROBIFY_API_KEY` and `COMPROBIFY_SANDBOX` env vars are removed — replaced by per-user DB state
+- `DATABASE_URL`, `COMPROBIFY_ADMIN_SECRET`, and `AUTH_SECRET` are now required env vars
+- Every server-side API call must call `requireApiKey()` to get the current user's key
+- One DB query per `auth()` call (for `environment` and `hasIssuer`) — acceptable for this traffic level

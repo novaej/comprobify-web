@@ -212,28 +212,47 @@ git checkout main
 
 ## Environment variables
 
-All variables are required unless marked optional. Set them in each Vercel project under **Settings → Environment Variables**.
+All variables are required. Set them in each Vercel project under **Settings → Environment Variables**.
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `COMPROBIFY_API_URL` | Yes | Base URL of the Comprobify API — no trailing slash (e.g. `https://api.comprobify.com`) |
-| `COMPROBIFY_API_KEY` | Yes | API key from your Comprobify issuer. **Never** use a `NEXT_PUBLIC_` prefix — this must stay server-only |
-| `COMPROBIFY_SANDBOX` | No | Set to `"true"` when the API key points to a sandbox issuer. Shows the yellow sandbox banner in the UI. Default: unset (treated as false) |
-| `NEXTAUTH_SECRET` | Yes | Random 32+ character string used by Next.js. Generate: `openssl rand -base64 32` |
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_URL` | PostgreSQL connection string for the frontend users table. Use a separate database from the Comprobify API DB. Recommended: [Neon](https://neon.tech) free tier on Vercel. |
+| `COMPROBIFY_API_URL` | Base URL of the Comprobify API — no trailing slash (e.g. `https://api.comprobify.com`) |
+| `COMPROBIFY_ADMIN_SECRET` | Admin secret for issuer provisioning. Must match the `COMPROBIFY_ADMIN_SECRET` set in the Comprobify API. Used server-side only — never exposed to the browser. |
+| `AUTH_SECRET` | Random 32+ character string used to sign Auth.js JWTs. Generate: `openssl rand -base64 32`. Use a **different value** per environment. |
 
-> **Staging:** point `COMPROBIFY_API_URL` at the staging deployment of the Comprobify API and use a sandbox issuer's API key. Set `COMPROBIFY_SANDBOX=true`.
+> **Staging:** point `COMPROBIFY_API_URL` at the staging Comprobify API. Use a separate `DATABASE_URL` from production — staging users and production users must be isolated.
 
-> **Production:** point `COMPROBIFY_API_URL` at the production Comprobify API and use a live issuer's API key. Leave `COMPROBIFY_SANDBOX` unset.
+> **Production:** point `COMPROBIFY_API_URL` at the production Comprobify API. Generate a fresh `AUTH_SECRET` — never reuse the staging value.
+
+### Removed variables (no longer needed)
+
+| Variable | Reason removed |
+|----------|----------------|
+| `COMPROBIFY_API_KEY` | API keys are now per-user, stored in the `users` table, and fetched via `requireApiKey()` |
+| `COMPROBIFY_SANDBOX` | Sandbox/production state is now per-user, stored in `users.environment` and read from the auth session |
+| `NEXTAUTH_SECRET` | Renamed to `AUTH_SECRET` (Auth.js v5 convention) |
 
 ---
 
 ## Production checklist
 
+**Database**
+- [ ] `DATABASE_URL` points to a production PostgreSQL instance (separate from staging)
+- [ ] `npx prisma migrate deploy` has been run against the production database
+- [ ] Production database has backups enabled
+
+**Comprobify API**
 - [ ] `COMPROBIFY_API_URL` points to the production Comprobify API (not staging)
-- [ ] `COMPROBIFY_API_KEY` belongs to a live issuer (`sandbox = false` on the API side)
-- [ ] `COMPROBIFY_SANDBOX` is **not** set (or set to `"false"`) — sandbox banner must not appear in production
-- [ ] `NEXTAUTH_SECRET` is a unique, randomly generated value — never reuse the staging secret
-- [ ] `COMPROBIFY_API_KEY` is set as a server-only variable (no `NEXT_PUBLIC_` prefix) in Vercel
+- [ ] `COMPROBIFY_ADMIN_SECRET` matches the production Comprobify API's admin secret
+- [ ] The Comprobify API's admin endpoints have rate limiting enabled
+
+**Auth**
+- [ ] `AUTH_SECRET` is a unique, randomly generated value — never reuse the staging secret (`openssl rand -base64 32`)
+- [ ] No `COMPROBIFY_API_KEY` or `COMPROBIFY_SANDBOX` env vars set — these are removed
+
+**Vercel**
+- [ ] All env vars are set as server-only (no `NEXT_PUBLIC_` prefix on any secret)
 - [ ] Custom domain configured in Vercel and DNS records updated
 - [ ] HTTPS enforced — Vercel handles this automatically for custom domains
 - [ ] `prod` branch is protected in GitHub (no force pushes, restricted push access)
@@ -249,7 +268,10 @@ Key things to monitor:
 
 | Symptom | Likely cause |
 |---------|--------------|
-| Blank page or 500 on all routes | Missing or wrong `COMPROBIFY_API_URL` / `COMPROBIFY_API_KEY` |
-| Sandbox banner appearing in production | `COMPROBIFY_SANDBOX=true` set on the production project |
+| All users redirected to `/login` in a loop | `AUTH_SECRET` missing or wrong — session JWTs can't be verified |
+| 500 on login / registration | `DATABASE_URL` misconfigured or migration not applied — run `npx prisma migrate deploy` |
+| Issuer setup fails in Settings | `COMPROBIFY_ADMIN_SECRET` missing or doesn't match the Comprobify API's admin secret |
+| API calls return 401 after issuer setup | The provisioned API key is invalid or was revoked — re-run setup |
+| Sandbox banner appears for production users | User's `environment` column is still `'sandbox'` — they must use the "Activate production" button in Settings |
 | Invoice status polling stuck | Proxy route `/api/documents/:key/status` can't reach the Comprobify API — check `COMPROBIFY_API_URL` and network access |
 | Build failing | Run `npm run build` locally and fix type errors before pushing |
