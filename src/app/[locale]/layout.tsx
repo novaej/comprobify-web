@@ -5,6 +5,8 @@ import { routing } from '@/i18n/routing';
 import { QueryProvider } from '@/providers/query-provider';
 import { Nav } from '@/components/nav';
 import { Toaster } from '@/components/ui/sonner';
+import { SandboxBanner } from '@/components/sandbox-banner';
+import { auth } from '@/auth';
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
@@ -23,18 +25,25 @@ export default async function LocaleLayout({
     notFound();
   }
 
-  // Required for static rendering with next-intl
   setRequestLocale(locale);
 
-  const messages = await getMessages();
+  const [messages, session] = await Promise.all([getMessages(), auth()]);
+  const isAuthenticated = !!session;
 
   return (
     <NextIntlClientProvider messages={messages}>
       <QueryProvider>
-        <div className="flex h-full flex-col md:flex-row">
-          <Nav />
-          <main className="flex-1 overflow-y-auto p-4 md:p-8">{children}</main>
-        </div>
+        {isAuthenticated ? (
+          <div className="flex h-full flex-col md:flex-row">
+            <Nav />
+            <main className="flex-1 overflow-y-auto p-4 md:p-8">
+              <SandboxBanner environment={session.user.environment} />
+              {children}
+            </main>
+          </div>
+        ) : (
+          <main className="flex-1">{children}</main>
+        )}
         <Toaster />
       </QueryProvider>
     </NextIntlClientProvider>

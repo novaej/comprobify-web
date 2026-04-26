@@ -1,7 +1,6 @@
 import { setRequestLocale } from 'next-intl/server';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import { SandboxBanner } from '@/components/sandbox-banner';
 import { StatusBadge } from '@/components/status-badge';
 import { buttonVariants } from '@/components/ui/button';
 import {
@@ -13,6 +12,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { listDocuments } from '@/lib/api';
+import { requireApiKey } from '@/lib/auth-token';
 import { Plus } from 'lucide-react';
 
 export default async function DashboardPage({
@@ -24,12 +24,11 @@ export default async function DashboardPage({
   setRequestLocale(locale);
   const t = await getTranslations('dashboard');
 
-  const { data: documents } = await listDocuments({ limit: 50 });
+  const apiKey = await requireApiKey();
+  const { data: documents } = await listDocuments(apiKey, { limit: 50 });
 
   return (
     <div className="space-y-6">
-      <SandboxBanner />
-
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{t('title')}</h1>
         <Link href="/invoices/new" className={buttonVariants()}>

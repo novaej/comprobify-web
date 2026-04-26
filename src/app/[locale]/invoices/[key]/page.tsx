@@ -1,6 +1,7 @@
 import { setRequestLocale } from 'next-intl/server';
 import { getTranslations } from 'next-intl/server';
 import { getDocument, getDocumentEvents } from '@/lib/api';
+import { requireApiKey } from '@/lib/auth-token';
 import { ApiError } from '@/lib/errors';
 import { notFound } from 'next/navigation';
 import { StatusBadge } from '@/components/status-badge';
@@ -25,12 +26,13 @@ export default async function InvoiceDetailPage({
   setRequestLocale(locale);
   const t = await getTranslations('invoiceDetail');
 
+  const apiKey = await requireApiKey();
   let document;
   let events;
   try {
     [document, events] = await Promise.all([
-      getDocument(key),
-      getDocumentEvents(key),
+      getDocument(apiKey, key),
+      getDocumentEvents(apiKey, key),
     ]);
   } catch (err) {
     if (err instanceof ApiError && err.isNotFound()) {

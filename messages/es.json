@@ -16,7 +16,34 @@
   "nav": {
     "dashboard": "Panel",
     "newInvoice": "Nueva factura",
-    "settings": "Configuración"
+    "settings": "Configuración",
+    "signOut": "Cerrar sesión"
+  },
+  "auth": {
+    "fields": {
+      "email": "Correo electrónico",
+      "password": "Contraseña",
+      "confirmPassword": "Confirmar contraseña"
+    },
+    "login": {
+      "subtitle": "Ingresa a tu cuenta",
+      "submit": "Ingresar",
+      "submitting": "Ingresando...",
+      "noAccount": "¿No tienes cuenta?",
+      "register": "Regístrate"
+    },
+    "register": {
+      "subtitle": "Crea tu cuenta",
+      "submit": "Crear cuenta",
+      "submitting": "Creando cuenta...",
+      "hasAccount": "¿Ya tienes cuenta?",
+      "login": "Inicia sesión"
+    }
+  },
+  "authError": {
+    "INVALID_CREDENTIALS": "Correo o contraseña incorrectos.",
+    "EMAIL_TAKEN": "Ya existe una cuenta con ese correo.",
+    "PASSWORD_MISMATCH": "Las contraseñas no coinciden."
   },
   "sandbox": {
     "banner": "Estás en modo sandbox — los comprobantes se envían al ambiente de pruebas del SRI.",
@@ -176,20 +203,50 @@
   },
   "settings": {
     "title": "Configuración",
-    "issuer": {
-      "title": "Información del emisor",
-      "name": "Nombre / Razón social",
+    "setup": {
+      "title": "Configura tu empresa",
+      "description": "Completa la información de tu empresa y sube tu certificado P12 para empezar a emitir facturas en el ambiente de pruebas del SRI.",
       "ruc": "RUC",
-      "environment": "Ambiente",
-      "certExpiry": "Vencimiento del certificado",
-      "certFingerprint": "Huella del certificado (SHA-1)"
+      "businessName": "Razón social",
+      "tradeName": "Nombre comercial (opcional)",
+      "mainAddress": "Dirección principal (opcional)",
+      "certSection": "Certificado de firma electrónica (P12)",
+      "certFile": "Archivo .p12",
+      "certPassword": "Contraseña del certificado",
+      "advanced": "Opciones avanzadas",
+      "branchCode": "Código establecimiento",
+      "issuePointCode": "Código punto de emisión",
+      "submit": "Activar entorno de pruebas",
+      "submitting": "Configurando..."
     },
-    "apiKey": {
-      "title": "API Key",
-      "description": "Usa esta clave para acceder directamente a la API de Comprobify desde scripts o integraciones externas.",
-      "reveal": "Mostrar clave",
-      "masked": "••••••••••••••••••••••••••••••••"
+    "environment": {
+      "title": "Ambiente",
+      "sandbox": "Sandbox — SRI pruebas",
+      "production": "Producción — SRI real"
+    },
+    "promote": {
+      "description": "Cuando estés listo para emitir facturas reales, puedes activar el ambiente de producción. Esta acción es irreversible.",
+      "button": "Activar producción",
+      "warning": "Esta acción es irreversible. A partir de este momento todas las facturas se enviarán al SRI real y tendrán validez legal.",
+      "confirm": "Confirmar activación",
+      "confirming": "Activando...",
+      "cancel": "Cancelar"
+    },
+    "account": {
+      "title": "Cuenta"
     }
+  },
+  "settingsError": {
+    "CERT_REQUIRED": "Debes subir tu certificado P12.",
+    "CERT_EXPIRED": "El certificado ha expirado. Renueva tu certificado en el SRI.",
+    "CERT_INVALID": "El certificado no es válido o la contraseña es incorrecta.",
+    "RUC_CONFLICT": "Ya existe un emisor registrado con ese RUC.",
+    "ISSUER_SETUP_FAILED": "No se pudo configurar el emisor. Verifica los datos e inténtalo de nuevo.",
+    "REQUIRED_FIELDS": "RUC y razón social son obligatorios.",
+    "UNAUTHORIZED": "No autorizado.",
+    "ALREADY_PRODUCTION": "Tu cuenta ya está en producción.",
+    "ISSUER_NOT_CONFIGURED": "Primero debes configurar tu empresa.",
+    "PROMOTE_FAILED": "No se pudo activar la producción. Inténtalo de nuevo."
   },
   "apiError": {
     "DOCUMENT_NOT_FOUND": "El comprobante no existe.",

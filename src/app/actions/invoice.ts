@@ -4,6 +4,7 @@ import { getLocale } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
 import { createDocument, CreateDocumentPayload } from '@/lib/api';
 import { ApiError } from '@/lib/errors';
+import { requireApiKey } from '@/lib/auth-token';
 
 type TaxOption = '2-4' | '2-0' | '2-5' | '2-6' | '2-7';
 
@@ -41,6 +42,8 @@ const TAX_MAP: Record<TaxOption, { code: string; rateCode: string; rate: string 
 export type CreateInvoiceResult = { error: string } | null;
 
 export async function createInvoiceAction(data: InvoiceFormData): Promise<CreateInvoiceResult> {
+  const apiKey = await requireApiKey();
+
   const payload: CreateDocumentPayload = {
     documentType: '01',
     buyer: {
@@ -67,7 +70,7 @@ export async function createInvoiceAction(data: InvoiceFormData): Promise<Create
 
   let accessKey: string;
   try {
-    const { document } = await createDocument(payload);
+    const { document } = await createDocument(apiKey, payload);
     accessKey = document.accessKey;
   } catch (err) {
     if (err instanceof ApiError) {

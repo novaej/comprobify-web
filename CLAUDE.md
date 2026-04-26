@@ -106,7 +106,11 @@ messages/
 
 ## Key Patterns
 
-**BFF (Backend-for-Frontend):** `src/lib/api.ts` is the only place that calls the Comprobify API. It reads `COMPROBIFY_API_KEY` from `process.env` and is only safe to use in Server Components, Server Actions, and Route Handlers. See `docs/adr/002-bff-pattern.md`.
+**BFF (Backend-for-Frontend):** `src/lib/api.ts` is the only place that calls the Comprobify API. All its functions accept `apiKey` as the first parameter — call `requireApiKey()` from `src/lib/auth-token.ts` to obtain it in Server Components, Server Actions, and Route Handlers. See `docs/adr/002-bff-pattern.md`.
+
+**Auth (multi-user):** Auth.js v5 (next-auth@beta) with a JWT session and a PostgreSQL users table via Prisma. The `comprobifyApiKey` column is never exposed in the session or JWT — it lives in the DB only and is fetched via `requireApiKey()`. The session exposes only `{ id, email, environment, hasIssuer }` — read fresh from the DB on every `auth()` call so UI reflects changes immediately.
+
+**Issuer provisioning:** uses `src/lib/admin-api.ts` with `COMPROBIFY_ADMIN_SECRET` to call the Comprobify admin endpoints. Registration creates only an account (email + password). Issuer setup happens in Settings via `setupIssuerAction` which calls `POST /api/admin/issuers`. Promoting to production calls `POST /api/admin/issuers/:id/promote` then creates a new production API key.
 
 **Localization:** Every visible string goes through next-intl. Add keys to `messages/es.json` first, then mirror in `messages/en.json`. Map API `code` fields (e.g. `DOCUMENT_NOT_FOUND`) to user messages via the `apiError` namespace. See `docs/adr/006-next-intl-localization.md`.
 

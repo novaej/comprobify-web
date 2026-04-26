@@ -82,7 +82,7 @@ COMPROBIFY_SANDBOX=true   # controls the yellow sandbox banner
 
 See `docs/adr/003-mvp-single-user-auth.md` and `.example.env`.
 
-### ⬜ Phase 2 — multiple users (not started)
+### ✅ Phase 2 — multiple users (implemented)
 
 NextAuth.js credentials provider + separate frontend database. Full design in the
 original spec below:

@@ -16,7 +16,34 @@
   "nav": {
     "dashboard": "Dashboard",
     "newInvoice": "New invoice",
-    "settings": "Settings"
+    "settings": "Settings",
+    "signOut": "Sign out"
+  },
+  "auth": {
+    "fields": {
+      "email": "Email address",
+      "password": "Password",
+      "confirmPassword": "Confirm password"
+    },
+    "login": {
+      "subtitle": "Sign in to your account",
+      "submit": "Sign in",
+      "submitting": "Signing in...",
+      "noAccount": "Don't have an account?",
+      "register": "Register"
+    },
+    "register": {
+      "subtitle": "Create your account",
+      "submit": "Create account",
+      "submitting": "Creating account...",
+      "hasAccount": "Already have an account?",
+      "login": "Sign in"
+    }
+  },
+  "authError": {
+    "INVALID_CREDENTIALS": "Incorrect email or password.",
+    "EMAIL_TAKEN": "An account with that email already exists.",
+    "PASSWORD_MISMATCH": "Passwords do not match."
   },
   "sandbox": {
     "banner": "You are in sandbox mode — documents are sent to the SRI test environment.",
@@ -176,20 +203,50 @@
   },
   "settings": {
     "title": "Settings",
-    "issuer": {
-      "title": "Issuer information",
-      "name": "Name / Company name",
+    "setup": {
+      "title": "Set up your company",
+      "description": "Complete your company information and upload your P12 certificate to start issuing documents in the SRI test environment.",
       "ruc": "RUC",
-      "environment": "Environment",
-      "certExpiry": "Certificate expiry",
-      "certFingerprint": "Certificate fingerprint (SHA-1)"
+      "businessName": "Legal name",
+      "tradeName": "Trade name (optional)",
+      "mainAddress": "Main address (optional)",
+      "certSection": "Electronic signature certificate (P12)",
+      "certFile": ".p12 file",
+      "certPassword": "Certificate password",
+      "advanced": "Advanced options",
+      "branchCode": "Branch code",
+      "issuePointCode": "Issue point code",
+      "submit": "Activate test environment",
+      "submitting": "Setting up..."
     },
-    "apiKey": {
-      "title": "API Key",
-      "description": "Use this key to access the Comprobify API directly from scripts or external integrations.",
-      "reveal": "Reveal key",
-      "masked": "••••••••••••••••••••••••••••••••"
+    "environment": {
+      "title": "Environment",
+      "sandbox": "Sandbox — SRI test",
+      "production": "Production — SRI live"
+    },
+    "promote": {
+      "description": "When you are ready to issue real invoices, you can activate the production environment. This action is irreversible.",
+      "button": "Activate production",
+      "warning": "This action is irreversible. From this point, all invoices will be sent to the live SRI and will have legal validity.",
+      "confirm": "Confirm activation",
+      "confirming": "Activating...",
+      "cancel": "Cancel"
+    },
+    "account": {
+      "title": "Account"
     }
+  },
+  "settingsError": {
+    "CERT_REQUIRED": "You must upload your P12 certificate.",
+    "CERT_EXPIRED": "The certificate has expired. Renew your certificate with the SRI.",
+    "CERT_INVALID": "The certificate is invalid or the password is incorrect.",
+    "RUC_CONFLICT": "An issuer with that RUC is already registered.",
+    "ISSUER_SETUP_FAILED": "Could not set up the issuer. Verify the data and try again.",
+    "REQUIRED_FIELDS": "RUC and legal name are required.",
+    "UNAUTHORIZED": "Unauthorized.",
+    "ALREADY_PRODUCTION": "Your account is already in production.",
+    "ISSUER_NOT_CONFIGURED": "You must set up your company first.",
+    "PROMOTE_FAILED": "Could not activate production. Please try again."
   },
   "apiError": {
     "DOCUMENT_NOT_FOUND": "Document not found.",

@@ -110,21 +110,13 @@ export interface CreateDocumentPayload {
 
 // ── HTTP client ───────────────────────────────────────────────────────────────
 
-function getConfig() {
-  const apiKey = process.env.COMPROBIFY_API_KEY;
-  const apiUrl = process.env.COMPROBIFY_API_URL;
-
-  if (!apiKey) throw new Error('COMPROBIFY_API_KEY is not set');
-  if (!apiUrl) throw new Error('COMPROBIFY_API_URL is not set');
-
-  return { apiKey, apiUrl };
-}
-
 async function request<T>(
   path: string,
+  apiKey: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const { apiKey, apiUrl } = getConfig();
+  const apiUrl = process.env.COMPROBIFY_API_URL;
+  if (!apiUrl) throw new Error('COMPROBIFY_API_URL is not set');
 
   const res = await fetch(`${apiUrl}${path}`, {
     ...options,
@@ -146,6 +138,7 @@ async function request<T>(
 // ── API functions ─────────────────────────────────────────────────────────────
 
 export async function listDocuments(
+  apiKey: string,
   params: ListDocumentsParams = {}
 ): Promise<ListDocumentsResult> {
   const qs = new URLSearchParams();
@@ -157,17 +150,19 @@ export async function listDocuments(
   if (params.limit) qs.set('limit', String(params.limit));
 
   const query = qs.toString();
-  return request<ListDocumentsResult>(`/api/documents${query ? `?${query}` : ''}`);
+  return request<ListDocumentsResult>(`/api/documents${query ? `?${query}` : ''}`, apiKey);
 }
 
-export async function getDocument(accessKey: string): Promise<Document> {
+export async function getDocument(apiKey: string, accessKey: string): Promise<Document> {
   const result = await request<{ ok: true; document: Document }>(
-    `/api/documents/${accessKey}`
+    `/api/documents/${accessKey}`,
+    apiKey,
   );
   return result.document;
 }
 
 export async function createDocument(
+  apiKey: string,
   payload: CreateDocumentPayload,
   idempotencyKey?: string
 ): Promise<{ document: Document; created: boolean }> {
@@ -176,6 +171,7 @@ export async function createDocument(
 
   const result = await request<{ ok: true; document: Document }>(
     '/api/documents',
+    apiKey,
     {
       method: 'POST',
       body: JSON.stringify(payload),
@@ -185,27 +181,31 @@ export async function createDocument(
   return { document: result.document, created: true };
 }
 
-export async function sendToSri(accessKey: string): Promise<Document> {
+export async function sendToSri(apiKey: string, accessKey: string): Promise<Document> {
   const result = await request<{ ok: true; document: Document }>(
     `/api/documents/${accessKey}/send`,
+    apiKey,
     { method: 'POST' }
   );
   return result.document;
 }
 
-export async function checkAuthorization(accessKey: string): Promise<Document> {
+export async function checkAuthorization(apiKey: string, accessKey: string): Promise<Document> {
   const result = await request<{ ok: true; document: Document }>(
-    `/api/documents/${accessKey}/authorize`
+    `/api/documents/${accessKey}/authorize`,
+    apiKey,
   );
   return result.document;
 }
 
 export async function rebuildDocument(
+  apiKey: string,
   accessKey: string,
   payload: CreateDocumentPayload
 ): Promise<Document> {
   const result = await request<{ ok: true; document: Document }>(
     `/api/documents/${accessKey}/rebuild`,
+    apiKey,
     {
       method: 'POST',
       body: JSON.stringify(payload),
@@ -215,19 +215,24 @@ export async function rebuildDocument(
 }
 
 export async function getDocumentEvents(
+  apiKey: string,
   accessKey: string
 ): Promise<DocumentEvent[]> {
   const result = await request<{ ok: true; events: DocumentEvent[] }>(
-    `/api/documents/${accessKey}/events`
+    `/api/documents/${accessKey}/events`,
+    apiKey,
   );
   return result.events;
 }
 
 export async function retrySingleEmail(
+  apiKey: string,
   accessKey: string,
   force = false
 ): Promise<void> {
-  await request(`/api/documents/${accessKey}/email-retry${force ? '?force=true' : ''}`, {
-    method: 'POST',
-  });
+  await request(
+    `/api/documents/${accessKey}/email-retry${force ? '?force=true' : ''}`,
+    apiKey,
+    { method: 'POST' },
+  );
 }
