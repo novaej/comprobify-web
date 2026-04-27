@@ -59,8 +59,9 @@ export function ProductionPromotion() {
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <p className="text-sm text-muted-foreground">{t('description')}</p>
+      <p className="text-xs text-muted-foreground border-l-2 border-border pl-2">{t('emailHint')}</p>
       <Button variant="outline" size="sm" onClick={() => setConfirming(true)}>
         {t('button')}
       </Button>

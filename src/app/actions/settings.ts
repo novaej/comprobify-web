@@ -1,8 +1,10 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { adminCreateIssuer, adminPromoteIssuer, adminCreateApiKey, IssuerFields } from '@/lib/admin-api';
+import { registerIssuer, promoteToProduction, IssuerRegistrationFields } from '@/lib/api';
+import { requireApiKey } from '@/lib/auth-token';
 import { auth } from '@/auth';
+import { ApiError } from '@/lib/errors';
 import { getLocale } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
 
@@ -10,14 +12,14 @@ export type SettingsResult = { error: string } | null;
 
 export async function setupIssuerAction(formData: FormData): Promise<SettingsResult> {
   const session = await auth();
-  if (!session?.user?.id) return { error: 'UNAUTHORIZED' };
+  if (!session?.user?.id || !session.user.email) return { error: 'UNAUTHORIZED' };
   const userId = Number(session.user.id);
 
   const certFile = formData.get('cert') as File | null;
   if (!certFile || certFile.size === 0) return { error: 'CERT_REQUIRED' };
 
   const certPassword = (formData.get('certPassword') as string) ?? '';
-  const fields: IssuerFields = {
+  const fields: IssuerRegistrationFields = {
     ruc: (formData.get('ruc') as string).trim(),
     businessName: (formData.get('businessName') as string).trim(),
     tradeName: (formData.get('tradeName') as string | null)?.trim() || undefined,
@@ -35,15 +37,17 @@ export async function setupIssuerAction(formData: FormData): Promise<SettingsRes
   let issuerId: number;
   let apiKey: string;
   try {
-    const result = await adminCreateIssuer(fields, p12Buffer, certPassword);
-    issuerId = result.issuer.id;
-    apiKey = result.apiKey;
+    ({ issuerId, apiKey } = await registerIssuer(session.user.email, fields, p12Buffer, certPassword));
   } catch (err) {
-    const msg = err instanceof Error ? err.message : '';
-    if (msg.toLowerCase().includes('expired')) return { error: 'CERT_EXPIRED' };
-    if (msg.toLowerCase().includes('locate signing key') || msg.toLowerCase().includes('invalid')) return { error: 'CERT_INVALID' };
-    if (msg.toLowerCase().includes('already exists')) return { error: 'RUC_CONFLICT' };
-    return { error: 'ISSUER_SETUP_FAILED' };
+    if (err instanceof ApiError) {
+      if (err.status === 409) return { error: 'CONFLICT' };
+      if (err.status === 429) return { error: 'TOO_MANY_REQUESTS' };
+      const msg = err.detail.toLowerCase();
+      if (msg.includes('expired')) return { error: 'CERT_EXPIRED' };
+      if (msg.includes('signing key') || msg.includes('invalid') || msg.includes('password')) return { error: 'CERT_INVALID' };
+      return { error: err.code };
+    }
+    throw err;
   }
 
   await db.user.update({
@@ -59,28 +63,25 @@ export async function setupIssuerAction(formData: FormData): Promise<SettingsRes
 export async function promoteToProductionAction(): Promise<SettingsResult> {
   const session = await auth();
   if (!session?.user?.id) return { error: 'UNAUTHORIZED' };
-  const userId = Number(session.user.id);
+  if (session.user.environment === 'production') return { error: 'ALREADY_PRODUCTION' };
 
-  const user = await db.user.findUnique({
-    where: { id: userId },
-    select: { comprobifyIssuerId: true, environment: true },
-  });
-
-  if (!user?.comprobifyIssuerId) return { error: 'ISSUER_NOT_CONFIGURED' };
-  if (user.environment === 'production') return { error: 'ALREADY_PRODUCTION' };
-
+  let newApiKey: string;
   try {
-    await adminPromoteIssuer(user.comprobifyIssuerId);
-    const newApiKey = await adminCreateApiKey(user.comprobifyIssuerId, 'Production key');
-    await db.user.update({
-      where: { id: userId },
-      data: { comprobifyApiKey: newApiKey, environment: 'production' },
-    });
+    const currentApiKey = await requireApiKey();
+    newApiKey = await promoteToProduction(currentApiKey);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : '';
-    if (msg.includes('already in production')) return { error: 'ALREADY_PRODUCTION' };
-    return { error: 'PROMOTE_FAILED' };
+    if (err instanceof ApiError) {
+      if (err.status === 403) return { error: 'EMAIL_NOT_VERIFIED' };
+      if (err.status === 409) return { error: 'ALREADY_PRODUCTION' };
+      return { error: err.code };
+    }
+    throw err;
   }
+
+  await db.user.update({
+    where: { id: Number(session.user.id) },
+    data: { comprobifyApiKey: newApiKey, environment: 'production' },
+  });
 
   const locale = await getLocale();
   redirect({ href: '/settings', locale });

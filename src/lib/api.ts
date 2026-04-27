@@ -110,15 +110,18 @@ export interface CreateDocumentPayload {
 
 // ── HTTP client ───────────────────────────────────────────────────────────────
 
+function getApiUrl(): string {
+  const apiUrl = process.env.COMPROBIFY_API_URL;
+  if (!apiUrl) throw new Error('COMPROBIFY_API_URL is not set');
+  return apiUrl;
+}
+
 async function request<T>(
   path: string,
   apiKey: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const apiUrl = process.env.COMPROBIFY_API_URL;
-  if (!apiUrl) throw new Error('COMPROBIFY_API_URL is not set');
-
-  const res = await fetch(`${apiUrl}${path}`, {
+  const res = await fetch(`${getApiUrl()}${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -133,6 +136,31 @@ async function request<T>(
   }
 
   return res.json() as Promise<T>;
+}
+
+// For public endpoints that require no API key (e.g. self-service registration)
+async function publicRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const res = await fetch(`${getApiUrl()}${path}`, options);
+
+  if (!res.ok) {
+    const problem: ProblemDetails = await res.json();
+    throw new ApiError(problem);
+  }
+
+  return res.json() as Promise<T>;
+}
+
+// ── Types for self-service registration ──────────────────────────────────────
+
+export interface IssuerRegistrationFields {
+  ruc: string;
+  businessName: string;
+  tradeName?: string;
+  mainAddress?: string;
+  branchCode: string;
+  issuePointCode: string;
+  emissionType: string;
+  requiredAccounting: boolean;
 }
 
 // ── API functions ─────────────────────────────────────────────────────────────
@@ -235,4 +263,50 @@ export async function retrySingleEmail(
     apiKey,
     { method: 'POST' },
   );
+}
+
+// ── Self-service issuer provisioning ──────────────────────────────────────────
+
+export async function registerIssuer(
+  email: string,
+  fields: IssuerRegistrationFields,
+  p12Buffer: Buffer,
+  p12Password: string,
+): Promise<{ issuerId: number; apiKey: string }> {
+  const form = new FormData();
+  form.append('email', email);
+  form.append('ruc', fields.ruc);
+  form.append('businessName', fields.businessName);
+  if (fields.tradeName) form.append('tradeName', fields.tradeName);
+  if (fields.mainAddress) form.append('mainAddress', fields.mainAddress);
+  form.append('branchCode', fields.branchCode);
+  form.append('issuePointCode', fields.issuePointCode);
+  form.append('environment', '1'); // SRI sandbox environment code
+  form.append('emissionType', fields.emissionType);
+  form.append('requiredAccounting', fields.requiredAccounting ? 'true' : 'false');
+  form.append('certPassword', p12Password);
+
+  const certArrayBuffer = p12Buffer.buffer.slice(
+    p12Buffer.byteOffset,
+    p12Buffer.byteOffset + p12Buffer.byteLength,
+  ) as ArrayBuffer;
+  form.append('cert', new Blob([certArrayBuffer], { type: 'application/x-pkcs12' }), 'cert.p12');
+
+  const result = await publicRequest<{
+    ok: true;
+    tenant: { id: number; email: string; status: string };
+    issuer: { id: number; ruc: string; sandbox: boolean };
+    apiKey: string;
+  }>('/api/register', { method: 'POST', body: form });
+
+  return { issuerId: result.issuer.id, apiKey: result.apiKey };
+}
+
+export async function promoteToProduction(apiKey: string): Promise<string> {
+  const result = await request<{ ok: true; issuer: object; apiKey: string }>(
+    '/api/issuers/promote',
+    apiKey,
+    { method: 'POST' },
+  );
+  return result.apiKey;
 }

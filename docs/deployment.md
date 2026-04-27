@@ -214,12 +214,12 @@ git checkout main
 
 All variables are required. Set them in each Vercel project under **Settings → Environment Variables**.
 
-| Variable | Description |
-|----------|-------------|
-| `DATABASE_URL` | PostgreSQL connection string for the frontend users table. Use a separate database from the Comprobify API DB. Recommended: [Neon](https://neon.tech) free tier on Vercel. |
-| `COMPROBIFY_API_URL` | Base URL of the Comprobify API — no trailing slash (e.g. `https://api.comprobify.com`) |
-| `COMPROBIFY_ADMIN_SECRET` | Admin secret for issuer provisioning. Must match the `COMPROBIFY_ADMIN_SECRET` set in the Comprobify API. Used server-side only — never exposed to the browser. |
-| `AUTH_SECRET` | Random 32+ character string used to sign Auth.js JWTs. Generate: `openssl rand -base64 32`. Use a **different value** per environment. |
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | Yes | PostgreSQL connection string for the frontend users table. Use a separate database from the Comprobify API DB. Recommended: [Neon](https://neon.tech) free tier on Vercel. |
+| `COMPROBIFY_API_URL` | Yes | Base URL of the Comprobify API — no trailing slash (e.g. `https://api.comprobify.com`) |
+| `AUTH_SECRET` | Yes | Random 32+ character string used to sign Auth.js JWTs. Generate: `openssl rand -base64 32`. Use a **different value** per environment. |
+| `COMPROBIFY_ADMIN_SECRET` | No | Admin secret for the Comprobify API's `/api/admin/*` routes. Only needed if building operator tooling (e.g. managing subscription tiers). Self-service registration and production promotion do **not** require it. |
 
 > **Staging:** point `COMPROBIFY_API_URL` at the staging Comprobify API. Use a separate `DATABASE_URL` from production — staging users and production users must be isolated.
 
@@ -229,8 +229,8 @@ All variables are required. Set them in each Vercel project under **Settings →
 
 | Variable | Reason removed |
 |----------|----------------|
-| `COMPROBIFY_API_KEY` | API keys are now per-user, stored in the `users` table, and fetched via `requireApiKey()` |
-| `COMPROBIFY_SANDBOX` | Sandbox/production state is now per-user, stored in `users.environment` and read from the auth session |
+| `COMPROBIFY_API_KEY` | API keys are now per-user, stored in the `users` table, fetched via `requireApiKey()` |
+| `COMPROBIFY_SANDBOX` | Sandbox/production state is now per-user, stored in `users.environment`, read from the auth session |
 | `NEXTAUTH_SECRET` | Renamed to `AUTH_SECRET` (Auth.js v5 convention) |
 
 ---
@@ -244,8 +244,8 @@ All variables are required. Set them in each Vercel project under **Settings →
 
 **Comprobify API**
 - [ ] `COMPROBIFY_API_URL` points to the production Comprobify API (not staging)
-- [ ] `COMPROBIFY_ADMIN_SECRET` matches the production Comprobify API's admin secret
-- [ ] The Comprobify API's admin endpoints have rate limiting enabled
+- [ ] The Comprobify API's registration rate limiter is active (5 req/hour per IP)
+- [ ] If using admin tooling: `COMPROBIFY_ADMIN_SECRET` is set and matches the API config
 
 **Auth**
 - [ ] `AUTH_SECRET` is a unique, randomly generated value — never reuse the staging secret (`openssl rand -base64 32`)

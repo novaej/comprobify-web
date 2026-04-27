@@ -37,18 +37,16 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5432/comprobify_web
 # Base URL of your local Comprobify API (no trailing slash)
 COMPROBIFY_API_URL=http://localhost:8080
 
-# Admin secret for issuer provisioning — must match COMPROBIFY_ADMIN_SECRET
-# in your Comprobify API config (see ../comprobify/.env or its GETTING_STARTED)
-COMPROBIFY_ADMIN_SECRET=your-admin-secret-here
-
 # Auth secret for encrypting the session JWT — any random 32+ char string
 # Generate one: openssl rand -base64 32
 AUTH_SECRET=replace-me-with-a-random-string
 ```
 
-> **`COMPROBIFY_ADMIN_SECRET`** is the same secret the Comprobify API uses to protect
-> its `/api/admin/*` routes. It is used here only for issuer provisioning (registering
-> a new user's company/cert). It is server-only and never sent to the browser.
+> **Note:** `COMPROBIFY_ADMIN_SECRET` is **not** required for normal operation.
+> User registration and production promotion use the Comprobify API's public
+> self-service endpoints (`POST /api/register`, `POST /api/issuers/promote`).
+> The admin secret is only needed if you build operator tooling (e.g. managing
+> subscription tiers). See `.example.env` for the optional variable.
 
 ---
 
@@ -231,5 +229,5 @@ comprobify-web/
 |----------|---------|---------|
 | `DATABASE_URL` | PostgreSQL connection string for the users table | Yes |
 | `COMPROBIFY_API_URL` | Base URL of the Comprobify API | Yes |
-| `COMPROBIFY_ADMIN_SECRET` | Comprobify admin secret for issuer provisioning | Yes |
 | `AUTH_SECRET` | Auth.js JWT signing secret — any random 32+ char string | Yes |
+| `COMPROBIFY_ADMIN_SECRET` | Admin secret for operator tooling (not needed for normal use) | No |

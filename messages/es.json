@@ -226,6 +226,7 @@
     },
     "promote": {
       "description": "Cuando estés listo para emitir facturas reales, puedes activar el ambiente de producción. Esta acción es irreversible.",
+      "emailHint": "Antes de activar producción debes verificar tu correo electrónico. Revisa tu bandeja de entrada.",
       "button": "Activar producción",
       "warning": "Esta acción es irreversible. A partir de este momento todas las facturas se enviarán al SRI real y tendrán validez legal.",
       "confirm": "Confirmar activación",
@@ -240,13 +241,13 @@
     "CERT_REQUIRED": "Debes subir tu certificado P12.",
     "CERT_EXPIRED": "El certificado ha expirado. Renueva tu certificado en el SRI.",
     "CERT_INVALID": "El certificado no es válido o la contraseña es incorrecta.",
-    "RUC_CONFLICT": "Ya existe un emisor registrado con ese RUC.",
-    "ISSUER_SETUP_FAILED": "No se pudo configurar el emisor. Verifica los datos e inténtalo de nuevo.",
+    "CONFLICT": "Ya existe una cuenta o emisor registrado con ese correo o RUC.",
     "REQUIRED_FIELDS": "RUC y razón social son obligatorios.",
     "UNAUTHORIZED": "No autorizado.",
     "ALREADY_PRODUCTION": "Tu cuenta ya está en producción.",
     "ISSUER_NOT_CONFIGURED": "Primero debes configurar tu empresa.",
-    "PROMOTE_FAILED": "No se pudo activar la producción. Inténtalo de nuevo."
+    "EMAIL_NOT_VERIFIED": "Debes verificar tu correo electrónico antes de activar producción. Revisa tu bandeja de entrada.",
+    "TOO_MANY_REQUESTS": "Demasiados intentos. Espera unos minutos e inténtalo de nuevo."
   },
   "apiError": {
     "DOCUMENT_NOT_FOUND": "El comprobante no existe.",
