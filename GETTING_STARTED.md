@@ -78,6 +78,10 @@ docker exec -it postgres16 psql -U postgres -d comprobify_web_local -c "
   ALTER DEFAULT PRIVILEGES GRANT ALL ON TABLES TO comprobify_web_app;
   ALTER DEFAULT PRIVILEGES GRANT ALL ON SEQUENCES TO comprobify_web_app;
 "
+
+# Prisma Migrate needs CREATEDB to create a temporary shadow database
+docker exec -it postgres16 psql -U postgres -c \
+  "ALTER ROLE comprobify_web_app CREATEDB;"
 ```
 
 Connection string: `postgresql://comprobify_web_app:changeme@localhost:5432/comprobify_web_local`
@@ -98,6 +102,8 @@ psql comprobify_web_local -c "
   ALTER DEFAULT PRIVILEGES GRANT ALL ON TABLES TO comprobify_web_app;
   ALTER DEFAULT PRIVILEGES GRANT ALL ON SEQUENCES TO comprobify_web_app;
 "
+# Prisma Migrate needs CREATEDB to create a temporary shadow database
+psql postgres -c "ALTER ROLE comprobify_web_app CREATEDB;"
 ```
 
 Connection string: `postgresql://comprobify_web_app:changeme@localhost/comprobify_web_local`
