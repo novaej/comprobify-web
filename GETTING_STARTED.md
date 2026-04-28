@@ -32,7 +32,7 @@ Edit `.env.local` with your values:
 
 ```bash
 # PostgreSQL connection string for the frontend user database
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/comprobify_web
+DATABASE_URL=postgresql://web_app:changeme@localhost:5432/comprobify_web_local
 
 # Base URL of your local Comprobify API (no trailing slash)
 COMPROBIFY_API_URL=http://localhost:8080
@@ -55,26 +55,52 @@ AUTH_SECRET=replace-me-with-a-random-string
 The frontend needs its own PostgreSQL database to store user accounts.
 It is **separate** from the Comprobify API's database.
 
-### Option A — Docker (recommended, no install required)
+### Option A — Docker (add a new database to the existing container)
+
+If you already have the Comprobify API's Postgres container running (`postgres16`),
+just create a new database and role inside it — no second container needed.
 
 ```bash
-docker run --name comprobify-web-pg \
-  -e POSTGRES_PASSWORD=postgres \
-  -p 5432:5432 \
-  -d postgres
+# Create the database
+docker exec -it postgres16 psql -U postgres -c \
+  "CREATE DATABASE comprobify_web_local;"
+
+# Create the application role (run separately so an "already exists"
+# error doesn't abort the grant block below)
+docker exec -it postgres16 psql -U postgres -c \
+  "CREATE ROLE web_app LOGIN PASSWORD 'changeme';"
+
+# Grant all required privileges
+docker exec -it postgres16 psql -U postgres -d comprobify_web_local -c "
+  GRANT ALL PRIVILEGES ON DATABASE comprobify_web_local TO web_app;
+  GRANT ALL ON SCHEMA public TO PUBLIC;
+  GRANT ALL ON SCHEMA public TO web_app;
+  ALTER DEFAULT PRIVILEGES GRANT ALL ON TABLES TO web_app;
+  ALTER DEFAULT PRIVILEGES GRANT ALL ON SEQUENCES TO web_app;
+"
 ```
 
-Connection string: `postgresql://postgres:postgres@localhost:5432/comprobify_web`
+Connection string: `postgresql://web_app:changeme@localhost:5432/comprobify_web_local`
 
 ### Option B — Homebrew (Mac)
 
 ```bash
 brew install postgresql@16
 brew services start postgresql@16
-createdb comprobify_web
+
+# Create the database and a dedicated role
+psql postgres -c "CREATE DATABASE comprobify_web_local;"
+psql postgres -c "CREATE ROLE web_app LOGIN PASSWORD 'changeme';"
+psql comprobify_web_local -c "
+  GRANT ALL PRIVILEGES ON DATABASE comprobify_web_local TO web_app;
+  GRANT ALL ON SCHEMA public TO PUBLIC;
+  GRANT ALL ON SCHEMA public TO web_app;
+  ALTER DEFAULT PRIVILEGES GRANT ALL ON TABLES TO web_app;
+  ALTER DEFAULT PRIVILEGES GRANT ALL ON SEQUENCES TO web_app;
+"
 ```
 
-Connection string: `postgresql://localhost/comprobify_web`
+Connection string: `postgresql://web_app:changeme@localhost/comprobify_web_local`
 
 ### Option C — Cloud (Neon, Supabase)
 
