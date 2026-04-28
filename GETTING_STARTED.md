@@ -32,7 +32,7 @@ Edit `.env.local` with your values:
 
 ```bash
 # PostgreSQL connection string for the frontend user database
-DATABASE_URL=postgresql://web_app:changeme@localhost:5432/comprobify_web_local
+DATABASE_URL=postgresql://comprobify_web_app:changeme@localhost:5432/comprobify_web_local
 
 # Base URL of your local Comprobify API (no trailing slash)
 COMPROBIFY_API_URL=http://localhost:8080
@@ -68,19 +68,19 @@ docker exec -it postgres16 psql -U postgres -c \
 # Create the application role (run separately so an "already exists"
 # error doesn't abort the grant block below)
 docker exec -it postgres16 psql -U postgres -c \
-  "CREATE ROLE web_app LOGIN PASSWORD 'changeme';"
+  "CREATE ROLE comprobify_web_app LOGIN PASSWORD 'changeme';"
 
 # Grant all required privileges
 docker exec -it postgres16 psql -U postgres -d comprobify_web_local -c "
-  GRANT ALL PRIVILEGES ON DATABASE comprobify_web_local TO web_app;
+  GRANT ALL PRIVILEGES ON DATABASE comprobify_web_local TO comprobify_web_app;
   GRANT ALL ON SCHEMA public TO PUBLIC;
-  GRANT ALL ON SCHEMA public TO web_app;
-  ALTER DEFAULT PRIVILEGES GRANT ALL ON TABLES TO web_app;
-  ALTER DEFAULT PRIVILEGES GRANT ALL ON SEQUENCES TO web_app;
+  GRANT ALL ON SCHEMA public TO comprobify_web_app;
+  ALTER DEFAULT PRIVILEGES GRANT ALL ON TABLES TO comprobify_web_app;
+  ALTER DEFAULT PRIVILEGES GRANT ALL ON SEQUENCES TO comprobify_web_app;
 "
 ```
 
-Connection string: `postgresql://web_app:changeme@localhost:5432/comprobify_web_local`
+Connection string: `postgresql://comprobify_web_app:changeme@localhost:5432/comprobify_web_local`
 
 ### Option B — Homebrew (Mac)
 
@@ -90,17 +90,17 @@ brew services start postgresql@16
 
 # Create the database and a dedicated role
 psql postgres -c "CREATE DATABASE comprobify_web_local;"
-psql postgres -c "CREATE ROLE web_app LOGIN PASSWORD 'changeme';"
+psql postgres -c "CREATE ROLE comprobify_web_app LOGIN PASSWORD 'changeme';"
 psql comprobify_web_local -c "
-  GRANT ALL PRIVILEGES ON DATABASE comprobify_web_local TO web_app;
+  GRANT ALL PRIVILEGES ON DATABASE comprobify_web_local TO comprobify_web_app;
   GRANT ALL ON SCHEMA public TO PUBLIC;
-  GRANT ALL ON SCHEMA public TO web_app;
-  ALTER DEFAULT PRIVILEGES GRANT ALL ON TABLES TO web_app;
-  ALTER DEFAULT PRIVILEGES GRANT ALL ON SEQUENCES TO web_app;
+  GRANT ALL ON SCHEMA public TO comprobify_web_app;
+  ALTER DEFAULT PRIVILEGES GRANT ALL ON TABLES TO comprobify_web_app;
+  ALTER DEFAULT PRIVILEGES GRANT ALL ON SEQUENCES TO comprobify_web_app;
 "
 ```
 
-Connection string: `postgresql://web_app:changeme@localhost/comprobify_web_local`
+Connection string: `postgresql://comprobify_web_app:changeme@localhost/comprobify_web_local`
 
 ### Option C — Cloud (Neon, Supabase)
 
