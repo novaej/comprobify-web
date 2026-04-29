@@ -3,27 +3,43 @@
 import { useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
-import { promoteToProductionAction } from '@/app/actions/settings';
-import { AlertTriangle } from 'lucide-react';
+import { promoteToProductionAction, resendVerificationAction } from '@/app/actions/settings';
+import { AlertTriangle, MailCheck } from 'lucide-react';
 
 export function ProductionPromotion() {
   const t = useTranslations('settings.promote');
   const tError = useTranslations('settingsError');
   const [isPending, startTransition] = useTransition();
+  const [isResendPending, startResendTransition] = useTransition();
   const [confirming, setConfirming] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
+  const [resendSent, setResendSent] = useState(false);
+
+  const error = errorCode
+    ? (tError.has(errorCode as Parameters<typeof tError>[0])
+        ? tError(errorCode as Parameters<typeof tError>[0])
+        : errorCode)
+    : null;
 
   function handlePromote() {
-    setError(null);
+    setErrorCode(null);
+    setResendSent(false);
     startTransition(async () => {
       const result = await promoteToProductionAction();
       if (result?.error) {
         setConfirming(false);
-        setError(
-          tError.has(result.error as Parameters<typeof tError>[0])
-            ? tError(result.error as Parameters<typeof tError>[0])
-            : result.error
-        );
+        setErrorCode(result.error);
+      }
+    });
+  }
+
+  function handleResend() {
+    startResendTransition(async () => {
+      const result = await resendVerificationAction();
+      if (!result?.error) {
+        setResendSent(true);
+      } else {
+        setErrorCode(result.error);
       }
     });
   }
@@ -53,7 +69,6 @@ export function ProductionPromotion() {
             {t('cancel')}
           </Button>
         </div>
-        {error && <p className="text-sm text-destructive">{error}</p>}
       </div>
     );
   }
@@ -65,6 +80,23 @@ export function ProductionPromotion() {
       <Button variant="outline" size="sm" onClick={() => setConfirming(true)}>
         {t('button')}
       </Button>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      {errorCode === 'EMAIL_NOT_VERIFIED' && (
+        resendSent ? (
+          <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <MailCheck className="h-4 w-4 shrink-0" />
+            {t('resendSent')}
+          </p>
+        ) : (
+          <button
+            onClick={handleResend}
+            disabled={isResendPending}
+            className="text-sm underline underline-offset-4 hover:text-foreground disabled:opacity-50"
+          >
+            {isResendPending ? t('resending') : t('resend')}
+          </button>
+        )
+      )}
     </div>
   );
 }

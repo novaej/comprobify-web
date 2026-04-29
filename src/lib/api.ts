@@ -309,6 +309,14 @@ export async function registerIssuer(
   return { issuerId: result.issuer.id, apiKey: result.apiKey };
 }
 
+export async function resendVerificationEmail(email: string): Promise<void> {
+  await publicRequest('/api/resend-verification', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+}
+
 export async function promoteToProduction(apiKey: string): Promise<string> {
   const result = await request<{ ok: true; issuer: object; apiKey: string }>(
     '/api/issuers/promote',

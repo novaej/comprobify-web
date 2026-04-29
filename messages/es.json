@@ -231,7 +231,10 @@
       "warning": "Esta acción es irreversible. A partir de este momento todas las facturas se enviarán al SRI real y tendrán validez legal.",
       "confirm": "Confirmar activación",
       "confirming": "Activando...",
-      "cancel": "Cancelar"
+      "cancel": "Cancelar",
+      "resend": "Reenviar correo de verificación",
+      "resending": "Reenviando...",
+      "resendSent": "Correo de verificación enviado. Revisa tu bandeja de entrada."
     },
     "account": {
       "title": "Cuenta"
@@ -245,6 +248,7 @@
     "REQUIRED_FIELDS": "RUC y razón social son obligatorios.",
     "UNAUTHORIZED": "No autorizado.",
     "ALREADY_PRODUCTION": "Tu cuenta ya está en producción.",
+    "ALREADY_VERIFIED": "Tu correo ya está verificado.",
     "ISSUER_NOT_CONFIGURED": "Primero debes configurar tu empresa.",
     "EMAIL_NOT_VERIFIED": "Debes verificar tu correo electrónico antes de activar producción. Revisa tu bandeja de entrada.",
     "TOO_MANY_REQUESTS": "Demasiados intentos. Espera unos minutos e inténtalo de nuevo.",

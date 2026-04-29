@@ -231,7 +231,10 @@
       "warning": "This action is irreversible. From this point, all invoices will be sent to the live SRI and will have legal validity.",
       "confirm": "Confirm activation",
       "confirming": "Activating...",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "resend": "Resend verification email",
+      "resending": "Sending...",
+      "resendSent": "Verification email sent. Check your inbox."
     },
     "account": {
       "title": "Account"
@@ -245,6 +248,7 @@
     "REQUIRED_FIELDS": "RUC and legal name are required.",
     "UNAUTHORIZED": "Unauthorized.",
     "ALREADY_PRODUCTION": "Your account is already in production.",
+    "ALREADY_VERIFIED": "Your email is already verified.",
     "ISSUER_NOT_CONFIGURED": "You must set up your company first.",
     "EMAIL_NOT_VERIFIED": "You must verify your email address before activating production. Check your inbox.",
     "TOO_MANY_REQUESTS": "Too many attempts. Please wait a few minutes and try again.",

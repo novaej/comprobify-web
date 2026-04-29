@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { registerIssuer, promoteToProduction, IssuerRegistrationFields } from '@/lib/api';
+import { registerIssuer, promoteToProduction, resendVerificationEmail, IssuerRegistrationFields } from '@/lib/api';
 import { requireApiKey } from '@/lib/auth-token';
 import { auth } from '@/auth';
 import { ApiError } from '@/lib/errors';
@@ -86,5 +86,24 @@ export async function promoteToProductionAction(): Promise<SettingsResult> {
 
   const locale = await getLocale();
   redirect({ href: '/settings', locale });
+  return null;
+}
+
+export async function resendVerificationAction(): Promise<SettingsResult> {
+  const session = await auth();
+  if (!session?.user?.email) return { error: 'UNAUTHORIZED' };
+
+  try {
+    await resendVerificationEmail(session.user.email);
+  } catch (err) {
+    if (err instanceof ApiError) {
+      if (err.status === 409) return { error: 'ALREADY_VERIFIED' };
+      if (err.status === 429) return { error: 'TOO_MANY_REQUESTS' };
+      return { error: err.code };
+    }
+    console.error('Unexpected error in resendVerificationAction:', err);
+    return { error: 'UNEXPECTED_ERROR' };
+  }
+
   return null;
 }
