@@ -1,6 +1,7 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { LoginForm } from '@/components/login-form';
 import { Link } from '@/i18n/navigation';
+import { LocaleSwitcher } from '@/components/locale-switcher';
 
 export default async function LoginPage({
   params,
@@ -13,6 +14,9 @@ export default async function LoginPage({
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-4">
+      <div className="absolute top-4 right-4">
+        <LocaleSwitcher />
+      </div>
       <div className="w-full max-w-sm space-y-6">
         <div className="space-y-1 text-center">
           <h1 className="text-2xl font-bold">Comprobify</h1>

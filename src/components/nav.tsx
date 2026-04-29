@@ -6,6 +6,7 @@ import { Link, usePathname } from '@/i18n/navigation';
 import { LayoutDashboard, FilePlus, Settings, Menu, X, LogOut } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { cn } from '@/lib/utils';
+import { LocaleSwitcher } from '@/components/locale-switcher';
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, labelKey: 'dashboard' as const },
@@ -92,8 +93,11 @@ export function Nav({ hasIssuer }: { hasIssuer: boolean }) {
           })}
         </ul>
 
-        {/* Sign out */}
-        <div className="mt-auto border-t border-border p-2">
+        {/* Session controls: language + sign out */}
+        <div className="mt-auto border-t border-border p-2 space-y-1">
+          <div className="px-3 py-1">
+            <LocaleSwitcher />
+          </div>
           <button
             onClick={() => signOut({ callbackUrl: `/${locale}/login` })}
             className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
