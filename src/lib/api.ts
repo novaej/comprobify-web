@@ -168,6 +168,7 @@ export interface IssuerRegistrationFields {
   issuePointCode: string;
   emissionType: string;
   requiredAccounting: boolean;
+  initialSequentials?: { documentType: string; sequential: number }[];
 }
 
 // ── API functions ─────────────────────────────────────────────────────────────
@@ -291,6 +292,9 @@ export async function registerIssuer(
   form.append('environment', '1'); // SRI sandbox environment code
   form.append('emissionType', fields.emissionType);
   form.append('requiredAccounting', fields.requiredAccounting ? 'true' : 'false');
+  if (fields.initialSequentials?.length) {
+    form.append('initialSequentials', JSON.stringify(fields.initialSequentials));
+  }
   form.append('certPassword', p12Password);
 
   const certArrayBuffer = p12Buffer.buffer.slice(

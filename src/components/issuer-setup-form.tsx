@@ -8,13 +8,33 @@ import { Label } from '@/components/ui/label';
 import { setupIssuerAction } from '@/app/actions/settings';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
+const DOC_TYPES = [
+  { code: '01', defaultEnabled: true },
+  { code: '04', defaultEnabled: false },
+  { code: '05', defaultEnabled: false },
+  { code: '06', defaultEnabled: false },
+  { code: '07', defaultEnabled: false },
+] as const;
+
 export function IssuerSetupForm() {
   const t = useTranslations('settings.setup');
   const tError = useTranslations('settingsError');
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [enabledTypes, setEnabledTypes] = useState<Set<string>>(
+    () => new Set(DOC_TYPES.filter((d) => d.defaultEnabled).map((d) => d.code))
+  );
   const formRef = useRef<HTMLFormElement>(null);
+
+  function toggleType(code: string, checked: boolean) {
+    setEnabledTypes((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(code);
+      else next.delete(code);
+      return next;
+    });
+  }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -90,14 +110,73 @@ export function IssuerSetupForm() {
       </button>
 
       {showAdvanced && (
-        <div className="grid gap-4 sm:grid-cols-2 rounded-md border p-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="branchCode">{t('branchCode')}</Label>
-            <Input id="branchCode" name="branchCode" defaultValue="001" disabled={isPending} />
+        <div className="space-y-6 rounded-md border p-4">
+          {/* Branch / issue point */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="branchCode">{t('branchCode')}</Label>
+              <Input id="branchCode" name="branchCode" defaultValue="001" disabled={isPending} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="issuePointCode">{t('issuePointCode')}</Label>
+              <Input id="issuePointCode" name="issuePointCode" defaultValue="001" disabled={isPending} />
+            </div>
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="issuePointCode">{t('issuePointCode')}</Label>
-            <Input id="issuePointCode" name="issuePointCode" defaultValue="001" disabled={isPending} />
+
+          {/* Required accounting */}
+          <div className="flex items-start gap-3">
+            <input
+              id="requiredAccounting"
+              name="requiredAccounting"
+              type="checkbox"
+              disabled={isPending}
+              className="mt-0.5 h-4 w-4 rounded border-border accent-primary"
+            />
+            <div className="space-y-0.5">
+              <Label htmlFor="requiredAccounting" className="font-normal cursor-pointer">
+                {t('requiredAccounting')}
+              </Label>
+              <p className="text-xs text-muted-foreground">{t('requiredAccountingHint')}</p>
+            </div>
+          </div>
+
+          {/* Initial sequentials */}
+          <div className="space-y-2">
+            <p className="text-sm font-medium">{t('sequentials')}</p>
+            <p className="text-xs text-muted-foreground">{t('sequentialsHint')}</p>
+            <div className="mt-2 divide-y divide-border rounded-md border">
+              {DOC_TYPES.map(({ code }) => {
+                const enabled = enabledTypes.has(code);
+                return (
+                  <div key={code} className="flex items-center gap-3 px-3 py-2.5">
+                    <input
+                      type="checkbox"
+                      id={`seq_enabled_${code}`}
+                      checked={enabled}
+                      onChange={(e) => toggleType(code, e.target.checked)}
+                      disabled={isPending}
+                      className="h-4 w-4 shrink-0 rounded border-border accent-primary"
+                    />
+                    <label
+                      htmlFor={`seq_enabled_${code}`}
+                      className="flex-1 cursor-pointer text-sm"
+                    >
+                      <span>{t(`docType${code}` as Parameters<typeof t>[0])}</span>
+                      <span className="ml-1.5 text-xs text-muted-foreground">({code})</span>
+                    </label>
+                    <Input
+                      name={`seq_${code}`}
+                      type="number"
+                      min={1}
+                      defaultValue={1}
+                      disabled={!enabled || isPending}
+                      className="w-24 text-right"
+                      aria-label={t(`docType${code}` as Parameters<typeof t>[0])}
+                    />
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}

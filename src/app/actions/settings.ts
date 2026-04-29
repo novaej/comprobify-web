@@ -27,7 +27,13 @@ export async function setupIssuerAction(formData: FormData): Promise<SettingsRes
     branchCode: ((formData.get('branchCode') as string) || '001').trim(),
     issuePointCode: ((formData.get('issuePointCode') as string) || '001').trim(),
     emissionType: '1',
-    requiredAccounting: formData.get('requiredAccounting') === 'true',
+    requiredAccounting: formData.get('requiredAccounting') === 'on',
+    initialSequentials: ['01', '04', '05', '06', '07']
+      .flatMap((code) => {
+        const raw = formData.get(`seq_${code}`);
+        const seq = raw !== null ? parseInt(raw as string, 10) : NaN;
+        return !isNaN(seq) && seq >= 1 ? [{ documentType: code, sequential: seq }] : [];
+      }),
   };
 
   if (!fields.ruc || !fields.businessName) return { error: 'REQUIRED_FIELDS' };
