@@ -35,7 +35,7 @@ export default async function LocaleLayout({
       <QueryProvider>
         {isAuthenticated ? (
           <div className="flex h-full flex-col md:flex-row">
-            <Nav />
+            <Nav hasIssuer={session.user.hasIssuer} />
             <main className="flex-1 overflow-y-auto p-4 md:p-8">
               <SandboxBanner environment={session.user.environment} />
               {children}

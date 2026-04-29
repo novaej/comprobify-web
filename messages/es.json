@@ -247,7 +247,8 @@
     "ALREADY_PRODUCTION": "Tu cuenta ya está en producción.",
     "ISSUER_NOT_CONFIGURED": "Primero debes configurar tu empresa.",
     "EMAIL_NOT_VERIFIED": "Debes verificar tu correo electrónico antes de activar producción. Revisa tu bandeja de entrada.",
-    "TOO_MANY_REQUESTS": "Demasiados intentos. Espera unos minutos e inténtalo de nuevo."
+    "TOO_MANY_REQUESTS": "Demasiados intentos. Espera unos minutos e inténtalo de nuevo.",
+    "UNEXPECTED_ERROR": "Ocurrió un error inesperado. Inténtalo de nuevo."
   },
   "apiError": {
     "DOCUMENT_NOT_FOUND": "El comprobante no existe.",

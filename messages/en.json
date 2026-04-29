@@ -247,7 +247,8 @@
     "ALREADY_PRODUCTION": "Your account is already in production.",
     "ISSUER_NOT_CONFIGURED": "You must set up your company first.",
     "EMAIL_NOT_VERIFIED": "You must verify your email address before activating production. Check your inbox.",
-    "TOO_MANY_REQUESTS": "Too many attempts. Please wait a few minutes and try again."
+    "TOO_MANY_REQUESTS": "Too many attempts. Please wait a few minutes and try again.",
+    "UNEXPECTED_ERROR": "An unexpected error occurred. Please try again."
   },
   "apiError": {
     "DOCUMENT_NOT_FOUND": "Document not found.",

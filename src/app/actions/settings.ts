@@ -47,7 +47,8 @@ export async function setupIssuerAction(formData: FormData): Promise<SettingsRes
       if (msg.includes('signing key') || msg.includes('invalid') || msg.includes('password')) return { error: 'CERT_INVALID' };
       return { error: err.code };
     }
-    throw err;
+    console.error('Unexpected error in setupIssuerAction:', err);
+    return { error: 'UNEXPECTED_ERROR' };
   }
 
   await db.user.update({

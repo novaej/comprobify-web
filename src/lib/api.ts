@@ -143,7 +143,14 @@ async function publicRequest<T>(path: string, options: RequestInit = {}): Promis
   const res = await fetch(`${getApiUrl()}${path}`, options);
 
   if (!res.ok) {
-    const problem: ProblemDetails = await res.json();
+    const problem: ProblemDetails = await res.json().catch(() => ({
+      type: 'about:blank',
+      title: `HTTP ${res.status}`,
+      status: res.status,
+      code: 'UNEXPECTED_ERROR',
+      detail: `HTTP ${res.status}`,
+      instance: path,
+    }));
     throw new ApiError(problem);
   }
 

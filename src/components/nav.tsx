@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation';
 import { LayoutDashboard, FilePlus, Settings, Menu, X, LogOut } from 'lucide-react';
 import { signOut } from 'next-auth/react';
@@ -13,10 +13,15 @@ const navItems = [
   { href: '/settings', icon: Settings, labelKey: 'settings' as const },
 ] as const;
 
-export function Nav() {
+export function Nav({ hasIssuer }: { hasIssuer: boolean }) {
   const t = useTranslations('nav');
+  const locale = useLocale();
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+
+  const visibleNavItems = hasIssuer
+    ? navItems
+    : navItems.filter(({ href }) => href === '/settings');
 
   return (
     <>
@@ -65,7 +70,7 @@ export function Nav() {
 
         {/* Links */}
         <ul className="flex flex-col gap-1 p-2">
-          {navItems.map(({ href, icon: Icon, labelKey }) => {
+          {visibleNavItems.map(({ href, icon: Icon, labelKey }) => {
             const isActive = pathname.startsWith(href);
             return (
               <li key={href}>
@@ -90,7 +95,7 @@ export function Nav() {
         {/* Sign out */}
         <div className="mt-auto border-t border-border p-2">
           <button
-            onClick={() => signOut({ callbackUrl: '/login' })}
+            onClick={() => signOut({ callbackUrl: `/${locale}/login` })}
             className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
           >
             <LogOut className="h-4 w-4 shrink-0" aria-hidden />
