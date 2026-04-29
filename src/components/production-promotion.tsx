@@ -3,17 +3,22 @@
 import { useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { promoteToProductionAction, resendVerificationAction } from '@/app/actions/settings';
 import { AlertTriangle, MailCheck } from 'lucide-react';
 
-export function ProductionPromotion() {
+export function ProductionPromotion({ documentTypes }: { documentTypes: string[] }) {
   const t = useTranslations('settings.promote');
+  const tSetup = useTranslations('settings.setup');
   const tError = useTranslations('settingsError');
   const [isPending, startTransition] = useTransition();
   const [isResendPending, startResendTransition] = useTransition();
   const [confirming, setConfirming] = useState(false);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [resendSent, setResendSent] = useState(false);
+  const [sequentials, setSequentials] = useState<Record<string, number>>(
+    () => Object.fromEntries(documentTypes.map((code) => [code, 1]))
+  );
 
   const error = errorCode
     ? (tError.has(errorCode as Parameters<typeof tError>[0])
@@ -24,8 +29,11 @@ export function ProductionPromotion() {
   function handlePromote() {
     setErrorCode(null);
     setResendSent(false);
+    const initialSequentials = Object.entries(sequentials)
+      .filter(([, seq]) => seq >= 1)
+      .map(([documentType, sequential]) => ({ documentType, sequential }));
     startTransition(async () => {
-      const result = await promoteToProductionAction();
+      const result = await promoteToProductionAction(initialSequentials);
       if (result?.error) {
         setConfirming(false);
         setErrorCode(result.error);
@@ -46,28 +54,62 @@ export function ProductionPromotion() {
 
   if (confirming) {
     return (
-      <div className="space-y-3 rounded-md border border-destructive/40 bg-destructive/5 p-4">
-        <div className="flex items-start gap-2 text-sm">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-          <p>{t('warning')}</p>
+      <div className="space-y-4">
+        {/* Production sequentials */}
+        <div className="rounded-md border p-4 space-y-3">
+          <div>
+            <p className="text-sm font-medium">{t('sequentials')}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{t('sequentialsHint')}</p>
+          </div>
+          <div className="divide-y divide-border rounded-md border">
+            {documentTypes.map((code) => (
+              <div key={code} className="flex items-center gap-3 px-3 py-2.5">
+                <span className="flex-1 text-sm">
+                  {tSetup(`docType${code}` as Parameters<typeof tSetup>[0])}
+                  <span className="ml-1.5 text-xs text-muted-foreground">({code})</span>
+                </span>
+                <Input
+                  type="number"
+                  min={1}
+                  value={sequentials[code] ?? 1}
+                  onChange={(e) =>
+                    setSequentials((prev) => ({
+                      ...prev,
+                      [code]: Math.max(1, parseInt(e.target.value) || 1),
+                    }))
+                  }
+                  className="w-24 text-right"
+                  disabled={isPending}
+                />
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="flex gap-2">
-          <Button
-            variant="destructive"
-            size="sm"
-            disabled={isPending}
-            onClick={handlePromote}
-          >
-            {isPending ? t('confirming') : t('confirm')}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={isPending}
-            onClick={() => setConfirming(false)}
-          >
-            {t('cancel')}
-          </Button>
+
+        {/* Irreversibility warning */}
+        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-4 space-y-3">
+          <div className="flex items-start gap-2 text-sm">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+            <p>{t('warning')}</p>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={isPending}
+              onClick={handlePromote}
+            >
+              {isPending ? t('confirming') : t('confirm')}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isPending}
+              onClick={() => setConfirming(false)}
+            >
+              {t('cancel')}
+            </Button>
+          </div>
         </div>
       </div>
     );

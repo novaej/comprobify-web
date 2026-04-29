@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { registerIssuer, promoteToProduction, resendVerificationEmail, IssuerRegistrationFields } from '@/lib/api';
+import { registerIssuer, promoteToProduction, resendVerificationEmail, listDocumentTypes, IssuerRegistrationFields } from '@/lib/api';
 import { requireApiKey } from '@/lib/auth-token';
 import { auth } from '@/auth';
 import { ApiError } from '@/lib/errors';
@@ -35,6 +35,7 @@ export async function setupIssuerAction(formData: FormData): Promise<SettingsRes
         return !isNaN(seq) && seq >= 1 ? [{ documentType: code, sequential: seq }] : [];
       }),
   };
+  fields.documentTypes = fields.initialSequentials!.map((e) => e.documentType);
 
   if (!fields.ruc || !fields.businessName) return { error: 'REQUIRED_FIELDS' };
 
@@ -67,7 +68,9 @@ export async function setupIssuerAction(formData: FormData): Promise<SettingsRes
   return null;
 }
 
-export async function promoteToProductionAction(): Promise<SettingsResult> {
+export async function promoteToProductionAction(
+  initialSequentials: { documentType: string; sequential: number }[] = [],
+): Promise<SettingsResult> {
   const session = await auth();
   if (!session?.user?.id) return { error: 'UNAUTHORIZED' };
   if (session.user.environment === 'production') return { error: 'ALREADY_PRODUCTION' };
@@ -75,7 +78,7 @@ export async function promoteToProductionAction(): Promise<SettingsResult> {
   let newApiKey: string;
   try {
     const currentApiKey = await requireApiKey();
-    newApiKey = await promoteToProduction(currentApiKey);
+    newApiKey = await promoteToProduction(currentApiKey, initialSequentials);
   } catch (err) {
     if (err instanceof ApiError) {
       if (err.status === 403) return { error: 'EMAIL_NOT_VERIFIED' };

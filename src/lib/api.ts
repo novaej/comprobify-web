@@ -168,6 +168,7 @@ export interface IssuerRegistrationFields {
   issuePointCode: string;
   emissionType: string;
   requiredAccounting: boolean;
+  documentTypes?: string[];
   initialSequentials?: { documentType: string; sequential: number }[];
 }
 
@@ -292,6 +293,9 @@ export async function registerIssuer(
   form.append('environment', '1'); // SRI sandbox environment code
   form.append('emissionType', fields.emissionType);
   form.append('requiredAccounting', fields.requiredAccounting ? 'true' : 'false');
+  if (fields.documentTypes?.length) {
+    form.append('documentTypes', JSON.stringify(fields.documentTypes));
+  }
   if (fields.initialSequentials?.length) {
     form.append('initialSequentials', JSON.stringify(fields.initialSequentials));
   }
@@ -321,11 +325,26 @@ export async function resendVerificationEmail(email: string): Promise<void> {
   });
 }
 
-export async function promoteToProduction(apiKey: string): Promise<string> {
+export async function listDocumentTypes(apiKey: string): Promise<string[]> {
+  const result = await request<{ ok: true; documentTypes: string[] }>(
+    '/api/issuers/document-types',
+    apiKey,
+  );
+  return result.documentTypes;
+}
+
+export async function promoteToProduction(
+  apiKey: string,
+  initialSequentials: { documentType: string; sequential: number }[] = [],
+): Promise<string> {
   const result = await request<{ ok: true; issuer: object; apiKey: string }>(
     '/api/issuers/promote',
     apiKey,
-    { method: 'POST' },
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initialSequentials }),
+    },
   );
   return result.apiKey;
 }

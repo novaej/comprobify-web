@@ -2,6 +2,8 @@ import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { auth } from '@/auth';
 import { IssuerSetupForm } from '@/components/issuer-setup-form';
 import { ProductionPromotion } from '@/components/production-promotion';
+import { requireApiKey } from '@/lib/auth-token';
+import { listDocumentTypes } from '@/lib/api';
 
 export default async function SettingsPage({
   params,
@@ -15,6 +17,10 @@ export default async function SettingsPage({
   const session = await auth();
   const environment = session?.user?.environment ?? 'sandbox';
   const hasIssuer = session?.user?.hasIssuer ?? false;
+
+  const documentTypes = hasIssuer
+    ? await requireApiKey().then((key) => listDocumentTypes(key)).catch(() => ['01'])
+    : [];
 
   return (
     <div className="space-y-8 max-w-2xl">
@@ -41,7 +47,7 @@ export default async function SettingsPage({
               </span>
             </div>
             {environment === 'sandbox' && (
-              <ProductionPromotion />
+              <ProductionPromotion documentTypes={documentTypes} />
             )}
           </div>
         </>
