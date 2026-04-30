@@ -47,15 +47,8 @@ export async function setupIssuerAction(formData: FormData): Promise<SettingsRes
     ({ issuerId, apiKey } = await registerIssuer(session.user.email, fields, p12Buffer, certPassword));
   } catch (err) {
     if (err instanceof ApiError) {
-      if (err.status === 409) {
-        // Check if the local DB is missing the link (partial failure from a previous attempt)
-        const existing = await db.user.findUnique({
-          where: { id: userId },
-          select: { comprobifyIssuerId: true },
-        });
-        if (!existing?.comprobifyIssuerId) return { error: 'CONFLICT_UNLINKED' };
-        return { error: 'CONFLICT' };
-      }
+      if (err.status === 403) return { error: 'SUSPENDED' };
+      if (err.status === 409) return { error: 'CONFLICT' };
       if (err.status === 429) return { error: 'TOO_MANY_REQUESTS' };
       const msg = err.detail.toLowerCase();
       if (msg.includes('expired')) return { error: 'CERT_EXPIRED' };
