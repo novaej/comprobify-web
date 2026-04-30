@@ -256,7 +256,8 @@
       "description": "Check your inbox and click the verification link. You need to verify your email before activating the production environment.",
       "resend": "Resend verification email",
       "sending": "Sending...",
-      "sent": "Email sent. Check your inbox."
+      "sent": "Email sent. Check your inbox.",
+      "cooldown": "Resend in {seconds}s"
     }
   },
   "settingsError": {

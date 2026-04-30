@@ -256,7 +256,8 @@
       "description": "Revisa tu bandeja de entrada y haz clic en el enlace de verificación. Necesitas verificar tu correo para poder activar el ambiente de producción.",
       "resend": "Reenviar correo de verificación",
       "sending": "Enviando...",
-      "sent": "Correo enviado. Revisa tu bandeja de entrada."
+      "sent": "Correo enviado. Revisa tu bandeja de entrada.",
+      "cooldown": "Reenviar en {seconds}s"
     }
   },
   "settingsError": {

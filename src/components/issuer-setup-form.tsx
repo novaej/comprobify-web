@@ -42,7 +42,7 @@ export function IssuerSetupForm() {
     setError(null);
     startTransition(async () => {
       const result = await setupIssuerAction(formData);
-      if (result?.error) {
+      if (result && 'error' in result) {
         setError(
           tError.has(result.error as Parameters<typeof tError>[0])
             ? tError(result.error as Parameters<typeof tError>[0])

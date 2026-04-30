@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { resendVerificationAction } from '@/app/actions/settings';
 import { MailCheck, MailWarning } from 'lucide-react';
+
+const RESEND_COOLDOWN_SECONDS = 60;
 
 export function EmailVerificationNotice() {
   const t = useTranslations('settings.verification');
@@ -12,11 +14,19 @@ export function EmailVerificationNotice() {
   const [sent, setSent] = useState(false);
   const [verified, setVerified] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [cooldown]);
 
   if (verified) return null;
 
   function handleResend() {
     setError(null);
+    setCooldown(RESEND_COOLDOWN_SECONDS);
     startTransition(async () => {
       const result = await resendVerificationAction();
       if (!result) {
@@ -52,10 +62,10 @@ export function EmailVerificationNotice() {
           ) : (
             <button
               onClick={handleResend}
-              disabled={isPending}
+              disabled={isPending || cooldown > 0}
               className="pt-1 text-xs font-medium text-yellow-800 underline underline-offset-4 hover:text-yellow-900 disabled:opacity-50 dark:text-yellow-400 dark:hover:text-yellow-300"
             >
-              {isPending ? t('sending') : t('resend')}
+              {isPending ? t('sending') : cooldown > 0 ? t('cooldown', { seconds: cooldown }) : t('resend')}
             </button>
           )}
           {error && <p className="text-xs text-destructive pt-1">{error}</p>}
