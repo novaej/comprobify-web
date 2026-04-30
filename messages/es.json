@@ -241,6 +241,7 @@
       "confirm": "Confirmar activación",
       "confirming": "Activando...",
       "cancel": "Cancelar",
+      "emailRequired": "Debes verificar tu correo electrónico antes de activar producción.",
       "sequentials": "Secuenciales iniciales en producción",
       "sequentialsHint": "Número desde el que empezará cada tipo de comprobante en producción. Si el último emitido fuera del sistema fue el 99, ingresa 100. Si empiezas desde cero, deja todo en 1.",
       "resend": "Reenviar correo de verificación",
@@ -249,6 +250,13 @@
     },
     "account": {
       "title": "Cuenta"
+    },
+    "verification": {
+      "title": "Verifica tu correo electrónico",
+      "description": "Revisa tu bandeja de entrada y haz clic en el enlace de verificación. Necesitas verificar tu correo para poder activar el ambiente de producción.",
+      "resend": "Reenviar correo de verificación",
+      "sending": "Enviando...",
+      "sent": "Correo enviado. Revisa tu bandeja de entrada."
     }
   },
   "settingsError": {

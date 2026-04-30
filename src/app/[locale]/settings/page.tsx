@@ -2,6 +2,7 @@ import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { auth } from '@/auth';
 import { IssuerSetupForm } from '@/components/issuer-setup-form';
 import { ProductionPromotion } from '@/components/production-promotion';
+import { EmailVerificationNotice } from '@/components/email-verification-notice';
 import { requireApiKey } from '@/lib/auth-token';
 import { listDocumentTypes } from '@/lib/api';
 
@@ -17,6 +18,7 @@ export default async function SettingsPage({
   const session = await auth();
   const environment = session?.user?.environment ?? 'sandbox';
   const hasIssuer = session?.user?.hasIssuer ?? false;
+  const emailVerified = session?.user?.isEmailVerified ?? false;
 
   const documentTypes = hasIssuer
     ? await requireApiKey().then((key) => listDocumentTypes(key)).catch(() => ['01'])
@@ -36,6 +38,10 @@ export default async function SettingsPage({
         </div>
       )}
 
+      {hasIssuer && !emailVerified && (
+        <EmailVerificationNotice />
+      )}
+
       {hasIssuer && (
         <>
           <div className="rounded-lg border bg-card p-6 space-y-3">
@@ -47,7 +53,7 @@ export default async function SettingsPage({
               </span>
             </div>
             {environment === 'sandbox' && (
-              <ProductionPromotion documentTypes={documentTypes} />
+              <ProductionPromotion documentTypes={documentTypes} emailVerified={emailVerified} />
             )}
           </div>
         </>

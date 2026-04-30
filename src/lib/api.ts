@@ -281,7 +281,7 @@ export async function registerIssuer(
   fields: IssuerRegistrationFields,
   p12Buffer: Buffer,
   p12Password: string,
-): Promise<{ issuerId: number; apiKey: string }> {
+): Promise<{ issuerId: number; apiKey: string; isEmailVerified: boolean }> {
   const form = new FormData();
   form.append('email', email);
   form.append('ruc', fields.ruc);
@@ -314,7 +314,11 @@ export async function registerIssuer(
     apiKey: string;
   }>('/api/register', { method: 'POST', body: form });
 
-  return { issuerId: Number(result.issuer.id), apiKey: result.apiKey };
+  return {
+    issuerId: Number(result.issuer.id),
+    apiKey: result.apiKey,
+    isEmailVerified: result.tenant.status === 'ACTIVE',
+  };
 }
 
 export async function resendVerificationEmail(email: string): Promise<void> {

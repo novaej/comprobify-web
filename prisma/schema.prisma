@@ -13,6 +13,7 @@ model User {
   comprobifyApiKey   String?  @map("comprobify_api_key")
   comprobifyIssuerId Int?     @map("comprobify_issuer_id")
   environment        String   @default("sandbox")
+  emailVerified      Boolean  @default(false) @map("email_verified")
   createdAt          DateTime @default(now()) @map("created_at")
 
   @@map("users")

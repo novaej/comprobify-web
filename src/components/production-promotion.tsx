@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { promoteToProductionAction, resendVerificationAction } from '@/app/actions/settings';
 import { AlertTriangle, MailCheck } from 'lucide-react';
 
-export function ProductionPromotion({ documentTypes }: { documentTypes: string[] }) {
+export function ProductionPromotion({ documentTypes, emailVerified }: { documentTypes: string[]; emailVerified: boolean }) {
   const t = useTranslations('settings.promote');
   const tSetup = useTranslations('settings.setup');
   const tError = useTranslations('settingsError');
@@ -34,7 +34,7 @@ export function ProductionPromotion({ documentTypes }: { documentTypes: string[]
       .map(([documentType, sequential]) => ({ documentType, sequential }));
     startTransition(async () => {
       const result = await promoteToProductionAction(initialSequentials);
-      if (result?.error) {
+      if (result && 'error' in result) {
         setConfirming(false);
         setErrorCode(result.error);
       }
@@ -44,9 +44,9 @@ export function ProductionPromotion({ documentTypes }: { documentTypes: string[]
   function handleResend() {
     startResendTransition(async () => {
       const result = await resendVerificationAction();
-      if (!result?.error) {
+      if (!result) {
         setResendSent(true);
-      } else {
+      } else if ('error' in result) {
         setErrorCode(result.error);
       }
     });
@@ -118,10 +118,12 @@ export function ProductionPromotion({ documentTypes }: { documentTypes: string[]
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">{t('description')}</p>
-      <p className="text-xs text-muted-foreground border-l-2 border-border pl-2">{t('emailHint')}</p>
-      <Button variant="outline" size="sm" onClick={() => setConfirming(true)}>
+      <Button variant="outline" size="sm" onClick={() => setConfirming(true)} disabled={!emailVerified}>
         {t('button')}
       </Button>
+      {!emailVerified && (
+        <p className="text-xs text-muted-foreground">{t('emailRequired')}</p>
+      )}
       {error && <p className="text-sm text-destructive">{error}</p>}
       {errorCode === 'EMAIL_NOT_VERIFIED' && (
         resendSent ? (

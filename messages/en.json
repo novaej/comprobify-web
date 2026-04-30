@@ -241,6 +241,7 @@
       "confirm": "Confirm activation",
       "confirming": "Activating...",
       "cancel": "Cancel",
+      "emailRequired": "You must verify your email address before activating production.",
       "sequentials": "Starting sequence numbers (production)",
       "sequentialsHint": "The next number Comprobify will use for each document type in production. If the last number issued outside the system was 99, enter 100. Leave at 1 if starting fresh.",
       "resend": "Resend verification email",
@@ -249,6 +250,13 @@
     },
     "account": {
       "title": "Account"
+    },
+    "verification": {
+      "title": "Verify your email address",
+      "description": "Check your inbox and click the verification link. You need to verify your email before activating the production environment.",
+      "resend": "Resend verification email",
+      "sending": "Sending...",
+      "sent": "Email sent. Check your inbox."
     }
   },
   "settingsError": {

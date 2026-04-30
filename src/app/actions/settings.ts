@@ -8,7 +8,7 @@ import { ApiError } from '@/lib/errors';
 import { getLocale } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
 
-export type SettingsResult = { error: string } | null;
+export type SettingsResult = { error: string } | { verified: true } | null;
 
 export async function setupIssuerAction(formData: FormData): Promise<SettingsResult> {
   const session = await auth();
@@ -43,8 +43,9 @@ export async function setupIssuerAction(formData: FormData): Promise<SettingsRes
 
   let issuerId: number;
   let apiKey: string;
+  let isEmailVerified: boolean;
   try {
-    ({ issuerId, apiKey } = await registerIssuer(session.user.email, fields, p12Buffer, certPassword));
+    ({ issuerId, apiKey, isEmailVerified } = await registerIssuer(session.user.email, fields, p12Buffer, certPassword));
   } catch (err) {
     if (err instanceof ApiError) {
       if (err.status === 403) return { error: 'SUSPENDED' };
@@ -66,7 +67,7 @@ export async function setupIssuerAction(formData: FormData): Promise<SettingsRes
   try {
     await db.user.update({
       where: { id: userId },
-      data: { comprobifyApiKey: apiKey, comprobifyIssuerId: issuerId },
+      data: { comprobifyApiKey: apiKey, comprobifyIssuerId: issuerId, emailVerified: isEmailVerified },
     });
   } catch (err) {
     console.error(`[setupIssuer] DB write failed after successful API registration. userId=${userId} issuerId=${issuerId} apiKey=${apiKey}`, err);
@@ -100,7 +101,7 @@ export async function promoteToProductionAction(
 
   await db.user.update({
     where: { id: Number(session.user.id) },
-    data: { comprobifyApiKey: newApiKey, environment: 'production' },
+    data: { comprobifyApiKey: newApiKey, environment: 'production', emailVerified: true },
   });
 
   const locale = await getLocale();
@@ -110,13 +111,20 @@ export async function promoteToProductionAction(
 
 export async function resendVerificationAction(): Promise<SettingsResult> {
   const session = await auth();
-  if (!session?.user?.email) return { error: 'UNAUTHORIZED' };
+  if (!session?.user?.id || !session.user?.email) return { error: 'UNAUTHORIZED' };
 
   try {
     await resendVerificationEmail(session.user.email);
   } catch (err) {
     if (err instanceof ApiError) {
-      if (err.status === 409) return { error: 'ALREADY_VERIFIED' };
+      if (err.status === 409) {
+        // Email is already verified — update local DB and signal the client
+        await db.user.update({
+          where: { id: Number(session.user.id) },
+          data: { emailVerified: true },
+        });
+        return { verified: true };
+      }
       if (err.status === 429) return { error: 'TOO_MANY_REQUESTS' };
       return { error: err.code };
     }

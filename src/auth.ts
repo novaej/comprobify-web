@@ -10,6 +10,7 @@ declare module 'next-auth' {
       email: string;
       environment: string;
       hasIssuer: boolean;
+      isEmailVerified: boolean;
     };
   }
 }
@@ -53,10 +54,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // immediately after issuer setup or production promotion.
       const user = await db.user.findUnique({
         where: { id: Number(token.id) },
-        select: { environment: true, comprobifyIssuerId: true },
+        select: { environment: true, comprobifyIssuerId: true, emailVerified: true },
       });
       session.user.environment = user?.environment ?? 'sandbox';
       session.user.hasIssuer = user?.comprobifyIssuerId != null;
+      session.user.isEmailVerified = user?.emailVerified ?? false;
 
       return session;
     },
