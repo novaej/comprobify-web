@@ -256,6 +256,8 @@
     "CERT_EXPIRED": "The certificate has expired. Renew your certificate with the SRI.",
     "CERT_INVALID": "The certificate is invalid or the password is incorrect.",
     "CONFLICT": "An account or issuer is already registered with that email or RUC.",
+    "CONFLICT_UNLINKED": "Your account was created but could not be linked correctly. Please contact support with your email address to resolve the issue.",
+    "DB_WRITE_FAILED": "Your company was registered successfully but an error occurred while saving the configuration. Please contact support with your email address to complete the link.",
     "REQUIRED_FIELDS": "RUC and legal name are required.",
     "UNAUTHORIZED": "Unauthorized.",
     "ALREADY_PRODUCTION": "Your account is already in production.",

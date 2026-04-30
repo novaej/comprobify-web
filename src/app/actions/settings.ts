@@ -47,7 +47,15 @@ export async function setupIssuerAction(formData: FormData): Promise<SettingsRes
     ({ issuerId, apiKey } = await registerIssuer(session.user.email, fields, p12Buffer, certPassword));
   } catch (err) {
     if (err instanceof ApiError) {
-      if (err.status === 409) return { error: 'CONFLICT' };
+      if (err.status === 409) {
+        // Check if the local DB is missing the link (partial failure from a previous attempt)
+        const existing = await db.user.findUnique({
+          where: { id: userId },
+          select: { comprobifyIssuerId: true },
+        });
+        if (!existing?.comprobifyIssuerId) return { error: 'CONFLICT_UNLINKED' };
+        return { error: 'CONFLICT' };
+      }
       if (err.status === 429) return { error: 'TOO_MANY_REQUESTS' };
       const msg = err.detail.toLowerCase();
       if (msg.includes('expired')) return { error: 'CERT_EXPIRED' };
@@ -58,10 +66,19 @@ export async function setupIssuerAction(formData: FormData): Promise<SettingsRes
     return { error: 'UNEXPECTED_ERROR' };
   }
 
-  await db.user.update({
-    where: { id: userId },
-    data: { comprobifyApiKey: apiKey, comprobifyIssuerId: issuerId },
-  });
+  // Log credentials before the DB write so they are always recoverable from
+  // server logs even if the write below fails.
+  console.info(`[setupIssuer] userId=${userId} issuerId=${issuerId} apiKey=${apiKey}`);
+
+  try {
+    await db.user.update({
+      where: { id: userId },
+      data: { comprobifyApiKey: apiKey, comprobifyIssuerId: issuerId },
+    });
+  } catch (err) {
+    console.error(`[setupIssuer] DB write failed after successful API registration. userId=${userId} issuerId=${issuerId} apiKey=${apiKey}`, err);
+    return { error: 'DB_WRITE_FAILED' };
+  }
 
   const locale = await getLocale();
   redirect({ href: '/dashboard', locale });

@@ -314,7 +314,7 @@ export async function registerIssuer(
     apiKey: string;
   }>('/api/register', { method: 'POST', body: form });
 
-  return { issuerId: result.issuer.id, apiKey: result.apiKey };
+  return { issuerId: Number(result.issuer.id), apiKey: result.apiKey };
 }
 
 export async function resendVerificationEmail(email: string): Promise<void> {
