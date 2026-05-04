@@ -4,7 +4,7 @@ import { routing } from './i18n/routing';
 
 const intlMiddleware = createMiddleware(routing);
 
-const PUBLIC_ROUTES = /^\/(es|en)\/(login|register)(\/.*)?$/;
+const PUBLIC_ROUTES = /^\/(es|en)\/(login|register|verify-email)(\/.*)?$/;
 const SETTINGS_ROUTE = /^\/(es|en)\/settings(\/.*)?$/;
 
 export const proxy = auth((req) => {

@@ -285,5 +285,12 @@
     "SRI_ERROR": "The SRI returned an error. Review the detail messages.",
     "INTERNAL_ERROR": "Internal server error. Please contact support.",
     "UNKNOWN": "An unexpected error occurred."
+  },
+  "verifyEmail": {
+    "successTitle": "Email verified!",
+    "successDescription": "Your email address has been verified. You can now activate the production environment from Settings.",
+    "errorTitle": "Invalid or expired link",
+    "errorDescription": "The verification link is invalid or has already expired. You can request a new one from Settings.",
+    "goToSettings": "Go to Settings"
   }
 }

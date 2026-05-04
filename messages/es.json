@@ -285,5 +285,12 @@
     "SRI_ERROR": "El SRI devolvió un error. Revise los mensajes de detalle.",
     "INTERNAL_ERROR": "Error interno del servidor. Contacte al soporte.",
     "UNKNOWN": "Ha ocurrido un error inesperado."
+  },
+  "verifyEmail": {
+    "successTitle": "¡Correo verificado!",
+    "successDescription": "Tu correo electrónico ha sido verificado. Ya puedes activar el ambiente de producción desde configuración.",
+    "errorTitle": "Enlace inválido o expirado",
+    "errorDescription": "El enlace de verificación es inválido o ya expiró. Puedes solicitar uno nuevo desde la configuración.",
+    "goToSettings": "Ir a configuración"
   }
 }

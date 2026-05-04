@@ -276,11 +276,17 @@ export async function retrySingleEmail(
 
 // ── Self-service issuer provisioning ──────────────────────────────────────────
 
+export async function verifyEmailToken(token: string): Promise<{ email: string }> {
+  const data = await publicRequest<{ ok: true; email: string }>(`/api/verify-email?token=${encodeURIComponent(token)}`);
+  return { email: data.email };
+}
+
 export async function registerIssuer(
   email: string,
   fields: IssuerRegistrationFields,
   p12Buffer: Buffer,
   p12Password: string,
+  verificationRedirectUrl?: string,
 ): Promise<{ issuerId: number; apiKey: string; isEmailVerified: boolean }> {
   const form = new FormData();
   form.append('email', email);
@@ -300,6 +306,7 @@ export async function registerIssuer(
     form.append('initialSequentials', JSON.stringify(fields.initialSequentials));
   }
   form.append('certPassword', p12Password);
+  if (verificationRedirectUrl) form.append('verificationRedirectUrl', verificationRedirectUrl);
 
   const certArrayBuffer = p12Buffer.buffer.slice(
     p12Buffer.byteOffset,

@@ -7,6 +7,14 @@ import { auth } from '@/auth';
 import { ApiError } from '@/lib/errors';
 import { getLocale } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
+import { headers } from 'next/headers';
+
+async function buildVerifyEmailUrl(locale: string): Promise<string> {
+  const headersList = await headers();
+  const host = headersList.get('x-forwarded-host') || headersList.get('host') || 'localhost:3000';
+  const proto = headersList.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
+  return `${proto}://${host}/${locale}/verify-email`;
+}
 
 export type SettingsResult = { error: string } | { verified: true } | null;
 
@@ -40,12 +48,14 @@ export async function setupIssuerAction(formData: FormData): Promise<SettingsRes
   if (!fields.ruc || !fields.businessName) return { error: 'REQUIRED_FIELDS' };
 
   const p12Buffer = Buffer.from(await certFile.arrayBuffer());
+  const locale = await getLocale();
+  const verificationRedirectUrl = await buildVerifyEmailUrl(locale);
 
   let issuerId: number;
   let apiKey: string;
   let isEmailVerified: boolean;
   try {
-    ({ issuerId, apiKey, isEmailVerified } = await registerIssuer(session.user.email, fields, p12Buffer, certPassword));
+    ({ issuerId, apiKey, isEmailVerified } = await registerIssuer(session.user.email, fields, p12Buffer, certPassword, verificationRedirectUrl));
   } catch (err) {
     if (err instanceof ApiError) {
       if (err.status === 403) return { error: 'SUSPENDED' };
@@ -74,7 +84,6 @@ export async function setupIssuerAction(formData: FormData): Promise<SettingsRes
     return { error: 'DB_WRITE_FAILED' };
   }
 
-  const locale = await getLocale();
   redirect({ href: '/dashboard', locale });
   return null;
 }
