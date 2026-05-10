@@ -1,95 +1,120 @@
 # Authentication Architecture
 
-How authentication works in `comprobify-web`, now (MVP) and in Phase 2.
+How authentication works in `comprobify-web`.
 
 ---
 
-## MVP: Single env var API key
+## Overview
 
-No user login. The Comprobify API key lives in `COMPROBIFY_API_KEY` on the Next.js server.
-
-```
-COMPROBIFY_API_KEY=abc123  ← in .env.local / Vercel environment
-         │
-         └─► process.env.COMPROBIFY_API_KEY
-                   │ (server-only, never NEXT_PUBLIC_)
-                   │
-         src/lib/api.ts reads it
-                   │
-         All API calls: Authorization: Bearer abc123
-```
-
-**Security properties:**
-- Key is never sent to the browser
-- Key is never in JavaScript bundles
-- `NEXT_PUBLIC_` prefix is forbidden (would expose it)
-
-**Trade-off:** Anyone with the deployment URL can use the app. Acceptable for a single-operator tool.
-
----
-
-## Settings "Reveal API key"
-
-The Settings screen has a "Mostrar clave" button. This is the only intentional case where the API key is returned to the browser — on explicit user request:
-
-```ts
-'use server'
-async function revealApiKey() {
-  return process.env.COMPROBIFY_API_KEY;  // Returned only on user action
-}
-```
-
-This matches GitHub's "Show token once" UX. The key should not be included in any page's initial load.
-
----
-
-## Phase 2: NextAuth credentials provider
-
-When multi-user support is needed:
+Auth.js v5 (`next-auth@beta`) with a credentials provider (email + password). Sessions are JWT-based. User records live in a PostgreSQL database managed by Prisma 7.
 
 ```
 Browser POSTs /api/auth/signin  (email + password)
-  → NextAuth authorize() validates against frontend users DB
-  → NextAuth encrypts { apiKey } into JWT (NEXTAUTH_SECRET)
+  → Auth.js authorize() validates credentials against frontend DB
+  → Auth.js encrypts session into JWT (NEXTAUTH_SECRET)
   → Set-Cookie: next-auth.session-token=<encrypted blob>  (HttpOnly, Secure, SameSite=Lax)
-  → No API key in response body
 ```
 
-**Critical:** The API key goes into `token` (JWT, server-only via `getToken()`), NOT into `session` (the subset exposed to the browser via `useSession()`).
+---
+
+## Session shape
+
+The session exposed to Server Components and Server Actions via `auth()` contains only:
 
 ```ts
-callbacks: {
-  jwt({ token, user }) {
-    if (user) token.apiKey = user.apiKey;  // encrypted in JWT
-    return token;
-  },
-  session({ session }) {
-    // Do NOT add token.apiKey here — would expose it to browser
-    return session;
+{
+  user: {
+    id: string          // users.id (PK)
+    email: string
+    environment: string // 'sandbox' | 'production'
+    hasIssuer: boolean  // comprobifyIssuerId IS NOT NULL
   }
 }
 ```
 
-Reading the key in server-side code:
-```ts
-import { getToken } from 'next-auth/jwt';
-const token = await getToken({ req });
-const apiKey = token.apiKey;  // server-only
-```
-
-Replace `process.env.COMPROBIFY_API_KEY` with this in `src/lib/api.ts` when Phase 2 ships.
+**The API key is never in the session.** It lives in `users.comprobify_api_key` in the DB and is fetched server-side only via `requireApiKey()`.
 
 ---
 
-## API key revocation handling
-
-If the API key is revoked while a user is active, the next proxied API call returns `401`. Handle it:
+## API key handling
 
 ```ts
-// In a Server Action
-if (err instanceof ApiError && err.isUnauthorized()) {
-  redirect('/login');  // Phase 2
+// src/lib/auth-token.ts
+export async function requireApiKey(): Promise<string> {
+  const session = await auth();
+  if (!session?.user?.id) redirect('/login');
+  const user = await db.user.findUnique({ where: { id: Number(session.user.id) } });
+  if (!user?.comprobifyApiKey) redirect('/settings');
+  return user.comprobifyApiKey;
 }
 ```
 
-In MVP (no login page), a `401` shows a generic error message.
+Call `requireApiKey()` at the top of every Server Component, Server Action, and Route Handler that needs to call the Comprobify API. Pass the returned key as the first argument to functions in `src/lib/api.ts`.
+
+**Critical:** Never add `comprobifyApiKey` to the session callbacks — that would expose it to the browser.
+
+---
+
+## Users table (Prisma schema excerpt)
+
+```prisma
+model User {
+  id                  Int      @id @default(autoincrement())
+  email               String   @unique
+  password            String                         // bcrypt hash
+  comprobifyApiKey    String?  @map("comprobify_api_key")
+  comprobifyIssuerId  Int?     @map("comprobify_issuer_id")
+  emailVerified       Boolean  @default(false) @map("email_verified")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+}
+```
+
+`comprobifyApiKey` and `comprobifyIssuerId` are written by `setupIssuerAction` after the Comprobify API creates the issuer. They are `null` until the user completes issuer setup in Settings.
+
+---
+
+## Email verification
+
+After issuer setup, the Comprobify API sends a verification email with a one-time token. The user clicks the link → lands on `GET /[locale]/verify-email?token=<hex>`:
+
+1. `verifyEmailToken(token)` calls `GET /api/verify-email?token=...` on the Comprobify API
+2. The API returns `{ ok: true, email: "user@example.com" }` and marks the tenant as `ACTIVE`
+3. The frontend does `db.user.updateMany({ where: { email }, data: { emailVerified: true } })`
+4. No session is required — lookup is by email from the API response, so the page works from any device
+
+`emailVerified` gates production promotion: users cannot call `promoteToProductionAction` until this flag is `true`.
+
+The verify-email page is listed in `PUBLIC_ROUTES` in `src/proxy.ts` — Auth.js middleware does not redirect unauthenticated visitors away from it.
+
+---
+
+## Issuer provisioning flow
+
+```
+1. User registers account (email + password) → users row created, no issuer yet
+2. User fills Settings form (RUC, cert, codes) → setupIssuerAction
+     → POST /api/admin/issuers (admin API with COMPROBIFY_ADMIN_SECRET)
+     → Returns issuerId + sandbox API key + isEmailVerified
+     → Writes comprobifyApiKey + comprobifyIssuerId + emailVerified to users row
+3. Comprobify API sends verification email (link → /[locale]/verify-email)
+4. User verifies email → emailVerified = true in users row
+5. User clicks "Activar producción" → promoteToProductionAction
+     → POST /api/admin/issuers/:id/promote
+     → Creates new production API key, updates comprobifyApiKey in users row
+```
+
+---
+
+## Protected routes
+
+`src/proxy.ts` wraps Auth.js middleware with two layers:
+
+- **Public routes** (`/login`, `/register`, `/verify-email`) — no auth check
+- **Settings route** — auth required; redirects to `/login` if no session
+- **All other routes** — auth required; additionally redirects to `/settings` if `hasIssuer` is false (user hasn't completed setup)
+
+```ts
+const PUBLIC_ROUTES = /^\/(es|en)\/(login|register|verify-email)(\/.*)?$/;
+const SETTINGS_ROUTE = /^\/(es|en)\/settings(\/.*)?$/;
+```

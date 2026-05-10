@@ -12,42 +12,32 @@ Ordered backlog for `comprobify-web`. Items are numbered — complete the highes
 
 ---
 
-## Phase 3 — Remaining screen work
+## Remaining screen work
 
 3. **Dashboard — summary cards** — total invoices, authorized this month, pending (SIGNED + RECEIVED). Fetch from `GET /api/documents` with status filters.
 
 4. **Dashboard — pagination** — the list currently loads up to 50 documents. Add page controls using the `pagination` object returned by `listDocuments()`.
 
-5. **Settings — API key reveal** — masked `<input>` pre-filled with `••••••••`. A "Mostrar clave" button triggers a Server Action that reads `COMPROBIFY_API_KEY` from `process.env` and returns it to the client only on explicit user action.
+5. **Settings — issuer info card** — display issuer name, RUC, cert expiry and fingerprint. Requires item 2 above.
+
+6. **Settings — API key reveal** — masked `<input>` pre-filled with `••••••••`. A "Mostrar clave" button triggers a Server Action that fetches the key from the DB via `requireApiKey()` and returns it to the client only on explicit user action.
+
+7. **Saved buyer address book** — select a saved buyer when creating an invoice instead of filling fields each time.
 
 ---
 
-## Phase 3 — Infrastructure
+## Infrastructure
 
-6. **Error boundary** — add `error.tsx` in `src/app/[locale]/` to catch Server Component errors and show a user-friendly page using the `apiError` i18n namespace.
+8. **Error boundary** — add `error.tsx` in `src/app/[locale]/` to catch Server Component errors and show a user-friendly page using the `apiError` i18n namespace.
 
-7. **Loading skeletons** — add `loading.tsx` in `src/app/[locale]/dashboard/` and `src/app/[locale]/invoices/[key]/` using the `<Skeleton>` component from shadcn while Server Components fetch.
+9. **Loading skeletons** — add `loading.tsx` in `src/app/[locale]/dashboard/` and `src/app/[locale]/invoices/[key]/` using the `<Skeleton>` component from shadcn while Server Components fetch.
 
-8. **`not-found.tsx`** — locale-aware 404 page in `src/app/[locale]/` with a link back to the dashboard.
-
----
-
-## Phase 2 — Multi-user auth (after MVP is in use)
-
-9. **NextAuth.js credentials provider** — email + password login. Store `comprobify_api_key` in encrypted JWT. Keep API key out of the session object sent to the browser. See ADR-003 and FRONTEND_MVP.md.
-
-10. **Frontend user database** — separate PostgreSQL instance with `users`, `buyers`, and `products` tables. See FRONTEND_MVP.md Phase 2 schema.
-
-11. **Language switcher** — allow users to switch between `/es/` and `/en/` locales. The English locale file is already complete; just needs a switcher UI component.
-
-12. **Saved buyer address book** — select a saved buyer when creating an invoice instead of filling fields each time.
+10. **`not-found.tsx`** — locale-aware 404 page in `src/app/[locale]/` with a link back to the dashboard.
 
 ---
 
-## Phase 2 — Polish
+## Polish
 
-13. **Mobile-responsive layout** — the current nav is a sidebar. On mobile, replace with a bottom nav or hamburger menu.
+11. **Dark mode** — shadcn ships dark mode CSS variables; wire up a theme toggle.
 
-14. **Dark mode** — shadcn ships dark mode CSS variables; wire up a theme toggle.
-
-15. **Invoice PDF preview** — embed a PDF viewer on the Invoice Detail page for `AUTHORIZED` documents.
+12. **Invoice PDF preview** — embed a PDF viewer on the Invoice Detail page for `AUTHORIZED` documents.

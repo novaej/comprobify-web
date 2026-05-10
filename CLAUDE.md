@@ -64,6 +64,9 @@ src/
         new/page.tsx        Server Component shell + Client form
         [key]/page.tsx      Server Component shell + Client polling
       settings/page.tsx     Server Component
+      login/page.tsx        Public — Auth.js credentials login form
+      register/page.tsx     Public — account registration form
+      verify-email/page.tsx Public — email token verification (session-independent)
     api/
       documents/[key]/status/route.ts   Proxy for TanStack Query polling
   components/
@@ -71,6 +74,8 @@ src/
     nav.tsx                 Client Component sidebar
     status-badge.tsx        Document status pill
     sandbox-banner.tsx      Yellow banner when COMPROBIFY_SANDBOX=true
+    email-verification-notice.tsx  Yellow notice + resend button when email unverified
+    production-promotion.tsx       Card to promote sandbox issuer to production
   lib/
     api.ts                  Typed Comprobify API client (server-only)
     errors.ts               ApiError class + ProblemDetails type
@@ -178,7 +183,11 @@ This project runs Next.js **16** (not 13-15). Key differences from older version
 | `src/components/nav.tsx` | Sidebar navigation (Client Component) |
 | `src/components/status-badge.tsx` | Document status pill with i18n labels |
 | `src/components/sandbox-banner.tsx` | Yellow sandbox mode banner |
+| `src/components/email-verification-notice.tsx` | Yellow notice with resend button shown when email is unverified |
+| `src/components/production-promotion.tsx` | Card to promote sandbox issuer to production (gated on email verification) |
 | `src/app/[locale]/layout.tsx` | Locale layout with providers + nav |
+| `src/app/[locale]/verify-email/page.tsx` | Public email verification page — reads token from query string, updates Prisma by email (no session required) |
+| `src/app/actions/settings.ts` | Server Actions for issuer setup, production promotion, and resend verification |
 | `src/app/api/documents/[key]/status/route.ts` | Proxy for TanStack Query polling |
 | `messages/es.json` | Spanish translations (default — always complete) |
 | `messages/en.json` | English translations (secondary — kept in sync) |

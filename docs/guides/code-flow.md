@@ -101,6 +101,34 @@ Example: invoice is in `RECEIVED` status, waiting for SRI authorization.
 
 ---
 
+## Email verification (public page)
+
+Example: user clicks the link in the verification email and lands on the frontend.
+
+```
+1. Browser GET /es/verify-email?token=<64-char hex>
+   │
+2. src/proxy.ts — verify-email is in PUBLIC_ROUTES, no auth check applied
+   │
+3. verify-email/page.tsx (async Server Component)
+   │  • verifyEmailToken(token) ← src/lib/api.ts
+   │      └─► GET /api/verify-email?token=... (Comprobify API, server-to-server)
+   │          Returns: { ok: true, email: "user@example.com" }
+   │  • db.user.updateMany({ where: { email }, data: { emailVerified: true } })
+   │      No session needed — lookup is by email from the API response
+   │  • Renders success or error card
+   │
+4a. On success:
+   │  • Green checkmark + "Go to Settings" link
+   │
+4b. On ApiError (expired / invalid token):
+   │  • Red X + "Request a new link from Settings" message
+```
+
+**Key design decision:** The DB update uses `updateMany` by email (not `update` by session user ID) so the page works correctly when the user clicks the link from a different device or browser where they are not logged in.
+
+---
+
 ## Middleware chain
 
 Every request (except `/api/`, `/_next/`, `/favicon.ico`) passes through:
