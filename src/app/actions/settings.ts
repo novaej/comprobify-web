@@ -7,6 +7,7 @@ import { auth } from '@/auth';
 import { ApiError } from '@/lib/errors';
 import { getLocale } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
+import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 
 async function buildVerifyEmailUrl(locale: string): Promise<string> {
@@ -88,8 +89,11 @@ export async function setupIssuerAction(formData: FormData): Promise<SettingsRes
       return { error: 'DB_WRITE_FAILED' };
     }
 
-    return null;
+    revalidatePath('/', 'layout');
+    redirect({ href: '/dashboard', locale });
   } catch (err) {
+    // NEXT_REDIRECT is thrown intentionally by redirect() — let it propagate
+    if ((err as { digest?: string }).digest?.startsWith('NEXT_REDIRECT')) throw err;
     console.error('Unhandled error in setupIssuerAction:', err);
     return { error: 'UNEXPECTED_ERROR' };
   }

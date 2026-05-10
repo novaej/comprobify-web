@@ -44,18 +44,18 @@ export function EmailVerificationNotice() {
   }
 
   return (
-    <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-900/50 dark:bg-yellow-950/20">
+    <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-500/30 dark:bg-yellow-500/10">
       <div className="flex items-start gap-3">
-        <MailWarning className="mt-0.5 h-4 w-4 shrink-0 text-yellow-600 dark:text-yellow-500" />
+        <MailWarning className="mt-0.5 h-4 w-4 shrink-0 text-yellow-600 dark:text-yellow-300" />
         <div className="space-y-1 flex-1">
-          <p className="text-sm font-medium text-yellow-800 dark:text-yellow-400">
+          <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300">
             {t('title')}
           </p>
-          <p className="text-xs text-yellow-700 dark:text-yellow-500">
+          <p className="text-xs text-yellow-700 dark:text-yellow-400">
             {t('description')}
           </p>
           {sent ? (
-            <p className="flex items-center gap-1.5 text-xs text-yellow-700 dark:text-yellow-500 pt-1">
+            <p className="flex items-center gap-1.5 text-xs text-yellow-700 dark:text-yellow-400 pt-1">
               <MailCheck className="h-3.5 w-3.5 shrink-0" />
               {t('sent')}
             </p>
@@ -63,7 +63,7 @@ export function EmailVerificationNotice() {
             <button
               onClick={handleResend}
               disabled={isPending || cooldown > 0}
-              className="cursor-pointer pt-1 text-xs font-medium text-yellow-800 underline underline-offset-4 hover:text-yellow-900 disabled:opacity-50 dark:text-yellow-400 dark:hover:text-yellow-300"
+              className="cursor-pointer pt-1 text-xs font-medium text-yellow-800 underline underline-offset-4 hover:text-yellow-900 disabled:opacity-50 dark:text-yellow-300 dark:hover:text-yellow-200"
             >
               {isPending ? t('sending') : cooldown > 0 ? t('cooldown', { seconds: cooldown }) : t('resend')}
             </button>

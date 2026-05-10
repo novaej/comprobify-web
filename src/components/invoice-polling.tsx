@@ -50,7 +50,7 @@ export function InvoicePolling({ accessKey }: InvoicePollingProps) {
 
   if (timedOut) {
     return (
-      <div className="flex items-center gap-3 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
+      <div className="flex items-center gap-3 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800 dark:border-yellow-500/30 dark:bg-yellow-500/10 dark:text-yellow-300">
         <p className="flex-1">{t('polling.timeout')}</p>
         <Button
           size="sm"
