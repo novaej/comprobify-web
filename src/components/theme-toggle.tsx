@@ -11,6 +11,7 @@ export function ThemeToggle({ className }: { className?: string }) {
     <button
       onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
       aria-label={resolvedTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+      suppressHydrationWarning
       className={cn(
         'rounded-md p-1.5 transition-colors',
         'text-sidebar-foreground/40 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',

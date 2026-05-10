@@ -42,7 +42,7 @@ export function Nav({ hasIssuer }: { hasIssuer: boolean }) {
           <Menu className="h-5 w-5" />
         </button>
         <div className="flex items-center gap-2">
-          <Logomark variant="light" className="h-6 w-6" />
+          <Logomark className="h-6 w-6" />
           <span className="text-sm font-semibold">Comprobify</span>
         </div>
       </div>
@@ -75,7 +75,7 @@ export function Nav({ hasIssuer }: { hasIssuer: boolean }) {
           >
             <X className="h-4 w-4" />
           </button>
-          <LogoLockup variant="dark" className="h-7 w-auto" />
+          <LogoLockup className="h-7 w-auto" />
         </div>
 
         {/* Nav links */}

@@ -1,12 +1,6 @@
 import type { SVGProps } from 'react';
 
-type Variant = 'dark' | 'light';
-
-interface LogoProps extends SVGProps<SVGSVGElement> {
-  variant?: Variant;
-}
-
-const colors = {
+const stackedColors = {
   dark: {
     arc: '#F7F4EE',
     bolt: '#2DD4BF',
@@ -23,9 +17,8 @@ const colors = {
   },
 };
 
-/** Square icon mark — use at any size by setting className="h-* w-*" */
-export function Logomark({ variant = 'light', className, ...props }: LogoProps) {
-  const c = colors[variant];
+/** Square icon mark — adapts to light/dark mode via CSS tokens */
+export function Logomark({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -38,15 +31,14 @@ export function Logomark({ variant = 'light', className, ...props }: LogoProps) 
       <title>Comprobify</title>
       <path
         d="M 88 30 A 32 32 0 1 0 88 90"
-        stroke={c.arc}
+        className="stroke-foreground"
         strokeWidth="16"
         fill="none"
         strokeLinecap="round"
       />
       <path
         d="M 104 28 L 58 58 L 74 58 L 52 100 L 78 64 L 62 64 Z"
-        fill={c.bolt}
-        stroke={c.boltStroke}
+        className="fill-primary stroke-background"
         strokeWidth="6"
         strokeLinejoin="round"
         style={{ paintOrder: 'stroke fill' }}
@@ -55,20 +47,24 @@ export function Logomark({ variant = 'light', className, ...props }: LogoProps) 
   );
 }
 
-/** Horizontal lockup — icon + "Comprobify" wordmark side by side */
-export function LogoLockup({ variant = 'light', className, ...props }: LogoProps) {
-  const c = colors[variant];
+/** Stacked lockup — icon above wordmark, for auth pages */
+export function LogoLockupStacked({
+  variant = 'light',
+  className,
+  ...props
+}: SVGProps<SVGSVGElement> & { variant?: 'dark' | 'light' }) {
+  const c = stackedColors[variant];
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 660 120"
+      viewBox="0 0 480 215"
       role="img"
       aria-label="Comprobify"
       className={className}
       {...props}
     >
       <title>Comprobify</title>
-      <g>
+      <g transform="translate(180, 0)">
         <path
           d="M 88 30 A 32 32 0 1 0 88 90"
           stroke={c.arc}
@@ -86,8 +82,9 @@ export function LogoLockup({ variant = 'light', className, ...props }: LogoProps
         />
       </g>
       <text
-        x="140"
-        y="86"
+        x="240"
+        y="205"
+        textAnchor="middle"
         fontFamily="Inter, system-ui, -apple-system, sans-serif"
         fontWeight="700"
         fontSize="72"
@@ -95,6 +92,49 @@ export function LogoLockup({ variant = 'light', className, ...props }: LogoProps
       >
         <tspan fill={c.wordPrimary}>Compro</tspan>
         <tspan fill={c.wordAccent}>bify</tspan>
+      </text>
+    </svg>
+  );
+}
+
+/** Horizontal lockup — always on dark sidebar background, uses sidebar CSS tokens */
+export function LogoLockup({ className, ...props }: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 660 120"
+      role="img"
+      aria-label="Comprobify"
+      className={className}
+      {...props}
+    >
+      <title>Comprobify</title>
+      <g>
+        <path
+          d="M 88 30 A 32 32 0 1 0 88 90"
+          className="stroke-sidebar-foreground"
+          strokeWidth="16"
+          fill="none"
+          strokeLinecap="round"
+        />
+        <path
+          d="M 104 28 L 58 58 L 74 58 L 52 100 L 78 64 L 62 64 Z"
+          className="fill-sidebar-primary stroke-sidebar"
+          strokeWidth="6"
+          strokeLinejoin="round"
+          style={{ paintOrder: 'stroke fill' }}
+        />
+      </g>
+      <text
+        x="140"
+        y="86"
+        fontFamily="Inter, system-ui, -apple-system, sans-serif"
+        fontWeight="700"
+        fontSize="72"
+        letterSpacing="-2"
+      >
+        <tspan className="fill-sidebar-foreground">Compro</tspan>
+        <tspan className="fill-sidebar-primary">bify</tspan>
       </text>
     </svg>
   );
