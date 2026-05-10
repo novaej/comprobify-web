@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 120" role="img" aria-label="Comprobify">
+  <title>Comprobify</title>
+  
+  <g transform="translate(0,0)">
+    <path d="M 88 30 A 32 32 0 1 0 88 90" stroke="#0E1116" stroke-width="16" fill="none" stroke-linecap="round"></path>
+    <path d="M 104 28 L 58 58 L 74 58 L 52 100 L 78 64 L 62 64 Z" fill="#0F766E" stroke="#F7F4EE" stroke-width="6" stroke-linejoin="round" style="paint-order: stroke fill"></path>
+  </g>
+  <text x="108" y="86" font-family="Inter, system-ui, -apple-system, sans-serif" font-weight="700" font-size="72" letter-spacing="-2">
+    <tspan fill="#0E1116">ompro</tspan><tspan fill="#0F766E">bify</tspan>
+  </text>
+</svg>

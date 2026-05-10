@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 280" role="img" aria-label="Comprobify">
+  <title>Comprobify</title>
+  <g transform="translate(180, 0)">
+    <path d="M 88 30 A 32 32 0 1 0 88 90" stroke="#F7F4EE" stroke-width="16" fill="none" stroke-linecap="round"></path>
+    <path d="M 104 28 L 58 58 L 74 58 L 52 100 L 78 64 L 62 64 Z" fill="#2DD4BF" stroke="#0B1220" stroke-width="6" stroke-linejoin="round" style="paint-order: stroke fill"></path>
+  </g>
+  <text x="240" y="240" text-anchor="middle" font-family="Inter, system-ui, -apple-system, sans-serif" font-weight="700" font-size="64" letter-spacing="-1.6">
+    <tspan fill="#F7F4EE">Compro</tspan><tspan fill="#2DD4BF">bify</tspan>
+  </text>
+</svg>
