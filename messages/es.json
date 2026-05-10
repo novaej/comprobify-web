@@ -263,7 +263,8 @@
   "settingsError": {
     "CERT_REQUIRED": "Debes subir tu certificado P12.",
     "CERT_EXPIRED": "El certificado ha expirado. Renueva tu certificado en el SRI.",
-    "CERT_INVALID": "El certificado no es válido o la contraseña es incorrecta.",
+    "CERT_INVALID": "La contraseña del certificado es incorrecta.",
+    "CERT_INVALID_FILE": "El archivo P12 no es válido o está dañado.",
     "CONFLICT": "Ya existe un emisor registrado con ese RUC.",
     "SUSPENDED": "Esta cuenta ha sido suspendida. Contacta a soporte para más información.",
     "DB_WRITE_FAILED": "Tu empresa fue registrada exitosamente pero ocurrió un error al guardar la configuración. Contacta a soporte con tu correo electrónico para completar la vinculación.",

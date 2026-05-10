@@ -64,8 +64,9 @@ export async function setupIssuerAction(formData: FormData): Promise<SettingsRes
         if (err.status === 403) return { error: 'SUSPENDED' };
         if (err.status === 409) return { error: 'CONFLICT' };
         if (err.status === 429) return { error: 'TOO_MANY_REQUESTS' };
-        const msg = err.detail.toLowerCase();
+        const msg = (err.detail ?? '').toLowerCase();
         if (msg.includes('expired')) return { error: 'CERT_EXPIRED' };
+        if (msg.includes('file')) return { error: 'CERT_INVALID_FILE' };
         if (msg.includes('signing key') || msg.includes('invalid') || msg.includes('password')) return { error: 'CERT_INVALID' };
         return { error: err.code };
       }
