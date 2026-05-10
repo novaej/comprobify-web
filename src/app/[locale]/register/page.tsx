@@ -2,7 +2,7 @@ import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { RegisterForm } from '@/components/register-form';
 import { Link } from '@/i18n/navigation';
 import { LocaleSwitcher } from '@/components/locale-switcher';
-import { FileText } from 'lucide-react';
+import { Logomark } from '@/components/logo';
 
 export default async function RegisterPage({
   params,
@@ -22,9 +22,7 @@ export default async function RegisterPage({
       <div className="flex flex-1 items-center justify-center p-4">
         <div className="w-full max-w-sm">
           <div className="mb-7 text-center">
-            <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground mb-4">
-              <FileText className="h-5 w-5" />
-            </div>
+            <Logomark variant="light" className="mx-auto h-10 w-10 mb-4" />
             <h1 className="text-xl font-semibold tracking-tight">Comprobify</h1>
             <p className="mt-1 text-sm text-muted-foreground">{t('register.subtitle')}</p>
           </div>

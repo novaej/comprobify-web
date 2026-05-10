@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation';
-import { LayoutDashboard, FilePlus, Settings, Menu, X, LogOut, FileText, Globe } from 'lucide-react';
+import { LayoutDashboard, FilePlus, Settings, Menu, X, LogOut, Globe } from 'lucide-react';
+import { Logomark, LogoLockup } from '@/components/logo';
 import { signOut } from 'next-auth/react';
 import { cn } from '@/lib/utils';
 
@@ -40,9 +41,7 @@ export function Nav({ hasIssuer }: { hasIssuer: boolean }) {
           <Menu className="h-5 w-5" />
         </button>
         <div className="flex items-center gap-2">
-          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <FileText className="h-3.5 w-3.5" />
-          </div>
+          <Logomark variant="light" className="h-6 w-6" />
           <span className="text-sm font-semibold">Comprobify</span>
         </div>
       </div>
@@ -67,7 +66,7 @@ export function Nav({ hasIssuer }: { hasIssuer: boolean }) {
         )}
       >
         {/* Logo */}
-        <div className="flex h-14 items-center gap-2 border-b border-sidebar-border px-4">
+        <div className="flex h-14 items-center gap-3 border-b border-sidebar-border px-4">
           <button
             onClick={() => setIsOpen(false)}
             className="rounded-md p-1 text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:hidden"
@@ -75,12 +74,7 @@ export function Nav({ hasIssuer }: { hasIssuer: boolean }) {
           >
             <X className="h-4 w-4" />
           </button>
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground shadow-sm">
-              <FileText className="h-4 w-4" />
-            </div>
-            <span className="text-sm font-semibold text-sidebar-foreground">Comprobify</span>
-          </div>
+          <LogoLockup variant="dark" className="h-7 w-auto" />
         </div>
 
         {/* Nav links */}
