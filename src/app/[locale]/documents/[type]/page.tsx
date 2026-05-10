@@ -1,9 +1,10 @@
-import { setRequestLocale } from 'next-intl/server';
-import { getTranslations } from 'next-intl/server';
+import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import { StatusBadge } from '@/components/status-badge';
 import { PageHeader } from '@/components/page-header';
+import { StatusBadge } from '@/components/status-badge';
 import { buttonVariants } from '@/components/ui/button';
+import { listDocuments } from '@/lib/api';
+import { requireApiKey } from '@/lib/auth-token';
 import {
   Table,
   TableBody,
@@ -12,38 +13,54 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { listDocuments } from '@/lib/api';
-import { requireApiKey } from '@/lib/auth-token';
-import { Plus } from 'lucide-react';
+import { ChevronLeft, Plus } from 'lucide-react';
+import type { Document } from '@/lib/api';
 
-export default async function DashboardPage({
+const CREATE_HREFS: Record<string, string> = {
+  '01': '/invoices/new',
+};
+
+export default async function DocumentListPage({
   params,
 }: {
-  params: Promise<{ locale: string }>;
+  params: Promise<{ locale: string; type: string }>;
 }) {
-  const { locale } = await params;
+  const { locale, type } = await params;
   setRequestLocale(locale);
-  const t = await getTranslations('dashboard');
+  const t = await getTranslations('documents');
 
   const apiKey = await requireApiKey();
-
-  let documents: Awaited<ReturnType<typeof listDocuments>>['data'] = [];
+  let documents: Document[] = [];
   let fetchError = false;
   try {
-    ({ data: documents } = await listDocuments(apiKey, { limit: 50 }));
+    ({ data: documents } = await listDocuments(apiKey, { documentType: type, limit: 50 }));
   } catch {
     fetchError = true;
   }
 
+  const nameKey = `types.${type}.name` as Parameters<typeof t>[0];
+  const typeName = t.has(nameKey) ? t(nameKey) : type;
+  const createHref = CREATE_HREFS[type];
+
   return (
     <div>
+      <Link
+        href="/documents"
+        className="mb-4 flex w-fit items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ChevronLeft className="h-4 w-4" />
+        {t('title')}
+      </Link>
+
       <PageHeader
-        title={t('title')}
+        title={typeName}
         action={
-          <Link href="/invoices/new" className={buttonVariants({ size: 'sm' })}>
-            <Plus className="h-4 w-4" />
-            {t('newDocument')}
-          </Link>
+          createHref ? (
+            <Link href={createHref} className={buttonVariants({ size: 'sm' })}>
+              <Plus className="h-4 w-4" />
+              {t('createNew')}
+            </Link>
+          ) : undefined
         }
       />
 
@@ -52,19 +69,19 @@ export default async function DashboardPage({
           <TableHeader>
             <TableRow className="bg-muted/40 hover:bg-muted/40">
               <TableHead className="pl-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                {t('table.sequential')}
+                {t('list.table.sequential')}
               </TableHead>
               <TableHead className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                {t('table.buyer')}
+                {t('list.table.buyer')}
               </TableHead>
               <TableHead className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                {t('table.date')}
+                {t('list.table.date')}
               </TableHead>
               <TableHead className="text-right text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                {t('table.total')}
+                {t('list.table.total')}
               </TableHead>
               <TableHead className="pr-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                {t('table.status')}
+                {t('list.table.status')}
               </TableHead>
             </TableRow>
           </TableHeader>
@@ -72,13 +89,13 @@ export default async function DashboardPage({
             {fetchError ? (
               <TableRow className="hover:bg-transparent">
                 <TableCell colSpan={5} className="py-16 text-center text-sm text-destructive">
-                  {t('table.error')}
+                  {t('list.error')}
                 </TableCell>
               </TableRow>
             ) : documents.length === 0 ? (
               <TableRow className="hover:bg-transparent">
                 <TableCell colSpan={5} className="py-16 text-center text-sm text-muted-foreground">
-                  {t('table.empty')}
+                  {t('list.empty')}
                 </TableCell>
               </TableRow>
             ) : (

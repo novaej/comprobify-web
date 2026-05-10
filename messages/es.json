@@ -15,7 +15,7 @@
   },
   "nav": {
     "dashboard": "Panel",
-    "newInvoice": "Nueva factura",
+    "documents": "Comprobantes",
     "settings": "Configuración",
     "signOut": "Cerrar sesión"
   },
@@ -67,7 +67,7 @@
   },
   "dashboard": {
     "title": "Panel",
-    "newInvoice": "Nueva factura",
+    "newDocument": "Nueva factura",
     "summary": {
       "total": "Total de comprobantes",
       "authorizedThisMonth": "Autorizados este mes",
@@ -79,7 +79,57 @@
       "total": "Total",
       "status": "Estado",
       "date": "Fecha",
-      "empty": "No hay comprobantes aún."
+      "empty": "No hay comprobantes aún.",
+      "error": "No se pudo cargar la lista de comprobantes. Verifica que el servicio esté disponible."
+    }
+  },
+  "documents": {
+    "title": "Comprobantes",
+    "description": "Elige el tipo de comprobante que deseas gestionar.",
+    "viewList": "Ver documentos",
+    "createNew": "Nuevo",
+    "noTypes": "No hay tipos de comprobante configurados para tu emisor.",
+    "stats": {
+      "period": "Este mes",
+      "total": "emitidos",
+      "authorized": "autorizados"
+    },
+    "types": {
+      "01": {
+        "name": "Factura",
+        "description": "Venta de bienes y servicios a clientes con RUC, cédula o pasaporte."
+      },
+      "03": {
+        "name": "Liquidación de compra",
+        "description": "Adquisiciones a personas naturales que no emiten comprobantes."
+      },
+      "04": {
+        "name": "Nota de crédito",
+        "description": "Anula o reduce el valor de una factura ya emitida."
+      },
+      "05": {
+        "name": "Nota de débito",
+        "description": "Registra cargos adicionales sobre una factura emitida."
+      },
+      "06": {
+        "name": "Guía de remisión",
+        "description": "Acredita el traslado autorizado de mercadería."
+      },
+      "07": {
+        "name": "Comprobante de retención",
+        "description": "Respalda los impuestos retenidos al pagar a un proveedor."
+      }
+    },
+    "list": {
+      "error": "No se pudo cargar la lista. Verifica que el servicio esté disponible.",
+      "empty": "No hay documentos de este tipo aún.",
+      "table": {
+        "sequential": "Número",
+        "buyer": "Cliente",
+        "total": "Total",
+        "status": "Estado",
+        "date": "Fecha"
+      }
     }
   },
   "invoiceForm": {

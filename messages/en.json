@@ -15,7 +15,7 @@
   },
   "nav": {
     "dashboard": "Dashboard",
-    "newInvoice": "New invoice",
+    "documents": "Documents",
     "settings": "Settings",
     "signOut": "Sign out"
   },
@@ -67,7 +67,7 @@
   },
   "dashboard": {
     "title": "Dashboard",
-    "newInvoice": "New invoice",
+    "newDocument": "New invoice",
     "summary": {
       "total": "Total documents",
       "authorizedThisMonth": "Authorized this month",
@@ -79,7 +79,57 @@
       "total": "Total",
       "status": "Status",
       "date": "Date",
-      "empty": "No documents yet."
+      "empty": "No documents yet.",
+      "error": "Could not load documents. Please check that the service is available."
+    }
+  },
+  "documents": {
+    "title": "Documents",
+    "description": "Choose the type of document you want to manage.",
+    "viewList": "View documents",
+    "createNew": "New",
+    "noTypes": "No document types are configured for your issuer.",
+    "stats": {
+      "period": "This month",
+      "total": "issued",
+      "authorized": "authorized"
+    },
+    "types": {
+      "01": {
+        "name": "Invoice",
+        "description": "Sales of goods and services to customers with a tax ID."
+      },
+      "03": {
+        "name": "Purchase liquidation",
+        "description": "Purchases from individuals who cannot issue their own receipts."
+      },
+      "04": {
+        "name": "Credit note",
+        "description": "Cancels or reduces the value of an already issued invoice."
+      },
+      "05": {
+        "name": "Debit note",
+        "description": "Records additional charges on an issued invoice."
+      },
+      "06": {
+        "name": "Delivery note",
+        "description": "Documents the authorized transport of goods."
+      },
+      "07": {
+        "name": "Withholding receipt",
+        "description": "Documents taxes withheld when paying a supplier."
+      }
+    },
+    "list": {
+      "error": "Could not load documents. Please check that the service is available.",
+      "empty": "No documents of this type yet.",
+      "table": {
+        "sequential": "Number",
+        "buyer": "Customer",
+        "total": "Total",
+        "status": "Status",
+        "date": "Date"
+      }
     }
   },
   "invoiceForm": {
