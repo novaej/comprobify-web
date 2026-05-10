@@ -2,6 +2,7 @@ import { setRequestLocale } from 'next-intl/server';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { StatusBadge } from '@/components/status-badge';
+import { PageHeader } from '@/components/page-header';
 import { buttonVariants } from '@/components/ui/button';
 import {
   Table,
@@ -28,48 +29,60 @@ export default async function DashboardPage({
   const { data: documents } = await listDocuments(apiKey, { limit: 50 });
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t('title')}</h1>
-        <Link href="/invoices/new" className={buttonVariants()}>
-          <Plus className="mr-2 h-4 w-4" />
-          {t('newInvoice')}
-        </Link>
-      </div>
+    <div>
+      <PageHeader
+        title={t('title')}
+        action={
+          <Link href="/invoices/new" className={buttonVariants({ size: 'sm' })}>
+            <Plus className="h-4 w-4" />
+            {t('newInvoice')}
+          </Link>
+        }
+      />
 
-      <div className="overflow-x-auto">
+      <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>{t('table.sequential')}</TableHead>
-              <TableHead>{t('table.buyer')}</TableHead>
-              <TableHead>{t('table.date')}</TableHead>
-              <TableHead className="text-right">{t('table.total')}</TableHead>
-              <TableHead>{t('table.status')}</TableHead>
+            <TableRow className="bg-muted/40 hover:bg-muted/40">
+              <TableHead className="pl-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {t('table.sequential')}
+              </TableHead>
+              <TableHead className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {t('table.buyer')}
+              </TableHead>
+              <TableHead className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {t('table.date')}
+              </TableHead>
+              <TableHead className="text-right text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {t('table.total')}
+              </TableHead>
+              <TableHead className="pr-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {t('table.status')}
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {documents.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground py-10">
+              <TableRow className="hover:bg-transparent">
+                <TableCell colSpan={5} className="py-16 text-center text-sm text-muted-foreground">
                   {t('table.empty')}
                 </TableCell>
               </TableRow>
             ) : (
               documents.map((doc) => (
                 <TableRow key={doc.accessKey}>
-                  <TableCell className="font-mono">
+                  <TableCell className="pl-4 font-mono text-sm">
                     <Link
                       href={`/invoices/${doc.accessKey}`}
-                      className="hover:underline"
+                      className="hover:text-primary hover:underline underline-offset-4 transition-colors"
                     >
                       {doc.sequential}
                     </Link>
                   </TableCell>
-                  <TableCell>{doc.buyer.name}</TableCell>
-                  <TableCell>{doc.issueDate}</TableCell>
-                  <TableCell className="text-right">${doc.total}</TableCell>
-                  <TableCell>
+                  <TableCell className="text-sm">{doc.buyer.name}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{doc.issueDate}</TableCell>
+                  <TableCell className="text-right text-sm font-medium">${doc.total}</TableCell>
+                  <TableCell className="pr-4">
                     <StatusBadge status={doc.status} />
                   </TableCell>
                 </TableRow>

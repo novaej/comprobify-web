@@ -3,6 +3,7 @@ import { auth } from '@/auth';
 import { IssuerSetupForm } from '@/components/issuer-setup-form';
 import { ProductionPromotion } from '@/components/production-promotion';
 import { EmailVerificationNotice } from '@/components/email-verification-notice';
+import { PageHeader } from '@/components/page-header';
 import { requireApiKey } from '@/lib/auth-token';
 import { listDocumentTypes } from '@/lib/api';
 
@@ -25,43 +26,51 @@ export default async function SettingsPage({
     : [];
 
   return (
-    <div className="space-y-8 max-w-2xl">
-      <h1 className="text-2xl font-bold">{t('title')}</h1>
+    <div className="max-w-2xl">
+      <PageHeader title={t('title')} />
 
-      {!hasIssuer && (
-        <div className="rounded-lg border bg-card p-6 space-y-4">
-          <div>
-            <h2 className="font-semibold text-lg">{t('setup.title')}</h2>
-            <p className="text-sm text-muted-foreground mt-1">{t('setup.description')}</p>
+      <div className="space-y-4">
+        {!hasIssuer && (
+          <div className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-4">
+            <div>
+              <h2 className="text-sm font-semibold">{t('setup.title')}</h2>
+              <p className="mt-1 text-sm text-muted-foreground">{t('setup.description')}</p>
+            </div>
+            <IssuerSetupForm />
           </div>
-          <IssuerSetupForm />
-        </div>
-      )}
+        )}
 
-      {hasIssuer && !emailVerified && (
-        <EmailVerificationNotice />
-      )}
+        {hasIssuer && !emailVerified && <EmailVerificationNotice />}
 
-      {hasIssuer && (
-        <>
-          <div className="rounded-lg border bg-card p-6 space-y-3">
-            <h2 className="font-semibold">{t('environment.title')}</h2>
-            <div className="flex items-center gap-2">
-              <span className={`h-2 w-2 rounded-full ${environment === 'production' ? 'bg-green-500' : 'bg-yellow-400'}`} />
-              <span className="text-sm font-medium">
-                {environment === 'production' ? t('environment.production') : t('environment.sandbox')}
-              </span>
+        {hasIssuer && (
+          <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold">{t('environment.title')}</h2>
+              <div className="flex items-center gap-2">
+                <span
+                  className={`h-2 w-2 rounded-full ${
+                    environment === 'production' ? 'bg-green-500' : 'bg-amber-400'
+                  }`}
+                />
+                <span className="text-sm font-medium">
+                  {environment === 'production'
+                    ? t('environment.production')
+                    : t('environment.sandbox')}
+                </span>
+              </div>
             </div>
             {environment === 'sandbox' && (
-              <ProductionPromotion documentTypes={documentTypes} emailVerified={emailVerified} />
+              <div className="mt-5 pt-5 border-t border-border">
+                <ProductionPromotion documentTypes={documentTypes} emailVerified={emailVerified} />
+              </div>
             )}
           </div>
-        </>
-      )}
+        )}
 
-      <div className="rounded-lg border bg-card p-6 space-y-2">
-        <h2 className="font-semibold">{t('account.title')}</h2>
-        <p className="text-sm text-muted-foreground">{session?.user?.email}</p>
+        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+          <h2 className="text-sm font-semibold">{t('account.title')}</h2>
+          <p className="mt-1.5 text-sm text-muted-foreground">{session?.user?.email}</p>
+        </div>
       </div>
     </div>
   );

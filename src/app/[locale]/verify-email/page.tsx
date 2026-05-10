@@ -34,28 +34,32 @@ export default async function VerifyEmailPage({
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center p-4">
-      <div className="w-full max-w-sm space-y-6 text-center">
-        {success ? (
-          <>
-            <CheckCircle2 className="mx-auto h-14 w-14 text-green-500" />
-            <div className="space-y-2">
-              <h1 className="text-2xl font-bold">{t('successTitle')}</h1>
-              <p className="text-sm text-muted-foreground">{t('successDescription')}</p>
-            </div>
-          </>
-        ) : (
-          <>
-            <XCircle className="mx-auto h-14 w-14 text-destructive" />
-            <div className="space-y-2">
-              <h1 className="text-2xl font-bold">{t('errorTitle')}</h1>
-              <p className="text-sm text-muted-foreground">{t('errorDescription')}</p>
-            </div>
-          </>
-        )}
-        <Link href="/settings" className={buttonVariants({ variant: 'default' }) + ' cursor-pointer'}>
-          {t('goToSettings')}
-        </Link>
+    <div className="min-h-screen bg-muted/40 flex items-center justify-center p-4">
+      <div className="w-full max-w-sm">
+        <div className="rounded-xl border border-border bg-card p-8 shadow-sm text-center">
+          {success ? (
+            <>
+              <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-green-50 text-green-500 mb-4">
+                <CheckCircle2 className="h-6 w-6" />
+              </div>
+              <h1 className="text-lg font-semibold tracking-tight">{t('successTitle')}</h1>
+              <p className="mt-1 text-sm text-muted-foreground">{t('successDescription')}</p>
+            </>
+          ) : (
+            <>
+              <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-destructive mb-4">
+                <XCircle className="h-6 w-6" />
+              </div>
+              <h1 className="text-lg font-semibold tracking-tight">{t('errorTitle')}</h1>
+              <p className="mt-1 text-sm text-muted-foreground">{t('errorDescription')}</p>
+            </>
+          )}
+          <div className="mt-6">
+            <Link href="/settings" className={buttonVariants() + ' cursor-pointer'}>
+              {t('goToSettings')}
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   );

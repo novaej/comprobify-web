@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useRef } from 'react';
 import { useTranslations } from 'next-intl';
+import { useRouter } from '@/i18n/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,6 +20,7 @@ const DOC_TYPES = [
 export function IssuerSetupForm() {
   const t = useTranslations('settings.setup');
   const tError = useTranslations('settingsError');
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -48,6 +50,8 @@ export function IssuerSetupForm() {
             ? tError(result.error as Parameters<typeof tError>[0])
             : result.error
         );
+      } else if (!result) {
+        router.push('/dashboard');
       }
     });
   }

@@ -84,7 +84,6 @@ export async function setupIssuerAction(formData: FormData): Promise<SettingsRes
     return { error: 'DB_WRITE_FAILED' };
   }
 
-  redirect({ href: '/dashboard', locale });
   return null;
 }
 

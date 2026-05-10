@@ -1,6 +1,7 @@
 import { setRequestLocale } from 'next-intl/server';
 import { getTranslations } from 'next-intl/server';
 import { InvoiceForm } from '@/components/invoice-form';
+import { PageHeader } from '@/components/page-header';
 
 export default async function NewInvoicePage({
   params,
@@ -12,8 +13,8 @@ export default async function NewInvoicePage({
   const t = await getTranslations('invoiceForm');
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">{t('title')}</h1>
+    <div className="max-w-2xl">
+      <PageHeader title={t('title')} />
       <InvoiceForm />
     </div>
   );

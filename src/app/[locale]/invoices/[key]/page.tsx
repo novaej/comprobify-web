@@ -42,55 +42,73 @@ export default async function InvoiceDetailPage({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Header */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground font-mono">
+          <h1 className="text-lg font-semibold tracking-tight">
+            {t('sequential')}: {document.sequential}
+          </h1>
+          <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 font-mono text-xs text-muted-foreground">
             <span className="shrink-0">{t('accessKey')}:</span>
             <span className="break-all">{document.accessKey}</span>
             <AccessKeyCopy value={document.accessKey} />
           </div>
-          <h1 className="text-2xl font-bold mt-1">
-            {t('sequential')}: {document.sequential}
-          </h1>
         </div>
-        <StatusBadge status={document.status} />
+        <div className="shrink-0 mt-0.5">
+          <StatusBadge status={document.status} />
+        </div>
       </div>
 
       {/* Key info */}
-      <div className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
-        <div>
-          <p className="text-muted-foreground">{t('issueDate')}</p>
-          <p className="font-medium">{document.issueDate}</p>
-        </div>
-        <div>
-          <p className="text-muted-foreground">{t('total')}</p>
-          <p className="font-medium">${document.total}</p>
-        </div>
-        <div>
-          <p className="text-muted-foreground">{t('buyer')}</p>
-          <p className="font-medium">{document.buyer.name}</p>
-        </div>
-        <div>
-          <p className="text-muted-foreground">{t('buyerId')}</p>
-          <p className="font-medium">{document.buyer.id}</p>
-        </div>
+      <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm sm:grid-cols-4">
+          <div>
+            <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {t('issueDate')}
+            </dt>
+            <dd className="mt-1 font-medium">{document.issueDate}</dd>
+          </div>
+          <div>
+            <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {t('total')}
+            </dt>
+            <dd className="mt-1 font-semibold">${document.total}</dd>
+          </div>
+          <div>
+            <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {t('buyer')}
+            </dt>
+            <dd className="mt-1 font-medium">{document.buyer.name}</dd>
+          </div>
+          <div>
+            <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {t('buyerId')}
+            </dt>
+            <dd className="mt-1 font-medium">{document.buyer.id}</dd>
+          </div>
+        </dl>
       </div>
 
       {/* Authorization info */}
       {document.authorizationNumber && (
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div>
-            <p className="text-muted-foreground">{t('authorizationNumber')}</p>
-            <p className="font-mono text-xs break-all">{document.authorizationNumber}</p>
-          </div>
-          {document.authorizationDate && (
+        <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+          <dl className="grid grid-cols-1 gap-x-6 gap-y-4 text-sm sm:grid-cols-2">
             <div>
-              <p className="text-muted-foreground">{t('authorizationDate')}</p>
-              <p className="font-medium">{document.authorizationDate}</p>
+              <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {t('authorizationNumber')}
+              </dt>
+              <dd className="mt-1 font-mono text-xs break-all">{document.authorizationNumber}</dd>
             </div>
-          )}
+            {document.authorizationDate && (
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {t('authorizationDate')}
+                </dt>
+                <dd className="mt-1 font-medium">{document.authorizationDate}</dd>
+              </div>
+            )}
+          </dl>
         </div>
       )}
 
@@ -104,21 +122,27 @@ export default async function InvoiceDetailPage({
 
       {/* Events timeline */}
       {events.length > 0 && (
-        <div className="space-y-2">
-          <h2 className="font-semibold">{t('events.title')}</h2>
-          <div className="overflow-x-auto">
+        <div>
+          <h2 className="mb-3 text-sm font-semibold">{t('events.title')}</h2>
+          <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>{t('events.type')}</TableHead>
-                  <TableHead>{t('events.date')}</TableHead>
-                  <TableHead>{t('events.detail')}</TableHead>
+                <TableRow className="bg-muted/40 hover:bg-muted/40">
+                  <TableHead className="pl-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {t('events.type')}
+                  </TableHead>
+                  <TableHead className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {t('events.date')}
+                  </TableHead>
+                  <TableHead className="pr-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {t('events.detail')}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {events.map((event) => (
                   <TableRow key={event.id}>
-                    <TableCell>
+                    <TableCell className="pl-4 text-sm">
                       {t.has(`eventTypes.${event.eventType}` as Parameters<typeof t>[0])
                         ? t(`eventTypes.${event.eventType}` as Parameters<typeof t>[0])
                         : event.eventType}
@@ -126,7 +150,9 @@ export default async function InvoiceDetailPage({
                     <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                       {new Date(event.createdAt).toLocaleString('es-EC')}
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{event.detail ?? '—'}</TableCell>
+                    <TableCell className="pr-4 text-xs text-muted-foreground">
+                      {event.detail ?? '—'}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
