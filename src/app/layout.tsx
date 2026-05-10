@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Geist } from 'next/font/google';
 import { getLocale } from 'next-intl/server';
+import { ThemeProvider } from '@/providers/theme-provider';
 import './globals.css';
 
 const geistSans = Geist({
@@ -23,8 +24,12 @@ export default async function RootLayout({
   const locale = await getLocale();
 
   return (
-    <html lang={locale} className={`${geistSans.variable} h-full`}>
-      <body className="h-full antialiased">{children}</body>
+    <html lang={locale} className={`${geistSans.variable} h-full`} suppressHydrationWarning>
+      <body className="h-full antialiased">
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          {children}
+        </ThemeProvider>
+      </body>
     </html>
   );
 }

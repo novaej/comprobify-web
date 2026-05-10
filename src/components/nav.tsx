@@ -5,6 +5,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation';
 import { LayoutDashboard, FilePlus, Settings, Menu, X, LogOut, Globe } from 'lucide-react';
 import { Logomark, LogoLockup } from '@/components/logo';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { signOut } from 'next-auth/react';
 import { cn } from '@/lib/utils';
 
@@ -105,23 +106,26 @@ export function Nav({ hasIssuer }: { hasIssuer: boolean }) {
 
         {/* Footer: locale + sign out */}
         <div className="border-t border-sidebar-border px-3 py-3 space-y-0.5">
-          <div className="flex items-center gap-1 px-3 py-1.5">
-            <Globe className="h-3.5 w-3.5 shrink-0 text-sidebar-foreground/40" aria-hidden />
-            {locales.map(({ code, label }) => (
-              <Link
-                key={code}
-                href={pathname}
-                locale={code}
-                className={cn(
-                  'rounded px-1.5 py-0.5 text-xs transition-colors',
-                  locale === code
-                    ? 'font-semibold text-sidebar-foreground'
-                    : 'text-sidebar-foreground/40 hover:text-sidebar-foreground/70'
-                )}
-              >
-                {label}
-              </Link>
-            ))}
+          <div className="flex items-center justify-between px-3 py-1.5">
+            <div className="flex items-center gap-1">
+              <Globe className="h-3.5 w-3.5 shrink-0 text-sidebar-foreground/40" aria-hidden />
+              {locales.map(({ code, label }) => (
+                <Link
+                  key={code}
+                  href={pathname}
+                  locale={code}
+                  className={cn(
+                    'rounded px-1.5 py-0.5 text-xs transition-colors',
+                    locale === code
+                      ? 'font-semibold text-sidebar-foreground'
+                      : 'text-sidebar-foreground/40 hover:text-sidebar-foreground/70'
+                  )}
+                >
+                  {label}
+                </Link>
+              ))}
+            </div>
+            <ThemeToggle />
           </div>
           <button
             onClick={() => signOut({ callbackUrl: `/${locale}/login` })}
