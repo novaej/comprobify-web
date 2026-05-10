@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "db:reset": "node scripts/db-reset.js"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",
