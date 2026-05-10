@@ -53,7 +53,7 @@ export default async function VerifyEmailPage({
             </div>
           </>
         )}
-        <Link href="/settings" className={buttonVariants({ variant: 'default' })}>
+        <Link href="/settings" className={buttonVariants({ variant: 'default' }) + ' cursor-pointer'}>
           {t('goToSettings')}
         </Link>
       </div>

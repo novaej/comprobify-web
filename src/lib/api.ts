@@ -328,11 +328,11 @@ export async function registerIssuer(
   };
 }
 
-export async function resendVerificationEmail(email: string): Promise<void> {
+export async function resendVerificationEmail(email: string, verificationRedirectUrl?: string): Promise<void> {
   await publicRequest('/api/resend-verification', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({ email, ...(verificationRedirectUrl && { verificationRedirectUrl }) }),
   });
 }
 

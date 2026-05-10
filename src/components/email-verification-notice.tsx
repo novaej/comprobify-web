@@ -63,7 +63,7 @@ export function EmailVerificationNotice() {
             <button
               onClick={handleResend}
               disabled={isPending || cooldown > 0}
-              className="pt-1 text-xs font-medium text-yellow-800 underline underline-offset-4 hover:text-yellow-900 disabled:opacity-50 dark:text-yellow-400 dark:hover:text-yellow-300"
+              className="cursor-pointer pt-1 text-xs font-medium text-yellow-800 underline underline-offset-4 hover:text-yellow-900 disabled:opacity-50 dark:text-yellow-400 dark:hover:text-yellow-300"
             >
               {isPending ? t('sending') : cooldown > 0 ? t('cooldown', { seconds: cooldown }) : t('resend')}
             </button>

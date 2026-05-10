@@ -135,7 +135,7 @@ export function ProductionPromotion({ documentTypes, emailVerified }: { document
           <button
             onClick={handleResend}
             disabled={isResendPending}
-            className="text-sm underline underline-offset-4 hover:text-foreground disabled:opacity-50"
+            className="cursor-pointer text-sm underline underline-offset-4 hover:text-foreground disabled:opacity-50"
           >
             {isResendPending ? t('resending') : t('resend')}
           </button>

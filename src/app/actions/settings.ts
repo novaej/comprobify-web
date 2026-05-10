@@ -122,8 +122,11 @@ export async function resendVerificationAction(): Promise<SettingsResult> {
   const session = await auth();
   if (!session?.user?.id || !session.user?.email) return { error: 'UNAUTHORIZED' };
 
+  const locale = await getLocale();
+  const verificationRedirectUrl = await buildVerifyEmailUrl(locale);
+
   try {
-    await resendVerificationEmail(session.user.email);
+    await resendVerificationEmail(session.user.email, verificationRedirectUrl);
   } catch (err) {
     if (err instanceof ApiError) {
       if (err.status === 409) {
