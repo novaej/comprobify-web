@@ -138,13 +138,17 @@
     "submit": "Generate document",
     "submitRebuild": "Rebuild",
     "submitting": "Processing...",
+    "issueDate": "Issue date",
+    "guiaRemision": "Delivery note",
+    "guiaRemisionPlaceholder": "001-001-000000001",
     "buyer": {
       "title": "Buyer",
       "idType": "ID type",
       "id": "ID number",
-      "name": "Name / Company name",
+      "name": "Legal name",
       "email": "Email address",
-      "address": "Address (optional)"
+      "emailHint": "Please verify the email address to ensure the document is delivered successfully",
+      "address": "Address"
     },
     "idTypes": {
       "04": "RUC",
@@ -154,15 +158,18 @@
       "08": "Foreign ID"
     },
     "items": {
-      "title": "Products / Services",
+      "title": "Line items",
       "add": "Add item",
       "remove": "Remove",
       "mainCode": "Main code",
+      "auxCode": "Aux. code",
       "description": "Description",
-      "quantity": "Quantity",
-      "unitPrice": "Unit price (USD)",
-      "discount": "Discount (%)",
-      "tax": "VAT"
+      "quantity": "Qty",
+      "unitPrice": "Unit price",
+      "discount": "Discount",
+      "tax": "Rate",
+      "lineTotal": "Total",
+      "empty": "No items added"
     },
     "taxOptions": {
       "2-4": "VAT 15%",
@@ -172,10 +179,17 @@
       "2-7": "VAT exempt"
     },
     "payment": {
-      "title": "Payment",
-      "method": "Payment method",
-      "total": "Amount (USD)",
-      "term": "Term (days, optional)"
+      "title": "Payment methods",
+      "method": "Method",
+      "total": "Amount",
+      "term": "Term",
+      "termUnit": "Unit",
+      "add": "Add payment method",
+      "remove": "Remove",
+      "empty": "No payment methods added",
+      "quickCash": "Cash",
+      "quickDebit": "Debit card",
+      "quickCredit": "Credit card"
     },
     "paymentMethods": {
       "01": "Without financial system",
@@ -187,12 +201,25 @@
       "20": "Other with financial system",
       "21": "Title endorsement"
     },
+    "additionalInfo": {
+      "title": "Additional fields",
+      "add": "Add field",
+      "remove": "Remove",
+      "name": "Name",
+      "value": "Value",
+      "empty": "No additional fields"
+    },
     "totals": {
-      "title": "Summary",
-      "subtotal": "Subtotal (excl. VAT)",
-      "discount": "Discount",
-      "taxableBase": "Taxable base",
-      "iva": "VAT 15%",
+      "title": "Totals",
+      "subtotalNoTax": "Subtotal (excl. tax)",
+      "subtotal15": "Subtotal 15.00%",
+      "subtotal5": "Subtotal 5%",
+      "subtotal0": "Subtotal 0%",
+      "subtotalNoObj": "Subtotal not subject to VAT",
+      "subtotalExempt": "Subtotal VAT exempt",
+      "totalDiscount": "Total discount",
+      "iva15": "VAT 15%",
+      "iva5": "VAT 5%",
       "total": "Total due"
     }
   },

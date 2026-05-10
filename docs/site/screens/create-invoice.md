@@ -22,45 +22,72 @@ Multi-section form for creating an electronic invoice. Maps to `POST /api/docume
 
 ## Form sections
 
-### 1. Buyer (Comprador)
+### 0. Invoice header
 
 | Field | Required | Notes |
 |---|---|---|
-| ID type (idType) | Yes | Select: 04 RUC / 05 Cédula / 06 Pasaporte / 07 Consumidor Final |
+| Issue date (issueDate) | — | Read-only; always today's date. SRI only accepts today. |
+| Delivery note (guiaRemision) | No | Format `NNN-NNN-NNNNNNNNN` (e.g. `001-001-000000001`) |
+
+### 1. Buyer (Adquirente)
+
+| Field | Required | Notes |
+|---|---|---|
+| ID type (idType) | Yes | Select: 04 RUC / 05 Cédula / 06 Pasaporte / 07 Consumidor Final / 08 Id. exterior |
 | ID number (id) | Yes | Max 20 chars |
-| Name (name) | Yes | Max 300 chars |
-| Email (email) | Yes | Valid email — receives the authorized invoice |
+| Legal name (name) | Yes | Max 300 chars |
 | Address (address) | No | Max 300 chars |
+| Email (email) | Yes | Valid email — receives the authorized invoice |
 
-### 2. Line items (Productos / Servicios)
+### 2. Line items (Detalle)
 
-Dynamic list — at least 1 item required, user can add/remove rows.
+Dynamic table — at least 1 item required. Discount is an **absolute amount in USD**, not a percentage.
 
 | Field | Required | Notes |
 |---|---|---|
 | Main code (mainCode) | Yes | Product/service code |
-| Description | Yes | Max 300 chars |
+| Auxiliary code (auxCode) | No | Secondary code; included in XML as `codigoAuxiliar` |
 | Quantity | Yes | Numeric |
+| Description | Yes | Max 300 chars |
 | Unit price (unitPrice) | Yes | Numeric, USD |
-| Discount (%) | No | Numeric |
-| VAT (taxes) | Yes | Select IVA rate; auto-populates tax code + rate code + rate |
+| Rate (taxes) | Yes | Select IVA rate; auto-populates tax code + rate code + rate |
+| Discount | No | Absolute USD amount (not %) |
+| Line total | — | Read-only: `qty × unitPrice − discount` |
 
-### 3. Payment
+### 3. Payment methods (Formas de pago)
+
+Dynamic table — at least 1 payment required. Quick-add buttons for Efectivo (01), Tarjeta de débito (16), Tarjeta de crédito (19).
 
 | Field | Required | Notes |
 |---|---|---|
 | Method | Yes | SRI 2-digit codes (see `invoiceForm.paymentMethods` in messages) |
-| Amount (total) | Yes | Must equal invoice total |
-| Term (days) | No | Payment term in days |
+| Amount (total) | Yes | Must sum to invoice total |
+| Term (term) | No | Payment term length (e.g. `30`). Maps to SRI `plazo` |
+| Term unit (termUnit) | No | Time unit string, max 10 chars (e.g. `dias`). Maps to SRI `unidadTiempo` |
 
-### 4. Totals preview (read-only, calculated live)
+### 4. Additional fields (Campos adicionales)
 
-Shown as a summary card:
-- Subtotal sin IVA
-- Descuento
-- Base imponible  
-- IVA (15%, 5%, 0%, etc.)
-- **Total** (bold)
+Dynamic table — optional. Included in the XML as `infoAdicional/campoAdicional` entries (max 15).
+
+| Field | Required | Notes |
+|---|---|---|
+| Name | Yes | Key for the additional field |
+| Value | Yes | Value for the additional field |
+
+### 5. Totals preview (read-only, calculated live)
+
+| Row | Calculation |
+|---|---|
+| Subtotal sin impuestos | Sum of all `qty × price − discount` |
+| Subtotal 15% | Sum of line nets where taxOption = `2-4` |
+| Subtotal 5% | Sum of line nets where taxOption = `2-5` |
+| Subtotal 0% | Sum of line nets where taxOption = `2-0` |
+| Subtotal no objeto de IVA | Sum of line nets where taxOption = `2-6` |
+| Subtotal exento de IVA | Sum of line nets where taxOption = `2-7` |
+| Total descuento | Sum of all discount amounts |
+| IVA 15% | Subtotal 15% × 0.15 |
+| IVA 5% | Subtotal 5% × 0.05 |
+| **Valor a pagar** | Subtotal + IVA 15% + IVA 5% |
 
 ---
 
@@ -78,7 +105,7 @@ Shown as a summary card:
 
 ## Zod schema (TypeScript)
 
-The form Zod schema must mirror the API validator (`src/validators/invoice.validator.js` in `comprobify`). Any validation the API does should also be done client-side for fast feedback.
+The form Zod schema mirrors the API validator (`src/validators/invoice.validator.js` in `comprobify`). Client-side validation provides fast feedback before the Server Action fires.
 
 ---
 

@@ -9,6 +9,7 @@ import { requireApiKey } from '@/lib/auth-token';
 type TaxOption = '2-4' | '2-0' | '2-5' | '2-6' | '2-7';
 
 export interface InvoiceFormData {
+  guiaRemision?: string;
   buyer: {
     idType: string;
     id: string;
@@ -18,6 +19,7 @@ export interface InvoiceFormData {
   };
   items: Array<{
     mainCode: string;
+    auxCode?: string;
     description: string;
     quantity: string;
     unitPrice: string;
@@ -28,7 +30,9 @@ export interface InvoiceFormData {
     method: string;
     total: string;
     term?: string;
+    termUnit?: string;
   }>;
+  additionalInfo?: Array<{ name: string; value: string }>;
 }
 
 const TAX_MAP: Record<TaxOption, { code: string; rateCode: string; rate: string }> = {
@@ -46,6 +50,7 @@ export async function createInvoiceAction(data: InvoiceFormData): Promise<Create
 
   const payload: CreateDocumentPayload = {
     documentType: '01',
+    ...(data.guiaRemision ? { guiaRemision: data.guiaRemision } : {}),
     buyer: {
       idType: data.buyer.idType,
       id: data.buyer.id,
@@ -55,6 +60,7 @@ export async function createInvoiceAction(data: InvoiceFormData): Promise<Create
     },
     items: data.items.map((item) => ({
       mainCode: item.mainCode,
+      ...(item.auxCode ? { auxCode: item.auxCode } : {}),
       description: item.description,
       quantity: item.quantity,
       unitPrice: item.unitPrice,
@@ -65,7 +71,11 @@ export async function createInvoiceAction(data: InvoiceFormData): Promise<Create
       method: p.method,
       total: p.total,
       ...(p.term && p.term !== '' ? { term: Number(p.term) } : {}),
+      ...(p.termUnit && p.termUnit !== '' ? { termUnit: p.termUnit } : {}),
     })),
+    ...(data.additionalInfo && data.additionalInfo.length > 0
+      ? { additionalInfo: data.additionalInfo }
+      : {}),
   };
 
   let accessKey: string;

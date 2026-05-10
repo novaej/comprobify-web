@@ -81,6 +81,7 @@ export interface InvoiceTax {
 
 export interface InvoiceItem {
   mainCode: string;
+  auxCode?: string;
   description: string;
   quantity: string;
   unitPrice: string;
@@ -92,11 +93,13 @@ export interface InvoicePayment {
   method: string; // 2-digit SRI payment method code
   total: string;
   term?: number;
+  termUnit?: string;
 }
 
 export interface CreateDocumentPayload {
   documentType: '01';
   issueDate?: string; // DD/MM/YYYY — defaults to today on the API side
+  guiaRemision?: string; // NNN-NNN-NNNNNNNNN format
   buyer: {
     idType: string;
     id: string;
@@ -106,6 +109,7 @@ export interface CreateDocumentPayload {
   };
   items: InvoiceItem[];
   payments: InvoicePayment[];
+  additionalInfo?: Array<{ name: string; value: string }>;
 }
 
 // ── HTTP client ───────────────────────────────────────────────────────────────

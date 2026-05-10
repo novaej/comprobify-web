@@ -138,13 +138,17 @@
     "submit": "Generar comprobante",
     "submitRebuild": "Reconstruir",
     "submitting": "Procesando...",
+    "issueDate": "Fecha de emisión",
+    "guiaRemision": "Guía de remisión",
+    "guiaRemisionPlaceholder": "001-001-000000001",
     "buyer": {
-      "title": "Comprador",
+      "title": "Adquirente",
       "idType": "Tipo de identificación",
-      "id": "Número de identificación",
-      "name": "Nombre / Razón social",
+      "id": "Identificación",
+      "name": "Razón social",
       "email": "Correo electrónico",
-      "address": "Dirección (opcional)"
+      "emailHint": "Recuerde revisar el correo electrónico para garantizar que el comprobante sea entregado exitosamente",
+      "address": "Dirección"
     },
     "idTypes": {
       "04": "RUC",
@@ -154,15 +158,18 @@
       "08": "Identificación del exterior"
     },
     "items": {
-      "title": "Productos / Servicios",
+      "title": "Detalle",
       "add": "Agregar ítem",
       "remove": "Eliminar",
-      "mainCode": "Código principal",
+      "mainCode": "Cód. principal",
+      "auxCode": "Cód. auxiliar",
       "description": "Descripción",
       "quantity": "Cantidad",
-      "unitPrice": "Precio unitario (USD)",
-      "discount": "Descuento (%)",
-      "tax": "IVA"
+      "unitPrice": "P. unitario",
+      "discount": "Descuento",
+      "tax": "Tarifa",
+      "lineTotal": "Valor total",
+      "empty": "No existen productos"
     },
     "taxOptions": {
       "2-4": "IVA 15%",
@@ -172,10 +179,17 @@
       "2-7": "Exento de IVA"
     },
     "payment": {
-      "title": "Pago",
+      "title": "Formas de pago",
       "method": "Forma de pago",
-      "total": "Monto (USD)",
-      "term": "Plazo (días, opcional)"
+      "total": "Valor",
+      "term": "Plazo",
+      "termUnit": "Tiempo",
+      "add": "Añadir forma de pago",
+      "remove": "Eliminar",
+      "empty": "No existen formas de pago",
+      "quickCash": "Efectivo",
+      "quickDebit": "Tarjeta de débito",
+      "quickCredit": "Tarjeta de crédito"
     },
     "paymentMethods": {
       "01": "Sin utilización del sistema financiero",
@@ -187,13 +201,26 @@
       "20": "Otros con utilización del sistema financiero",
       "21": "Endoso de títulos"
     },
+    "additionalInfo": {
+      "title": "Campos adicionales",
+      "add": "Añadir campo adicional",
+      "remove": "Eliminar",
+      "name": "Nombre",
+      "value": "Descripción",
+      "empty": "No existen campos adicionales"
+    },
     "totals": {
-      "title": "Resumen",
-      "subtotal": "Subtotal sin IVA",
-      "discount": "Descuento",
-      "taxableBase": "Base imponible",
-      "iva": "IVA 15%",
-      "total": "Total a pagar"
+      "title": "Totales",
+      "subtotalNoTax": "Subtotal sin impuestos",
+      "subtotal15": "Subtotal 15.00%",
+      "subtotal5": "Subtotal 5%",
+      "subtotal0": "Subtotal 0%",
+      "subtotalNoObj": "Subtotal no objeto de IVA",
+      "subtotalExempt": "Subtotal exento de IVA",
+      "totalDiscount": "Total descuento",
+      "iva15": "IVA 15%",
+      "iva5": "IVA 5%",
+      "total": "Valor a pagar"
     }
   },
   "invoiceDetail": {
