@@ -69,6 +69,7 @@ src/app/[locale]/your-screen/actions.ts
 'use server';
 
 import { redirect } from '@/i18n/navigation';
+import { revalidatePath } from 'next/cache';
 import { sendToSri } from '@/lib/api';
 import { ApiError } from '@/lib/errors';
 
@@ -83,6 +84,22 @@ export async function sendToSriAction(accessKey: string) {
     }
     throw err; // Let Next.js error boundary handle unexpected errors
   }
+}
+```
+
+If the action changes data that the **shared layout** reads from the session (e.g. `hasIssuer`, `environment`), call `revalidatePath('/', 'layout')` before redirecting. Without it, Next.js reuses the cached layout RSC payload and the Nav appears stale until a manual reload:
+
+```ts
+revalidatePath('/', 'layout');
+redirect({ href: '/dashboard', locale });
+```
+
+If you use a broad `try/catch` around the entire action body, you must re-throw `NEXT_REDIRECT` errors or the redirect will be swallowed:
+
+```ts
+} catch (err) {
+  if ((err as { digest?: string }).digest?.startsWith('NEXT_REDIRECT')) throw err;
+  // handle other errors
 }
 ```
 

@@ -43,6 +43,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 - `.example.env` with all required environment variables
 
 ### Fixed
+- Nav menu now shows all items (Dashboard, Nueva Factura) immediately after issuer setup without requiring a manual page reload — `setupIssuerAction` now redirects server-side and calls `revalidatePath('/', 'layout')` to clear the Next.js Router Cache entry for the shared layout
+- Dark mode warning colors corrected for status badges, sandbox banner, email verification notice, and polling timeout banner — previous `*-950/20` tints were invisible on the navy dark background; replaced with `*-500/10–15` backgrounds and `*-300` text
 - `setupIssuerAction` hardened against partial failures: API key and issuer ID logged before DB write so they are always recoverable
 - Registration error handling adapted to idempotent `POST /api/register` (returns recovery key on conflict)
 - `resendVerificationEmail` now passes `verificationRedirectUrl` so verification links in re-sent emails point to the frontend
