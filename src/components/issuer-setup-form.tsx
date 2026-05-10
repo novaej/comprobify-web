@@ -43,15 +43,23 @@ export function IssuerSetupForm() {
     const formData = new FormData(e.currentTarget);
     setError(null);
     startTransition(async () => {
-      const result = await setupIssuerAction(formData);
-      if (result && 'error' in result) {
+      try {
+        const result = await setupIssuerAction(formData);
+        if (result && 'error' in result) {
+          setError(
+            tError.has(result.error as Parameters<typeof tError>[0])
+              ? tError(result.error as Parameters<typeof tError>[0])
+              : result.error
+          );
+        } else if (!result) {
+          router.push('/dashboard');
+        }
+      } catch {
         setError(
-          tError.has(result.error as Parameters<typeof tError>[0])
-            ? tError(result.error as Parameters<typeof tError>[0])
-            : result.error
+          tError.has('UNEXPECTED_ERROR')
+            ? tError('UNEXPECTED_ERROR')
+            : 'Error inesperado. Por favor intenta de nuevo.'
         );
-      } else if (!result) {
-        router.push('/dashboard');
       }
     });
   }
