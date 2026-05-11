@@ -28,9 +28,10 @@ Example: user navigates to `/es/dashboard`.
 5. dashboard/page.tsx (async Server Component)
    │  • setRequestLocale('es')
    │  • getTranslations('dashboard')
-   │  • listDocuments() ← calls src/lib/api.ts
+   │  • requireApiKey() ← fetches user's API key from DB via src/lib/auth-token.ts
+   │  • listDocuments(apiKey) ← calls src/lib/api.ts
    │      └─► GET /api/documents (Comprobify API, server-to-server)
-   │          Authorization: Bearer $COMPROBIFY_API_KEY
+   │          Authorization: Bearer <user's comprobifyApiKey from DB>
    │  • Returns HTML with document list pre-rendered
    │
 6. Browser receives complete HTML
@@ -53,9 +54,10 @@ Example: user submits the Create Invoice form.
 3. Server Action called (createInvoiceAction in invoices/new/actions.ts)
    │  'use server'
    │  • Receives validated payload from the form
-   │  • Calls createDocument(payload) ← src/lib/api.ts
+   │  • requireApiKey() ← fetches user's API key from DB
+   │  • Calls createDocument(apiKey, payload) ← src/lib/api.ts
    │      └─► POST /api/documents (Comprobify API, server-to-server)
-   │          Authorization: Bearer $COMPROBIFY_API_KEY
+   │          Authorization: Bearer <user's comprobifyApiKey from DB>
    │
 4a. On success:
    │  • redirect('/invoices/:accessKey') ← @/i18n/navigation
@@ -86,7 +88,7 @@ Example: invoice is in `RECEIVED` status, waiting for SRI authorization.
    │  })
    │
 3. Next.js Route Handler (src/app/api/documents/[key]/status/route.ts)
-   │  • Reads COMPROBIFY_API_KEY from process.env
+   │  • requireApiKey() ← fetches user's API key from DB (session-authenticated)
    │  • GET /api/documents/:key (Comprobify API, server-to-server)
    │  • Forwards response JSON to browser
    │
@@ -135,7 +137,7 @@ Every request (except `/api/`, `/_next/`, `/favicon.ico`) passes through:
 
 ```
 Browser request
-  └─► src/middleware.ts (next-intl)
+  └─► src/proxy.ts (next-intl — Next.js 16 renamed convention)
         ├─ Parses locale from URL prefix (/es/, /en/)
         ├─ Sets locale in request headers
         ├─ Redirects '/' to '/es' (default locale)
@@ -148,7 +150,7 @@ Browser request
 
 | Flow | Files involved |
 |---|---|
-| Page load | `middleware.ts` → `[locale]/layout.tsx` → `page.tsx` → `src/lib/api.ts` |
+| Page load | `proxy.ts` → `[locale]/layout.tsx` → `page.tsx` → `src/lib/api.ts` |
 | Form submit | `form.tsx` (client) → `actions.ts` (server action) → `src/lib/api.ts` |
 | Status polling | `status-poller.tsx` (client) → `app/api/.../route.ts` → `src/lib/api.ts` |
 | Navigation | `@/i18n/navigation` (Link, redirect, usePathname) |

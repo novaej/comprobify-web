@@ -42,9 +42,12 @@ The session exposed to Server Components and Server Actions via `auth()` contain
 // src/lib/auth-token.ts
 export async function requireApiKey(): Promise<string> {
   const session = await auth();
-  if (!session?.user?.id) redirect('/login');
-  const user = await db.user.findUnique({ where: { id: Number(session.user.id) } });
-  if (!user?.comprobifyApiKey) redirect('/settings');
+  if (!session?.user?.id) throw new Error('Not authenticated');
+  const user = await db.user.findUnique({
+    where: { id: Number(session.user.id) },
+    select: { comprobifyApiKey: true },
+  });
+  if (!user?.comprobifyApiKey) throw new Error('Issuer not configured');
   return user.comprobifyApiKey;
 }
 ```

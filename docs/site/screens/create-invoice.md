@@ -39,13 +39,15 @@ Multi-section form for creating an electronic invoice. Maps to `POST /api/docume
 | Address (address) | No | Max 300 chars |
 | Email (email) | Yes | Valid email — receives the authorized invoice |
 
+A search icon button next to the ID number field performs an exact `idNumber` lookup against the user's saved clients. On match, it auto-fills ID type, name, email, and address. The button is hidden when Consumidor Final is selected or the user has no saved clients. Clients are managed at `/clients`.
+
 ### 2. Line items (Detalle)
 
 Dynamic table — at least 1 item required. Discount is an **absolute amount in USD**, not a percentage.
 
 | Field | Required | Notes |
 |---|---|---|
-| Main code (mainCode) | Yes | Product/service code |
+| Main code (mainCode) | Yes | Product/service code — also a combobox for product search (see below) |
 | Auxiliary code (auxCode) | No | Secondary code; included in XML as `codigoAuxiliar` |
 | Quantity | Yes | Numeric |
 | Description | Yes | Max 300 chars |
@@ -53,6 +55,8 @@ Dynamic table — at least 1 item required. Discount is an **absolute amount in 
 | Rate (taxes) | Yes | Select IVA rate; auto-populates tax code + rate code + rate |
 | Discount | No | Absolute USD amount (not %) |
 | Line total | — | Read-only: `qty × unitPrice − discount` |
+
+The main code field doubles as a **product search combobox** (`ProductSearch`). Typing filters the user's saved product catalog client-side; selecting an item auto-fills description, unit price, and IVA rate. The dropdown uses `createPortal` with `position: fixed` to escape the `overflow-x-auto` table wrapper. Products are managed at `/catalog`.
 
 ### 3. Payment methods (Formas de pago)
 
