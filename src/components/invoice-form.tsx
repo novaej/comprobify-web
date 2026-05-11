@@ -284,7 +284,7 @@ export function InvoiceForm({ catalogs, defaultValues }: Props) {
                   </SelectTrigger>
                   <SelectContent>
                     {catalogs.idTypes.map((idType) => (
-                      <SelectItem key={idType.code} value={idType.code}>
+                      <SelectItem key={idType.code} value={idType.code} label={idType.description}>
                         {idType.description}
                       </SelectItem>
                     ))}
@@ -381,11 +381,14 @@ export function InvoiceForm({ catalogs, defaultValues }: Props) {
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    {ivaRates.map((r) => (
-                                      <SelectItem key={r.rateCode} value={`2-${r.rateCode}`}>
-                                        {Number(r.rate) > 0 ? `IVA ${fmt(Number(r.rate))}%` : r.description}
-                                      </SelectItem>
-                                    ))}
+                                    {ivaRates.map((r) => {
+                                      const label = Number(r.rate) > 0 ? `IVA ${fmt(Number(r.rate))}%` : r.description;
+                                      return (
+                                        <SelectItem key={r.rateCode} value={`2-${r.rateCode}`} label={label}>
+                                          {label}
+                                        </SelectItem>
+                                      );
+                                    })}
                                   </SelectContent>
                                 </Select>
                               )}
@@ -459,7 +462,7 @@ export function InvoiceForm({ catalogs, defaultValues }: Props) {
                               </SelectTrigger>
                               <SelectContent>
                                 {catalogs.paymentMethods.map((m) => (
-                                  <SelectItem key={m.code} value={m.code}>
+                                  <SelectItem key={m.code} value={m.code} label={m.description}>
                                     {m.description}
                                   </SelectItem>
                                 ))}
