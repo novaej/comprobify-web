@@ -189,7 +189,8 @@
       "empty": "No payment methods added",
       "quickCash": "Cash",
       "quickDebit": "Debit card",
-      "quickCredit": "Credit card"
+      "quickCredit": "Credit card",
+      "autoSync": "Amount is automatically calculated from the invoice total."
     },
     "paymentMethods": {
       "01": "Without financial system",
