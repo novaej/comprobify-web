@@ -284,7 +284,7 @@ export function InvoiceForm({ catalogs, defaultValues }: Props) {
                       {(v: string | null) => catalogs.idTypes.find((t) => t.code === v)?.description ?? v}
                     </SelectValue>
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="w-auto min-w-(--anchor-width)">
                     {catalogs.idTypes.map((idType) => (
                       <SelectItem key={idType.code} value={idType.code}>
                         {idType.description}
@@ -388,7 +388,7 @@ export function InvoiceForm({ catalogs, defaultValues }: Props) {
                                       }}
                                     </SelectValue>
                                   </SelectTrigger>
-                                  <SelectContent>
+                                  <SelectContent className="w-auto min-w-(--anchor-width)">
                                     {ivaRates.map((r) => {
                                       const label = Number(r.rate) > 0 ? `IVA ${fmt(Number(r.rate))}%` : r.description;
                                       return (
@@ -470,7 +470,7 @@ export function InvoiceForm({ catalogs, defaultValues }: Props) {
                                   {(v: string | null) => catalogs.paymentMethods.find((m) => m.code === v)?.description ?? v}
                                 </SelectValue>
                               </SelectTrigger>
-                              <SelectContent>
+                              <SelectContent className="w-auto min-w-(--anchor-width)">
                                 {catalogs.paymentMethods.map((m) => (
                                   <SelectItem key={m.code} value={m.code}>
                                     {m.description}
