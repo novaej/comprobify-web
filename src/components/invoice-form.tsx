@@ -6,7 +6,7 @@ import { useForm, useFieldArray, useWatch, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useTranslations } from 'next-intl';
-import { Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus, Search } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,6 +23,7 @@ import { createInvoiceAction, type InvoiceFormData } from '@/app/actions/invoice
 import { Link } from '@/i18n/navigation';
 import type { InvoiceCatalogs } from '@/app/[locale]/invoices/new/page';
 import type { CatalogProduct } from '@/app/actions/catalog';
+import type { SavedClient } from '@/app/actions/clients';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -370,12 +371,34 @@ export function InvoiceForm({ catalogs, defaultValues }: Props) {
 
           <div className="space-y-1.5">
             <Label>{t('buyer.id')} *</Label>
-            <Input
-              {...form.register('buyer.id')}
-              readOnly={watchedIdType === CONSUMIDOR_FINAL_CODE}
-              className={watchedIdType === CONSUMIDOR_FINAL_CODE ? 'bg-muted text-muted-foreground' : ''}
-              aria-invalid={!!errors.buyer?.id}
-            />
+            <div className="flex gap-1">
+              <Input
+                {...form.register('buyer.id')}
+                readOnly={watchedIdType === CONSUMIDOR_FINAL_CODE}
+                className={watchedIdType === CONSUMIDOR_FINAL_CODE ? 'bg-muted text-muted-foreground' : ''}
+                aria-invalid={!!errors.buyer?.id}
+              />
+              {watchedIdType !== CONSUMIDOR_FINAL_CODE && catalogs.clients.length > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  aria-label={t('buyer.searchClient')}
+                  onClick={() => {
+                    const idValue = form.getValues('buyer.id').trim();
+                    const match = catalogs.clients.find((c) => c.idNumber === idValue);
+                    if (match) {
+                      form.setValue('buyer.idType', match.idType);
+                      form.setValue('buyer.name', match.name, { shouldValidate: true });
+                      form.setValue('buyer.email', match.email, { shouldValidate: true });
+                      form.setValue('buyer.address', match.address ?? '');
+                    }
+                  }}
+                >
+                  <Search className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
             {errors.buyer?.id && <p className="text-xs text-destructive">{errors.buyer.id.message}</p>}
           </div>
 

@@ -16,6 +16,7 @@
   "nav": {
     "dashboard": "Panel",
     "documents": "Comprobantes",
+    "clients": "Clientes",
     "catalog": "Catálogo",
     "settings": "Configuración",
     "signOut": "Cerrar sesión"
@@ -149,7 +150,8 @@
       "name": "Razón social",
       "email": "Correo electrónico",
       "emailHint": "Recuerde revisar el correo electrónico para garantizar que el comprobante sea entregado exitosamente",
-      "address": "Dirección"
+      "address": "Dirección",
+      "searchClient": "Buscar en clientes guardados"
     },
     "idTypes": {
       "04": "RUC",
@@ -365,6 +367,33 @@
     "SRI_ERROR": "El SRI devolvió un error. Revise los mensajes de detalle.",
     "INTERNAL_ERROR": "Error interno del servidor. Contacte al soporte.",
     "UNKNOWN": "Ha ocurrido un error inesperado."
+  },
+  "clients": {
+    "title": "Clientes",
+    "description": "Guarda tus clientes frecuentes para completar facturas más rápido.",
+    "add": "Agregar cliente",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "confirmDeleteTitle": "¿Eliminar cliente?",
+    "confirmDeleteDescription": "Esta acción no se puede deshacer.",
+    "empty": "No hay clientes guardados. Agrega tu primer cliente.",
+    "form": {
+      "idType": "Tipo de identificación",
+      "idNumber": "Número de identificación",
+      "name": "Razón social / Nombre",
+      "email": "Correo electrónico",
+      "address": "Dirección (opcional)"
+    },
+    "table": {
+      "idType": "Tipo ID",
+      "idNumber": "Identificación",
+      "name": "Nombre",
+      "email": "Correo",
+      "address": "Dirección",
+      "actions": "Acciones"
+    },
+    "search": "Buscar cliente guardado...",
+    "noResults": "Sin resultados"
   },
   "catalog": {
     "title": "Catálogo de productos",

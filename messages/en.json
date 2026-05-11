@@ -16,6 +16,7 @@
   "nav": {
     "dashboard": "Dashboard",
     "documents": "Documents",
+    "clients": "Clients",
     "catalog": "Catalog",
     "settings": "Settings",
     "signOut": "Sign out"
@@ -149,7 +150,8 @@
       "name": "Legal name",
       "email": "Email address",
       "emailHint": "Please verify the email address to ensure the document is delivered successfully",
-      "address": "Address"
+      "address": "Address",
+      "searchClient": "Search saved clients"
     },
     "idTypes": {
       "04": "RUC",
@@ -365,6 +367,33 @@
     "SRI_ERROR": "The SRI returned an error. Review the detail messages.",
     "INTERNAL_ERROR": "Internal server error. Please contact support.",
     "UNKNOWN": "An unexpected error occurred."
+  },
+  "clients": {
+    "title": "Clients",
+    "description": "Save your frequent clients to fill invoices faster.",
+    "add": "Add client",
+    "edit": "Edit",
+    "delete": "Delete",
+    "confirmDeleteTitle": "Delete client?",
+    "confirmDeleteDescription": "This action cannot be undone.",
+    "empty": "No saved clients yet. Add your first client.",
+    "form": {
+      "idType": "ID type",
+      "idNumber": "ID number",
+      "name": "Legal name",
+      "email": "Email address",
+      "address": "Address (optional)"
+    },
+    "table": {
+      "idType": "ID type",
+      "idNumber": "ID",
+      "name": "Name",
+      "email": "Email",
+      "address": "Address",
+      "actions": "Actions"
+    },
+    "search": "Search saved client...",
+    "noResults": "No results"
   },
   "catalog": {
     "title": "Product catalog",

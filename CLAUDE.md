@@ -134,6 +134,8 @@ messages/
 
 **Catalog fetching:** SRI lookup tables (ID types, payment methods, tax rates) live in the API database and are fetched server-side at page load via `listCatalogIdTypes`, `listCatalogPaymentMethods`, `listCatalogTaxRates` in `src/lib/api.ts`. The page fetches all three in parallel and passes them as props to the Client Component form. This keeps selects in sync with the DB without hardcoding strings in the frontend. The IVA rate options are further filtered client-side by the `IVA_RATE_CODES` constant in `invoice-form.tsx` to exclude historical rates.
 
+**Client management:** Users can save frequent clients in the app's own `clients` table (Prisma), scoped per user. The CRUD screen is at `/clients`. On the invoice creation page, the user's clients are fetched server-side and passed as `catalogs.clients`. A search icon button next to the buyer ID field does an exact `idNumber` lookup and fills name, email, address, and ID type when a match is found. The button is hidden when Consumidor Final is selected or no clients are saved. Every DB operation uses `updateMany`/`deleteMany` scoped to `userId` so a user can never touch another user's records.
+
 **Product catalog:** Users can save products/services in the app's own `products` table (Prisma). The catalog page (`/catalog`) provides full CRUD via `src/app/actions/catalog.ts`. On the invoice creation page, all products for the user are fetched server-side alongside the SRI catalogs and passed to `InvoiceForm` as `catalogs.products`. The `ProductSearch` combobox in each line-item row filters products client-side as the user types, then fills all item fields on selection. The dropdown is rendered via `createPortal(…, document.body)` with `position: fixed` to escape the `overflow-x-auto` table wrapper. ICE and IVA turismo fields are intentionally excluded — the invoice API does not currently support them.
 
 **Base UI `SelectValue` display:** `@base-ui/react` Select.Value does not mirror the selected item's children text — it renders the raw `value` string by default. To show a human-readable label, pass a render function as children:
@@ -204,9 +206,12 @@ This project runs Next.js **16** (not 13-15). Key differences from older version
 | `src/app/[locale]/verify-email/page.tsx` | Public email verification page — reads token from query string, updates Prisma by email (no session required) |
 | `src/app/actions/settings.ts` | Server Actions for issuer setup, production promotion, and resend verification |
 | `src/app/actions/invoice.ts` | `createInvoiceAction` — builds `CreateDocumentPayload` from form data and calls `createDocument`; exports `InvoiceFormData` type |
+| `src/app/actions/clients.ts` | Server Actions for client CRUD; exports `SavedClient` type; all ops scoped to `userId` |
 | `src/app/actions/catalog.ts` | Server Actions for product catalog CRUD; exports `CatalogProduct` type |
 | `src/components/invoice-form.tsx` | Invoice creation form (React Hook Form + Zod); accepts `InvoiceCatalogs` prop; catalog-driven selects, Consumidor Final auto-fill, single-payment auto-sync, product search combobox |
 | `src/app/[locale]/invoices/new/page.tsx` | Server Component — fetches SRI catalogs + user products in parallel, passes as props to `InvoiceForm`; exports `InvoiceCatalogs` type |
+| `src/app/[locale]/clients/page.tsx` | Server Component — fetches user clients from DB, renders `ClientCatalog` |
+| `src/components/client-catalog.tsx` | Client Component — client CRUD table with add/edit/delete dialogs |
 | `src/app/[locale]/catalog/page.tsx` | Server Component — fetches user products from DB, renders `ProductCatalog` |
 | `src/components/product-catalog.tsx` | Client Component — product catalog CRUD table with add/edit/delete dialogs |
 | `src/app/api/documents/[key]/status/route.ts` | Proxy for TanStack Query polling |

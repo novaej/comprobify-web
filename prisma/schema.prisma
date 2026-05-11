@@ -16,6 +16,7 @@ model User {
   emailVerified      Boolean   @default(false) @map("email_verified")
   createdAt          DateTime  @default(now()) @map("created_at")
   products           Product[]
+  clients            Client[]
 
   @@map("users")
 }
@@ -32,4 +33,18 @@ model Product {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("products")
+}
+
+model Client {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  idType    String   @map("id_type") @db.VarChar(5)
+  idNumber  String   @map("id_number") @db.VarChar(20)
+  name      String
+  email     String
+  address   String?
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("clients")
 }
