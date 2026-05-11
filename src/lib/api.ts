@@ -89,7 +89,7 @@ export interface CatalogTaxRate {
   taxCode: string;
   rateCode: string;
   description: string;
-  rate: number;
+  rate: string | number; // pg returns DECIMAL as string
 }
 
 export interface InvoiceTax {

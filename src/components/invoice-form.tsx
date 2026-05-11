@@ -387,7 +387,7 @@ export function InvoiceForm({ catalogs, defaultValues }: Props) {
                                   <SelectContent>
                                     {ivaRates.map((r) => (
                                       <SelectItem key={r.rateCode} value={`2-${r.rateCode}`}>
-                                        {r.rate > 0 ? `IVA ${fmt(r.rate)}%` : r.description}
+                                        {Number(r.rate) > 0 ? `IVA ${fmt(Number(r.rate))}%` : r.description}
                                       </SelectItem>
                                     ))}
                                   </SelectContent>
