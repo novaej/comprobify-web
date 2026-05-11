@@ -10,7 +10,7 @@ Ordered backlog for `comprobify-web`. Items are numbered — complete the highes
 
 2. **Rebuild Invoice button** — show a Rebuild button on Invoice Detail for `RETURNED` / `NOT_AUTHORIZED` documents. `requestPayload` is now included in document responses — use it to pre-fill the form.
 
-3. **Dashboard — summary cards** — total invoices, authorized this month, pending (SIGNED + RECEIVED). Fetch from `GET /api/documents` with status filters.
+3. **Dashboard — summary cards** — KPI cards showing: issued this month (by type), net authorized revenue this month (FAC + LIQ + DEB − CRE), and "needs attention" count (RETURNED + NOT_AUTHORIZED). Fetch from `GET /api/documents/stats` which returns `{ stats: { thisMonth: { byType: [{ type, issued, authorizedTotal }] }, needsAttention } }`. Saved clients and products counts come from local Prisma. Also cap the document table to ~10 rows with a "Ver todos" link.
 
 4. **Dashboard — pagination** — the list currently loads up to 50 documents. Add page controls using the `pagination` object returned by `listDocuments()`.
 
