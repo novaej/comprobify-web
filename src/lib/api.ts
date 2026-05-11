@@ -73,6 +73,25 @@ export interface ListDocumentsParams {
   limit?: number;
 }
 
+// ── Catalog types ─────────────────────────────────────────────────────────────
+
+export interface CatalogIdType {
+  code: string;
+  description: string;
+}
+
+export interface CatalogPaymentMethod {
+  code: string;
+  description: string;
+}
+
+export interface CatalogTaxRate {
+  taxCode: string;
+  rateCode: string;
+  description: string;
+  rate: number;
+}
+
 export interface InvoiceTax {
   code: string; // e.g. "2" for IVA
   rateCode: string; // e.g. "4" for 15%
@@ -362,4 +381,28 @@ export async function promoteToProduction(
     },
   );
   return result.apiKey;
+}
+
+export async function listCatalogIdTypes(apiKey: string): Promise<CatalogIdType[]> {
+  const result = await request<{ ok: true; idTypes: CatalogIdType[] }>(
+    '/api/catalogs/id-types',
+    apiKey,
+  );
+  return result.idTypes;
+}
+
+export async function listCatalogPaymentMethods(apiKey: string): Promise<CatalogPaymentMethod[]> {
+  const result = await request<{ ok: true; paymentMethods: CatalogPaymentMethod[] }>(
+    '/api/catalogs/payment-methods',
+    apiKey,
+  );
+  return result.paymentMethods;
+}
+
+export async function listCatalogTaxRates(apiKey: string): Promise<CatalogTaxRate[]> {
+  const result = await request<{ ok: true; taxRates: CatalogTaxRate[] }>(
+    '/api/catalogs/tax-rates',
+    apiKey,
+  );
+  return result.taxRates;
 }

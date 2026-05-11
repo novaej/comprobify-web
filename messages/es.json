@@ -189,7 +189,7 @@
       "empty": "No existen formas de pago",
       "quickCash": "Efectivo",
       "quickDebit": "Tarjeta de débito",
-      "quickCredit": "Tarjeta de crédito"
+      "quickCredit": "Tarjeta de crédito",\n      "autoSync": "El monto se calcula automáticamente del total de la factura."
     },
     "paymentMethods": {
       "01": "Sin utilización del sistema financiero",
