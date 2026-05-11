@@ -325,11 +325,7 @@ export function InvoiceForm({ catalogs, defaultValues }: Props) {
         </CardContent>
       </Card>
 
-      {/* Items + sticky totals */}
-      <div className="grid gap-6 xl:grid-cols-[1fr_280px]">
-        <div className="space-y-6">
-
-          {/* Line items */}
+      {/* Line items */}
           <Card>
             <CardHeader>
               <CardTitle>{t('items.title')}</CardTitle>
@@ -426,172 +422,172 @@ export function InvoiceForm({ catalogs, defaultValues }: Props) {
             </CardContent>
           </Card>
 
-          {/* Payment methods */}
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('payment.title')}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[440px] text-sm">
-                  <thead>
-                    <tr className="border-b text-left text-xs text-muted-foreground">
-                      <th className="pb-2 pr-2 font-medium">{t('payment.method')}</th>
-                      <th className="pb-2 pr-2 font-medium">{t('payment.total')}</th>
-                      <th className="pb-2 pr-2 font-medium">{t('payment.term')}</th>
-                      <th className="pb-2 pr-2 font-medium">{t('payment.termUnit')}</th>
-                      <th className="pb-2 w-8"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paymentFields.map((field, index) => (
-                      <tr key={field.id} className="border-b last:border-0">
-                        <td className="py-2 pr-2">
-                          <Controller
-                            name={`payments.${index}.method`}
-                            control={form.control}
-                            render={({ field: f }) => (
-                              <Select<string>
-                                value={f.value}
-                                onValueChange={(v: string | null) => f.onChange(v ?? '01')}
-                              >
-                                <SelectTrigger className="h-8 w-44">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {catalogs.paymentMethods.map((m) => (
-                                    <SelectItem key={m.code} value={m.code}>
-                                      {m.description}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            )}
-                          />
-                        </td>
-                        <td className="py-2 pr-2">
-                          <Input
-                            {...form.register(`payments.${index}.total`)}
-                            readOnly={singlePayment}
-                            className={`h-8 w-24 ${singlePayment ? 'bg-muted text-muted-foreground' : ''}`}
-                            placeholder="0.00"
-                          />
-                        </td>
-                        <td className="py-2 pr-2">
-                          <Input {...form.register(`payments.${index}.term`)} className="h-8 w-16" placeholder="0" />
-                        </td>
-                        <td className="py-2 pr-2">
-                          <Input {...form.register(`payments.${index}.termUnit`)} className="h-8 w-20" placeholder="dias" />
-                        </td>
-                        <td className="py-2">
-                          {paymentFields.length > 1 && (
-                            <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => removePayment(index)}>
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
+      {/* Payments + Totals — equal columns */}
+      <div className="grid gap-6 lg:grid-cols-2">
+
+        {/* Payment methods */}
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('payment.title')}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[380px] text-sm">
+                <thead>
+                  <tr className="border-b text-left text-xs text-muted-foreground">
+                    <th className="pb-2 pr-2 font-medium">{t('payment.method')}</th>
+                    <th className="pb-2 pr-2 font-medium">{t('payment.total')}</th>
+                    <th className="pb-2 pr-2 font-medium">{t('payment.term')}</th>
+                    <th className="pb-2 pr-2 font-medium">{t('payment.termUnit')}</th>
+                    <th className="pb-2 w-8"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paymentFields.map((field, index) => (
+                    <tr key={field.id} className="border-b last:border-0">
+                      <td className="py-2 pr-2">
+                        <Controller
+                          name={`payments.${index}.method`}
+                          control={form.control}
+                          render={({ field: f }) => (
+                            <Select<string>
+                              value={f.value}
+                              onValueChange={(v: string | null) => f.onChange(v ?? '01')}
+                            >
+                              <SelectTrigger className="h-8 w-40">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {catalogs.paymentMethods.map((m) => (
+                                  <SelectItem key={m.code} value={m.code}>
+                                    {m.description}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                {(['01', '16', '19'] as const).map((code) => {
-                  const label = catalogs.paymentMethods.find((m) => m.code === code)?.description ?? code;
-                  return (
-                    <Button key={code} type="button" variant="outline" size="sm" onClick={() => addQuickPayment(code)}>
-                      {label}
-                    </Button>
-                  );
-                })}
-                <Button type="button" variant="outline" size="sm" onClick={() => appendPayment({ method: '01', total: '0.00', term: '', termUnit: '' })}>
-                  <Plus className="mr-1 h-3.5 w-3.5" />
-                  {t('payment.add')}
-                </Button>
-              </div>
-
-              {singlePayment && (
-                <p className="text-xs text-muted-foreground">{t('payment.autoSync')}</p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Additional info */}
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('additionalInfo.title')}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[340px] text-sm">
-                  <thead>
-                    <tr className="border-b text-left text-xs text-muted-foreground">
-                      <th className="pb-2 pr-2 font-medium">{t('additionalInfo.name')}</th>
-                      <th className="pb-2 pr-2 font-medium">{t('additionalInfo.value')}</th>
-                      <th className="pb-2 w-8"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {infoFields.length === 0 && (
-                      <tr>
-                        <td colSpan={3} className="py-4 text-center text-sm text-muted-foreground">
-                          {t('additionalInfo.empty')}
-                        </td>
-                      </tr>
-                    )}
-                    {infoFields.map((field, index) => (
-                      <tr key={field.id} className="border-b last:border-0">
-                        <td className="py-2 pr-2">
-                          <Input {...form.register(`additionalInfo.${index}.name`)} className="h-8" aria-invalid={!!errors.additionalInfo?.[index]?.name} />
-                        </td>
-                        <td className="py-2 pr-2">
-                          <Input {...form.register(`additionalInfo.${index}.value`)} className="h-8" aria-invalid={!!errors.additionalInfo?.[index]?.value} />
-                        </td>
-                        <td className="py-2">
-                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => removeInfo(index)}>
+                        />
+                      </td>
+                      <td className="py-2 pr-2">
+                        <Input
+                          {...form.register(`payments.${index}.total`)}
+                          readOnly={singlePayment}
+                          className={`h-8 w-24 ${singlePayment ? 'bg-muted text-muted-foreground' : ''}`}
+                          placeholder="0.00"
+                        />
+                      </td>
+                      <td className="py-2 pr-2">
+                        <Input {...form.register(`payments.${index}.term`)} className="h-8 w-14" placeholder="0" />
+                      </td>
+                      <td className="py-2 pr-2">
+                        <Input {...form.register(`payments.${index}.termUnit`)} className="h-8 w-16" placeholder="dias" />
+                      </td>
+                      <td className="py-2">
+                        {paymentFields.length > 1 && (
+                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => removePayment(index)}>
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <Button type="button" variant="outline" size="sm" onClick={() => appendInfo({ name: '', value: '' })}>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {(['01', '16', '19'] as const).map((code) => {
+                const label = catalogs.paymentMethods.find((m) => m.code === code)?.description ?? code;
+                return (
+                  <Button key={code} type="button" variant="outline" size="sm" onClick={() => addQuickPayment(code)}>
+                    {label}
+                  </Button>
+                );
+              })}
+              <Button type="button" variant="outline" size="sm" onClick={() => appendPayment({ method: '01', total: '0.00', term: '', termUnit: '' })}>
                 <Plus className="mr-1 h-3.5 w-3.5" />
-                {t('additionalInfo.add')}
+                {t('payment.add')}
               </Button>
-            </CardContent>
-          </Card>
+            </div>
 
-        </div>
+            {singlePayment && (
+              <p className="text-xs text-muted-foreground">{t('payment.autoSync')}</p>
+            )}
+          </CardContent>
+        </Card>
 
-        {/* Sticky totals sidebar */}
-        <div className="xl:sticky xl:top-4 xl:self-start">
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('totals.title')}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-1.5 text-sm">
-              <TotalsRow label={t('totals.subtotalNoTax')} value={totals.subtotalNoTax} />
-              <TotalsRow label={t('totals.subtotal15')} value={totals.taxable15} />
-              <TotalsRow label={t('totals.subtotal5')} value={totals.taxable5} />
-              <TotalsRow label={t('totals.subtotal0')} value={totals.subtotal0} />
-              <TotalsRow label={t('totals.subtotalNoObj')} value={totals.subtotalNoObj} />
-              <TotalsRow label={t('totals.subtotalExempt')} value={totals.subtotalExempt} />
-              <TotalsRow label={t('totals.totalDiscount')} value={totals.totalDiscount} />
-              <TotalsRow label={t('totals.iva15')} value={totals.iva15} />
-              <TotalsRow label={t('totals.iva5')} value={totals.iva5} />
-              <Separator />
-              <div className="flex justify-between pt-0.5 font-semibold">
-                <span>{t('totals.total')}</span>
-                <span className="font-mono">${fmt(totals.total)}</span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Totals */}
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('totals.title')}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1.5 text-sm">
+            <TotalsRow label={t('totals.subtotalNoTax')} value={totals.subtotalNoTax} />
+            <TotalsRow label={t('totals.subtotal15')} value={totals.taxable15} />
+            <TotalsRow label={t('totals.subtotal5')} value={totals.taxable5} />
+            <TotalsRow label={t('totals.subtotal0')} value={totals.subtotal0} />
+            <TotalsRow label={t('totals.subtotalNoObj')} value={totals.subtotalNoObj} />
+            <TotalsRow label={t('totals.subtotalExempt')} value={totals.subtotalExempt} />
+            <TotalsRow label={t('totals.totalDiscount')} value={totals.totalDiscount} />
+            <TotalsRow label={t('totals.iva15')} value={totals.iva15} />
+            <TotalsRow label={t('totals.iva5')} value={totals.iva5} />
+            <Separator />
+            <div className="flex justify-between pt-0.5 font-semibold">
+              <span>{t('totals.total')}</span>
+              <span className="font-mono">${fmt(totals.total)}</span>
+            </div>
+          </CardContent>
+        </Card>
+
       </div>
+
+      {/* Additional info */}
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('additionalInfo.title')}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[340px] text-sm">
+              <thead>
+                <tr className="border-b text-left text-xs text-muted-foreground">
+                  <th className="pb-2 pr-2 font-medium">{t('additionalInfo.name')}</th>
+                  <th className="pb-2 pr-2 font-medium">{t('additionalInfo.value')}</th>
+                  <th className="pb-2 w-8"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {infoFields.length === 0 && (
+                  <tr>
+                    <td colSpan={3} className="py-4 text-center text-sm text-muted-foreground">
+                      {t('additionalInfo.empty')}
+                    </td>
+                  </tr>
+                )}
+                {infoFields.map((field, index) => (
+                  <tr key={field.id} className="border-b last:border-0">
+                    <td className="py-2 pr-2">
+                      <Input {...form.register(`additionalInfo.${index}.name`)} className="h-8" aria-invalid={!!errors.additionalInfo?.[index]?.name} />
+                    </td>
+                    <td className="py-2 pr-2">
+                      <Input {...form.register(`additionalInfo.${index}.value`)} className="h-8" aria-invalid={!!errors.additionalInfo?.[index]?.value} />
+                    </td>
+                    <td className="py-2">
+                      <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => removeInfo(index)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <Button type="button" variant="outline" size="sm" onClick={() => appendInfo({ name: '', value: '' })}>
+            <Plus className="mr-1 h-3.5 w-3.5" />
+            {t('additionalInfo.add')}
+          </Button>
+        </CardContent>
+      </Card>
 
       {serverError && (
         <p className="text-sm text-destructive">
