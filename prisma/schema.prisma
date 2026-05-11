@@ -7,14 +7,29 @@ datasource db {
 }
 
 model User {
-  id                 Int      @id @default(autoincrement())
-  email              String   @unique
-  passwordHash       String   @map("password_hash")
-  comprobifyApiKey   String?  @map("comprobify_api_key")
-  comprobifyIssuerId Int?     @map("comprobify_issuer_id")
-  environment        String   @default("sandbox")
-  emailVerified      Boolean  @default(false) @map("email_verified")
-  createdAt          DateTime @default(now()) @map("created_at")
+  id                 Int       @id @default(autoincrement())
+  email              String    @unique
+  passwordHash       String    @map("password_hash")
+  comprobifyApiKey   String?   @map("comprobify_api_key")
+  comprobifyIssuerId Int?      @map("comprobify_issuer_id")
+  environment        String    @default("sandbox")
+  emailVerified      Boolean   @default(false) @map("email_verified")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  products           Product[]
 
   @@map("users")
+}
+
+model Product {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @map("user_id")
+  mainCode    String   @map("main_code") @db.VarChar(25)
+  auxCode     String?  @map("aux_code") @db.VarChar(25)
+  description String
+  unitPrice   Decimal  @map("unit_price") @db.Decimal(14, 6)
+  taxOption   String   @map("tax_option") @db.VarChar(10)
+  createdAt   DateTime @default(now()) @map("created_at")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("products")
 }

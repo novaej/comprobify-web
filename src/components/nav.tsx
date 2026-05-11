@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation';
-import { LayoutDashboard, Files, Settings, Menu, X, LogOut, Globe } from 'lucide-react';
+import { LayoutDashboard, Files, Package, Settings, Menu, X, LogOut, Globe } from 'lucide-react';
 import { Logomark, LogoLockup } from '@/components/logo';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { signOut } from 'next-auth/react';
@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, labelKey: 'dashboard' as const },
   { href: '/documents', icon: Files, labelKey: 'documents' as const },
+  { href: '/catalog', icon: Package, labelKey: 'catalog' as const },
   { href: '/settings', icon: Settings, labelKey: 'settings' as const },
 ] as const;
 

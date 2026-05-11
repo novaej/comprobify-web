@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useTransition, useEffect, useMemo } from 'react';
+import { useState, useTransition, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useForm, useFieldArray, useWatch, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -21,6 +22,7 @@ import {
 import { createInvoiceAction, type InvoiceFormData } from '@/app/actions/invoice';
 import { Link } from '@/i18n/navigation';
 import type { InvoiceCatalogs } from '@/app/[locale]/invoices/new/page';
+import type { CatalogProduct } from '@/app/actions/catalog';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -127,6 +129,76 @@ function computeTotals(items: InvoiceFormValues['items']): Totals {
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
+
+function ProductSearch({
+  value,
+  onChange,
+  onSelect,
+  products,
+  className,
+  'aria-invalid': ariaInvalid,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onSelect: (p: CatalogProduct) => void;
+  products: CatalogProduct[];
+  className?: string;
+  'aria-invalid'?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+
+  const updatePos = () => {
+    if (inputRef.current) {
+      const r = inputRef.current.getBoundingClientRect();
+      setPos({ top: r.bottom + 2, left: r.left });
+    }
+  };
+
+  const filtered = value.trim().length > 0
+    ? products
+        .filter(
+          (p) =>
+            p.mainCode.toLowerCase().includes(value.toLowerCase()) ||
+            p.description.toLowerCase().includes(value.toLowerCase()),
+        )
+        .slice(0, 7)
+    : [];
+
+  return (
+    <div className="relative">
+      <Input
+        ref={inputRef}
+        value={value}
+        onChange={(e) => { onChange(e.target.value); updatePos(); setOpen(true); }}
+        onFocus={() => { updatePos(); setOpen(true); }}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        className={className}
+        aria-invalid={ariaInvalid}
+      />
+      {open && filtered.length > 0 && pos && createPortal(
+        <div
+          className="fixed z-50 min-w-[220px] rounded-md border bg-popover shadow-md"
+          style={{ top: pos.top, left: pos.left }}
+        >
+          {filtered.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              className="flex w-full flex-col px-3 py-2 text-left hover:bg-muted"
+              onMouseDown={() => { onSelect(p); setOpen(false); }}
+            >
+              <span className="font-mono text-xs font-medium">{p.mainCode}</span>
+              <span className="truncate text-xs text-muted-foreground">{p.description}</span>
+            </button>
+          ))}
+        </div>,
+        document.body,
+      )}
+    </div>
+  );
+}
 
 function TotalsRow({ label, value }: { label: string; value: number }) {
   return (
@@ -356,7 +428,20 @@ export function InvoiceForm({ catalogs, defaultValues }: Props) {
                       return (
                         <tr key={field.id} className="border-b last:border-0">
                           <td className="py-2 pr-2">
-                            <Input {...form.register(`items.${index}.mainCode`)} className="h-8 w-24" aria-invalid={!!errors.items?.[index]?.mainCode} />
+                            <ProductSearch
+                              value={watchedItems?.[index]?.mainCode ?? ''}
+                              onChange={(v) => form.setValue(`items.${index}.mainCode`, v, { shouldValidate: true })}
+                              onSelect={(p) => {
+                                form.setValue(`items.${index}.mainCode`, p.mainCode, { shouldValidate: true });
+                                form.setValue(`items.${index}.auxCode`, p.auxCode ?? '');
+                                form.setValue(`items.${index}.description`, p.description, { shouldValidate: true });
+                                form.setValue(`items.${index}.unitPrice`, Number(p.unitPrice).toFixed(2), { shouldValidate: true });
+                                form.setValue(`items.${index}.taxOption`, p.taxOption);
+                              }}
+                              products={catalogs.products}
+                              className="h-8 w-24"
+                              aria-invalid={!!errors.items?.[index]?.mainCode}
+                            />
                           </td>
                           <td className="py-2 pr-2">
                             <Input {...form.register(`items.${index}.auxCode`)} className="h-8 w-20" />

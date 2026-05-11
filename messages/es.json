@@ -16,6 +16,7 @@
   "nav": {
     "dashboard": "Panel",
     "documents": "Comprobantes",
+    "catalog": "Catálogo",
     "settings": "Configuración",
     "signOut": "Cerrar sesión"
   },
@@ -364,6 +365,35 @@
     "SRI_ERROR": "El SRI devolvió un error. Revise los mensajes de detalle.",
     "INTERNAL_ERROR": "Error interno del servidor. Contacte al soporte.",
     "UNKNOWN": "Ha ocurrido un error inesperado."
+  },
+  "catalog": {
+    "title": "Catálogo de productos",
+    "description": "Guarda tus productos y servicios para rellenar facturas más rápido.",
+    "add": "Agregar producto",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "confirmDeleteTitle": "¿Eliminar producto?",
+    "confirmDeleteDescription": "Esta acción no se puede deshacer.",
+    "empty": "No hay productos en el catálogo. Agrega tu primer producto.",
+    "form": {
+      "mainCode": "Código principal",
+      "mainCodeHint": "Máximo 25 caracteres. Requerido.",
+      "auxCode": "Código auxiliar",
+      "auxCodeHint": "Opcional. Máximo 25 caracteres.",
+      "description": "Nombre / descripción",
+      "unitPrice": "Precio unitario",
+      "taxOption": "Tarifa IVA"
+    },
+    "table": {
+      "mainCode": "Cód. principal",
+      "auxCode": "Cód. auxiliar",
+      "description": "Descripción",
+      "unitPrice": "Precio",
+      "taxOption": "IVA",
+      "actions": "Acciones"
+    },
+    "search": "Buscar producto...",
+    "noResults": "Sin resultados"
   },
   "verifyEmail": {
     "successTitle": "¡Correo verificado!",

@@ -9,6 +9,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 ## [Unreleased]
 
 ### Added
+- **Product catalog** — CRUD screen at `/catalog` (Package icon in nav) to save products and services; fields: main code, aux code, description, unit price, IVA rate; stored in the app's own `products` table (Prisma)
+- **Invoice form: product search combobox** — the `mainCode` field in each line-item row now shows a dropdown as you type, filtering catalog products by code or description; selecting one auto-fills main code, aux code, description, unit price, and IVA rate for that row
 - **Invoice form: guía de remisión field** — optional `NNN-NNN-NNNNNNNNN` field in the invoice header, validated client-side and passed to the API as `guiaRemision`
 - **Invoice form: auxiliary code per item** — `auxCode` column in the line-items table, maps to `codigoAuxiliar` in the SRI XML
 - **Invoice form: multiple payment methods** — payment section is now a dynamic table; each row supports `term` (plazo) and `termUnit` (unidadTiempo); quick-add buttons for Efectivo, Tarjeta de débito, Tarjeta de crédito

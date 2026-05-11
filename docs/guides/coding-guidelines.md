@@ -269,6 +269,41 @@ All UI changes must work on mobile. Follow these patterns:
 
 ---
 
+## Dropdowns inside overflow containers
+
+`overflow-x-auto` (or any `overflow` other than `visible`) clips absolutely-positioned children. Use `createPortal` with `position: fixed` when rendering a dropdown inside such a container:
+
+```tsx
+import { createPortal } from 'react-dom';
+
+function MyDropdown({ inputRef, open, children }) {
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+
+  const updatePos = () => {
+    if (inputRef.current) {
+      const r = inputRef.current.getBoundingClientRect();
+      setPos({ top: r.bottom + 2, left: r.left });
+    }
+  };
+
+  return (
+    <>
+      <Input ref={inputRef} onFocus={updatePos} onChange={updatePos} />
+      {open && pos && createPortal(
+        <div className="fixed z-50 ..." style={{ top: pos.top, left: pos.left }}>
+          {children}
+        </div>,
+        document.body,
+      )}
+    </>
+  );
+}
+```
+
+Use `onMouseDown` (not `onClick`) on dropdown options so the selection fires before the input's `onBlur` closes the dropdown.
+
+---
+
 ## Adding a new shadcn component
 
 ```bash

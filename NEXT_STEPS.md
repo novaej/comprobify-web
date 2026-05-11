@@ -18,20 +18,18 @@ Ordered backlog for `comprobify-web`. Items are numbered — complete the highes
 
 6. **Client management** — CRUD screen for saved clients (name, identification type + number, email, address). In the document creation form, add a client search/autocomplete field: typing the identification number looks up saved clients and pre-fills the buyer section. Clients stored in the app's own DB (Prisma), not the Comprobify API.
 
-7. **Product/service catalog** — CRUD screen for saved products and services (code, description, unit price, default tax). In the document creation form, add a product search field: typing the code or description looks up saved products and pre-fills the line item fields. Catalog stored in the app's own DB (Prisma).
-
 ---
 
 ## Infrastructure
 
-8. **Error boundary** — add `error.tsx` in `src/app/[locale]/` to catch Server Component errors and show a user-friendly page using the `apiError` i18n namespace.
+7. **Error boundary** — add `error.tsx` in `src/app/[locale]/` to catch Server Component errors and show a user-friendly page using the `apiError` i18n namespace.
 
-9. **Loading skeletons** — add `loading.tsx` in `src/app/[locale]/dashboard/` and `src/app/[locale]/invoices/[key]/` using the `<Skeleton>` component from shadcn while Server Components fetch.
+8. **Loading skeletons** — add `loading.tsx` in `src/app/[locale]/dashboard/` and `src/app/[locale]/invoices/[key]/` using the `<Skeleton>` component from shadcn while Server Components fetch.
 
-10. **`not-found.tsx`** — locale-aware 404 page in `src/app/[locale]/` with a link back to the dashboard.
+9. **`not-found.tsx`** — locale-aware 404 page in `src/app/[locale]/` with a link back to the dashboard.
 
 ---
 
 ## Polish
 
-11. **Invoice PDF preview** — embed a PDF viewer on the Invoice Detail page for `AUTHORIZED` documents.
+10. **Invoice PDF preview** — embed a PDF viewer on the Invoice Detail page for `AUTHORIZED` documents.

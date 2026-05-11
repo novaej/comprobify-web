@@ -16,6 +16,7 @@
   "nav": {
     "dashboard": "Dashboard",
     "documents": "Documents",
+    "catalog": "Catalog",
     "settings": "Settings",
     "signOut": "Sign out"
   },
@@ -364,6 +365,35 @@
     "SRI_ERROR": "The SRI returned an error. Review the detail messages.",
     "INTERNAL_ERROR": "Internal server error. Please contact support.",
     "UNKNOWN": "An unexpected error occurred."
+  },
+  "catalog": {
+    "title": "Product catalog",
+    "description": "Save your products and services to fill invoices faster.",
+    "add": "Add product",
+    "edit": "Edit",
+    "delete": "Delete",
+    "confirmDeleteTitle": "Delete product?",
+    "confirmDeleteDescription": "This action cannot be undone.",
+    "empty": "No products in the catalog yet. Add your first product.",
+    "form": {
+      "mainCode": "Main code",
+      "mainCodeHint": "Max 25 characters. Required.",
+      "auxCode": "Auxiliary code",
+      "auxCodeHint": "Optional. Max 25 characters.",
+      "description": "Name / description",
+      "unitPrice": "Unit price",
+      "taxOption": "VAT rate"
+    },
+    "table": {
+      "mainCode": "Main code",
+      "auxCode": "Aux. code",
+      "description": "Description",
+      "unitPrice": "Price",
+      "taxOption": "VAT",
+      "actions": "Actions"
+    },
+    "search": "Search product...",
+    "noResults": "No results"
   },
   "verifyEmail": {
     "successTitle": "Email verified!",
