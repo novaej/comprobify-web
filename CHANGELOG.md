@@ -9,6 +9,27 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 ## [Unreleased]
 
 ### Added
+- **Invoice form: guía de remisión field** — optional `NNN-NNN-NNNNNNNNN` field in the invoice header, validated client-side and passed to the API as `guiaRemision`
+- **Invoice form: auxiliary code per item** — `auxCode` column in the line-items table, maps to `codigoAuxiliar` in the SRI XML
+- **Invoice form: multiple payment methods** — payment section is now a dynamic table; each row supports `term` (plazo) and `termUnit` (unidadTiempo); quick-add buttons for Efectivo, Tarjeta de débito, Tarjeta de crédito
+- **Invoice form: additional fields section** — dynamic table of `{name, value}` pairs sent as `infoAdicional/campoAdicional` in the XML
+- **Invoice form: live catalog dropdowns** — ID type, payment method, and IVA rate selects populated from `GET /api/catalogs/*` fetched server-side; shows DB descriptions instead of hardcoded strings
+- **Invoice form: Consumidor Final auto-fill** — selecting ID type `07` auto-populates the ID with `9999999999999` and locks the field
+- **Invoice form: single-payment auto-sync** — when there is exactly one payment row its amount tracks the computed invoice total (read-only); adding a second row unlocks both for manual split entry
+- **Invoice form: expanded totals panel** — per-rate subtotals (15%, 5%, 0%, no-obj, exempt), total discount, IVA breakdown, and valor a pagar
+- **`listCatalogIdTypes`, `listCatalogPaymentMethods`, `listCatalogTaxRates`** added to `src/lib/api.ts` with `CatalogIdType`, `CatalogPaymentMethod`, `CatalogTaxRate` types
+- **`InvoiceCatalogs` type** exported from `src/app/[locale]/invoices/new/page.tsx` for use by `InvoiceForm`
+
+### Changed
+- **Invoice form discount is now absolute USD** — was incorrectly treated as a percentage in the totals calculation; the API has always expected an absolute value
+- **Invoice form IVA options filtered to active SRI codes** — only rate codes `0, 4, 5, 6, 7` shown; historical codes excluded via `IVA_RATE_CODES` constant in `invoice-form.tsx`
+- **Invoice form page fills available width** — `max-w-2xl` constraint removed; form now fills the content area like other pages
+- **Invoice form layout** — payments and totals share an equal `lg:grid-cols-2` row; all other cards are full-width
+
+### Fixed
+- **`SelectValue` in Base UI requires a render function** — `@base-ui/react` v1.4.1 `Select.Value` renders the raw value (the code) by default; fixed by passing a lookup function as children to map codes to descriptions
+- **`CatalogTaxRate.rate` typed as `string | number`** — PostgreSQL returns `DECIMAL` columns as strings; calling `.toFixed()` on the raw value caused a runtime error; fixed with `Number(r.rate)`
+
 - Email verification page at `GET /[locale]/verify-email` — public route, updates `emailVerified` in Prisma using the email returned by the API, works session-independently (any device/browser)
 - `resendVerificationAction` passes `verificationRedirectUrl` so re-sent emails link to the frontend instead of the raw API URL
 - Email verification notice (`EmailVerificationNotice`) shown proactively on Settings when the user's email is unverified

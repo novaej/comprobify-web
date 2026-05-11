@@ -125,6 +125,53 @@ function SendButton({ accessKey }: { accessKey: string }) {
 
 ---
 
+## Fetching catalog data for form selects
+
+SRI lookup tables (ID types, payment methods, tax rates) should be fetched server-side and passed as props to the Client Component form. Never hardcode catalog options in the frontend.
+
+**Pattern:**
+
+```tsx
+// page.tsx (Server Component)
+import { requireApiKey } from '@/lib/auth-token';
+import { listCatalogIdTypes, listCatalogPaymentMethods, listCatalogTaxRates } from '@/lib/api';
+
+export interface MyCatalogs {
+  idTypes: CatalogIdType[];
+  paymentMethods: CatalogPaymentMethod[];
+}
+
+export default async function MyPage(...) {
+  const apiKey = await requireApiKey();
+  const [idTypes, paymentMethods] = await Promise.all([
+    listCatalogIdTypes(apiKey),
+    listCatalogPaymentMethods(apiKey),
+  ]);
+  return <MyForm catalogs={{ idTypes, paymentMethods }} />;
+}
+```
+
+```tsx
+// MyForm.tsx (Client Component)
+import type { MyCatalogs } from './page';
+
+export function MyForm({ catalogs }: { catalogs: MyCatalogs }) {
+  // Use catalogs.idTypes to render SelectItem options
+}
+```
+
+**Showing the label in the trigger:** Base UI's `Select.Value` renders the raw `value` by default, not the item's text. Pass a render function:
+
+```tsx
+<SelectValue>
+  {(v: string | null) => catalogs.idTypes.find((t) => t.code === v)?.description ?? v}
+</SelectValue>
+```
+
+**Dropdown width:** Add `className="w-auto min-w-(--anchor-width)"` to `SelectContent` so it can grow wider than the trigger to accommodate long option text.
+
+---
+
 ## Adding a Client Component
 
 Only use Client Components when you need interactivity (hooks, event handlers).
