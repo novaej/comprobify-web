@@ -280,11 +280,13 @@ export function InvoiceForm({ catalogs, defaultValues }: Props) {
                   onValueChange={(v: string | null) => field.onChange(v ?? '05')}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue />
+                    <SelectValue>
+                      {(v: string | null) => catalogs.idTypes.find((t) => t.code === v)?.description ?? v}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {catalogs.idTypes.map((idType) => (
-                      <SelectItem key={idType.code} value={idType.code} label={idType.description}>
+                      <SelectItem key={idType.code} value={idType.code}>
                         {idType.description}
                       </SelectItem>
                     ))}
@@ -378,13 +380,19 @@ export function InvoiceForm({ catalogs, defaultValues }: Props) {
                                   onValueChange={(v: string | null) => f.onChange(v ?? defaultTaxOption)}
                                 >
                                   <SelectTrigger className="h-8 w-32">
-                                    <SelectValue />
+                                    <SelectValue>
+                                      {(v: string | null) => {
+                                        const r = ivaRates.find((x) => `2-${x.rateCode}` === v);
+                                        if (!r) return v;
+                                        return Number(r.rate) > 0 ? `IVA ${fmt(Number(r.rate))}%` : r.description;
+                                      }}
+                                    </SelectValue>
                                   </SelectTrigger>
                                   <SelectContent>
                                     {ivaRates.map((r) => {
                                       const label = Number(r.rate) > 0 ? `IVA ${fmt(Number(r.rate))}%` : r.description;
                                       return (
-                                        <SelectItem key={r.rateCode} value={`2-${r.rateCode}`} label={label}>
+                                        <SelectItem key={r.rateCode} value={`2-${r.rateCode}`}>
                                           {label}
                                         </SelectItem>
                                       );
@@ -458,11 +466,13 @@ export function InvoiceForm({ catalogs, defaultValues }: Props) {
                               onValueChange={(v: string | null) => f.onChange(v ?? '01')}
                             >
                               <SelectTrigger className="h-8 w-40">
-                                <SelectValue />
+                                <SelectValue>
+                                  {(v: string | null) => catalogs.paymentMethods.find((m) => m.code === v)?.description ?? v}
+                                </SelectValue>
                               </SelectTrigger>
                               <SelectContent>
                                 {catalogs.paymentMethods.map((m) => (
-                                  <SelectItem key={m.code} value={m.code} label={m.description}>
+                                  <SelectItem key={m.code} value={m.code}>
                                     {m.description}
                                   </SelectItem>
                                 ))}
