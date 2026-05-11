@@ -37,7 +37,7 @@ export default async function NewInvoicePage({
   const catalogs: InvoiceCatalogs = { idTypes, paymentMethods, taxRates };
 
   return (
-    <div className="max-w-2xl">
+    <div>
       <PageHeader title={t('title')} />
       <InvoiceForm catalogs={catalogs} />
     </div>
