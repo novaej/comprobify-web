@@ -293,7 +293,7 @@ Separating public/auth calls prevents accidental misuse from authenticated paths
 
 ---
 
-## 6. Screens and Server Actions
+## 6. ✅ Screens and Server Actions
 
 ### Existing screens (refactor)
 

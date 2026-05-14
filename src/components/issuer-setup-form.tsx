@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { setupIssuerAction } from '@/app/actions/settings';
+import { bootstrapTenantAction } from '@/app/actions/onboarding';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 const DOC_TYPES = [
@@ -42,7 +42,7 @@ export function IssuerSetupForm() {
     setError(null);
     startTransition(async () => {
       try {
-        const result = await setupIssuerAction(formData);
+        const result = await bootstrapTenantAction(formData);
         if (result && 'error' in result) {
           setError(
             tError.has(result.error as Parameters<typeof tError>[0])

@@ -18,6 +18,7 @@
     "documents": "Documents",
     "clients": "Clients",
     "catalog": "Catalog",
+    "issuers": "Issuers",
     "settings": "Settings",
     "signOut": "Sign out"
   },
@@ -430,5 +431,85 @@
     "errorTitle": "Invalid or expired link",
     "errorDescription": "The verification link is invalid or has already expired. You can request a new one from Settings.",
     "goToSettings": "Go to Settings"
+  },
+  "onboarding": {
+    "title": "Set up your company",
+    "description": "Complete your company information to start issuing electronic invoices."
+  },
+  "issuerSelect": {
+    "title": "Select an issue point",
+    "description": "Choose the issue point you want to work with.",
+    "branch": "Branch",
+    "empty": "No issue points available. Contact your administrator."
+  },
+  "issuers": {
+    "title": "Issue Points",
+    "description": "Manage your issue points and enabled document types.",
+    "empty": "No issue points configured.",
+    "default": "Primary",
+    "documentTypes": "Document types",
+    "docType": {
+      "01": "Invoice",
+      "04": "Credit note",
+      "05": "Debit note",
+      "06": "Remittance guide",
+      "07": "Withholding receipt"
+    }
+  },
+  "apiKeys": {
+    "title": "API Keys",
+    "description": "Manage your Comprobify API access keys.",
+    "empty": "No API keys.",
+    "createKey": "New API key",
+    "labelPlaceholder": "Label (e.g. production)",
+    "creating": "Creating...",
+    "create": "Create",
+    "cancel": "Cancel",
+    "revoke": "Revoke",
+    "confirmRevoke": "Revoke this API key? This action cannot be undone.",
+    "copy": "Copy key",
+    "dismiss": "Dismiss",
+    "createdSuccess": "API key \"{label}\" created successfully.",
+    "showOnce": "Copy this key now. You won't be able to see it again.",
+    "missingKeyWarning": "You have no active API keys. The system cannot authenticate requests until you create one.",
+    "table": {
+      "label": "Label",
+      "environment": "Environment",
+      "lastFour": "Last 4",
+      "status": "Status",
+      "created": "Created"
+    },
+    "status": {
+      "active": "Active",
+      "revoked": "Revoked"
+    }
+  },
+  "users": {
+    "title": "Users",
+    "description": "Manage your organization members.",
+    "invite": "Invite user",
+    "inviting": "Sending...",
+    "sendInvite": "Send invitation",
+    "cancel": "Cancel",
+    "remove": "Remove",
+    "confirmRemove": "Remove this user from the organization?",
+    "emailPlaceholder": "email@company.com",
+    "table": {
+      "email": "Email",
+      "role": "Role",
+      "status": "Status"
+    },
+    "role": {
+      "Owner": "Owner",
+      "Admin": "Admin",
+      "BillingOperator": "Billing operator",
+      "Viewer": "Viewer",
+      "Developer": "Developer"
+    },
+    "status": {
+      "ACTIVE": "Active",
+      "INVITED": "Invited",
+      "DISABLED": "Disabled"
+    }
   }
 }

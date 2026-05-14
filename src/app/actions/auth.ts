@@ -1,12 +1,12 @@
 'use server';
 
 import bcrypt from 'bcryptjs';
-import { signIn } from '@/auth';
+import { signIn, signOut } from '@/auth';
 import { db } from '@/lib/db';
 import { AuthError } from 'next-auth';
 import { getLocale } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
-import { writeCtxCookie } from '@/lib/context-cookie';
+import { writeCtxCookie, clearCtxCookie } from '@/lib/context-cookie';
 
 export type AuthResult = { error: string } | null;
 
@@ -90,4 +90,10 @@ export async function registerAction(email: string, password: string): Promise<A
   const locale = await getLocale();
   redirect({ href: '/onboarding/tenant', locale });
   return null;
+}
+
+export async function logoutAction(): Promise<void> {
+  await clearCtxCookie();
+  const locale = await getLocale();
+  await signOut({ redirectTo: `/${locale}/login` });
 }

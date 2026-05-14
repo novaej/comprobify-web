@@ -4,7 +4,8 @@ import { useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { promoteToProductionAction, resendVerificationAction } from '@/app/actions/settings';
+import { promoteTenantAction } from '@/app/actions/tenant';
+import { resendVerificationAction } from '@/app/actions/settings';
 import { AlertTriangle, MailCheck } from 'lucide-react';
 
 export function ProductionPromotion({ documentTypes, emailVerified }: { documentTypes: string[]; emailVerified: boolean }) {
@@ -33,7 +34,7 @@ export function ProductionPromotion({ documentTypes, emailVerified }: { document
       .filter(([, seq]) => seq >= 1)
       .map(([documentType, sequential]) => ({ documentType, sequential }));
     startTransition(async () => {
-      const result = await promoteToProductionAction(initialSequentials);
+      const result = await promoteTenantAction(initialSequentials);
       if (result && 'error' in result) {
         setConfirming(false);
         setErrorCode(result.error);

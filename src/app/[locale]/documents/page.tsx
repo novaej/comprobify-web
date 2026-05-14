@@ -3,7 +3,7 @@ import { Link } from '@/i18n/navigation';
 import { PageHeader } from '@/components/page-header';
 import { buttonVariants } from '@/components/ui/button';
 import { listDocuments, listDocumentTypes } from '@/lib/api';
-import { requireContext } from '@/lib/context';
+import { requirePermission } from '@/lib/context';
 import { cn } from '@/lib/utils';
 import type { ApiCtx } from '@/lib/api';
 import {
@@ -64,7 +64,7 @@ export default async function DocumentsPage({
   setRequestLocale(locale);
   const t = await getTranslations('documents');
 
-  const ctx = await requireContext();
+  const ctx = await requirePermission('documents.read');
   const apiCtx: ApiCtx = { apiKey: ctx.apiKey, issuerId: ctx.issuer.apiIssuerId };
 
   let docTypes: string[] = [];

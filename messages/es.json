@@ -18,6 +18,7 @@
     "documents": "Comprobantes",
     "clients": "Clientes",
     "catalog": "Catálogo",
+    "issuers": "Emisores",
     "settings": "Configuración",
     "signOut": "Cerrar sesión"
   },
@@ -430,5 +431,85 @@
     "errorTitle": "Enlace inválido o expirado",
     "errorDescription": "El enlace de verificación es inválido o ya expiró. Puedes solicitar uno nuevo desde la configuración.",
     "goToSettings": "Ir a configuración"
-  }
+  },
+  "onboarding": {
+    "title": "Configura tu empresa",
+    "description": "Completa la información de tu empresa para empezar a emitir comprobantes electrónicos."
+  },
+  "issuerSelect": {
+    "title": "Selecciona un punto de emisión",
+    "description": "Elige el punto de emisión con el que deseas trabajar.",
+    "branch": "Establecimiento",
+    "empty": "No hay puntos de emisión disponibles. Contacta al administrador."
+  },
+  "issuers": {
+    "title": "Puntos de emisión",
+    "description": "Gestiona los puntos de emisión y los tipos de comprobante habilitados.",
+    "empty": "No hay puntos de emisión configurados.",
+    "default": "Principal",
+    "documentTypes": "Tipos de comprobante",
+    "docType": {
+      "01": "Factura",
+      "04": "Nota de crédito",
+      "05": "Nota de débito",
+      "06": "Guía de remisión",
+      "07": "Comprobante de retención"
+    }
+  },
+  "apiKeys": {
+    "title": "API Keys",
+    "description": "Administra las claves de acceso a la API de Comprobify.",
+    "empty": "No hay API keys.",
+    "createKey": "Nueva API key",
+    "labelPlaceholder": "Etiqueta (ej. producción)",
+    "creating": "Creando...",
+    "create": "Crear",
+    "cancel": "Cancelar",
+    "revoke": "Revocar",
+    "confirmRevoke": "¿Revocar esta API key? Esta acción es irreversible.",
+    "copy": "Copiar clave",
+    "dismiss": "Cerrar",
+    "createdSuccess": "API key «{label}» creada exitosamente.",
+    "showOnce": "Copia esta clave ahora. No podrás verla de nuevo.",
+    "missingKeyWarning": "No tienes API keys activas. El sistema no puede autenticar solicitudes hasta que crees una.",
+    "table": {
+      "label": "Etiqueta",
+      "environment": "Ambiente",
+      "lastFour": "Últimos 4",
+      "status": "Estado",
+      "created": "Creada"
+    },
+    "status": {
+      "active": "Activa",
+      "revoked": "Revocada"
+    }
+  },
+  "users": {
+    "title": "Usuarios",
+    "description": "Gestiona los miembros de tu organización.",
+    "invite": "Invitar usuario",
+    "inviting": "Enviando...",
+    "sendInvite": "Enviar invitación",
+    "cancel": "Cancelar",
+    "remove": "Eliminar",
+    "confirmRemove": "¿Eliminar este usuario de la organización?",
+    "emailPlaceholder": "correo@empresa.com",
+    "table": {
+      "email": "Correo",
+      "role": "Rol",
+      "status": "Estado"
+    },
+    "role": {
+      "Owner": "Propietario",
+      "Admin": "Administrador",
+      "BillingOperator": "Operador de facturación",
+      "Viewer": "Visualizador",
+      "Developer": "Desarrollador"
+    },
+    "status": {
+      "ACTIVE": "Activo",
+      "INVITED": "Invitado",
+      "DISABLED": "Desactivado"
+    }
+  },
 }

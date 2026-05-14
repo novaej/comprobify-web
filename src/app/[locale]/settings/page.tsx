@@ -1,5 +1,4 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
-import { IssuerSetupForm } from '@/components/issuer-setup-form';
 import { ProductionPromotion } from '@/components/production-promotion';
 import { EmailVerificationNotice } from '@/components/email-verification-notice';
 import { PageHeader } from '@/components/page-header';
@@ -32,16 +31,6 @@ export default async function SettingsPage({
       <PageHeader title={t('title')} />
 
       <div className="space-y-4">
-        {!hasIssuer && (
-          <div className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-4">
-            <div>
-              <h2 className="text-sm font-semibold">{t('setup.title')}</h2>
-              <p className="mt-1 text-sm text-muted-foreground">{t('setup.description')}</p>
-            </div>
-            <IssuerSetupForm />
-          </div>
-        )}
-
         {hasIssuer && !emailVerified && <EmailVerificationNotice />}
 
         {hasIssuer && (

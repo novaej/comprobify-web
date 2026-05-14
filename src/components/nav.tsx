@@ -10,11 +10,12 @@ import { signOut } from 'next-auth/react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
-  { href: '/dashboard', icon: LayoutDashboard, labelKey: 'dashboard' as const },
-  { href: '/documents', icon: Files, labelKey: 'documents' as const },
-  { href: '/clients', icon: Users, labelKey: 'clients' as const },
-  { href: '/catalog', icon: Package, labelKey: 'catalog' as const },
-  { href: '/settings', icon: Settings, labelKey: 'settings' as const },
+  { href: '/dashboard', icon: LayoutDashboard, labelKey: 'dashboard' as const, requiresIssuer: true },
+  { href: '/documents', icon: Files, labelKey: 'documents' as const, requiresIssuer: true },
+  { href: '/clients', icon: Users, labelKey: 'clients' as const, requiresIssuer: true },
+  { href: '/catalog', icon: Package, labelKey: 'catalog' as const, requiresIssuer: true },
+  { href: '/issuers', icon: Settings, labelKey: 'issuers' as const, requiresIssuer: false },
+  { href: '/settings', icon: Settings, labelKey: 'settings' as const, requiresIssuer: false },
 ] as const;
 
 const locales = [
@@ -28,9 +29,7 @@ export function Nav({ hasIssuer }: { hasIssuer: boolean }) {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
 
-  const visibleNavItems = hasIssuer
-    ? navItems
-    : navItems.filter(({ href }) => href === '/settings');
+  const visibleNavItems = navItems.filter(({ requiresIssuer }) => !requiresIssuer || hasIssuer);
 
   return (
     <>

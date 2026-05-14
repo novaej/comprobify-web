@@ -173,6 +173,8 @@ export async function requireContext(opts?: { skipIssuer?: boolean }): Promise<C
   };
 }
 
+export async function requirePermission(code: Permission, opts: { skipIssuer: true }): Promise<MinimalContext>;
+export async function requirePermission(code: Permission, opts?: { skipIssuer?: false }): Promise<Context>;
 export async function requirePermission(code: Permission, opts?: { skipIssuer?: boolean }): Promise<Context | MinimalContext> {
   const ctx = opts?.skipIssuer
     ? await requireContext({ skipIssuer: true })
