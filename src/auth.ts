@@ -30,7 +30,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const user = await db.user.findUnique({
           where: { email: credentials.email as string },
         });
-        if (!user) return null;
+        if (!user?.passwordHash) return null;
 
         const valid = await bcrypt.compare(
           credentials.password as string,
@@ -50,14 +50,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async session({ session, token }) {
       session.user.id = token.id as string;
 
-      // Always read mutable fields fresh from DB so UI reflects changes
-      // immediately after issuer setup or production promotion.
+      // Phase 2 will replace this with requireContext() which reads from Tenant + TenantApiKey.
       const user = await db.user.findUnique({
         where: { id: Number(token.id) },
-        select: { environment: true, comprobifyIssuerId: true, emailVerified: true },
+        select: { emailVerified: true },
       });
-      session.user.environment = user?.environment ?? 'sandbox';
-      session.user.hasIssuer = user?.comprobifyIssuerId != null;
+      session.user.environment = 'sandbox';   // Phase 2: derive from Tenant.environment
+      session.user.hasIssuer = false;          // Phase 2: derive from context cookie / issuer count
       session.user.isEmailVerified = user?.emailVerified ?? false;
 
       return session;

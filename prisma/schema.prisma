@@ -4,47 +4,124 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
-  id                 Int       @id @default(autoincrement())
-  email              String    @unique
-  passwordHash       String    @map("password_hash")
-  comprobifyApiKey   String?   @map("comprobify_api_key")
-  comprobifyIssuerId Int?      @map("comprobify_issuer_id")
-  environment        String    @default("sandbox")
-  emailVerified      Boolean   @default(false) @map("email_verified")
-  createdAt          DateTime  @default(now()) @map("created_at")
-  products           Product[]
-  clients            Client[]
+  id           Int       @id @default(autoincrement())
+  email        String    @unique
+  passwordHash String?   @map("password_hash")
+  emailVerified Boolean  @default(false) @map("email_verified")
+  tenantId     Int?      @map("tenant_id")
+  role         String?
+  inviteStatus String    @default("ACTIVE") @map("invite_status")
+  invitedAt    DateTime? @map("invited_at")
+  acceptedAt   DateTime? @map("accepted_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  tenant       Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  issuerAccess UserIssuerAccess[]
 
+  @@index([tenantId, role])
   @@map("users")
+}
+
+model Tenant {
+  id           Int            @id @default(autoincrement())
+  apiTenantId  Int            @unique @map("api_tenant_id")
+  ruc          String         @unique @db.VarChar(13)
+  businessName String         @map("business_name")
+  tradeName    String?        @map("trade_name")
+  environment  String         @default("sandbox")
+  status       String         @default("ACTIVE")
+  tier         String?
+  contactEmail String?        @map("contact_email")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  apiKeys      TenantApiKey[]
+  issuers      Issuer[]
+  users        User[]
+  issuerAccess UserIssuerAccess[]
+  products     Product[]
+  clients      Client[]
+
+  @@map("tenants")
+}
+
+model TenantApiKey {
+  id           Int       @id @default(autoincrement())
+  tenantId     Int       @map("tenant_id")
+  apiKeyId     Int       @unique @map("api_key_id")
+  label        String
+  environment  String
+  encryptedKey String    @map("encrypted_key")
+  lastFour     String    @map("last_four") @db.VarChar(4)
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  revokedAt    DateTime? @map("revoked_at")
+  tenant       Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, isActive])
+  @@map("tenant_api_keys")
+}
+
+model Issuer {
+  id             Int      @id @default(autoincrement())
+  tenantId       Int      @map("tenant_id")
+  apiIssuerId    Int      @unique @map("api_issuer_id")
+  branchCode     String   @map("branch_code") @db.VarChar(3)
+  issuePointCode String   @map("issue_point_code") @db.VarChar(3)
+  businessName   String   @map("business_name")
+  tradeName      String?  @map("trade_name")
+  branchAddress  String?  @map("branch_address")
+  isDefault      Boolean  @default(false) @map("is_default")
+  createdAt      DateTime @default(now()) @map("created_at")
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  access         UserIssuerAccess[]
+
+  @@unique([tenantId, branchCode, issuePointCode])
+  @@index([tenantId])
+  @@map("issuers")
+}
+
+model UserIssuerAccess {
+  id       Int    @id @default(autoincrement())
+  userId   Int    @map("user_id")
+  tenantId Int    @map("tenant_id")
+  issuerId Int    @map("issuer_id")
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  issuer   Issuer @relation(fields: [issuerId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, issuerId])
+  @@index([userId, tenantId])
+  @@map("user_issuer_access")
 }
 
 model Product {
   id          Int      @id @default(autoincrement())
-  userId      Int      @map("user_id")
+  tenantId    Int      @map("tenant_id")
   mainCode    String   @map("main_code") @db.VarChar(25)
   auxCode     String?  @map("aux_code") @db.VarChar(25)
   description String
   unitPrice   Decimal  @map("unit_price") @db.Decimal(14, 6)
   taxOption   String   @map("tax_option") @db.VarChar(10)
   createdAt   DateTime @default(now()) @map("created_at")
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
+  @@index([tenantId])
   @@map("products")
 }
 
 model Client {
   id        Int      @id @default(autoincrement())
-  userId    Int      @map("user_id")
+  tenantId  Int      @map("tenant_id")
   idType    String   @map("id_type") @db.VarChar(5)
   idNumber  String   @map("id_number") @db.VarChar(20)
   name      String
   email     String
   address   String?
   createdAt DateTime @default(now()) @map("created_at")
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
+  @@index([tenantId])
   @@map("clients")
 }
