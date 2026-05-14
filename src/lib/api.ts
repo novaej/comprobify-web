@@ -1,10 +1,14 @@
-// Server-only module — never import this in client components.
-// All calls to the Comprobify API happen server-side so the API key
-// is never exposed to the browser (BFF pattern — see docs/adr/002-bff-pattern.md).
-
+import 'server-only';
 import { ApiError, ProblemDetails } from './errors';
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+// ── Context ───────────────────────────────────────────────────────────────────
+
+export interface ApiCtx {
+  apiKey: string;
+  issuerId?: number; // API-side issuer id; added as X-Issuer-Id when present
+}
+
+// ── Document types ────────────────────────────────────────────────────────────
 
 export type DocumentStatus =
   | 'SIGNED'
@@ -24,10 +28,10 @@ export type EmailStatus =
 export interface Document {
   accessKey: string;
   documentType: string;
-  sequential: string; // Zero-padded, e.g. "000000001"
+  sequential: string;
   status: DocumentStatus;
-  issueDate: string; // DD/MM/YYYY
-  total: string; // Decimal string, e.g. "115.00"
+  issueDate: string;
+  total: string;
   buyer: {
     id: string;
     idType: string;
@@ -66,8 +70,8 @@ export interface ListDocumentsResult {
 
 export interface ListDocumentsParams {
   status?: DocumentStatus;
-  from?: string; // DD/MM/YYYY
-  to?: string; // DD/MM/YYYY
+  from?: string;
+  to?: string;
   documentType?: string;
   page?: number;
   limit?: number;
@@ -89,13 +93,13 @@ export interface CatalogTaxRate {
   taxCode: string;
   rateCode: string;
   description: string;
-  rate: string | number; // pg returns DECIMAL as string
+  rate: string | number;
 }
 
 export interface InvoiceTax {
-  code: string; // e.g. "2" for IVA
-  rateCode: string; // e.g. "4" for 15%
-  rate: string; // e.g. "15"
+  code: string;
+  rateCode: string;
+  rate: string;
 }
 
 export interface InvoiceItem {
@@ -109,7 +113,7 @@ export interface InvoiceItem {
 }
 
 export interface InvoicePayment {
-  method: string; // 2-digit SRI payment method code
+  method: string;
   total: string;
   term?: number;
   termUnit?: string;
@@ -117,8 +121,8 @@ export interface InvoicePayment {
 
 export interface CreateDocumentPayload {
   documentType: '01';
-  issueDate?: string; // DD/MM/YYYY — defaults to today on the API side
-  guiaRemision?: string; // NNN-NNN-NNNNNNNNN format
+  issueDate?: string;
+  guiaRemision?: string;
   buyer: {
     idType: string;
     id: string;
@@ -131,58 +135,20 @@ export interface CreateDocumentPayload {
   additionalInfo?: Array<{ name: string; value: string }>;
 }
 
-// ── HTTP client ───────────────────────────────────────────────────────────────
+// ── Issuer types ──────────────────────────────────────────────────────────────
 
-function getApiUrl(): string {
-  const apiUrl = process.env.COMPROBIFY_API_URL;
-  if (!apiUrl) throw new Error('COMPROBIFY_API_URL is not set');
-  return apiUrl;
+export interface ApiIssuer {
+  id: number;
+  ruc: string;
+  businessName: string;
+  tradeName?: string;
+  branchCode: string;
+  issuePointCode: string;
+  branchAddress?: string;
+  environment: string;
 }
 
-async function request<T>(
-  path: string,
-  apiKey: string,
-  options: RequestInit = {}
-): Promise<T> {
-  const res = await fetch(`${getApiUrl()}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-      ...options.headers,
-    },
-  });
-
-  if (!res.ok) {
-    const problem: ProblemDetails = await res.json();
-    throw new ApiError(problem);
-  }
-
-  return res.json() as Promise<T>;
-}
-
-// For public endpoints that require no API key (e.g. self-service registration)
-async function publicRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const res = await fetch(`${getApiUrl()}${path}`, options);
-
-  if (!res.ok) {
-    const problem: ProblemDetails = await res.json().catch(() => ({
-      type: 'about:blank',
-      title: `HTTP ${res.status}`,
-      status: res.status,
-      code: 'UNEXPECTED_ERROR',
-      detail: `HTTP ${res.status}`,
-      instance: path,
-    }));
-    throw new ApiError(problem);
-  }
-
-  return res.json() as Promise<T>;
-}
-
-// ── Types for self-service registration ──────────────────────────────────────
-
-export interface IssuerRegistrationFields {
+export interface CreateIssuerFields {
   ruc: string;
   businessName: string;
   tradeName?: string;
@@ -195,10 +161,62 @@ export interface IssuerRegistrationFields {
   initialSequentials?: { documentType: string; sequential: number }[];
 }
 
-// ── API functions ─────────────────────────────────────────────────────────────
+// ── API key types ─────────────────────────────────────────────────────────────
+
+export interface ApiKeyInfo {
+  id: number;
+  label: string;
+  environment: string;
+  lastFour: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface CreatedApiKey {
+  id: number;
+  label: string;
+  environment: string;
+  key: string;
+}
+
+// ── HTTP client ───────────────────────────────────────────────────────────────
+
+function getApiUrl(): string {
+  const apiUrl = process.env.COMPROBIFY_API_URL;
+  if (!apiUrl) throw new Error('COMPROBIFY_API_URL is not set');
+  return apiUrl;
+}
+
+async function request<T>(
+  path: string,
+  ctx: ApiCtx,
+  options: RequestInit = {}
+): Promise<T> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${ctx.apiKey}`,
+  };
+  if (ctx.issuerId !== undefined) {
+    headers['X-Issuer-Id'] = String(ctx.issuerId);
+  }
+
+  const res = await fetch(`${getApiUrl()}${path}`, {
+    ...options,
+    headers: { ...headers, ...(options.headers as Record<string, string> | undefined) },
+  });
+
+  if (!res.ok) {
+    const problem: ProblemDetails = await res.json();
+    throw new ApiError(problem);
+  }
+
+  return res.json() as Promise<T>;
+}
+
+// ── Document functions ────────────────────────────────────────────────────────
 
 export async function listDocuments(
-  apiKey: string,
+  ctx: ApiCtx,
   params: ListDocumentsParams = {}
 ): Promise<ListDocumentsResult> {
   const qs = new URLSearchParams();
@@ -210,116 +228,135 @@ export async function listDocuments(
   if (params.limit) qs.set('limit', String(params.limit));
 
   const query = qs.toString();
-  return request<ListDocumentsResult>(`/api/documents${query ? `?${query}` : ''}`, apiKey);
+  return request<ListDocumentsResult>(`/api/documents${query ? `?${query}` : ''}`, ctx);
 }
 
-export async function getDocument(apiKey: string, accessKey: string): Promise<Document> {
+export async function getDocument(ctx: ApiCtx, accessKey: string): Promise<Document> {
   const result = await request<{ ok: true; document: Document }>(
     `/api/documents/${accessKey}`,
-    apiKey,
+    ctx,
   );
   return result.document;
 }
 
 export async function createDocument(
-  apiKey: string,
+  ctx: ApiCtx,
   payload: CreateDocumentPayload,
   idempotencyKey?: string
 ): Promise<{ document: Document; created: boolean }> {
-  const headers: Record<string, string> = {};
-  if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
+  const extraHeaders: Record<string, string> = {};
+  if (idempotencyKey) extraHeaders['Idempotency-Key'] = idempotencyKey;
 
   const result = await request<{ ok: true; document: Document }>(
     '/api/documents',
-    apiKey,
-    {
-      method: 'POST',
-      body: JSON.stringify(payload),
-      headers,
-    }
+    ctx,
+    { method: 'POST', body: JSON.stringify(payload), headers: extraHeaders }
   );
   return { document: result.document, created: true };
 }
 
-export async function sendToSri(apiKey: string, accessKey: string): Promise<Document> {
+export async function sendToSri(ctx: ApiCtx, accessKey: string): Promise<Document> {
   const result = await request<{ ok: true; document: Document }>(
     `/api/documents/${accessKey}/send`,
-    apiKey,
+    ctx,
     { method: 'POST' }
   );
   return result.document;
 }
 
-export async function checkAuthorization(apiKey: string, accessKey: string): Promise<Document> {
+export async function checkAuthorization(ctx: ApiCtx, accessKey: string): Promise<Document> {
   const result = await request<{ ok: true; document: Document }>(
     `/api/documents/${accessKey}/authorize`,
-    apiKey,
+    ctx,
   );
   return result.document;
 }
 
 export async function rebuildDocument(
-  apiKey: string,
+  ctx: ApiCtx,
   accessKey: string,
   payload: CreateDocumentPayload
 ): Promise<Document> {
   const result = await request<{ ok: true; document: Document }>(
     `/api/documents/${accessKey}/rebuild`,
-    apiKey,
-    {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    }
+    ctx,
+    { method: 'POST', body: JSON.stringify(payload) }
   );
   return result.document;
 }
 
 export async function getDocumentEvents(
-  apiKey: string,
+  ctx: ApiCtx,
   accessKey: string
 ): Promise<DocumentEvent[]> {
   const result = await request<{ ok: true; events: DocumentEvent[] }>(
     `/api/documents/${accessKey}/events`,
-    apiKey,
+    ctx,
   );
   return result.events;
 }
 
 export async function retrySingleEmail(
-  apiKey: string,
+  ctx: ApiCtx,
   accessKey: string,
   force = false
 ): Promise<void> {
   await request(
     `/api/documents/${accessKey}/email-retry${force ? '?force=true' : ''}`,
-    apiKey,
+    ctx,
     { method: 'POST' },
   );
 }
 
-// ── Self-service issuer provisioning ──────────────────────────────────────────
+// ── Catalog functions ─────────────────────────────────────────────────────────
 
-export async function verifyEmailToken(token: string): Promise<{ email: string }> {
-  const data = await publicRequest<{ ok: true; email: string }>(`/api/verify-email?token=${encodeURIComponent(token)}`);
-  return { email: data.email };
+export async function listCatalogIdTypes(ctx: ApiCtx): Promise<CatalogIdType[]> {
+  const result = await request<{ ok: true; idTypes: CatalogIdType[] }>(
+    '/api/catalogs/id-types',
+    ctx,
+  );
+  return result.idTypes;
 }
 
-export async function registerIssuer(
-  email: string,
-  fields: IssuerRegistrationFields,
-  p12Buffer: Buffer,
-  p12Password: string,
-  verificationRedirectUrl?: string,
-): Promise<{ issuerId: number; apiKey: string; isEmailVerified: boolean }> {
+export async function listCatalogPaymentMethods(ctx: ApiCtx): Promise<CatalogPaymentMethod[]> {
+  const result = await request<{ ok: true; paymentMethods: CatalogPaymentMethod[] }>(
+    '/api/catalogs/payment-methods',
+    ctx,
+  );
+  return result.paymentMethods;
+}
+
+export async function listCatalogTaxRates(ctx: ApiCtx): Promise<CatalogTaxRate[]> {
+  const result = await request<{ ok: true; taxRates: CatalogTaxRate[] }>(
+    '/api/catalogs/tax-rates',
+    ctx,
+  );
+  return result.taxRates;
+}
+
+// ── Issuer functions ──────────────────────────────────────────────────────────
+
+export async function listTenantIssuers(ctx: ApiCtx): Promise<ApiIssuer[]> {
+  const result = await request<{ ok: true; issuers: ApiIssuer[] }>(
+    '/api/issuers',
+    { apiKey: ctx.apiKey },
+  );
+  return result.issuers;
+}
+
+export async function createIssuer(
+  ctx: ApiCtx,
+  fields: CreateIssuerFields,
+  p12?: Buffer,
+  p12Password?: string,
+): Promise<ApiIssuer> {
   const form = new FormData();
-  form.append('email', email);
   form.append('ruc', fields.ruc);
   form.append('businessName', fields.businessName);
   if (fields.tradeName) form.append('tradeName', fields.tradeName);
   if (fields.mainAddress) form.append('mainAddress', fields.mainAddress);
   form.append('branchCode', fields.branchCode);
   form.append('issuePointCode', fields.issuePointCode);
-  form.append('environment', '1'); // SRI sandbox environment code
   form.append('emissionType', fields.emissionType);
   form.append('requiredAccounting', fields.requiredAccounting ? 'true' : 'false');
   if (fields.documentTypes?.length) {
@@ -328,81 +365,106 @@ export async function registerIssuer(
   if (fields.initialSequentials?.length) {
     form.append('initialSequentials', JSON.stringify(fields.initialSequentials));
   }
-  form.append('certPassword', p12Password);
-  if (verificationRedirectUrl) form.append('verificationRedirectUrl', verificationRedirectUrl);
+  if (p12 && p12Password) {
+    form.append('certPassword', p12Password);
+    const buf = p12.buffer.slice(p12.byteOffset, p12.byteOffset + p12.byteLength) as ArrayBuffer;
+    form.append('cert', new Blob([buf], { type: 'application/x-pkcs12' }), 'cert.p12');
+  }
 
-  const certArrayBuffer = p12Buffer.buffer.slice(
-    p12Buffer.byteOffset,
-    p12Buffer.byteOffset + p12Buffer.byteLength,
-  ) as ArrayBuffer;
-  form.append('cert', new Blob([certArrayBuffer], { type: 'application/x-pkcs12' }), 'cert.p12');
-
-  const result = await publicRequest<{
-    ok: true;
-    tenant: { id: number; email: string; status: string };
-    issuer: { id: number; ruc: string; sandbox: boolean };
-    apiKey: string;
-  }>('/api/register', { method: 'POST', body: form });
-
-  return {
-    issuerId: Number(result.issuer.id),
-    apiKey: result.apiKey,
-    isEmailVerified: result.tenant.status === 'ACTIVE',
-  };
-}
-
-export async function resendVerificationEmail(email: string, verificationRedirectUrl?: string): Promise<void> {
-  await publicRequest('/api/resend-verification', {
+  const res = await fetch(`${getApiUrl()}/api/issuers`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, ...(verificationRedirectUrl && { verificationRedirectUrl }) }),
+    headers: { Authorization: `Bearer ${ctx.apiKey}` },
+    body: form,
   });
+  if (!res.ok) {
+    const problem: ProblemDetails = await res.json();
+    throw new ApiError(problem);
+  }
+  const data = await res.json() as { ok: true; issuer: ApiIssuer };
+  return data.issuer;
 }
 
-export async function listDocumentTypes(apiKey: string): Promise<string[]> {
+export async function listIssuerDocumentTypes(ctx: ApiCtx, issuerId: number): Promise<string[]> {
   const result = await request<{ ok: true; documentTypes: string[] }>(
-    '/api/issuers/document-types',
-    apiKey,
+    `/api/issuers/${issuerId}/document-types`,
+    { apiKey: ctx.apiKey },
   );
   return result.documentTypes;
 }
 
-export async function promoteToProduction(
-  apiKey: string,
-  initialSequentials: { documentType: string; sequential: number }[] = [],
-): Promise<string> {
-  const result = await request<{ ok: true; issuer: object; apiKey: string }>(
-    '/api/issuers/promote',
-    apiKey,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ initialSequentials }),
-    },
+export async function listDocumentTypes(ctx: ApiCtx): Promise<string[]> {
+  const result = await request<{ ok: true; documentTypes: string[] }>(
+    '/api/issuers/document-types',
+    ctx,
   );
-  return result.apiKey;
+  return result.documentTypes;
 }
 
-export async function listCatalogIdTypes(apiKey: string): Promise<CatalogIdType[]> {
-  const result = await request<{ ok: true; idTypes: CatalogIdType[] }>(
-    '/api/catalogs/id-types',
-    apiKey,
+export async function addIssuerDocumentType(
+  ctx: ApiCtx,
+  issuerId: number,
+  code: string,
+): Promise<void> {
+  await request(
+    `/api/issuers/${issuerId}/document-types`,
+    { apiKey: ctx.apiKey },
+    { method: 'POST', body: JSON.stringify({ code }) },
   );
-  return result.idTypes;
 }
 
-export async function listCatalogPaymentMethods(apiKey: string): Promise<CatalogPaymentMethod[]> {
-  const result = await request<{ ok: true; paymentMethods: CatalogPaymentMethod[] }>(
-    '/api/catalogs/payment-methods',
-    apiKey,
+export async function removeIssuerDocumentType(
+  ctx: ApiCtx,
+  issuerId: number,
+  code: string,
+): Promise<void> {
+  await request(
+    `/api/issuers/${issuerId}/document-types/${code}`,
+    { apiKey: ctx.apiKey },
+    { method: 'DELETE' },
   );
-  return result.paymentMethods;
 }
 
-export async function listCatalogTaxRates(apiKey: string): Promise<CatalogTaxRate[]> {
-  const result = await request<{ ok: true; taxRates: CatalogTaxRate[] }>(
-    '/api/catalogs/tax-rates',
-    apiKey,
+// ── Tenant promotion ──────────────────────────────────────────────────────────
+
+export interface PromoteTenantResult {
+  ok: true;
+  apiKeys: Array<{ id: number; label: string; environment: 'production'; key: string }>;
+}
+
+export async function promoteTenant(
+  ctx: ApiCtx,
+  initialSequentials?: Array<{ issuerId: number; documentType: string; sequential: number }>,
+): Promise<PromoteTenantResult> {
+  return request<PromoteTenantResult>(
+    '/api/tenants/promote',
+    { apiKey: ctx.apiKey },
+    { method: 'POST', body: JSON.stringify({ initialSequentials: initialSequentials ?? [] }) },
   );
-  return result.taxRates;
+}
+
+// ── API key management ────────────────────────────────────────────────────────
+
+export async function listTenantApiKeys(ctx: ApiCtx): Promise<ApiKeyInfo[]> {
+  const result = await request<{ ok: true; keys: ApiKeyInfo[] }>(
+    '/api/keys',
+    { apiKey: ctx.apiKey },
+  );
+  return result.keys;
+}
+
+export async function createTenantApiKey(ctx: ApiCtx, label: string): Promise<CreatedApiKey> {
+  const result = await request<{ ok: true; key: CreatedApiKey }>(
+    '/api/keys',
+    { apiKey: ctx.apiKey },
+    { method: 'POST', body: JSON.stringify({ label }) },
+  );
+  return result.key;
+}
+
+export async function revokeTenantApiKey(ctx: ApiCtx, id: number): Promise<void> {
+  await request(
+    `/api/keys/${id}`,
+    { apiKey: ctx.apiKey },
+    { method: 'DELETE' },
+  );
 }

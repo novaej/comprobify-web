@@ -4,7 +4,7 @@ import { PageHeader } from '@/components/page-header';
 import { DocumentTable } from '@/components/document-table';
 import { buttonVariants } from '@/components/ui/button';
 import { listDocuments } from '@/lib/api';
-import { requireApiKey } from '@/lib/auth-token';
+import { requireContext } from '@/lib/context';
 import { ChevronLeft, Plus } from 'lucide-react';
 import type { Document } from '@/lib/api';
 
@@ -21,11 +21,13 @@ export default async function DocumentListPage({
   setRequestLocale(locale);
   const t = await getTranslations('documents');
 
-  const apiKey = await requireApiKey();
+  const ctx = await requireContext();
+  const apiCtx = { apiKey: ctx.apiKey, issuerId: ctx.issuer.apiIssuerId };
+
   let documents: Document[] = [];
   let fetchError = false;
   try {
-    ({ data: documents } = await listDocuments(apiKey, { documentType: type, limit: 50 }));
+    ({ data: documents } = await listDocuments(apiCtx, { documentType: type, limit: 50 }));
   } catch {
     fetchError = true;
   }

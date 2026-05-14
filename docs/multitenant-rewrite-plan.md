@@ -248,7 +248,7 @@ Resolution order in `requireContext()`:
 
 ---
 
-## 5. API client refactor
+## 5. ✅ API client refactor
 
 `src/lib/api.ts` — every function's first arg changes from `apiKey: string` to:
 

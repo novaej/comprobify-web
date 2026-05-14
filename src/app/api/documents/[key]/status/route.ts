@@ -1,10 +1,10 @@
 // Proxy route for client-side status polling via TanStack Query.
 // The browser calls /api/documents/:key/status (this route).
-// This route reads the user's API key from their session JWT (server-side)
-// and forwards to the Comprobify API so the key never touches the browser.
+// This route resolves the user's context server-side and forwards to the
+// Comprobify API so the API key and issuer ID never touch the browser.
 
 import { NextRequest, NextResponse } from 'next/server';
-import { requireApiKey } from '@/lib/auth-token';
+import { requireContext } from '@/lib/context';
 
 export async function GET(
   _req: NextRequest,
@@ -18,14 +18,20 @@ export async function GET(
   }
 
   let apiKey: string;
+  let issuerId: number;
   try {
-    apiKey = await requireApiKey();
+    const ctx = await requireContext();
+    apiKey = ctx.apiKey;
+    issuerId = ctx.issuer.apiIssuerId;
   } catch {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
 
   const res = await fetch(`${apiUrl}/api/documents/${key}`, {
-    headers: { Authorization: `Bearer ${apiKey}` },
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'X-Issuer-Id': String(issuerId),
+    },
     cache: 'no-store',
   });
 

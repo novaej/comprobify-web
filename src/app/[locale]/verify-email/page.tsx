@@ -1,5 +1,5 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
-import { verifyEmailToken } from '@/lib/api';
+import { verifyEmailToken } from '@/lib/public-api';
 import { ApiError } from '@/lib/errors';
 import { db } from '@/lib/db';
 import { Link } from '@/i18n/navigation';

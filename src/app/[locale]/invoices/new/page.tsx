@@ -34,10 +34,12 @@ export default async function NewInvoicePage({
   const ctx = await requireContext();
   const { apiKey, tenant } = ctx;
 
+  const apiCtx = { apiKey, issuerId: ctx.issuer.apiIssuerId };
+
   const [idTypes, paymentMethods, taxRates, productRows, clientRows] = await Promise.all([
-    listCatalogIdTypes(apiKey),
-    listCatalogPaymentMethods(apiKey),
-    listCatalogTaxRates(apiKey),
+    listCatalogIdTypes(apiCtx),
+    listCatalogPaymentMethods(apiCtx),
+    listCatalogTaxRates(apiCtx),
     db.product.findMany({
       where: { tenantId: tenant.id },
       orderBy: { mainCode: 'asc' },

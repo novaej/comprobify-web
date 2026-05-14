@@ -37,6 +37,8 @@ async function getAccessibleIssuers(userId: number, tenantId: number, role: Role
   return access.map((a) => ({ id: a.issuerId }));
 }
 
+export async function requireContext(opts: { skipIssuer: true }): Promise<MinimalContext>;
+export async function requireContext(opts?: { skipIssuer?: false }): Promise<Context>;
 export async function requireContext(opts?: { skipIssuer?: boolean }): Promise<Context | MinimalContext> {
   const locale = await getLocale();
 
@@ -172,7 +174,9 @@ export async function requireContext(opts?: { skipIssuer?: boolean }): Promise<C
 }
 
 export async function requirePermission(code: Permission, opts?: { skipIssuer?: boolean }): Promise<Context | MinimalContext> {
-  const ctx = await requireContext(opts);
+  const ctx = opts?.skipIssuer
+    ? await requireContext({ skipIssuer: true })
+    : await requireContext();
   if (!ctx.permissions.has(code)) {
     throw new Error('FORBIDDEN');
   }

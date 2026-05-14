@@ -3,8 +3,9 @@ import { Link } from '@/i18n/navigation';
 import { PageHeader } from '@/components/page-header';
 import { buttonVariants } from '@/components/ui/button';
 import { listDocuments, listDocumentTypes } from '@/lib/api';
-import { requireApiKey } from '@/lib/auth-token';
+import { requireContext } from '@/lib/context';
 import { cn } from '@/lib/utils';
+import type { ApiCtx } from '@/lib/api';
 import {
   FileText,
   FileMinus,
@@ -38,12 +39,12 @@ function currentMonthRange(): { from: string; to: string } {
   };
 }
 
-async function fetchTypeStats(apiKey: string, type: string): Promise<TypeStats> {
+async function fetchTypeStats(apiCtx: ApiCtx, type: string): Promise<TypeStats> {
   const { from, to } = currentMonthRange();
   try {
     const [totalRes, authorizedRes] = await Promise.all([
-      listDocuments(apiKey, { documentType: type, from, to, limit: 1 }),
-      listDocuments(apiKey, { documentType: type, status: 'AUTHORIZED', from, to, limit: 1 }),
+      listDocuments(apiCtx, { documentType: type, from, to, limit: 1 }),
+      listDocuments(apiCtx, { documentType: type, status: 'AUTHORIZED', from, to, limit: 1 }),
     ]);
     return {
       total: totalRes.pagination.total,
@@ -63,18 +64,19 @@ export default async function DocumentsPage({
   setRequestLocale(locale);
   const t = await getTranslations('documents');
 
-  const apiKey = await requireApiKey();
+  const ctx = await requireContext();
+  const apiCtx: ApiCtx = { apiKey: ctx.apiKey, issuerId: ctx.issuer.apiIssuerId };
 
   let docTypes: string[] = [];
   let fetchError = false;
   try {
-    docTypes = await listDocumentTypes(apiKey);
+    docTypes = await listDocumentTypes(apiCtx);
   } catch {
     fetchError = true;
   }
 
   const statsResults = docTypes.length > 0
-    ? await Promise.all(docTypes.map((type) => fetchTypeStats(apiKey, type)))
+    ? await Promise.all(docTypes.map((type) => fetchTypeStats(apiCtx, type)))
     : [];
   const statsMap: Record<string, TypeStats> = Object.fromEntries(
     docTypes.map((type, i) => [type, statsResults[i]])

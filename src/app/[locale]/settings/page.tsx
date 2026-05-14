@@ -24,7 +24,7 @@ export default async function SettingsPage({
   const hasIssuer = issuerCount > 0;
 
   const documentTypes = hasIssuer
-    ? await listDocumentTypes(ctx.apiKey).catch(() => ['01'])
+    ? await listDocumentTypes({ apiKey: ctx.apiKey }).catch(() => ['01'])
     : [];
 
   return (

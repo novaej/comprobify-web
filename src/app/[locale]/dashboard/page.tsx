@@ -1,11 +1,10 @@
-import { setRequestLocale } from 'next-intl/server';
-import { getTranslations } from 'next-intl/server';
+import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { PageHeader } from '@/components/page-header';
 import { DocumentTable } from '@/components/document-table';
 import { buttonVariants } from '@/components/ui/button';
 import { listDocuments } from '@/lib/api';
-import { requireApiKey } from '@/lib/auth-token';
+import { requireContext } from '@/lib/context';
 import { Plus } from 'lucide-react';
 
 export default async function DashboardPage({
@@ -17,12 +16,13 @@ export default async function DashboardPage({
   setRequestLocale(locale);
   const t = await getTranslations('dashboard');
 
-  const apiKey = await requireApiKey();
+  const ctx = await requireContext();
+  const apiCtx = { apiKey: ctx.apiKey, issuerId: ctx.issuer.apiIssuerId };
 
   let documents: Awaited<ReturnType<typeof listDocuments>>['data'] = [];
   let fetchError = false;
   try {
-    ({ data: documents } = await listDocuments(apiKey, { limit: 50 }));
+    ({ data: documents } = await listDocuments(apiCtx, { limit: 50 }));
   } catch {
     fetchError = true;
   }
