@@ -1,7 +1,7 @@
 'use server';
 
-import { auth } from '@/auth';
 import { db } from '@/lib/db';
+import { requireContext } from '@/lib/context';
 import { revalidatePath } from 'next/cache';
 
 export type CatalogProduct = {
@@ -23,17 +23,15 @@ export type CatalogProductInput = {
 
 export type CatalogResult = { error: string } | null;
 
-async function requireUserId(): Promise<number | null> {
-  const session = await auth();
-  if (!session?.user?.id) return null;
-  return Number(session.user.id);
+async function requireTenantId(): Promise<number> {
+  const ctx = await requireContext({ skipIssuer: true });
+  return ctx.tenant.id;
 }
 
 export async function listProductsAction(): Promise<CatalogProduct[]> {
-  const userId = await requireUserId();
-  if (!userId) return [];
+  const tenantId = await requireTenantId();
   const rows = await db.product.findMany({
-    where: { userId },
+    where: { tenantId },
     orderBy: { createdAt: 'desc' },
     select: { id: true, mainCode: true, auxCode: true, description: true, unitPrice: true, taxOption: true },
   });
@@ -41,11 +39,10 @@ export async function listProductsAction(): Promise<CatalogProduct[]> {
 }
 
 export async function createProductAction(input: CatalogProductInput): Promise<CatalogResult> {
-  const userId = await requireUserId();
-  if (!userId) return { error: 'UNAUTHORIZED' };
+  const tenantId = await requireTenantId();
   await db.product.create({
     data: {
-      userId,
+      tenantId,
       mainCode: input.mainCode.trim().slice(0, 25),
       auxCode: input.auxCode?.trim().slice(0, 25) || null,
       description: input.description.trim(),
@@ -58,10 +55,9 @@ export async function createProductAction(input: CatalogProductInput): Promise<C
 }
 
 export async function updateProductAction(id: number, input: CatalogProductInput): Promise<CatalogResult> {
-  const userId = await requireUserId();
-  if (!userId) return { error: 'UNAUTHORIZED' };
+  const tenantId = await requireTenantId();
   await db.product.updateMany({
-    where: { id, userId },
+    where: { id, tenantId },
     data: {
       mainCode: input.mainCode.trim().slice(0, 25),
       auxCode: input.auxCode?.trim().slice(0, 25) || null,
@@ -75,9 +71,8 @@ export async function updateProductAction(id: number, input: CatalogProductInput
 }
 
 export async function deleteProductAction(id: number): Promise<CatalogResult> {
-  const userId = await requireUserId();
-  if (!userId) return { error: 'UNAUTHORIZED' };
-  await db.product.deleteMany({ where: { id, userId } });
+  const tenantId = await requireTenantId();
+  await db.product.deleteMany({ where: { id, tenantId } });
   revalidatePath('/catalog');
   return null;
 }

@@ -1,7 +1,7 @@
 'use server';
 
-import { auth } from '@/auth';
 import { db } from '@/lib/db';
+import { requireContext } from '@/lib/context';
 import { revalidatePath } from 'next/cache';
 
 export type SavedClient = {
@@ -23,18 +23,16 @@ export type ClientInput = {
 
 export type ClientResult = { error: string } | null;
 
-async function requireUserId(): Promise<number | null> {
-  const session = await auth();
-  if (!session?.user?.id) return null;
-  return Number(session.user.id);
+async function requireTenantId(): Promise<number> {
+  const ctx = await requireContext({ skipIssuer: true });
+  return ctx.tenant.id;
 }
 
 export async function createClientAction(input: ClientInput): Promise<ClientResult> {
-  const userId = await requireUserId();
-  if (!userId) return { error: 'UNAUTHORIZED' };
+  const tenantId = await requireTenantId();
   await db.client.create({
     data: {
-      userId,
+      tenantId,
       idType: input.idType,
       idNumber: input.idNumber.trim(),
       name: input.name.trim(),
@@ -47,10 +45,9 @@ export async function createClientAction(input: ClientInput): Promise<ClientResu
 }
 
 export async function updateClientAction(id: number, input: ClientInput): Promise<ClientResult> {
-  const userId = await requireUserId();
-  if (!userId) return { error: 'UNAUTHORIZED' };
+  const tenantId = await requireTenantId();
   await db.client.updateMany({
-    where: { id, userId },
+    where: { id, tenantId },
     data: {
       idType: input.idType,
       idNumber: input.idNumber.trim(),
@@ -64,9 +61,8 @@ export async function updateClientAction(id: number, input: ClientInput): Promis
 }
 
 export async function deleteClientAction(id: number): Promise<ClientResult> {
-  const userId = await requireUserId();
-  if (!userId) return { error: 'UNAUTHORIZED' };
-  await db.client.deleteMany({ where: { id, userId } });
+  const tenantId = await requireTenantId();
+  await db.client.deleteMany({ where: { id, tenantId } });
   revalidatePath('/clients');
   return null;
 }

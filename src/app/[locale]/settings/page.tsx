@@ -1,11 +1,11 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
-import { auth } from '@/auth';
 import { IssuerSetupForm } from '@/components/issuer-setup-form';
 import { ProductionPromotion } from '@/components/production-promotion';
 import { EmailVerificationNotice } from '@/components/email-verification-notice';
 import { PageHeader } from '@/components/page-header';
-import { requireApiKey } from '@/lib/auth-token';
+import { requireContext } from '@/lib/context';
 import { listDocumentTypes } from '@/lib/api';
+import { db } from '@/lib/db';
 
 export default async function SettingsPage({
   params,
@@ -16,13 +16,15 @@ export default async function SettingsPage({
   setRequestLocale(locale);
   const t = await getTranslations('settings');
 
-  const session = await auth();
-  const environment = session?.user?.environment ?? 'sandbox';
-  const hasIssuer = session?.user?.hasIssuer ?? false;
-  const emailVerified = session?.user?.isEmailVerified ?? false;
+  const ctx = await requireContext({ skipIssuer: true });
+  const { environment, id: tenantId } = ctx.tenant;
+  const { email, emailVerified } = ctx.user;
+
+  const issuerCount = await db.issuer.count({ where: { tenantId } });
+  const hasIssuer = issuerCount > 0;
 
   const documentTypes = hasIssuer
-    ? await requireApiKey().then((key) => listDocumentTypes(key)).catch(() => ['01'])
+    ? await listDocumentTypes(ctx.apiKey).catch(() => ['01'])
     : [];
 
   return (
@@ -69,7 +71,7 @@ export default async function SettingsPage({
 
         <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
           <h2 className="text-sm font-semibold">{t('account.title')}</h2>
-          <p className="mt-1.5 text-sm text-muted-foreground">{session?.user?.email}</p>
+          <p className="mt-1.5 text-sm text-muted-foreground">{email}</p>
         </div>
       </div>
     </div>

@@ -8,9 +8,6 @@ declare module 'next-auth' {
     user: {
       id: string;
       email: string;
-      environment: string;
-      hasIssuer: boolean;
-      isEmailVerified: boolean;
     };
   }
 }
@@ -47,18 +44,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) token.id = user.id;
       return token;
     },
-    async session({ session, token }) {
+    session({ session, token }) {
       session.user.id = token.id as string;
-
-      // Phase 2 will replace this with requireContext() which reads from Tenant + TenantApiKey.
-      const user = await db.user.findUnique({
-        where: { id: Number(token.id) },
-        select: { emailVerified: true },
-      });
-      session.user.environment = 'sandbox';   // Phase 2: derive from Tenant.environment
-      session.user.hasIssuer = false;          // Phase 2: derive from context cookie / issuer count
-      session.user.isEmailVerified = user?.emailVerified ?? false;
-
       return session;
     },
   },

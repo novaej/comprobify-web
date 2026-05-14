@@ -157,7 +157,7 @@ model Client {
 
 ---
 
-## 3. Roles and permissions
+## 3. ✅ Roles and permissions
 
 Hardcoded TypeScript map. Permissions are part of the security contract — code review is the right place to change them. Migrate to DB-backed later if/when we need custom roles.
 
@@ -187,11 +187,11 @@ export const ROLE_PERMISSIONS: Record<Role, ReadonlySet<Permission>> = {
 export function hasPermission(role: Role, code: Permission): boolean { ... }
 ```
 
-Open question: should `Admin` also have `tenant.promote`? Default in this plan = no, because promotion is irreversible and clears all sandbox keys. Owner-only.
+Decision: `tenant.promote` is **Owner-only**. Promotion is irreversible and clears all sandbox keys — too destructive to delegate to Admin. Can be opened up later with a one-line change to `ROLE_PERMISSIONS`.
 
 ---
 
-## 4. Auth + Context flow
+## 4. ✅ Auth + Context flow
 
 **Login** (`src/app/actions/auth.ts::loginAction`):
 1. Verify credentials.
@@ -524,7 +524,7 @@ After each phase:
 
 5. **Viewer / non-admin issuer switching** — non-Owner/Admin roles can switch among issuers in `UserIssuerAccess`. Owner/Admin always see all issuers (ignores the table). Acceptable for v1?
 
-6. **`Admin` permission to promote** — plan currently restricts `tenant.promote` to Owner. Confirm? Alternative: any Owner or Admin can promote.
+6. **`Admin` permission to promote** — resolved: Owner-only. See section 3.
 
 7. **TanStack Query polling and issuer change** — include `issuerId` in every `queryKey` so issuer switching naturally invalidates polling queries; switcher calls `router.refresh()` after the action so server-rendered cached pages re-fetch.
 

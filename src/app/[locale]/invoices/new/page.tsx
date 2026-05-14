@@ -1,9 +1,7 @@
-import { setRequestLocale } from 'next-intl/server';
-import { getTranslations } from 'next-intl/server';
+import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { InvoiceForm } from '@/components/invoice-form';
 import { PageHeader } from '@/components/page-header';
-import { requireApiKey } from '@/lib/auth-token';
-import { auth } from '@/auth';
+import { requireContext } from '@/lib/context';
 import { db } from '@/lib/db';
 import {
   listCatalogIdTypes,
@@ -33,27 +31,23 @@ export default async function NewInvoicePage({
   setRequestLocale(locale);
   const t = await getTranslations('invoiceForm');
 
-  const [apiKey, session] = await Promise.all([requireApiKey(), auth()]);
-  const userId = session?.user?.id ? Number(session.user.id) : null;
+  const ctx = await requireContext();
+  const { apiKey, tenant } = ctx;
 
   const [idTypes, paymentMethods, taxRates, productRows, clientRows] = await Promise.all([
     listCatalogIdTypes(apiKey),
     listCatalogPaymentMethods(apiKey),
     listCatalogTaxRates(apiKey),
-    userId
-      ? db.product.findMany({
-          where: { userId },
-          orderBy: { mainCode: 'asc' },
-          select: { id: true, mainCode: true, auxCode: true, description: true, unitPrice: true, taxOption: true },
-        })
-      : Promise.resolve([]),
-    userId
-      ? db.client.findMany({
-          where: { userId },
-          orderBy: { name: 'asc' },
-          select: { id: true, idType: true, idNumber: true, name: true, email: true, address: true },
-        })
-      : Promise.resolve([]),
+    db.product.findMany({
+      where: { tenantId: tenant.id },
+      orderBy: { mainCode: 'asc' },
+      select: { id: true, mainCode: true, auxCode: true, description: true, unitPrice: true, taxOption: true },
+    }),
+    db.client.findMany({
+      where: { tenantId: tenant.id },
+      orderBy: { name: 'asc' },
+      select: { id: true, idType: true, idNumber: true, name: true, email: true, address: true },
+    }),
   ]);
 
   const products: CatalogProduct[] = productRows.map((r) => ({
