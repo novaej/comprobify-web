@@ -20,7 +20,8 @@
     "catalog": "Catálogo",
     "issuers": "Emisores",
     "settings": "Configuración",
-    "signOut": "Cerrar sesión"
+    "signOut": "Cerrar sesión",
+    "noIssuer": "Sin punto de emisión"
   },
   "auth": {
     "fields": {

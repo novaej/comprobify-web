@@ -20,7 +20,8 @@
     "catalog": "Catalog",
     "issuers": "Issuers",
     "settings": "Settings",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "noIssuer": "No issue point"
   },
   "auth": {
     "fields": {

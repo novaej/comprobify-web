@@ -3,8 +3,6 @@
 import { db } from '@/lib/db';
 import { requireContext } from '@/lib/context';
 import { writeCtxCookie, clearCtxCookie } from '@/lib/context-cookie';
-import { getLocale } from 'next-intl/server';
-import { redirect } from '@/i18n/navigation';
 import { revalidatePath } from 'next/cache';
 
 export type ContextResult = { error: string } | null;
@@ -19,9 +17,6 @@ export async function selectIssuerAction(issuerId: number): Promise<ContextResul
 
   await writeCtxCookie({ issuerId, v: 1 });
   revalidatePath('/', 'layout');
-
-  const locale = await getLocale();
-  redirect({ href: '/dashboard', locale });
   return null;
 }
 

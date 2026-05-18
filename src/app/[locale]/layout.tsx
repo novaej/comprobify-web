@@ -8,23 +8,56 @@ import { Toaster } from '@/components/ui/sonner';
 import { SandboxBanner } from '@/components/sandbox-banner';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
+import { readCtxCookie } from '@/lib/context-cookie';
 
-async function getLayoutProps(userId: string) {
+interface LayoutProps {
+  hasIssuer: boolean;
+  environment: 'sandbox' | 'production';
+  tenantName: string | null;
+  currentIssuer: { id: number; name: string; branchCode: string; issuePointCode: string } | null;
+  issuers: Array<{ id: number; name: string; branchCode: string; issuePointCode: string }>;
+  userEmail: string;
+}
+
+async function getLayoutProps(userId: string): Promise<LayoutProps | null> {
   const user = await db.user.findUnique({
     where: { id: Number(userId) },
     select: {
+      email: true,
       tenant: {
         select: {
+          businessName: true,
+          tradeName: true,
           environment: true,
-          _count: { select: { issuers: true } },
+          issuers: {
+            orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
+            select: { id: true, businessName: true, tradeName: true, branchCode: true, issuePointCode: true },
+          },
         },
       },
     },
   });
-  if (!user?.tenant) return { hasIssuer: false, environment: 'sandbox' as const };
+
+  if (!user?.tenant) return null;
+
+  const ctxCookie = await readCtxCookie();
+  const allIssuers = user.tenant.issuers.map((i) => ({
+    id: i.id,
+    name: i.tradeName ?? i.businessName,
+    branchCode: i.branchCode,
+    issuePointCode: i.issuePointCode,
+  }));
+  const currentIssuer = ctxCookie
+    ? (allIssuers.find((i) => i.id === ctxCookie.issuerId) ?? null)
+    : null;
+
   return {
-    hasIssuer: user.tenant._count.issuers > 0,
+    hasIssuer: allIssuers.length > 0,
     environment: user.tenant.environment as 'sandbox' | 'production',
+    tenantName: user.tenant.tradeName ?? user.tenant.businessName,
+    currentIssuer,
+    issuers: allIssuers,
+    userEmail: user.email,
   };
 }
 
@@ -50,16 +83,21 @@ export default async function LocaleLayout({
   const [messages, session] = await Promise.all([getMessages(), auth()]);
   const isAuthenticated = !!session;
 
-  const layoutProps = isAuthenticated
-    ? await getLayoutProps(session.user.id)
-    : null;
+  const layoutProps = isAuthenticated ? await getLayoutProps(session.user.id) : null;
 
   return (
     <NextIntlClientProvider messages={messages}>
       <QueryProvider>
         {isAuthenticated && layoutProps ? (
           <div className="flex h-full flex-col md:flex-row">
-            <Nav hasIssuer={layoutProps.hasIssuer} />
+            <Nav
+              hasIssuer={layoutProps.hasIssuer}
+              environment={layoutProps.environment}
+              tenantName={layoutProps.tenantName}
+              currentIssuer={layoutProps.currentIssuer}
+              issuers={layoutProps.issuers}
+              userEmail={layoutProps.userEmail}
+            />
             <main className="flex-1 overflow-y-auto p-4 md:p-8">
               <SandboxBanner environment={layoutProps.environment} />
               {children}

@@ -351,7 +351,7 @@ Lives on the **tenant settings page** (or a dedicated `/settings/promote` route)
 
 ---
 
-## 7. Operational context cookie
+## 7. ✅ Operational context cookie
 
 Single signed cookie. Tenant is implicit (from `user.tenantId`), so the cookie carries only the issuer selection.
 
@@ -364,7 +364,7 @@ Single signed cookie. Tenant is implicit (from `user.tenantId`), so the cookie c
 
 ---
 
-## 8. Nav UX (mobile-aware)
+## 8. ✅ Nav UX (mobile-aware)
 
 `src/components/nav.tsx` decomposes into:
 

@@ -2,6 +2,7 @@
 
 import { useTransition } from 'react';
 import { useTranslations } from 'next-intl';
+import { useRouter } from '@/i18n/navigation';
 import { selectIssuerAction } from '@/app/actions/context';
 import { Building2 } from 'lucide-react';
 
@@ -15,11 +16,13 @@ interface Issuer {
 
 export function IssuerSelectList({ issuers }: { issuers: Issuer[] }) {
   const t = useTranslations('issuerSelect');
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
   function handleSelect(id: number) {
     startTransition(async () => {
       await selectIssuerAction(id);
+      router.push('/dashboard');
     });
   }
 
