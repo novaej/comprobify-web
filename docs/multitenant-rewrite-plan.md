@@ -378,7 +378,7 @@ Hide operational nav entries (documents/clients/catalog/invoices) when there are
 
 ---
 
-## 9. API key encryption at rest
+## 9. ✅ API key encryption at rest
 
 New module `src/lib/crypto.ts`:
 
@@ -407,41 +407,38 @@ Each phase independently mergeable. Each phase ends with a working build (even i
    - ✅ Add `src/lib/crypto.ts`, `src/lib/rbac.ts`, `src/lib/context-cookie.ts`.
    - ✅ Stub `src/lib/context.ts` with `NOT_IMPLEMENTED` throws so callers compile.
 
-2. **Auth wiring + onboarding**
-   - Trim `src/auth.ts` session shape to `{ id, email }`.
-   - Implement `requireContext()` for real.
-   - Create `src/lib/public-api.ts`; implement `bootstrapTenantAction`.
-   - Build `/onboarding/tenant` screen.
-   - Add `loginAction` branching logic per §4.
+2. ✅ **Auth wiring + onboarding**
+   - ✅ Trim `src/auth.ts` session shape to `{ id, email }`.
+   - ✅ Implement `requireContext()` for real.
+   - ✅ Create `src/lib/public-api.ts`; implement `bootstrapTenantAction`.
+   - ✅ Build `/onboarding/tenant` screen.
+   - ✅ Add `loginAction` branching logic per §4.
 
-3. **API client refactor**
-   - `request()` takes `ApiCtx`; update all existing call sites.
-   - Add new tenant-level functions (including `promoteTenant`, NOT `promoteIssuer`).
-   - Refactor `document.ts`, `invoice.ts`, `clients.ts`, `catalog.ts`, `tenant.ts` actions to use `requireContext()` + `ApiCtx`.
-   - Refactor existing screens (`/dashboard`, `/invoices/*`, `/documents/*`, `/clients`, `/catalog`, `/settings`).
-   - Delete `src/lib/admin-api.ts`.
+3. ✅ **API client refactor**
+   - ✅ `request()` takes `ApiCtx`; update all existing call sites.
+   - ✅ Add new tenant-level functions (including `promoteTenant`, NOT `promoteIssuer`).
+   - ✅ Refactor `document.ts`, `invoice.ts`, `clients.ts`, `catalog.ts`, `tenant.ts` actions to use `requireContext()` + `ApiCtx`.
+   - ✅ Refactor existing screens (`/dashboard`, `/invoices/*`, `/documents/*`, `/clients`, `/catalog`, `/settings`).
+   - ✅ Delete `src/lib/admin-api.ts`.
 
-4. **Context UI**
-   - `/issuer/select` page + `selectIssuerAction`.
-   - Refactor `nav.tsx` (`TenantBadge`, `IssuerSwitcher`, `UserMenu`).
-   - `LocaleLayout` uses `requireContext({skipIssuer:true}).catch(null)` to render the authenticated shell.
+4. ✅ **Context UI**
+   - ✅ `/issuer/select` page + `selectIssuerAction`.
+   - ✅ Refactor `nav.tsx` (`TenantBadge`, `IssuerSwitcher`, `UserMenu`).
+   - ✅ `LocaleLayout` fetches layout props (tenant, issuers, current issuer) without blocking redirects.
 
-5. **Issuers admin**
-   - `/issuers` list/create-branch screen.
-   - `/issuers/[id]` document-types screen.
-   - Gated by `issuers.*` permissions.
+5. ✅ **Issuers admin**
+   - ✅ `/issuers` list + document-type management screen.
+   - ✅ Gated by `issuers.*` permissions.
 
-6. **API keys admin + promotion**
-   - `/api-keys` list/create/revoke with one-time cleartext modal.
-   - Missing-key banner.
-   - `promoteTenantAction` + UI in `/settings` (Owner-only).
-   - `scripts/rotate-encryption-key.ts` helper.
+6. ✅ **API keys admin + promotion**
+   - ✅ `/api-keys` list/create/revoke with one-time cleartext reveal.
+   - ✅ Missing-key banner.
+   - ✅ `promoteTenantAction` + confirmation UI in `/settings` (Owner-only).
 
-7. **Users / RBAC UI**
-   - `/users` invite/role/remove/issuer-access UI.
-   - Audit pass: every Server Action calls `requirePermission`; every privileged Server Component branch hides UI with `hasContextPermission`.
-   - Localization sweep: add all new keys to `messages/es.json` + `messages/en.json`.
-   - Mobile QA pass.
+7. ✅ **Users / RBAC UI**
+   - ✅ `/users` invite/role/remove UI.
+   - ✅ Server Actions call `requirePermission`; document pages gated by `documents.read`.
+   - ✅ Localization sweep: all new keys added to `messages/es.json` + `messages/en.json`.
 
 ---
 
