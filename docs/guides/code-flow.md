@@ -28,10 +28,12 @@ Example: user navigates to `/es/dashboard`.
 5. dashboard/page.tsx (async Server Component)
    │  • setRequestLocale('es')
    │  • getTranslations('dashboard')
-   │  • requireApiKey() ← fetches user's API key from DB via src/lib/auth-token.ts
-   │  • listDocuments(apiKey) ← calls src/lib/api.ts
+   │  • requireContext() ← src/lib/context.ts
+   │      Loads: User → Tenant → Issuer (from comprobify_ctx cookie) → decrypts TenantApiKey
+   │  • listDocuments({ apiKey, issuerId }) ← calls src/lib/api.ts
    │      └─► GET /api/documents (Comprobify API, server-to-server)
-   │          Authorization: Bearer <user's comprobifyApiKey from DB>
+   │          Authorization: Bearer <tenant API key>
+   │          X-Issuer-Id: <issuer's API-side id>
    │  • Returns HTML with document list pre-rendered
    │
 6. Browser receives complete HTML
@@ -51,13 +53,14 @@ Example: user submits the Create Invoice form.
 2. Client Component (InvoiceForm) — React Hook Form validates locally
    │  • Zod schema catches format errors before submit
    │
-3. Server Action called (createInvoiceAction in invoices/new/actions.ts)
+3. Server Action called (createInvoiceAction in src/app/actions/invoice.ts)
    │  'use server'
    │  • Receives validated payload from the form
-   │  • requireApiKey() ← fetches user's API key from DB
-   │  • Calls createDocument(apiKey, payload) ← src/lib/api.ts
+   │  • requireContext() ← resolves tenant, issuer, and decrypted API key
+   │  • Calls createDocument({ apiKey, issuerId }, payload) ← src/lib/api.ts
    │      └─► POST /api/documents (Comprobify API, server-to-server)
-   │          Authorization: Bearer <user's comprobifyApiKey from DB>
+   │          Authorization: Bearer <tenant API key>
+   │          X-Issuer-Id: <issuer's API-side id>
    │
 4a. On success:
    │  • redirect('/invoices/:accessKey') ← @/i18n/navigation
@@ -88,8 +91,10 @@ Example: invoice is in `RECEIVED` status, waiting for SRI authorization.
    │  })
    │
 3. Next.js Route Handler (src/app/api/documents/[key]/status/route.ts)
-   │  • requireApiKey() ← fetches user's API key from DB (session-authenticated)
+   │  • requireContext() ← resolves tenant, issuer, and decrypted API key
    │  • GET /api/documents/:key (Comprobify API, server-to-server)
+   │      Authorization: Bearer <tenant API key>
+   │      X-Issuer-Id: <issuer's API-side id>
    │  • Forwards response JSON to browser
    │
 4. TanStack Query receives response
@@ -113,7 +118,7 @@ Example: user clicks the link in the verification email and lands on the fronten
 2. src/proxy.ts — verify-email is in PUBLIC_ROUTES, no auth check applied
    │
 3. verify-email/page.tsx (async Server Component)
-   │  • verifyEmailToken(token) ← src/lib/api.ts
+   │  • verifyEmailToken(token) ← src/lib/public-api.ts (no auth required)
    │      └─► GET /api/verify-email?token=... (Comprobify API, server-to-server)
    │          Returns: { ok: true, email: "user@example.com" }
    │  • db.user.updateMany({ where: { email }, data: { emailVerified: true } })
@@ -150,8 +155,8 @@ Browser request
 
 | Flow | Files involved |
 |---|---|
-| Page load | `proxy.ts` → `[locale]/layout.tsx` → `page.tsx` → `src/lib/api.ts` |
-| Form submit | `form.tsx` (client) → `actions.ts` (server action) → `src/lib/api.ts` |
-| Status polling | `status-poller.tsx` (client) → `app/api/.../route.ts` → `src/lib/api.ts` |
+| Page load | `proxy.ts` → `[locale]/layout.tsx` → `page.tsx` → `context.ts` → `api.ts` |
+| Form submit | `form.tsx` (client) → `actions/*.ts` (server action) → `context.ts` → `api.ts` |
+| Status polling | `invoice-polling.tsx` (client) → `app/api/.../route.ts` → `context.ts` → Comprobify API |
 | Navigation | `@/i18n/navigation` (Link, redirect, usePathname) |
 | Translations | `getTranslations()` (server) / `useTranslations()` (client) |

@@ -87,7 +87,7 @@ export async function sendToSriAction(accessKey: string) {
 }
 ```
 
-If the action changes data that the **shared layout** reads from the session (e.g. `hasIssuer`, `environment`), call `revalidatePath('/', 'layout')` before redirecting. Without it, Next.js reuses the cached layout RSC payload and the Nav appears stale until a manual reload:
+If the action changes data that the **shared layout** displays (e.g. tenant name, environment, issuer list), call `revalidatePath('/', 'layout')` before redirecting. Without it, Next.js reuses the cached layout RSC payload and the Nav appears stale until a manual reload:
 
 ```ts
 revalidatePath('/', 'layout');
@@ -133,8 +133,8 @@ SRI lookup tables (ID types, payment methods, tax rates) should be fetched serve
 
 ```tsx
 // page.tsx (Server Component)
-import { requireApiKey } from '@/lib/auth-token';
-import { listCatalogIdTypes, listCatalogPaymentMethods, listCatalogTaxRates } from '@/lib/api';
+import { requireContext } from '@/lib/context';
+import { listCatalogIdTypes, listCatalogPaymentMethods } from '@/lib/api';
 
 export interface MyCatalogs {
   idTypes: CatalogIdType[];
@@ -142,10 +142,11 @@ export interface MyCatalogs {
 }
 
 export default async function MyPage(...) {
-  const apiKey = await requireApiKey();
+  const ctx = await requireContext();
+  const apiCtx = { apiKey: ctx.apiKey, issuerId: ctx.issuer.apiIssuerId };
   const [idTypes, paymentMethods] = await Promise.all([
-    listCatalogIdTypes(apiKey),
-    listCatalogPaymentMethods(apiKey),
+    listCatalogIdTypes(apiCtx),
+    listCatalogPaymentMethods(apiCtx),
   ]);
   return <MyForm catalogs={{ idTypes, paymentMethods }} />;
 }
@@ -193,12 +194,15 @@ export function SomeInteractiveComponent() {
 
 ## Adding a new API endpoint call
 
-1. Add the function to `src/lib/api.ts`:
+1. Add the function to `src/lib/api.ts`. All functions take `ApiCtx` as the first argument; the shared `request()` helper automatically adds `X-Issuer-Id` when `issuerId` is set:
 
 ```ts
-export async function newApiCall(param: string): Promise<SomeType> {
+import type { ApiCtx } from '@/lib/api';
+
+export async function newApiCall(ctx: ApiCtx, param: string): Promise<SomeType> {
   const result = await request<{ ok: true; data: SomeType }>(
-    `/api/some-endpoint/${param}`
+    `/api/some-endpoint/${param}`,
+    ctx,
   );
   return result.data;
 }

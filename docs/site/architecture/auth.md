@@ -6,12 +6,12 @@ How authentication works in `comprobify-web`.
 
 ## Overview
 
-Auth.js v5 (`next-auth@beta`) with a credentials provider (email + password). Sessions are JWT-based. User records live in a PostgreSQL database managed by Prisma 7.
+Auth.js v5 (`next-auth@beta`) with a credentials provider (email + password). Sessions are JWT-based and trimmed to the minimum. All tenant, issuer, role, and API key data is resolved server-side on each request by `requireContext()`.
 
 ```
 Browser POSTs /api/auth/signin  (email + password)
   → Auth.js authorize() validates credentials against frontend DB
-  → Auth.js encrypts session into JWT (NEXTAUTH_SECRET)
+  → Auth.js encrypts session JWT (AUTH_SECRET) containing only { id, email }
   → Set-Cookie: next-auth.session-token=<encrypted blob>  (HttpOnly, Secure, SameSite=Lax)
 ```
 
@@ -24,100 +24,137 @@ The session exposed to Server Components and Server Actions via `auth()` contain
 ```ts
 {
   user: {
-    id: string          // users.id (PK)
+    id: string    // users.id (PK)
     email: string
-    environment: string // 'sandbox' | 'production'
-    hasIssuer: boolean  // comprobifyIssuerId IS NOT NULL
   }
 }
 ```
 
-**The API key is never in the session.** It lives in `users.comprobify_api_key` in the DB and is fetched server-side only via `requireApiKey()`.
+**Nothing else.** Role, tenant, environment, issuer, and API key are never stored in the JWT. They are resolved fresh on each server request by `requireContext()`.
+
+---
+
+## requireContext()
+
+`src/lib/context.ts` is the single entry point for authenticated server-side code. It resolves the full request context in one call:
+
+```
+requireContext()
+  1. auth() — verify JWT session → get user.id
+  2. db.user.findUnique({ include: { tenant } }) — load User + Tenant
+     • tenantId === null → redirect /onboarding/tenant
+     • inviteStatus !== 'ACTIVE' → redirect /complete-registration
+     • role === null → redirect /login
+  3a. opts.skipIssuer === true → fetch active TenantApiKey, return MinimalContext
+  3b. Read comprobify_ctx cookie → issuerId
+     • Missing + exactly 1 accessible issuer → auto-set cookie + continue
+     • Missing + 0 or >1 → redirect /issuer/select
+  4. db.issuer.findUnique(issuerId) — verify issuer belongs to tenant
+     • Wrong tenant or not in UserIssuerAccess whitelist → clear cookie + redirect
+  5. db.tenantApiKey.findFirst({ isActive: true }) → decrypt(encryptedKey)
+     • None → redirect /api-keys?missing=1
+  6. Return Context { user, tenant, issuer, permissions, apiKey }
+```
+
+**Overloads:**
+```ts
+requireContext()                     // → Context (with issuer)
+requireContext({ skipIssuer: true }) // → MinimalContext (no issuer — for settings, users, etc.)
+requirePermission('documents.read') // → Context + permission guard (throws 'FORBIDDEN')
+hasContextPermission('issuers.manage') // → boolean (non-throwing, for conditional UI)
+```
 
 ---
 
 ## API key handling
 
-```ts
-// src/lib/auth-token.ts
-export async function requireApiKey(): Promise<string> {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Not authenticated');
-  const user = await db.user.findUnique({
-    where: { id: Number(session.user.id) },
-    select: { comprobifyApiKey: true },
-  });
-  if (!user?.comprobifyApiKey) throw new Error('Issuer not configured');
-  return user.comprobifyApiKey;
-}
-```
+Tenant API keys are stored encrypted in the `TenantApiKey` table using AES-256-GCM (`src/lib/crypto.ts`). `requireContext()` decrypts the active key and returns it as `ctx.apiKey`. All `src/lib/api.ts` functions take `ApiCtx { apiKey: string; issuerId?: number }` and add `X-Issuer-Id` to requests when `issuerId` is present.
 
-Call `requireApiKey()` at the top of every Server Component, Server Action, and Route Handler that needs to call the Comprobify API. Pass the returned key as the first argument to functions in `src/lib/api.ts`.
-
-**Critical:** Never add `comprobifyApiKey` to the session callbacks — that would expose it to the browser.
+**Critical:** Never add `apiKey` to session callbacks, component props, or Server Action return values.
 
 ---
 
-## Users table (Prisma schema excerpt)
+## Data model (key tables)
 
 ```prisma
 model User {
-  id                  Int      @id @default(autoincrement())
-  email               String   @unique
-  password            String                         // bcrypt hash
-  comprobifyApiKey    String?  @map("comprobify_api_key")
-  comprobifyIssuerId  Int?     @map("comprobify_issuer_id")
-  emailVerified       Boolean  @default(false) @map("email_verified")
-  createdAt           DateTime @default(now()) @map("created_at")
-  updatedAt           DateTime @updatedAt @map("updated_at")
+  id           Int       @id @default(autoincrement())
+  email        String    @unique
+  passwordHash String?                    // null while INVITED
+  emailVerified Boolean  @default(false)
+  tenantId     Int?                       // null before onboarding
+  role         String?                    // Owner | Admin | BillingOperator | Viewer | Developer
+  inviteStatus String    @default("ACTIVE") // ACTIVE | INVITED | DISABLED
+}
+
+model Tenant {
+  id          Int    @id @default(autoincrement())
+  apiTenantId Int    @unique           // Comprobify API tenant id
+  ruc         String @unique
+  environment String @default("sandbox") // 'sandbox' | 'production'
+  status      String @default("ACTIVE")
+}
+
+model TenantApiKey {
+  id           Int      @id @default(autoincrement())
+  tenantId     Int
+  apiKeyId     Int      @unique        // Comprobify API key id
+  encryptedKey String                  // AES-256-GCM encrypted
+  lastFour     String                  // display only
+  isActive     Boolean  @default(true)
+  revokedAt    DateTime?
+}
+
+model Issuer {
+  id             Int @id @default(autoincrement())
+  tenantId       Int
+  apiIssuerId    Int @unique           // Comprobify API issuer id
+  branchCode     String
+  issuePointCode String
 }
 ```
 
-`comprobifyApiKey` and `comprobifyIssuerId` are written by `setupIssuerAction` after the Comprobify API creates the issuer. They are `null` until the user completes issuer setup in Settings.
+---
+
+## RBAC
+
+Five roles with a hardcoded permission map in `src/lib/rbac.ts`:
+
+| Role | Key permissions |
+|---|---|
+| Owner | All permissions including `tenant.promote` (sandbox → production) |
+| Admin | All except `tenant.promote` and `tenant.manage` |
+| BillingOperator | Documents, clients, catalog, issuers.read |
+| Viewer | documents.read, issuers.read |
+| Developer | documents.read, apikeys.read/manage, issuers.read |
+
+---
+
+## Issuer context cookie
+
+A signed HMAC-SHA256 cookie `comprobify_ctx` carries `{ issuerId: number, v: 1 }` (base64url payload + signature). See `src/lib/context-cookie.ts`.
+
+- **Set by:** `bootstrapTenantAction`, `selectIssuerAction`, login auto-select (single issuer)
+- **Cleared by:** `clearContextAction`, `logoutAction`, tampered/invalid signature in `requireContext()`
+- **Attrs:** `httpOnly`, `secure` in prod, `sameSite='lax'`, 30d max-age
 
 ---
 
 ## Email verification
 
-After issuer setup, the Comprobify API sends a verification email with a one-time token. The user clicks the link → lands on `GET /[locale]/verify-email?token=<hex>`:
+After onboarding, the Comprobify API sends a verification email. The user clicks the link → `GET /[locale]/verify-email?token=<hex>`:
 
-1. `verifyEmailToken(token)` calls `GET /api/verify-email?token=...` on the Comprobify API
-2. The API returns `{ ok: true, email: "user@example.com" }` and marks the tenant as `ACTIVE`
-3. The frontend does `db.user.updateMany({ where: { email }, data: { emailVerified: true } })`
-4. No session is required — lookup is by email from the API response, so the page works from any device
+1. `verifyEmailToken(token)` ← `src/lib/public-api.ts` (no auth required) → `GET /api/verify-email?token=...`
+2. API returns `{ ok: true, email: "..." }`
+3. `db.user.updateMany({ where: { email }, data: { emailVerified: true } })`
+4. `emailVerified` gates `promoteTenantAction` (Owner cannot promote until verified)
 
-`emailVerified` gates production promotion: users cannot call `promoteToProductionAction` until this flag is `true`.
-
-The verify-email page is listed in `PUBLIC_ROUTES` in `src/proxy.ts` — Auth.js middleware does not redirect unauthenticated visitors away from it.
-
----
-
-## Issuer provisioning flow
-
-```
-1. User registers account (email + password) → users row created, no issuer yet
-2. User fills Settings form (RUC, cert, codes) → setupIssuerAction
-     → POST /api/admin/issuers (admin API with COMPROBIFY_ADMIN_SECRET)
-     → Returns issuerId + sandbox API key + isEmailVerified
-     → Writes comprobifyApiKey + comprobifyIssuerId + emailVerified to users row
-3. Comprobify API sends verification email (link → /[locale]/verify-email)
-4. User verifies email → emailVerified = true in users row
-5. User clicks "Activar producción" → promoteToProductionAction
-     → POST /api/admin/issuers/:id/promote
-     → Creates new production API key, updates comprobifyApiKey in users row
-```
+The page is in `PUBLIC_ROUTES` in `src/proxy.ts` — works from any device without a session.
 
 ---
 
 ## Protected routes
 
-`src/proxy.ts` wraps Auth.js middleware with two layers:
+`src/proxy.ts` applies one rule: unauthenticated requests to non-public routes redirect to `/login`. Public routes: `/login`, `/register`, `/verify-email`, `/onboarding/*`.
 
-- **Public routes** (`/login`, `/register`, `/verify-email`) — no auth check
-- **Settings route** — auth required; redirects to `/login` if no session
-- **All other routes** — auth required; additionally redirects to `/settings` if `hasIssuer` is false (user hasn't completed setup)
-
-```ts
-const PUBLIC_ROUTES = /^\/(es|en)\/(login|register|verify-email)(\/.*)?$/;
-const SETTINGS_ROUTE = /^\/(es|en)\/settings(\/.*)?$/;
-```
+All finer-grained access control (tenant check, issuer check, permissions) is enforced inside `requireContext()` and `requirePermission()` in each page/action — not in the middleware.

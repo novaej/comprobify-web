@@ -26,7 +26,7 @@ The first screen after "login" (or after navigating to the app). Shows a summary
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  [SandboxBanner — yellow, shown when COMPROBIFY_SANDBOX] │
+│  [SandboxBanner — yellow, shown when tenant.environment === 'sandbox'] │
 ├─────────────────────────────────────────────────────────┤
 │  Panel                          [Nueva factura ➕]        │
 ├──────────────┬──────────────┬──────────────────────────┤

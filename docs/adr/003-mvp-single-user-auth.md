@@ -1,6 +1,6 @@
-# ADR-003: Authentication — Single Env Var (MVP) → Multi-user (Phase 2)
+# ADR-003: Authentication — Single Env Var (MVP) → Multi-user → Multi-tenant
 
-**Status:** Superseded — Phase 2 implemented (2026-04-26)
+**Status:** Phase 3 (multi-tenant) implemented (2026-05-15)
 **Date:** 2026-04-22
 
 ## Context
@@ -15,30 +15,35 @@ The Comprobify frontend needs authentication. Options considered:
 
 **Start with option 1 (single env var)** for MVP.
 
-The first user is the developer (the issuer). There is one Comprobify API key, set in `COMPROBIFY_API_KEY`. Every page load and server action uses that key. No login screen, no session management, no user database.
+The first user is the developer (the issuer). There is one Comprobify API key, set in `COMPROBIFY_API_KEY`. No login screen, no session management.
 
-**Why:**
-- Zero complexity — ship the features that matter (creating invoices) before adding auth complexity
-- Vercel environment variables provide adequate security for a single-operator tool
-- The API key pattern is already established in the Comprobify API — nothing new to build there
-- NextAuth can be added later without touching the Comprobify API (ADR-002 pattern is preserved)
+**Why:** Zero complexity — ship the features first, add auth later.
 
-## Phase 2 — implemented
+## Phase 2 — multi-user (superseded by Phase 3)
 
-Multi-user auth is live. Implementation decisions:
+Auth.js v5 with credentials provider. API key stored per user in the `users` table. Session exposed `{ id, email, environment, hasIssuer }`. Issuer setup via admin API. **Superseded by Phase 3.**
 
-1. **Auth.js v5** (next-auth@beta) with a credentials provider (email + password)
-2. **Prisma + PostgreSQL** — `users` table: `email`, `password_hash`, `comprobify_api_key`, `comprobify_issuer_id`, `environment`
-3. **`comprobify_api_key` is NOT stored in the JWT or session** — it stays in the DB and is fetched via `requireApiKey()` (`src/lib/auth-token.ts`) on each server request. This avoids JWT-refresh complexity after issuer setup.
-4. **Session exposes only safe fields** — `{ id, email, environment, hasIssuer }`, read fresh from the DB on every `auth()` call so the UI reflects changes immediately without a sign-out/sign-in cycle.
-5. **Issuer provisioning** — registration creates only an account. Issuer setup (company details + P12 cert) happens in Settings and calls `POST /api/admin/issuers` via `src/lib/admin-api.ts` using `COMPROBIFY_ADMIN_SECRET`.
-6. **Sandbox → production** — one-way promotion via `POST /api/admin/issuers/:id/promote` + new production API key. The `environment` column flips from `'sandbox'` to `'production'`.
+## Phase 3 — multi-tenant (current)
 
-The BFF pattern (ADR-002) is unchanged — only the source of the API key changed (DB instead of env var).
+Implemented 2026-05-15 as part of the multitenant rewrite. Key decisions:
 
-## Consequences of Phase 2
+1. **Session trimmed to `{ id, email }` only** — all tenant/issuer/permission data resolved server-side by `requireContext()` on each request. No DB round-trip in the JWT session callback.
 
-- `COMPROBIFY_API_KEY` and `COMPROBIFY_SANDBOX` env vars are removed — replaced by per-user DB state
-- `DATABASE_URL`, `COMPROBIFY_ADMIN_SECRET`, and `AUTH_SECRET` are now required env vars
-- Every server-side API call must call `requireApiKey()` to get the current user's key
-- One DB query per `auth()` call (for `environment` and `hasIssuer`) — acceptable for this traffic level
+2. **Multi-tenant data model** — `Tenant`, `TenantApiKey` (encrypted AES-256-GCM), `Issuer`, `UserIssuerAccess` tables. A `User` belongs to one `Tenant`, has a `role`, and an `inviteStatus`.
+
+3. **`requireContext()` in `src/lib/context.ts`** — replaces `requireApiKey()`. Resolves the full context chain: session auth → User → Tenant → active Issuer (from signed `comprobify_ctx` cookie) → decrypts active `TenantApiKey`. Returns a typed `Context` object with `{ user, tenant, issuer, permissions, apiKey }`.
+
+4. **RBAC** — five roles (`Owner`, `Admin`, `BillingOperator`, `Viewer`, `Developer`) with a hardcoded permission map in `src/lib/rbac.ts`. `requirePermission(code)` gates Server Actions; `hasContextPermission(code)` gates Server Component UI branches.
+
+5. **Issuer context cookie** — a signed HMAC cookie (`comprobify_ctx`) carries `{ issuerId, v: 1 }`. Set by `bootstrapTenantAction` and `selectIssuerAction`; cleared by `logoutAction`.
+
+6. **Onboarding** — new users (no `tenantId`) redirect to `/onboarding/tenant`. `bootstrapTenantAction` calls `POST /api/register` (public endpoint), then creates `Tenant` + `TenantApiKey` + `Issuer` + updates `User.tenantId` and `User.role='Owner'` in a single DB transaction.
+
+7. **Promotion** — `promoteTenantAction` (Owner-only) calls `POST /api/tenants/promote`, revokes sandbox `TenantApiKey` rows, and inserts new production keys.
+
+## Consequences of Phase 3
+
+- `COMPROBIFY_ADMIN_SECRET` env var removed — admin API no longer used
+- `ENCRYPTION_KEY` and `CONTEXT_COOKIE_SECRET` are now required env vars
+- Every server-side API call goes through `requireContext()` to get `ApiCtx { apiKey, issuerId }`
+- The BFF pattern (ADR-002) is unchanged — only the source of `ApiCtx` changed

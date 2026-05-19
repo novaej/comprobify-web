@@ -6,7 +6,7 @@ Ordered backlog for `comprobify-web`. Items are numbered — complete the highes
 
 ## Remaining screen work
 
-1. **Settings — issuer info card** — display issuer name, RUC, cert expiry and fingerprint. `GET /api/issuers/me` is now available; returns `ruc`, `businessName`, `tradeName`, `branchCode`, `issuePointCode`, `sandbox`, `certFingerprint`, `certExpiry`.
+1. **Issuers — issuer info card** — display issuer name, RUC, cert expiry and fingerprint in the `/issuers` screen. Requires a Comprobify API endpoint that returns per-issuer cert metadata (`certFingerprint`, `certExpiry`). Check current API docs for the correct endpoint path (`GET /api/issuers/:id` or similar).
 
 2. **Rebuild Invoice button** — show a Rebuild button on Invoice Detail for `RETURNED` / `NOT_AUTHORIZED` documents. `requestPayload` is now included in document responses — use it to pre-fill the form.
 
@@ -14,7 +14,7 @@ Ordered backlog for `comprobify-web`. Items are numbered — complete the highes
 
 4. **Dashboard — pagination** — the list currently loads up to 50 documents. Add page controls using the `pagination` object returned by `listDocuments()`.
 
-5. **Settings — API key reveal** — masked `<input>` pre-filled with `••••••••`. A "Mostrar clave" button triggers a Server Action that fetches the key from the DB via `requireApiKey()` and returns it to the client only on explicit user action.
+5. **Complete registration flow** — `/complete-registration` page for invited users (`inviteStatus === 'INVITED'`, no password yet). Should set the password and flip `inviteStatus` to `'ACTIVE'`. Currently redirects to a 404.
 
 ---
 
