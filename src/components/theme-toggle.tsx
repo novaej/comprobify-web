@@ -1,6 +1,6 @@
 'use client';
 
-import { useTheme } from 'next-themes';
+import { useTheme } from '@/providers/theme-shim';
 import { Sun, Moon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 

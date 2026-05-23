@@ -1,6 +1,8 @@
 "use client"
 
-import { useTheme } from "next-themes"
+// NOTE: import updated from "next-themes" to our shim (React 19 compat fix).
+// If shadcn regenerates this file, re-apply this one-line change.
+import { useTheme } from "@/providers/theme-shim"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
 
