@@ -1,6 +1,37 @@
 import 'server-only';
 import { ApiError, ProblemDetails } from './errors';
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// IMPORTANT — READ BEFORE ADDING OR MODIFYING ANY FUNCTION
+//
+// 1. VERIFY EVERY INTERFACE AGAINST THE ACTUAL API SOURCE.
+//    Types here are hand-maintained — there is no code generation. Before adding
+//    or changing any function:
+//      a. Confirm the route in  ../comprobify/src/routes/
+//      b. Read the controller's res.json() call in ../comprobify/src/controllers/
+//      c. Follow every service/presenter function it calls and trace each field
+//         back to what is literally returned — do not infer from function names.
+//    Past bugs were 100% caused by interfaces written against assumed shapes.
+//
+// 2. ID FIELDS ARE ALWAYS JSON STRINGS (bigint-as-string trap).
+//    PostgreSQL BIGSERIAL/BIGINT columns are serialized as JS strings by pg,
+//    then sent as JSON strings by Express. Every `id` from the API arrives as
+//    the string "42", not the number 42. Consequences:
+//      • Type id fields as `string` in interfaces (e.g. `id: string`).
+//      • Apply Number(record.id) at every Prisma Int write site.
+//    Forgetting this produces a Prisma type error or a silent NaN in the DB.
+//
+// 3. POST RESPONSES OFTEN OMIT THE RECORD ID.
+//    Several endpoints return only a token or minimal payload on creation. If
+//    you need the id for later operations, make a follow-up GET with the new
+//    token and read the id from the list result (see createTenantApiKey below).
+//
+// 4. ADD A VERIFICATION COMMENT TO EVERY FUNCTION.
+//    Format: // Verified against: ../comprobify/src/controllers/X.controller.js → method()
+//
+// Full step-by-step guide: docs/guides/coding-guidelines.md → "Adding a new API endpoint call"
+// ═══════════════════════════════════════════════════════════════════════════════
+
 // ── Context ───────────────────────────────────────────────────────────────────
 
 export interface ApiCtx {

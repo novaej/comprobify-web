@@ -57,10 +57,26 @@ When making changes to `comprobify-web`, update the corresponding documentation 
 1. **`CHANGELOG.md`** — add to "### Added" in Unreleased
 2. **`docs/site/screens/`** — update any screen spec that uses the new call
 
+**Pre-coding verification** (do this before writing any TypeScript):
+
+1. Open `../comprobify/src/routes/` — confirm the HTTP method and path are correct.
+2. Open `../comprobify/src/controllers/` — find the relevant `res.json(...)` call and read the exact keys it sends.
+3. Follow every referenced service or presenter function and trace each field back to what is actually returned — do not assume from the function name.
+4. Check whether the route uses `resolveIssuer` middleware (→ requires `X-Issuer-Id` / `issuerId` in `ApiCtx`) or only `authenticate` (no issuer needed).
+
 **Checklist:**
-- [ ] Function is in `src/lib/api.ts` (not called from client components)
-- [ ] TypeScript return type defined
+- [ ] Route confirmed in `../comprobify/src/routes/` (method + path)
+- [ ] Response shape read from the controller's `res.json()` call
+- [ ] Every interface field traced to the service/presenter return statement
+- [ ] `id` and all `*_id` fields typed as `string` (PostgreSQL `BIGSERIAL` → JSON string)
+- [ ] `Number(record.id)` applied at every Prisma `Int` write site
+- [ ] Field names match exactly (e.g. `active` not `isActive`, `apiKey` not `key`)
+- [ ] If `POST` omits `id`: follow-up `GET` implemented to retrieve metadata
+- [ ] Function is in `src/lib/api.ts` (never called from client components)
+- [ ] Comment added: `// Verified against: ../comprobify/src/controllers/X.controller.js → method()`
 - [ ] CHANGELOG updated
+
+See `docs/guides/coding-guidelines.md → "Adding a new API endpoint call"` for the full step-by-step guide with examples.
 
 ---
 

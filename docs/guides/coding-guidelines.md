@@ -194,23 +194,132 @@ export function SomeInteractiveComponent() {
 
 ## Adding a new API endpoint call
 
-1. Add the function to `src/lib/api.ts`. All functions take `ApiCtx` as the first argument; the shared `request()` helper automatically adds `X-Issuer-Id` when `issuerId` is set:
+**Every field in an `api.ts` interface must be verified against the actual API source before shipping.** The types are hand-maintained — there is no code generation. Past bugs were caused entirely by interfaces written against assumed response shapes that didn't match reality.
+
+### Step 1 — Confirm the route exists
+
+Open `../comprobify/src/routes/` and find the relevant routes file. Confirm:
+- The HTTP method and path are correct.
+- The route doesn't require `X-Issuer-Id` (via `resolveIssuer` middleware) unless you plan to pass `issuerId` in the context.
+
+Routes that use `router.use(asyncHandler(resolveIssuer))` require an issuer context; routes that only use `authenticate` do not. Document endpoints require issuer context; issuer-management and tenant endpoints do not.
+
+### Step 2 — Read the exact response shape
+
+Open the controller (`../comprobify/src/controllers/`) and find the `res.json(...)` call for your endpoint. Then follow every referenced service/presenter function and read what it actually returns — field by field. Do not guess or infer from the function name.
+
+**Example — do this every time:**
+
+```
+// In ../comprobify/src/controllers/api-key.controller.js
+const create = async (req, res) => {
+  const apiKey = await apiKeyService.createKey(...);
+  res.status(201).json({ ok: true, apiKey });  // ← response key is 'apiKey', plain string
+};
+```
+
+```
+// In ../comprobify/src/services/api-key.service.js → createKey()
+return plainToken;  // ← returns a string, NOT an object
+```
+
+The TypeScript interface that matches this is:
+```ts
+{ ok: true; apiKey: string }   // ✓ correct
+{ ok: true; key: CreatedApiKey } // ✗ wrong — result.key would be undefined
+```
+
+### Step 3 — Watch for the bigint-as-string trap
+
+The API database uses `BIGSERIAL` (`BIGINT`) primary keys. Node's `pg` library serializes bigint columns as JavaScript **strings** in query results. Express's `res.json()` then encodes strings as JSON strings (with quotes), not JSON numbers.
+
+**This means every `id` field from the API is a JSON string at runtime**, even if you type it as `number`.
 
 ```ts
-import type { ApiCtx } from '@/lib/api';
+// API sends:  {"id": "42"}   (a JSON string)
+// NOT:        {"id": 42}     (a JSON number)
+```
 
-export async function newApiCall(ctx: ApiCtx, param: string): Promise<SomeType> {
-  const result = await request<{ ok: true; data: SomeType }>(
-    `/api/some-endpoint/${param}`,
+Consequences:
+- **Always use `Number(record.id)`** when passing an API-returned id to a Prisma `Int` field.
+- **Type API id fields as `string`** in the interface: `id: string`.
+- For callers that need a numeric id, apply `Number()` at the call site — do not pretend it's `number` in the interface.
+
+Affected fields in every API response: `id`, `tenant_id`, `issuer_id`, any other `*_id` bigint column.
+
+### Step 4 — Check what fields are actually present
+
+Some fields you might expect are simply not returned. Verify each interface field has a corresponding line in the service's format/return statement. Common surprises:
+
+| Assumed field | Reality |
+|---|---|
+| `id` on create responses | Often omitted — call `GET` after `POST` to get it |
+| `environment` on issuer list | Not returned by `listIssuers` |
+| `lastFour` on key list | Not returned by `formatKey` |
+| `isActive` | API field is `active` (no `is` prefix) |
+
+### Step 5 — Write the function
+
+```ts
+// src/lib/api.ts
+
+// Verified against: ../comprobify/src/controllers/example.controller.js → create()
+// Response shape:   { ok: true; item: { id: string; name: string } }
+export interface ExampleItem {
+  id: string;    // bigint → JSON string
+  name: string;
+}
+
+export async function createExample(ctx: ApiCtx, name: string): Promise<ExampleItem> {
+  const result = await request<{ ok: true; item: ExampleItem }>(
+    '/api/examples',
     ctx,
+    { method: 'POST', body: JSON.stringify({ name }) },
   );
-  return result.data;
+  return result.item;
 }
 ```
 
-2. Add the TypeScript type for the response if needed.
+If callers need to store the id in a Prisma `Int` field, apply `Number()` at the call site:
+```ts
+await db.example.create({
+  data: {
+    apiExampleId: Number(apiExample.id), // bigint string → number
+    ...
+  },
+});
+```
 
-3. Call it only from Server Components, Server Actions, or Route Handlers — never from Client Components.
+### Step 6 — When the POST response is incomplete
+
+Some `POST` endpoints return only a token or minimal data (no id, no full object). If you need the id for future operations (e.g., revocation), make a follow-up `GET` call after creation:
+
+```ts
+export async function createKey(ctx: ApiCtx, label: string): Promise<FullKey> {
+  // POST returns only the plain token
+  const { apiKey: plainToken } = await request<{ ok: true; apiKey: string }>(
+    '/api/keys', ctx, { method: 'POST', body: JSON.stringify({ label }) },
+  );
+  // GET with the new token to retrieve its id/metadata
+  const { keys } = await request<{ ok: true; keys: ApiKeyInfo[] }>(
+    '/api/keys', { apiKey: plainToken },
+  );
+  const record = keys[0]; // newest first
+  return { id: Number(record.id), label: record.label ?? label, key: plainToken };
+}
+```
+
+### Quick verification checklist
+
+Before merging any new `api.ts` function:
+
+- [ ] Route confirmed in `../comprobify/src/routes/`
+- [ ] Response shape read from the controller's `res.json()` call
+- [ ] Every interface field traced to the service/presenter return value
+- [ ] `id` fields typed as `string` (bigint)
+- [ ] `Number(record.id)` used at every Prisma `Int` write site
+- [ ] Field names match exactly (e.g., `active` not `isActive`, `apiKey` not `key`)
+- [ ] If POST omits id: follow-up GET implemented
 
 ---
 
