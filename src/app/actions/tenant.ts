@@ -2,7 +2,7 @@
 
 import { db } from '@/lib/db';
 import { requirePermission, requireContext } from '@/lib/context';
-import { promoteTenant } from '@/lib/api';
+import { promoteTenant, listTenantApiKeys } from '@/lib/api';
 import { resendVerificationEmail as publicResendVerificationEmail } from '@/lib/public-api';
 import { encrypt, lastFour } from '@/lib/crypto';
 import { revalidatePath } from 'next/cache';
@@ -55,6 +55,16 @@ export async function promoteTenantAction(
     throw err;
   }
 
+  // The promote endpoint returns { label, apiKey } but no key ID.
+  // Fetch all active keys using one of the new production tokens to get the IDs.
+  let keyIdByLabel: Record<string, number> = {};
+  if (result.apiKeys.length > 0) {
+    const listedKeys = await listTenantApiKeys({ apiKey: result.apiKeys[0].apiKey }).catch(() => []);
+    for (const k of listedKeys) {
+      if (k.label) keyIdByLabel[k.label] = Number(k.id);
+    }
+  }
+
   await db.$transaction(async (tx) => {
     // Revoke all existing sandbox keys
     await tx.tenantApiKey.updateMany({
@@ -64,14 +74,16 @@ export async function promoteTenantAction(
 
     // Insert new production keys
     for (const key of result.apiKeys) {
+      const apiKeyId = keyIdByLabel[key.label];
+      if (!apiKeyId) continue; // skip if we couldn't resolve the ID
       await tx.tenantApiKey.create({
         data: {
           tenantId: ctx.tenant.id,
-          apiKeyId: key.id,
-          label: key.label,
+          apiKeyId,
+          label: key.label ?? 'production',
           environment: 'production',
-          encryptedKey: encrypt(key.key),
-          lastFour: lastFour(key.key),
+          encryptedKey: encrypt(key.apiKey),
+          lastFour: lastFour(key.apiKey),
           isActive: true,
         },
       });

@@ -428,7 +428,10 @@ export async function removeIssuerDocumentType(
 
 export interface PromoteTenantResult {
   ok: true;
-  apiKeys: Array<{ id: number; label: string; environment: 'production'; key: string }>;
+  // The API returns { label, apiKey } per key — no id, no environment.
+  // Callers must fetch GET /api/keys with one of these tokens to obtain the
+  // API-side key IDs needed for future revocation.
+  apiKeys: Array<{ label: string; apiKey: string }>;
 }
 
 export async function promoteTenant(
