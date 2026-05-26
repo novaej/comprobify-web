@@ -51,8 +51,8 @@
   },
   "sandbox": {
     "banner": "You are in sandbox mode — documents are sent to the SRI test environment.",
-    "badge": "Sandbox (SRI test)",
-    "productionBadge": "Production (SRI live)"
+    "badge": "SRI Pruebas",
+    "productionBadge": "SRI Producción"
   },
   "status": {
     "SIGNED": "Signed",

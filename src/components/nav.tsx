@@ -57,8 +57,8 @@ function TenantBadge({ name, environment }: { name: string | null; environment: 
       <span className={cn(
         'mt-1 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium leading-none',
         environment === 'production'
-          ? 'bg-green-500/15 text-green-600 dark:text-green-400'
-          : 'bg-amber-500/15 text-amber-700 dark:text-amber-400'
+          ? 'bg-green-500/15 text-green-400'
+          : 'bg-amber-500/15 text-amber-400'
       )}>
         {environment === 'production' ? t('productionBadge') : t('badge')}
       </span>

@@ -51,8 +51,8 @@
   },
   "sandbox": {
     "banner": "Estás en modo sandbox — los comprobantes se envían al ambiente de pruebas del SRI.",
-    "badge": "Sandbox (SRI pruebas)",
-    "productionBadge": "Producción (SRI real)"
+    "badge": "SRI Pruebas",
+    "productionBadge": "SRI Producción"
   },
   "status": {
     "SIGNED": "Firmado",
