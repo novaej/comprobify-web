@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import { resendVerificationAction } from '@/app/actions/settings';
+import { resendVerificationAction } from '@/app/actions/tenant';
 import { MailCheck, MailWarning } from 'lucide-react';
 
 const RESEND_COOLDOWN_SECONDS = 60;

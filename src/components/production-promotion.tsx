@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { promoteTenantAction } from '@/app/actions/tenant';
-import { resendVerificationAction } from '@/app/actions/settings';
+import { resendVerificationAction } from '@/app/actions/tenant';
 import { AlertTriangle, MailCheck } from 'lucide-react';
 
 export function ProductionPromotion({ documentTypes, emailVerified }: { documentTypes: string[]; emailVerified: boolean }) {
