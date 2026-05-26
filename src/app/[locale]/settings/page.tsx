@@ -3,7 +3,7 @@ import { ProductionPromotion } from '@/components/production-promotion';
 import { EmailVerificationNotice } from '@/components/email-verification-notice';
 import { PageHeader } from '@/components/page-header';
 import { requireContext } from '@/lib/context';
-import { listDocumentTypes } from '@/lib/api';
+import { listIssuerDocumentTypes } from '@/lib/api';
 import { db } from '@/lib/db';
 
 export default async function SettingsPage({
@@ -19,11 +19,14 @@ export default async function SettingsPage({
   const { environment, id: tenantId } = ctx.tenant;
   const { email, emailVerified } = ctx.user;
 
-  const issuerCount = await db.issuer.count({ where: { tenantId } });
-  const hasIssuer = issuerCount > 0;
+  const defaultIssuer = await db.issuer.findFirst({
+    where: { tenantId },
+    orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
+  });
+  const hasIssuer = !!defaultIssuer;
 
-  const documentTypes = hasIssuer
-    ? await listDocumentTypes({ apiKey: ctx.apiKey }).catch(() => ['01'])
+  const documentTypes = defaultIssuer
+    ? await listIssuerDocumentTypes({ apiKey: ctx.apiKey }, defaultIssuer.apiIssuerId).catch(() => ['01'])
     : [];
 
   return (

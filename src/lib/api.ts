@@ -163,15 +163,17 @@ export interface CreateIssuerFields {
 
 // ── API key types ─────────────────────────────────────────────────────────────
 
+// Shape returned by GET /api/keys (the API serializes bigint id as a JSON string).
 export interface ApiKeyInfo {
-  id: number;
-  label: string;
+  id: string;           // bigint → serialized as string by pg/JSON
+  label: string | null;
   environment: string;
-  lastFour: string;
-  isActive: boolean;
+  active: boolean;      // field is 'active', not 'isActive'
   createdAt: string;
+  revokedAt: string | null;
 }
 
+// Normalized shape returned by createTenantApiKey (id already coerced to number).
 export interface CreatedApiKey {
   id: number;
   label: string;
@@ -392,14 +394,6 @@ export async function listIssuerDocumentTypes(ctx: ApiCtx, issuerId: number): Pr
   return result.documentTypes;
 }
 
-export async function listDocumentTypes(ctx: ApiCtx): Promise<string[]> {
-  const result = await request<{ ok: true; documentTypes: string[] }>(
-    '/api/issuers/document-types',
-    ctx,
-  );
-  return result.documentTypes;
-}
-
 export async function addIssuerDocumentType(
   ctx: ApiCtx,
   issuerId: number,
@@ -456,12 +450,29 @@ export async function listTenantApiKeys(ctx: ApiCtx): Promise<ApiKeyInfo[]> {
 }
 
 export async function createTenantApiKey(ctx: ApiCtx, label: string): Promise<CreatedApiKey> {
-  const result = await request<{ ok: true; key: CreatedApiKey }>(
+  // POST /api/keys returns only the plain token string, not the key's id/label.
+  const createResult = await request<{ ok: true; apiKey: string }>(
     '/api/keys',
-    { apiKey: ctx.apiKey },
+    ctx,
     { method: 'POST', body: JSON.stringify({ label }) },
   );
-  return result.key;
+  const plainKey = createResult.apiKey;
+
+  // Authenticate with the new token to fetch its metadata (id, label, environment).
+  // Keys are ordered newest-first so [0] is the one we just created.
+  const listResult = await request<{ ok: true; keys: ApiKeyInfo[] }>(
+    '/api/keys',
+    { apiKey: plainKey },
+  );
+  const keyRecord = listResult.keys[0];
+  if (!keyRecord) throw new Error('KEY_METADATA_MISSING');
+
+  return {
+    id: Number(keyRecord.id),
+    label: keyRecord.label ?? label,
+    environment: keyRecord.environment,
+    key: plainKey,
+  };
 }
 
 export async function revokeTenantApiKey(ctx: ApiCtx, id: number): Promise<void> {

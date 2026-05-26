@@ -106,7 +106,7 @@ export async function bootstrapTenantAction(formData: FormData): Promise<Onboard
         data: {
           tenantId: tenant.id,
           apiKeyId: Number(keyRecord.id),
-          label: keyRecord.label,
+          label: keyRecord.label ?? 'Initial sandbox key',
           environment: 'sandbox',
           encryptedKey: encrypt(plainApiKey),
           lastFour: lastFour(plainApiKey),

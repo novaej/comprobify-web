@@ -40,7 +40,7 @@ export async function createBranchAction(formData: FormData): Promise<IssuersRes
   await db.issuer.create({
     data: {
       tenantId: ctx.tenant.id,
-      apiIssuerId: apiIssuer.id,
+      apiIssuerId: Number(apiIssuer.id), // API returns bigint as JSON string
       branchCode,
       issuePointCode,
       businessName,

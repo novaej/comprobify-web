@@ -2,7 +2,7 @@ import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { PageHeader } from '@/components/page-header';
 import { buttonVariants } from '@/components/ui/button';
-import { listDocuments, listDocumentTypes } from '@/lib/api';
+import { listDocuments, listIssuerDocumentTypes } from '@/lib/api';
 import { requirePermission } from '@/lib/context';
 import { cn } from '@/lib/utils';
 import type { ApiCtx } from '@/lib/api';
@@ -70,7 +70,7 @@ export default async function DocumentsPage({
   let docTypes: string[] = [];
   let fetchError = false;
   try {
-    docTypes = await listDocumentTypes(apiCtx);
+    docTypes = await listIssuerDocumentTypes(apiCtx, ctx.issuer.apiIssuerId);
   } catch {
     fetchError = true;
   }
