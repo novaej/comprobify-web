@@ -37,6 +37,10 @@ DATABASE_URL=postgresql://comprobify_web_app:changeme@localhost:5432/comprobify_
 # Base URL of your local Comprobify API (no trailing slash)
 COMPROBIFY_API_URL=http://localhost:8080
 
+# Full URL of this app (no trailing slash) — used to build absolute callback URLs
+# sent to the API (e.g. the email verification link). Required for onboarding.
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+
 # Auth secret for encrypting the session JWT — any random 32+ char string
 # Generate one: openssl rand -base64 32
 AUTH_SECRET=replace-me-with-a-random-string
@@ -270,6 +274,7 @@ comprobify-web/
 |----------|---------|---------|
 | `DATABASE_URL` | PostgreSQL connection string for the frontend database | Yes |
 | `COMPROBIFY_API_URL` | Base URL of the Comprobify API (no trailing slash) | Yes |
+| `NEXT_PUBLIC_APP_URL` | Full URL of this app — used to build absolute callback URLs (e.g. email verification link) | Yes |
 | `AUTH_SECRET` | Auth.js JWT signing secret — any random 32+ char string | Yes |
 | `ENCRYPTION_KEY` | 32-byte hex — AES-256-GCM key for encrypting tenant API keys at rest | Yes |
 | `CONTEXT_COOKIE_SECRET` | 32-byte hex — HMAC key for signing the issuer-selection cookie | Yes |
