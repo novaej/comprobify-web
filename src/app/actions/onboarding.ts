@@ -47,7 +47,8 @@ export async function bootstrapTenantAction(formData: FormData): Promise<Onboard
   }
 
   const locale = await getLocale();
-  const verificationRedirectUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/${locale}/verify-email`;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  const verificationRedirectUrl = appUrl ? `${appUrl}/${locale}/verify-email` : undefined;
 
   let apiTenantId: number;
   let apiIssuerId: number;
@@ -87,8 +88,9 @@ export async function bootstrapTenantAction(formData: FormData): Promise<Onboard
   const keyRecord = keys[0];
   if (!keyRecord) return { error: 'DB_WRITE_FAILED' };
 
+  let newIssuerId: number;
   try {
-    await db.$transaction(async (tx) => {
+    newIssuerId = await db.$transaction(async (tx) => {
       const tenant = await tx.tenant.create({
         data: {
           apiTenantId,
@@ -103,7 +105,7 @@ export async function bootstrapTenantAction(formData: FormData): Promise<Onboard
       await tx.tenantApiKey.create({
         data: {
           tenantId: tenant.id,
-          apiKeyId: keyRecord.id,
+          apiKeyId: Number(keyRecord.id),
           label: keyRecord.label,
           environment: 'sandbox',
           encryptedKey: encrypt(plainApiKey),
@@ -130,11 +132,16 @@ export async function bootstrapTenantAction(formData: FormData): Promise<Onboard
         data: { tenantId: tenant.id, role: 'Owner' },
       });
 
-      await writeCtxCookie({ issuerId: issuer.id, v: 1 });
+      return issuer.id;
     });
   } catch {
     return { error: 'DB_WRITE_FAILED' };
   }
+
+  // Write the context cookie after the transaction commits — cookie writes are
+  // not transactional and must not be inside $transaction or a failure would
+  // silently roll back all the DB writes above.
+  await writeCtxCookie({ issuerId: newIssuerId, v: 1 });
 
   revalidatePath('/', 'layout');
   redirect({ href: isEmailVerified ? '/dashboard' : '/settings', locale });
