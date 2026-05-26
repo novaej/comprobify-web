@@ -4,41 +4,63 @@ Ordered backlog for `comprobify-web`. Items are numbered — complete the highes
 
 ---
 
+## Immediate priorities
+
+1. **Error UX — toast notifications + expanded API error translations** — two coupled changes that must land together:
+
+   **a) Migrate action errors to toasts (sonner)**
+   - Add `<Toaster />` once in `src/app/[locale]/layout.tsx` (sonner is already bundled with shadcn).
+   - Replace every `{error && <p className="text-sm text-destructive">{error}</p>}` pattern with `toast.error(message)` called inside the `startTransition` callback.
+   - Add `toast.success(message)` for actions that currently give no confirmation (revoke key, invite user, role change, remove user, add document type, etc.).
+   - Keep `Alert` cards (not toasts) only for blocking/persistent state: cert expiry, email unverified. Those already use the banner/notice component pattern.
+   - Affected components: `api-key-manager.tsx`, `user-manager.tsx`, `invoice-actions.tsx`, `issuer-manager.tsx`, `issuer-setup-form.tsx`, `production-promotion.tsx`.
+
+   **b) Expand `apiError` translations**
+   - The Comprobify API is being updated to return more descriptive error codes. Once those codes are finalised, map every new code in `messages/es.json` → `apiError` namespace and mirror in `messages/en.json`.
+   - Add a fallback key `apiError.UNKNOWN` (e.g. `"Ocurrió un error inesperado"`) so that any unmapped code shows something sensible instead of the raw code string.
+   - Convention for toast calls: always look up the translation first; fall back to the raw code only if the key is missing — this way new codes degrade gracefully before translations are added:
+     ```ts
+     const msg = tError.has(code) ? tError(code) : code;
+     toast.error(msg);
+     ```
+
+---
+
 ## Remaining screen work
 
-1. **Issuers — issuer info card** — display issuer name, RUC, cert expiry and fingerprint in the `/issuers` screen. Requires a Comprobify API endpoint that returns per-issuer cert metadata (`certFingerprint`, `certExpiry`). Check current API docs for the correct endpoint path (`GET /api/issuers/:id` or similar).
+2. **Issuers — issuer info card** — display issuer name, RUC, cert expiry and fingerprint in the `/issuers` screen. Requires a Comprobify API endpoint that returns per-issuer cert metadata (`certFingerprint`, `certExpiry`). Check current API docs for the correct endpoint path (`GET /api/issuers/:id` or similar).
 
 2. **Rebuild Invoice button** — show a Rebuild button on Invoice Detail for `RETURNED` / `NOT_AUTHORIZED` documents. `requestPayload` is now included in document responses — use it to pre-fill the form.
 
-3. **Dashboard — summary cards** — KPI cards showing: issued this month (by type), net authorized revenue this month (FAC + LIQ + DEB − CRE), and "needs attention" count (RETURNED + NOT_AUTHORIZED). Fetch from `GET /api/documents/stats` which returns `{ stats: { thisMonth: { byType: [{ type, issued, authorizedTotal }] }, needsAttention } }`. Saved clients and products counts come from local Prisma. Also cap the document table to ~10 rows with a "Ver todos" link.
+4. **Dashboard — summary cards** — KPI cards showing: issued this month (by type), net authorized revenue this month (FAC + LIQ + DEB − CRE), and "needs attention" count (RETURNED + NOT_AUTHORIZED). Fetch from `GET /api/documents/stats` which returns `{ stats: { thisMonth: { byType: [{ type, issued, authorizedTotal }] }, needsAttention } }`. Saved clients and products counts come from local Prisma. Also cap the document table to ~10 rows with a "Ver todos" link.
 
-4. **Dashboard — pagination** — the list currently loads up to 50 documents. Add page controls using the `pagination` object returned by `listDocuments()`.
+5. **Dashboard — pagination** — the list currently loads up to 50 documents. Add page controls using the `pagination` object returned by `listDocuments()`.
 
-5. **Complete registration flow** — `/complete-registration` page for invited users (`inviteStatus === 'INVITED'`, no password yet). Should set the password and flip `inviteStatus` to `'ACTIVE'`. Currently redirects to a 404.
+6. **Complete registration flow** — `/complete-registration` page for invited users (`inviteStatus === 'INVITED'`, no password yet). Should set the password and flip `inviteStatus` to `'ACTIVE'`. Currently redirects to a 404.
 
 ---
 
 ## Infrastructure
 
-6. **P12 certificate expiration alerts** — surface a persistent in-app notification when an issuer's signing certificate is expired or about to expire (e.g. within 30 days), so users know they cannot create or authorize documents before renewing. Depends on **notification module** (see item 7). Implementation sketch:
+7. **P12 certificate expiration alerts** — surface a persistent in-app notification when an issuer's signing certificate is expired or about to expire (e.g. within 30 days), so users know they cannot create or authorize documents before renewing. Depends on **notification module** (see item 7). Implementation sketch:
    - The API already stores cert metadata per-issuer; expose it on `GET /api/issuers/:id` if not already present (`certExpiry`, `certFingerprint`).
    - On login (in `loginAction` / `requireContext`) or on the first page load of a session, fetch cert expiry for the active issuer and write a flag to the `comprobify_ctx` cookie or a server-side session cache.
    - Show the notification as a dismissible banner above the page content (but below the `SandboxBanner`) when `certExpired === true` or `daysUntilExpiry < 30`.
    - Consider polling the expiry check at low frequency (e.g. on navigation) rather than on every request — cert expiry is slow-moving data.
 
-7. **Notification / alert module** — a lightweight system to surface async or persistent alerts to the user (cert expiry, failed email delivery, quota warnings, etc.). See architecture discussion below.
+8. **Notification / alert module** — a lightweight system to surface async or persistent alerts to the user (cert expiry, failed email delivery, quota warnings, etc.). See architecture discussion below.
 
-8. **Error boundary** — add `error.tsx` in `src/app/[locale]/` to catch Server Component errors and show a user-friendly page using the `apiError` i18n namespace.
+9. **Error boundary** — add `error.tsx` in `src/app/[locale]/` to catch Server Component errors and show a user-friendly page using the `apiError` i18n namespace.
 
-9. **Loading skeletons** — add `loading.tsx` in `src/app/[locale]/dashboard/` and `src/app/[locale]/invoices/[key]/` using the `<Skeleton>` component from shadcn while Server Components fetch.
+10. **Loading skeletons** — add `loading.tsx` in `src/app/[locale]/dashboard/` and `src/app/[locale]/invoices/[key]/` using the `<Skeleton>` component from shadcn while Server Components fetch.
 
-10. **`not-found.tsx`** — locale-aware 404 page in `src/app/[locale]/` with a link back to the dashboard.
+11. **`not-found.tsx`** — locale-aware 404 page in `src/app/[locale]/` with a link back to the dashboard.
 
 ---
 
 ## Polish
 
-10. **Invoice PDF preview** — embed a PDF viewer on the Invoice Detail page for `AUTHORIZED` documents.
+12. **Invoice PDF preview** — embed a PDF viewer on the Invoice Detail page for `AUTHORIZED` documents.
 
 ---
 
