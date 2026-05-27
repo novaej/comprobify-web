@@ -361,14 +361,46 @@
     "UNEXPECTED_ERROR": "Ocurrió un error inesperado. Inténtalo de nuevo."
   },
   "apiError": {
-    "DOCUMENT_NOT_FOUND": "El comprobante no existe.",
-    "VALIDATION_ERROR": "Revise los campos marcados en rojo.",
-    "TOO_MANY_REQUESTS": "Demasiadas solicitudes. Intente nuevamente en un momento.",
+    "UNKNOWN": "Ha ocurrido un error inesperado.",
+    "BAD_REQUEST": "La solicitud no es válida. Revise los datos ingresados.",
+    "NOT_FOUND": "El recurso solicitado no existe.",
+    "FORBIDDEN": "No tiene permisos para realizar esta acción.",
     "UNAUTHORIZED": "No autorizado. Verifique que su API key sea válida.",
-    "CONFLICT": "Ya existe un comprobante con esa clave de idempotencia y un cuerpo diferente.",
-    "SRI_ERROR": "El SRI devolvió un error. Revise los mensajes de detalle.",
+    "CONFLICT": "La operación generó un conflicto. Intente de nuevo.",
+    "TOO_MANY_REQUESTS": "Demasiadas solicitudes. Intente nuevamente en un momento.",
+    "QUOTA_EXCEEDED": "Ha alcanzado el límite mensual de comprobantes. Actualice su plan.",
     "INTERNAL_ERROR": "Error interno del servidor. Contacte al soporte.",
-    "UNKNOWN": "Ha ocurrido un error inesperado."
+    "VALIDATION_FAILED": "Revise los campos del formulario e intente de nuevo.",
+    "SRI_SUBMISSION_FAILED": "El SRI devolvió un error. Revise los mensajes de detalle.",
+    "DOCUMENT_NOT_FOUND": "El comprobante no existe.",
+    "DOCUMENT_TYPE_NOT_ENABLED": "Ese tipo de comprobante no está habilitado para este emisor.",
+    "DOCUMENT_TYPE_NOT_SUPPORTED": "Tipo de comprobante no soportado por el sistema.",
+    "INVALID_STATE_TRANSITION": "La operación no es válida para el estado actual del comprobante.",
+    "DOCUMENT_NOT_AUTHORIZED": "El comprobante aún no está autorizado. Esta operación requiere un comprobante autorizado.",
+    "CERTIFICATE_INVALID": "El archivo P12 no es válido o está dañado.",
+    "CERTIFICATE_PASSWORD_INVALID": "La contraseña del certificado P12 es incorrecta.",
+    "CERTIFICATE_KEY_NOT_FOUND": "No se encontró la clave de firma dentro del archivo P12.",
+    "CERTIFICATE_EXPIRED": "El certificado de firma ha expirado. Reemplácelo en la configuración del emisor.",
+    "ACCOUNT_SUSPENDED": "La cuenta está suspendida. Contacte al soporte.",
+    "EMAIL_VERIFICATION_REQUIRED": "Debe verificar su correo electrónico antes de realizar esta acción.",
+    "RESEND_COOLDOWN": "Espere un momento antes de solicitar otro correo de verificación.",
+    "INVALID_OR_EXPIRED_TOKEN": "El enlace de verificación no es válido o ha expirado.",
+    "ALREADY_VERIFIED": "El correo electrónico ya ha sido verificado.",
+    "ISSUER_ID_REQUIRED": "No se especificó un emisor. Seleccione un emisor e intente de nuevo.",
+    "ISSUER_ID_INVALID": "El identificador de emisor no es válido.",
+    "ISSUER_NOT_FOUND": "El emisor no existe o fue desactivado.",
+    "ISSUER_FORBIDDEN": "No tiene acceso a ese emisor.",
+    "SOURCE_ISSUER_NOT_FOUND": "El emisor de origen no fue encontrado.",
+    "API_KEY_ENV_MISMATCH": "La API key no corresponde al ambiente activo (sandbox/producción).",
+    "SELF_REVOCATION_FORBIDDEN": "No puede revocar la API key que está utilizando actualmente.",
+    "PRODUCTION_KEY_REQUIRES_PROMOTION": "Debe activar el modo producción antes de crear claves de producción.",
+    "BRANCH_LIMIT_REACHED": "Ha alcanzado el límite de establecimientos de su plan.",
+    "ISSUE_POINT_LIMIT_REACHED": "Ha alcanzado el límite de puntos de emisión para este establecimiento.",
+    "INVALID_TIER": "El nivel de plan especificado no es válido.",
+    "INVALID_TENANT_STATUS": "El estado de la cuenta no es válido para esta operación.",
+    "RUC_MISMATCH": "El RUC no coincide con el del emisor de origen.",
+    "DECRYPTION_FAILED": "Error interno al procesar datos cifrados. Contacte al soporte.",
+    "BUILDER_NOT_FOUND": "Error interno: tipo de comprobante no registrado. Contacte al soporte."
   },
   "clients": {
     "title": "Clientes",
@@ -455,7 +487,9 @@
       "05": "Nota de débito",
       "06": "Guía de remisión",
       "07": "Comprobante de retención"
-    }
+    },
+    "addDocTypeSuccess": "Tipo de comprobante habilitado.",
+    "removeDocTypeSuccess": "Tipo de comprobante deshabilitado."
   },
   "apiKeys": {
     "title": "API Keys",
@@ -483,7 +517,9 @@
     "status": {
       "active": "Activa",
       "revoked": "Revocada"
-    }
+    },
+    "revokeSuccess": "API key revocada correctamente.",
+    "createSuccess": "API key «{label}» creada. Cópiala ahora, no podrás verla de nuevo."
   },
   "users": {
     "title": "Usuarios",
@@ -511,6 +547,9 @@
       "ACTIVE": "Activo",
       "INVITED": "Invitado",
       "DISABLED": "Desactivado"
-    }
+    },
+    "inviteSuccess": "Invitación enviada a {email}.",
+    "roleSuccess": "Rol actualizado correctamente.",
+    "removeSuccess": "Usuario eliminado de la organización."
   }
 }

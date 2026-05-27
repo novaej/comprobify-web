@@ -361,14 +361,46 @@
     "UNEXPECTED_ERROR": "An unexpected error occurred. Please try again."
   },
   "apiError": {
-    "DOCUMENT_NOT_FOUND": "Document not found.",
-    "VALIDATION_ERROR": "Please review the highlighted fields.",
-    "TOO_MANY_REQUESTS": "Too many requests. Please try again in a moment.",
+    "UNKNOWN": "An unexpected error occurred.",
+    "BAD_REQUEST": "The request is invalid. Please review the data entered.",
+    "NOT_FOUND": "The requested resource does not exist.",
+    "FORBIDDEN": "You do not have permission to perform this action.",
     "UNAUTHORIZED": "Unauthorized. Please verify your API key is valid.",
-    "CONFLICT": "A document with that idempotency key already exists with a different body.",
-    "SRI_ERROR": "The SRI returned an error. Review the detail messages.",
+    "CONFLICT": "The operation caused a conflict. Please try again.",
+    "TOO_MANY_REQUESTS": "Too many requests. Please try again in a moment.",
+    "QUOTA_EXCEEDED": "Monthly document quota reached. Please upgrade your plan.",
     "INTERNAL_ERROR": "Internal server error. Please contact support.",
-    "UNKNOWN": "An unexpected error occurred."
+    "VALIDATION_FAILED": "Please review the form fields and try again.",
+    "SRI_SUBMISSION_FAILED": "The SRI returned an error. Review the detail messages.",
+    "DOCUMENT_NOT_FOUND": "Document not found.",
+    "DOCUMENT_TYPE_NOT_ENABLED": "That document type is not enabled for this issuer.",
+    "DOCUMENT_TYPE_NOT_SUPPORTED": "Document type not supported by the system.",
+    "INVALID_STATE_TRANSITION": "This operation is not valid for the document's current status.",
+    "DOCUMENT_NOT_AUTHORIZED": "The document is not yet authorized. This operation requires an authorized document.",
+    "CERTIFICATE_INVALID": "The P12 file is invalid or corrupted.",
+    "CERTIFICATE_PASSWORD_INVALID": "The P12 certificate password is incorrect.",
+    "CERTIFICATE_KEY_NOT_FOUND": "Signing key not found inside the P12 file.",
+    "CERTIFICATE_EXPIRED": "The signing certificate has expired. Replace it in issuer settings.",
+    "ACCOUNT_SUSPENDED": "This account is suspended. Please contact support.",
+    "EMAIL_VERIFICATION_REQUIRED": "You must verify your email address before performing this action.",
+    "RESEND_COOLDOWN": "Please wait before requesting another verification email.",
+    "INVALID_OR_EXPIRED_TOKEN": "The verification link is invalid or has expired.",
+    "ALREADY_VERIFIED": "This email address has already been verified.",
+    "ISSUER_ID_REQUIRED": "No issuer specified. Please select an issuer and try again.",
+    "ISSUER_ID_INVALID": "The issuer identifier is not valid.",
+    "ISSUER_NOT_FOUND": "The issuer does not exist or has been deactivated.",
+    "ISSUER_FORBIDDEN": "You do not have access to that issuer.",
+    "SOURCE_ISSUER_NOT_FOUND": "The source issuer was not found.",
+    "API_KEY_ENV_MISMATCH": "The API key does not match the active environment (sandbox/production).",
+    "SELF_REVOCATION_FORBIDDEN": "You cannot revoke the API key you are currently using.",
+    "PRODUCTION_KEY_REQUIRES_PROMOTION": "You must activate production mode before creating production keys.",
+    "BRANCH_LIMIT_REACHED": "You have reached the maximum number of branches for your plan.",
+    "ISSUE_POINT_LIMIT_REACHED": "You have reached the maximum number of issue points for this branch.",
+    "INVALID_TIER": "The specified plan tier is not valid.",
+    "INVALID_TENANT_STATUS": "The account status is not valid for this operation.",
+    "RUC_MISMATCH": "The RUC does not match the source issuer's RUC.",
+    "DECRYPTION_FAILED": "Internal error processing encrypted data. Please contact support.",
+    "BUILDER_NOT_FOUND": "Internal error: document type not registered. Please contact support."
   },
   "clients": {
     "title": "Clients",
@@ -455,7 +487,9 @@
       "05": "Debit note",
       "06": "Remittance guide",
       "07": "Withholding receipt"
-    }
+    },
+    "addDocTypeSuccess": "Document type enabled.",
+    "removeDocTypeSuccess": "Document type disabled."
   },
   "apiKeys": {
     "title": "API Keys",
@@ -483,7 +517,9 @@
     "status": {
       "active": "Active",
       "revoked": "Revoked"
-    }
+    },
+    "revokeSuccess": "API key revoked successfully.",
+    "createSuccess": "API key \"{label}\" created. Copy it now — you won't be able to see it again."
   },
   "users": {
     "title": "Users",
@@ -511,6 +547,9 @@
       "ACTIVE": "Active",
       "INVITED": "Invited",
       "DISABLED": "Disabled"
-    }
+    },
+    "inviteSuccess": "Invitation sent to {email}.",
+    "roleSuccess": "Role updated successfully.",
+    "removeSuccess": "User removed from the organization."
   }
 }
