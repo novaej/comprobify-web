@@ -250,6 +250,7 @@
       "downloadPdf": "Descargar PDF (RIDE)",
       "downloadXml": "Descargar XML",
       "resendEmail": "Reenviar correo",
+      "resendEmailSuccess": "Correo reenviado correctamente.",
       "sriErrors": "Ver errores SRI"
     },
     "polling": {
@@ -400,7 +401,13 @@
     "INVALID_TENANT_STATUS": "El estado de la cuenta no es válido para esta operación.",
     "RUC_MISMATCH": "El RUC no coincide con el del emisor de origen.",
     "DECRYPTION_FAILED": "Error interno al procesar datos cifrados. Contacte al soporte.",
-    "BUILDER_NOT_FOUND": "Error interno: tipo de comprobante no registrado. Contacte al soporte."
+    "BUILDER_NOT_FOUND": "Error interno: tipo de comprobante no registrado. Contacte al soporte.",
+    "REQUIRED_FIELDS": "RUC y razón social son obligatorios.",
+    "CERT_REQUIRED": "Debe subir su certificado P12.",
+    "TENANT_ALREADY_EXISTS": "Ya existe una empresa registrada para este usuario.",
+    "DB_WRITE_FAILED": "Su empresa fue registrada pero ocurrió un error interno al guardar la configuración. Contacte al soporte con su correo electrónico.",
+    "EMAIL_NOT_VERIFIED": "Debe verificar su correo electrónico antes de activar producción.",
+    "ALREADY_PRODUCTION": "Su cuenta ya está en modo producción."
   },
   "clients": {
     "title": "Clientes",

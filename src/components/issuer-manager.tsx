@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useTransition } from 'react';
 import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
 import { addDocumentTypeAction, removeDocumentTypeAction } from '@/app/actions/issuers';
 import { Button } from '@/components/ui/button';
 import { Building2, Plus, X } from 'lucide-react';
+import { toastApiError } from '@/lib/api-error-toast';
 
 interface IssuerWithTypes {
   id: number;
@@ -26,22 +28,28 @@ export function IssuerManager({
   canManage: boolean;
 }) {
   const t = useTranslations('issuers');
+  const tError = useTranslations('apiError');
   const [isPending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
 
   function handleAddType(issuerId: number, code: string) {
-    setError(null);
     startTransition(async () => {
       const result = await addDocumentTypeAction(issuerId, code);
-      if (result?.error) setError(result.error);
+      if (result?.error) {
+        toastApiError(result.error, tError);
+      } else {
+        toast.success(t('addDocTypeSuccess'));
+      }
     });
   }
 
   function handleRemoveType(issuerId: number, code: string) {
-    setError(null);
     startTransition(async () => {
       const result = await removeDocumentTypeAction(issuerId, code);
-      if (result?.error) setError(result.error);
+      if (result?.error) {
+        toastApiError(result.error, tError);
+      } else {
+        toast.success(t('removeDocTypeSuccess'));
+      }
     });
   }
 
@@ -51,7 +59,6 @@ export function IssuerManager({
 
   return (
     <div className="space-y-4">
-      {error && <p className="text-sm text-destructive">{error}</p>}
       {issuers.map((issuer) => {
         const missing = ALL_DOC_TYPES.filter((c) => !issuer.documentTypes.includes(c));
         return (

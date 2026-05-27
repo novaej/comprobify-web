@@ -250,6 +250,7 @@
       "downloadPdf": "Download PDF (RIDE)",
       "downloadXml": "Download XML",
       "resendEmail": "Resend email",
+      "resendEmailSuccess": "Email resent successfully.",
       "sriErrors": "View SRI errors"
     },
     "polling": {
@@ -400,7 +401,13 @@
     "INVALID_TENANT_STATUS": "The account status is not valid for this operation.",
     "RUC_MISMATCH": "The RUC does not match the source issuer's RUC.",
     "DECRYPTION_FAILED": "Internal error processing encrypted data. Please contact support.",
-    "BUILDER_NOT_FOUND": "Internal error: document type not registered. Please contact support."
+    "BUILDER_NOT_FOUND": "Internal error: document type not registered. Please contact support.",
+    "REQUIRED_FIELDS": "RUC and business name are required.",
+    "CERT_REQUIRED": "Please upload your P12 certificate.",
+    "TENANT_ALREADY_EXISTS": "A company is already registered for this user.",
+    "DB_WRITE_FAILED": "Your company was registered but an internal error occurred while saving the configuration. Please contact support with your email address.",
+    "EMAIL_NOT_VERIFIED": "You must verify your email address before activating production.",
+    "ALREADY_PRODUCTION": "Your account is already in production mode."
   },
   "clients": {
     "title": "Clients",

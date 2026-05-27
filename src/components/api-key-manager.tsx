@@ -2,10 +2,12 @@
 
 import { useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
 import { createTenantApiKeyAction, revokeTenantApiKeyAction } from '@/app/actions/apiKeys';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AlertTriangle, Eye, EyeOff, Key, Plus } from 'lucide-react';
+import { toastApiError } from '@/lib/api-error-toast';
 
 interface ApiKeyRow {
   id: number;
@@ -28,34 +30,37 @@ export function ApiKeyManager({
   missingKey: boolean;
 }) {
   const t = useTranslations('apiKeys');
+  const tError = useTranslations('apiError');
   const [isPending, startTransition] = useTransition();
   const [newLabel, setNewLabel] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [createdKey, setCreatedKey] = useState<{ key: string; label: string } | null>(null);
   const [showKey, setShowKey] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   function handleCreate() {
-    setError(null);
     startTransition(async () => {
       const result = await createTenantApiKeyAction(newLabel || 'default');
       if (result && 'error' in result) {
-        setError(result.error);
+        toastApiError(result.error, tError);
       } else if (result && 'key' in result) {
         setCreatedKey(result);
         setNewLabel('');
         setShowCreate(false);
         setShowKey(false);
+        toast.success(t('createSuccess', { label: result.label }));
       }
     });
   }
 
   function handleRevoke(id: number) {
     if (!confirm(t('confirmRevoke'))) return;
-    setError(null);
     startTransition(async () => {
       const result = await revokeTenantApiKeyAction(id);
-      if (result?.error) setError(result.error);
+      if (result?.error) {
+        toastApiError(result.error, tError);
+      } else {
+        toast.success(t('revokeSuccess'));
+      }
     });
   }
 
@@ -90,8 +95,6 @@ export function ApiKeyManager({
           </button>
         </div>
       )}
-
-      {error && <p className="text-sm text-destructive">{error}</p>}
 
       {canManage && (
         showCreate ? (

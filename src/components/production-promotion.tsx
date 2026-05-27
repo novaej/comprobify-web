@@ -11,7 +11,7 @@ import { AlertTriangle, MailCheck } from 'lucide-react';
 export function ProductionPromotion({ documentTypes, emailVerified }: { documentTypes: string[]; emailVerified: boolean }) {
   const t = useTranslations('settings.promote');
   const tSetup = useTranslations('settings.setup');
-  const tError = useTranslations('settingsError');
+  const tError = useTranslations('apiError');
   const [isPending, startTransition] = useTransition();
   const [isResendPending, startResendTransition] = useTransition();
   const [confirming, setConfirming] = useState(false);

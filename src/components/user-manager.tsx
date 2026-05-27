@@ -2,11 +2,13 @@
 
 import { useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
 import { inviteUserAction, updateUserRoleAction, removeUserAction } from '@/app/actions/users';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { UserPlus } from 'lucide-react';
 import type { Role } from '@/lib/rbac';
+import { toastApiError } from '@/lib/api-error-toast';
 
 const ROLES: Role[] = ['Owner', 'Admin', 'BillingOperator', 'Viewer', 'Developer'];
 
@@ -38,19 +40,19 @@ export function UserManager({
   canManage: boolean;
 }) {
   const t = useTranslations('users');
+  const tError = useTranslations('apiError');
   const [isPending, startTransition] = useTransition();
   const [showInvite, setShowInvite] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<Role>('Viewer');
-  const [error, setError] = useState<string | null>(null);
 
   function handleInvite() {
-    setError(null);
     startTransition(async () => {
       const result = await inviteUserAction(inviteEmail, inviteRole);
       if (result?.error) {
-        setError(result.error);
+        toastApiError(result.error, tError);
       } else {
+        toast.success(t('inviteSuccess', { email: inviteEmail }));
         setInviteEmail('');
         setShowInvite(false);
       }
@@ -60,7 +62,11 @@ export function UserManager({
   function handleRoleChange(userId: number, role: Role) {
     startTransition(async () => {
       const result = await updateUserRoleAction(userId, role);
-      if (result?.error) setError(result.error);
+      if (result?.error) {
+        toastApiError(result.error, tError);
+      } else {
+        toast.success(t('roleSuccess'));
+      }
     });
   }
 
@@ -68,14 +74,16 @@ export function UserManager({
     if (!confirm(t('confirmRemove'))) return;
     startTransition(async () => {
       const result = await removeUserAction(userId);
-      if (result?.error) setError(result.error);
+      if (result?.error) {
+        toastApiError(result.error, tError);
+      } else {
+        toast.success(t('removeSuccess'));
+      }
     });
   }
 
   return (
     <div className="space-y-4">
-      {error && <p className="text-sm text-destructive">{error}</p>}
-
       {canManage && (
         showInvite ? (
           <div className="rounded-xl border border-border bg-card p-4 space-y-3">

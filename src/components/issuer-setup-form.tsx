@@ -18,7 +18,7 @@ const DOC_TYPES = [
 
 export function IssuerSetupForm() {
   const t = useTranslations('settings.setup');
-  const tError = useTranslations('settingsError');
+  const tError = useTranslations('apiError');
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -44,18 +44,13 @@ export function IssuerSetupForm() {
       try {
         const result = await bootstrapTenantAction(formData);
         if (result && 'error' in result) {
-          setError(
-            tError.has(result.error as Parameters<typeof tError>[0])
-              ? tError(result.error as Parameters<typeof tError>[0])
-              : result.error
-          );
+          const code = result.error;
+          setError(tError.has(code as Parameters<typeof tError>[0])
+            ? tError(code as Parameters<typeof tError>[0])
+            : tError('UNKNOWN'));
         }
       } catch {
-        setError(
-          tError.has('UNEXPECTED_ERROR')
-            ? tError('UNEXPECTED_ERROR')
-            : 'Error inesperado. Por favor intenta de nuevo.'
-        );
+        setError(tError('UNKNOWN'));
       }
     });
   }
