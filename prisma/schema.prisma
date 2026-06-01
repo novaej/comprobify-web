@@ -124,3 +124,60 @@ model Client {
   @@index([tenantId])
   @@map("clients")
 }
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+
+/// A notification mirrored from the Comprobify API. Upserted on every webhook
+/// delivery or catch-up poll; the (tenantId, apiNotificationId) pair is the
+/// natural key used by the upsert.
+model Notification {
+  id                Int                @id @default(autoincrement())
+  tenantId          Int                @map("tenant_id")
+  apiNotificationId String             @map("api_notification_id")
+  type              String
+  severity          String             // INFO | WARNING | ERROR
+  title             String
+  message           String
+  metadata          Json?
+  issuerId          Int?               @map("issuer_id")
+  apiReadAt         DateTime?          @map("api_read_at")
+  expiresAt         DateTime?          @map("expires_at")
+  apiCreatedAt      DateTime           @map("api_created_at")
+  syncedAt          DateTime           @updatedAt @map("synced_at")
+  reads             NotificationRead[]
+
+  @@unique([tenantId, apiNotificationId])
+  @@index([tenantId, apiReadAt])
+  @@map("notifications")
+}
+
+/// Per-user read state for a notification. The API-level read (apiReadAt) is
+/// set only once every eligible user has an entry here.
+model NotificationRead {
+  id             Int          @id @default(autoincrement())
+  notificationId Int          @map("notification_id")
+  userId         Int          @map("user_id")
+  readAt         DateTime     @default(now()) @map("read_at")
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationId, userId])
+  @@index([userId])
+  @@map("notification_reads")
+}
+
+/// A webhook endpoint registered with the Comprobify API. The signing secret
+/// is stored encrypted (AES-256-GCM) the same way as TenantApiKey.encryptedKey.
+model WebhookEndpoint {
+  id              Int      @id @default(autoincrement())
+  tenantId        Int      @map("tenant_id")
+  apiEndpointId   String   @map("api_endpoint_id")
+  url             String
+  encryptedSecret String   @map("encrypted_secret")
+  eventTypes      String[]  @map("event_types")
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@unique([tenantId, apiEndpointId])
+  @@index([tenantId])
+  @@map("webhook_endpoints")
+}

@@ -7,6 +7,8 @@ import {
   LayoutDashboard, Files, Users, Package, Settings, Building2,
   Menu, X, LogOut, Globe, ChevronDown,
 } from 'lucide-react';
+import { NotificationBell } from '@/components/notification-bell';
+import type { listNotificationsAction } from '@/app/actions/notifications';
 import { Logomark, LogoLockup } from '@/components/logo';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { selectIssuerAction } from '@/app/actions/context';
@@ -34,6 +36,8 @@ interface Issuer {
   issuePointCode: string;
 }
 
+type NotificationItem = Awaited<ReturnType<typeof listNotificationsAction>>['notifications'][number];
+
 interface NavProps {
   hasIssuer: boolean;
   environment: 'sandbox' | 'production';
@@ -41,6 +45,8 @@ interface NavProps {
   currentIssuer: Issuer | null;
   issuers: Issuer[];
   userEmail: string;
+  initialUnreadCount: number;
+  initialNotifications: NotificationItem[];
 }
 
 // ── TenantBadge ───────────────────────────────────────────────────────────────
@@ -194,7 +200,7 @@ function UserMenu({ email, pathname }: { email: string; pathname: string }) {
 
 // ── Nav ───────────────────────────────────────────────────────────────────────
 
-export function Nav({ hasIssuer, environment, tenantName, currentIssuer, issuers, userEmail }: NavProps) {
+export function Nav({ hasIssuer, environment, tenantName, currentIssuer, issuers, userEmail, initialUnreadCount, initialNotifications }: NavProps) {
   const t = useTranslations('nav');
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
@@ -295,7 +301,11 @@ export function Nav({ hasIssuer, environment, tenantName, currentIssuer, issuers
           >
             <X className="h-4 w-4" />
           </button>
-          <LogoLockup className="h-7 w-auto" />
+          <LogoLockup className="h-7 w-auto flex-1" />
+          <NotificationBell
+            initialUnreadCount={initialUnreadCount}
+            initialNotifications={initialNotifications}
+          />
         </div>
 
         {sidebarContent}

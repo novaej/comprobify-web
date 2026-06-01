@@ -407,7 +407,47 @@
     "TENANT_ALREADY_EXISTS": "Ya existe una empresa registrada para este usuario.",
     "DB_WRITE_FAILED": "Su empresa fue registrada pero ocurrió un error interno al guardar la configuración. Contacte al soporte con su correo electrónico.",
     "EMAIL_NOT_VERIFIED": "Debe verificar su correo electrónico antes de activar producción.",
-    "ALREADY_PRODUCTION": "Su cuenta ya está en modo producción."
+    "ALREADY_PRODUCTION": "Su cuenta ya está en modo producción.",
+    "WEBHOOK_ENDPOINT_LIMIT_REACHED": "Ha alcanzado el límite de webhooks de su plan.",
+    "WEBHOOK_ENDPOINT_NOT_FOUND": "El endpoint de webhook no fue encontrado."
+  },
+  "notifications": {
+    "panelTitle": "Notificaciones",
+    "empty": "No hay notificaciones.",
+    "markRead": "Marcar leído",
+    "types": {
+      "DOCUMENT_AUTHORIZED": "Comprobante autorizado",
+      "CERT_EXPIRING": "Certificado por vencer",
+      "CERT_EXPIRED": "Certificado vencido",
+      "SRI_SUBMISSION_FAILED": "Error de envío al SRI",
+      "EMAIL_DELIVERY_FAILED": "Error de entrega de correo",
+      "QUOTA_WARNING": "Aviso de cuota"
+    }
+  },
+  "webhooks": {
+    "title": "Webhooks",
+    "description": "Registra URLs HTTPS para recibir notificaciones en tiempo real. Comprobify enviará un POST firmado a cada endpoint activo cuando ocurra un evento.",
+    "empty": "No hay webhooks registrados.",
+    "add": "Registrar webhook",
+    "delete": "Eliminar",
+    "confirmDelete": "¿Eliminar este endpoint? Dejará de recibir notificaciones de inmediato.",
+    "urlPlaceholder": "https://tuapp.com/api/webhooks",
+    "register": "Registrar",
+    "registering": "Registrando...",
+    "cancel": "Cancelar",
+    "table": {
+      "url": "URL",
+      "events": "Eventos",
+      "status": "Estado",
+      "created": "Registrado"
+    },
+    "allEvents": "Todos los eventos",
+    "status": {
+      "active": "Activo",
+      "inactive": "Inactivo"
+    },
+    "registerSuccess": "Webhook registrado correctamente.",
+    "deleteSuccess": "Webhook eliminado."
   },
   "clients": {
     "title": "Clientes",

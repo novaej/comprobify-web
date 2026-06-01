@@ -9,6 +9,9 @@ import { SandboxBanner } from '@/components/sandbox-banner';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
 import { readCtxCookie } from '@/lib/context-cookie';
+import type { listNotificationsAction } from '@/app/actions/notifications';
+
+type NotificationItem = Awaited<ReturnType<typeof listNotificationsAction>>['notifications'][number];
 
 interface LayoutProps {
   hasIssuer: boolean;
@@ -17,20 +20,25 @@ interface LayoutProps {
   currentIssuer: { id: number; name: string; branchCode: string; issuePointCode: string } | null;
   issuers: Array<{ id: number; name: string; branchCode: string; issuePointCode: string }>;
   userEmail: string;
+  initialUnreadCount: number;
+  initialNotifications: NotificationItem[];
 }
 
 async function getLayoutProps(userId: string): Promise<LayoutProps | null> {
+  const userNum = Number(userId);
+
   const user = await db.user.findUnique({
-    where: { id: Number(userId) },
+    where: { id: userNum },
     select: {
       email: true,
       tenant: {
         select: {
+          id: true,
           businessName: true,
           tradeName: true,
           environment: true,
           issuers: {
-            orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
+            orderBy: [{ isDefault: 'desc' as const }, { createdAt: 'asc' as const }],
             select: { id: true, businessName: true, tradeName: true, branchCode: true, issuePointCode: true },
           },
         },
@@ -51,6 +59,46 @@ async function getLayoutProps(userId: string): Promise<LayoutProps | null> {
     ? (allIssuers.find((i) => i.id === ctxCookie.issuerId) ?? null)
     : null;
 
+  // Fetch active notifications with per-user read state.
+  // Non-fatal — use empty array on failure.
+  const tenantId = user.tenant.id;
+  const notifications = await db.notification
+    .findMany({
+      where: {
+        tenantId,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      },
+      orderBy: { apiCreatedAt: 'desc' as const },
+      take: 20,
+      include: {
+        reads: { where: { userId: userNum }, select: { userId: true } },
+      },
+    })
+    .catch(() => [] as Array<{
+      id: number; tenantId: number; apiNotificationId: string;
+      type: string; severity: string; title: string; message: string;
+      metadata: unknown; issuerId: number | null;
+      apiReadAt: Date | null; expiresAt: Date | null; apiCreatedAt: Date; syncedAt: Date;
+      reads: Array<{ userId: number }>;
+    }>);
+
+  const mappedNotifications: NotificationItem[] = notifications.map((n) => ({
+    id: n.id,
+    apiNotificationId: n.apiNotificationId,
+    type: n.type,
+    severity: n.severity,
+    title: n.title,
+    message: n.message,
+    metadata: n.metadata,
+    issuerId: n.issuerId,
+    readByMe: n.reads.length > 0 || n.apiReadAt !== null,
+    apiReadAt: n.apiReadAt,
+    expiresAt: n.expiresAt,
+    apiCreatedAt: n.apiCreatedAt,
+  }));
+
+  const initialUnreadCount = mappedNotifications.filter((n) => !n.readByMe).length;
+
   return {
     hasIssuer: allIssuers.length > 0,
     environment: user.tenant.environment as 'sandbox' | 'production',
@@ -58,6 +106,8 @@ async function getLayoutProps(userId: string): Promise<LayoutProps | null> {
     currentIssuer,
     issuers: allIssuers,
     userEmail: user.email,
+    initialUnreadCount,
+    initialNotifications: mappedNotifications,
   };
 }
 
@@ -97,6 +147,8 @@ export default async function LocaleLayout({
               currentIssuer={layoutProps.currentIssuer}
               issuers={layoutProps.issuers}
               userEmail={layoutProps.userEmail}
+              initialUnreadCount={layoutProps.initialUnreadCount}
+              initialNotifications={layoutProps.initialNotifications}
             />
             <main className="flex-1 overflow-y-auto p-4 md:p-8">
               <SandboxBanner environment={layoutProps.environment} />

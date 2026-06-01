@@ -407,7 +407,9 @@
     "TENANT_ALREADY_EXISTS": "A company is already registered for this user.",
     "DB_WRITE_FAILED": "Your company was registered but an internal error occurred while saving the configuration. Please contact support with your email address.",
     "EMAIL_NOT_VERIFIED": "You must verify your email address before activating production.",
-    "ALREADY_PRODUCTION": "Your account is already in production mode."
+    "ALREADY_PRODUCTION": "Your account is already in production mode.",
+    "WEBHOOK_ENDPOINT_LIMIT_REACHED": "You have reached the webhook endpoint limit for your plan.",
+    "WEBHOOK_ENDPOINT_NOT_FOUND": "Webhook endpoint not found."
   },
   "clients": {
     "title": "Clients",
@@ -558,5 +560,43 @@
     "inviteSuccess": "Invitation sent to {email}.",
     "roleSuccess": "Role updated successfully.",
     "removeSuccess": "User removed from the organization."
+  },
+  "notifications": {
+    "panelTitle": "Notifications",
+    "empty": "No notifications.",
+    "markRead": "Mark read",
+    "types": {
+      "DOCUMENT_AUTHORIZED": "Document authorized",
+      "CERT_EXPIRING": "Certificate expiring",
+      "CERT_EXPIRED": "Certificate expired",
+      "SRI_SUBMISSION_FAILED": "SRI submission failed",
+      "EMAIL_DELIVERY_FAILED": "Email delivery failed",
+      "QUOTA_WARNING": "Quota warning"
+    }
+  },
+  "webhooks": {
+    "title": "Webhooks",
+    "description": "Register HTTPS URLs to receive real-time notifications. Comprobify will POST a signed payload to each active endpoint when an event occurs.",
+    "empty": "No webhooks registered.",
+    "add": "Register webhook",
+    "delete": "Delete",
+    "confirmDelete": "Delete this endpoint? It will stop receiving notifications immediately.",
+    "urlPlaceholder": "https://yourapp.com/api/webhooks",
+    "register": "Register",
+    "registering": "Registering...",
+    "cancel": "Cancel",
+    "table": {
+      "url": "URL",
+      "events": "Events",
+      "status": "Status",
+      "created": "Registered"
+    },
+    "allEvents": "All events",
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "registerSuccess": "Webhook registered successfully.",
+    "deleteSuccess": "Webhook deleted."
   }
 }

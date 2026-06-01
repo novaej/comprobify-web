@@ -143,6 +143,40 @@ export async function bootstrapTenantAction(formData: FormData): Promise<Onboard
   // silently roll back all the DB writes above.
   await writeCtxCookie({ issuerId: newIssuerId, v: 1 });
 
+  // Auto-register webhook endpoint so notifications are delivered in real time.
+  // This is best-effort — a failure here does not block onboarding.
+  const webhookAppUrl = process.env.NEXT_PUBLIC_APP_URL;
+  if (webhookAppUrl) {
+    try {
+      const { registerWebhookEndpoint } = await import('@/lib/api');
+      const { encrypt } = await import('@/lib/crypto');
+      const receiveUrl = `${webhookAppUrl}/api/webhooks/receive`;
+      const { endpoint, secret } = await registerWebhookEndpoint(
+        { apiKey: plainApiKey },
+        receiveUrl,
+        [],
+      );
+      const tenant = await db.tenant.findFirst({
+        where: { apiTenantId },
+        select: { id: true },
+      });
+      if (tenant) {
+        await db.webhookEndpoint.create({
+          data: {
+            tenantId: tenant.id,
+            apiEndpointId: endpoint.id,
+            url: endpoint.url,
+            encryptedSecret: encrypt(secret),
+            eventTypes: endpoint.eventTypes,
+            active: endpoint.active,
+          },
+        });
+      }
+    } catch {
+      // Non-fatal — notifications fall back to catch-up polling.
+    }
+  }
+
   revalidatePath('/', 'layout');
   redirect({ href: isEmailVerified ? '/dashboard' : '/settings', locale });
   return null;

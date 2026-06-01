@@ -513,3 +513,130 @@ export async function revokeTenantApiKey(ctx: ApiCtx, id: number): Promise<void>
     { method: 'DELETE' },
   );
 }
+
+// ── Notification types ────────────────────────────────────────────────────────
+
+// Verified against: ../comprobify/src/models/notification.model.js + docs/site/endpoints/notifications.md
+export interface ApiNotification {
+  id: string;           // BIGSERIAL → JSON string
+  type: string;
+  severity: 'INFO' | 'WARNING' | 'ERROR';
+  title: string;
+  message: string;
+  metadata: Record<string, unknown> | null;
+  issuerId: string | null;  // BIGSERIAL → JSON string or null
+  readAt: string | null;
+  expiresAt: string | null;
+  createdAt: string;
+}
+
+export interface NotificationPreference {
+  type: string;
+  enabled: boolean;
+}
+
+// ── Notification functions ────────────────────────────────────────────────────
+
+// Verified against: docs/site/endpoints/notifications.md → GET /api/notifications
+export async function listNotifications(
+  ctx: ApiCtx,
+  sinceId?: string,
+): Promise<{ notifications: ApiNotification[]; unreadCount: number }> {
+  const qs = sinceId ? `?sinceId=${sinceId}` : '';
+  return request<{ notifications: ApiNotification[]; unreadCount: number }>(
+    `/api/notifications${qs}`,
+    { apiKey: ctx.apiKey },
+  );
+}
+
+// Verified against: docs/site/endpoints/notifications.md → POST /api/notifications/:id/read
+export async function markNotificationRead(ctx: ApiCtx, id: string): Promise<ApiNotification> {
+  const result = await request<{ notification: ApiNotification }>(
+    `/api/notifications/${id}/read`,
+    { apiKey: ctx.apiKey },
+    { method: 'POST' },
+  );
+  return result.notification;
+}
+
+// Verified against: docs/site/endpoints/notifications.md → GET /api/notifications/preferences
+export async function getNotificationPreferences(ctx: ApiCtx): Promise<NotificationPreference[]> {
+  const result = await request<{ preferences: NotificationPreference[] }>(
+    '/api/notifications/preferences',
+    { apiKey: ctx.apiKey },
+  );
+  return result.preferences;
+}
+
+// Verified against: docs/site/endpoints/notifications.md → PATCH /api/notifications/preferences
+export async function updateNotificationPreferences(
+  ctx: ApiCtx,
+  prefs: NotificationPreference[],
+): Promise<NotificationPreference[]> {
+  const result = await request<{ preferences: NotificationPreference[] }>(
+    '/api/notifications/preferences',
+    { apiKey: ctx.apiKey },
+    { method: 'PATCH', body: JSON.stringify(prefs) },
+  );
+  return result.preferences;
+}
+
+// ── Webhook endpoint types ────────────────────────────────────────────────────
+
+// Verified against: docs/site/endpoints/webhooks.md → Webhook endpoint object
+export interface ApiWebhookEndpoint {
+  id: string;           // BIGSERIAL → JSON string
+  url: string;
+  eventTypes: string[];
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ── Webhook endpoint functions ────────────────────────────────────────────────
+
+// Verified against: docs/site/endpoints/webhooks.md → POST /api/webhooks
+export async function registerWebhookEndpoint(
+  ctx: ApiCtx,
+  url: string,
+  eventTypes?: string[],
+): Promise<{ endpoint: ApiWebhookEndpoint; secret: string }> {
+  const result = await request<{ ok: true; endpoint: ApiWebhookEndpoint; secret: string }>(
+    '/api/webhooks',
+    { apiKey: ctx.apiKey },
+    { method: 'POST', body: JSON.stringify({ url, eventTypes }) },
+  );
+  return { endpoint: result.endpoint, secret: result.secret };
+}
+
+// Verified against: docs/site/endpoints/webhooks.md → GET /api/webhooks
+export async function listWebhookEndpoints(ctx: ApiCtx): Promise<ApiWebhookEndpoint[]> {
+  const result = await request<{ ok: true; endpoints: ApiWebhookEndpoint[] }>(
+    '/api/webhooks',
+    { apiKey: ctx.apiKey },
+  );
+  return result.endpoints;
+}
+
+// Verified against: docs/site/endpoints/webhooks.md → PATCH /api/webhooks/:id
+export async function updateWebhookEndpoint(
+  ctx: ApiCtx,
+  id: string,
+  data: { url?: string; eventTypes?: string[]; active?: boolean },
+): Promise<ApiWebhookEndpoint> {
+  const result = await request<{ ok: true; endpoint: ApiWebhookEndpoint }>(
+    `/api/webhooks/${id}`,
+    { apiKey: ctx.apiKey },
+    { method: 'PATCH', body: JSON.stringify(data) },
+  );
+  return result.endpoint;
+}
+
+// Verified against: docs/site/endpoints/webhooks.md → DELETE /api/webhooks/:id
+export async function deleteWebhookEndpoint(ctx: ApiCtx, id: string): Promise<void> {
+  await request(
+    `/api/webhooks/${id}`,
+    { apiKey: ctx.apiKey },
+    { method: 'DELETE' },
+  );
+}
