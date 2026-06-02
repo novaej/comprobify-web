@@ -597,6 +597,8 @@
       "inactive": "Inactive"
     },
     "registerSuccess": "Webhook registered successfully.",
-    "deleteSuccess": "Webhook deleted."
+    "deleteSuccess": "Webhook deleted.",
+    "verifyTitle": "How to verify signatures",
+    "verifyDescription": "Every request includes X-Comprobify-Signature and X-Comprobify-Timestamp headers. Use HMAC-SHA256 with your secret to verify the signature before processing the event."
   }
 }

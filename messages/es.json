@@ -447,7 +447,9 @@
       "inactive": "Inactivo"
     },
     "registerSuccess": "Webhook registrado correctamente.",
-    "deleteSuccess": "Webhook eliminado."
+    "deleteSuccess": "Webhook eliminado.",
+    "verifyTitle": "Cómo verificar la firma",
+    "verifyDescription": "Cada solicitud incluye los encabezados X-Comprobify-Signature y X-Comprobify-Timestamp. Usa HMAC-SHA256 con tu secreto para verificar la firma antes de procesar el evento."
   },
   "clients": {
     "title": "Clientes",
