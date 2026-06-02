@@ -1,10 +1,17 @@
 'use server';
 
 import { Prisma } from '@prisma/client';
-import { requireContext } from '@/lib/context';
-import { listNotifications, markNotificationRead } from '@/lib/api';
+import { requireContext, requirePermission } from '@/lib/context';
+import {
+  listNotifications,
+  markNotificationRead,
+  getNotificationPreferences,
+  updateNotificationPreferences,
+  type NotificationPreference,
+} from '@/lib/api';
 import { db } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
+import { ApiError } from '@/lib/errors';
 
 /** Cast API metadata (unknown JSON object) to Prisma's InputJsonValue. */
 function toJson(v: Record<string, unknown> | null | undefined): Prisma.InputJsonValue | undefined {
@@ -236,6 +243,42 @@ export async function listNotificationsAction(): Promise<{
       apiCreatedAt: n.apiCreatedAt,
     })),
   };
+}
+
+// ── Preferences ──────────────────────────────────────────────────────────────
+
+/**
+ * Fetch the current notification preferences for the tenant.
+ * Returns all 6 types; types never explicitly configured default to enabled.
+ */
+export async function getPreferencesAction(): Promise<{
+  preferences: NotificationPreference[];
+} | { error: string }> {
+  const ctx = await requirePermission('notifications.manage', { skipIssuer: true });
+  try {
+    const preferences = await getNotificationPreferences({ apiKey: ctx.apiKey });
+    return { preferences };
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.code };
+    throw err;
+  }
+}
+
+/**
+ * Bulk-upsert one or more notification preferences for the tenant.
+ * Send only the types that changed; unmentioned types are left as-is.
+ */
+export async function updatePreferencesAction(
+  prefs: NotificationPreference[],
+): Promise<{ preferences: NotificationPreference[] } | { error: string }> {
+  const ctx = await requirePermission('notifications.manage', { skipIssuer: true });
+  try {
+    const preferences = await updateNotificationPreferences({ apiKey: ctx.apiKey }, prefs);
+    return { preferences };
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.code };
+    throw err;
+  }
 }
 
 // ─── helpers ─────────────────────────────────────────────────────────────────

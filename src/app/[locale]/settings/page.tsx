@@ -6,7 +6,7 @@ import { requireContext } from '@/lib/context';
 import { listIssuerDocumentTypes } from '@/lib/api';
 import { Link } from '@/i18n/navigation';
 import { db } from '@/lib/db';
-import { Webhook, ChevronRight } from 'lucide-react';
+import { Webhook, Bell, ChevronRight } from 'lucide-react';
 
 export default async function SettingsPage({
   params,
@@ -21,7 +21,9 @@ export default async function SettingsPage({
   const { environment, id: tenantId } = ctx.tenant;
   const { email, emailVerified } = ctx.user;
   const tWebhooks = await getTranslations('webhooks');
+  const tNotifPrefs = await getTranslations('notificationPreferences');
   const canManageWebhooks = ctx.permissions.has('webhooks.manage');
+  const canManageNotifications = ctx.permissions.has('notifications.manage');
 
   const defaultIssuer = await db.issuer.findFirst({
     where: { tenantId },
@@ -69,6 +71,24 @@ export default async function SettingsPage({
           <h2 className="text-sm font-semibold">{t('account.title')}</h2>
           <p className="mt-1.5 text-sm text-muted-foreground">{email}</p>
         </div>
+
+        {canManageNotifications && (
+          <Link
+            href="/settings/notifications"
+            className="flex items-center justify-between rounded-xl border border-border bg-card p-6 shadow-sm transition-colors hover:bg-accent"
+          >
+            <div className="flex items-center gap-3">
+              <Bell className="h-5 w-5 shrink-0 text-muted-foreground" />
+              <div>
+                <h2 className="text-sm font-semibold">{tNotifPrefs('title')}</h2>
+                <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">
+                  {tNotifPrefs('description')}
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+          </Link>
+        )}
 
         {canManageWebhooks && (
           <Link

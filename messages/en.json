@@ -574,6 +574,27 @@
       "QUOTA_WARNING": "Quota warning"
     }
   },
+  "notificationPreferences": {
+    "title": "Notification preferences",
+    "description": "Control which types of notifications the system creates for your organization.",
+    "sectionActive": "Active types",
+    "sectionComingSoon": "Coming soon",
+    "comingSoonBadge": "Coming soon",
+    "comingSoonNote": "This notification type is not yet available.",
+    "hint": "When a type is disabled, the system will not create new notifications of that type. Existing unread notifications remain in the list.",
+    "enabledToast": "{type} enabled.",
+    "disabledToast": "{type} disabled.",
+    "enableAriaLabel": "Enable {type}",
+    "disableAriaLabel": "Disable {type}",
+    "descriptions": {
+      "DOCUMENT_AUTHORIZED": "Created automatically when SRI authorizes a document. Multiple authorizations within a 60-second window are grouped into a single notification.",
+      "CERT_EXPIRING": "Created when an issuer's P12 certificate is within 30 days of expiry. Updated automatically and dismissed when the certificate is renewed.",
+      "CERT_EXPIRED": "Created when an issuer's P12 certificate has already expired. Prevents issuing new documents until renewed.",
+      "SRI_SUBMISSION_FAILED": "Will be created when SRI permanently rejects a submission after all retries are exhausted.",
+      "EMAIL_DELIVERY_FAILED": "Will be created when Mailgun reports a permanent email delivery failure.",
+      "QUOTA_WARNING": "Will be created when your organization is approaching its monthly document quota."
+    }
+  },
   "webhooks": {
     "title": "Webhooks",
     "description": "Register HTTPS URLs to receive real-time notifications. Comprobify will POST a signed payload to each active endpoint when an event occurs.",

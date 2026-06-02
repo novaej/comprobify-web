@@ -16,6 +16,7 @@ export type Permission =
   | 'billing.read'
   | 'tenant.manage'
   | 'notifications.read'
+  | 'notifications.manage'
   | 'webhooks.manage';
 
 const ALL: ReadonlySet<Permission> = new Set([
@@ -28,6 +29,7 @@ const ALL: ReadonlySet<Permission> = new Set([
   'billing.read',
   'tenant.manage',
   'notifications.read',
+  'notifications.manage',
   'webhooks.manage',
 ]);
 
@@ -41,6 +43,7 @@ export const ROLE_PERMISSIONS: Record<Role, ReadonlySet<Permission>> = {
     'users.read', 'users.manage',
     'billing.read',
     'notifications.read',
+    'notifications.manage',
     'webhooks.manage',
   ]),
   BillingOperator: new Set([
