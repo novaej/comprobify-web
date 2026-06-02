@@ -49,6 +49,17 @@
     "EMAIL_TAKEN": "Ya existe una cuenta con ese correo.",
     "PASSWORD_MISMATCH": "Las contraseñas no coinciden."
   },
+  "completeRegistration": {
+    "title": "Activa tu cuenta",
+    "subtitle": "Elige una contraseña para completar tu registro.",
+    "submit": "Activar cuenta",
+    "submitting": "Activando...",
+    "passwordMismatch": "Las contraseñas no coinciden.",
+    "unexpectedError": "Ocurrió un error inesperado. Inténtalo de nuevo."
+  },
+  "completeRegistrationError": {
+    "INVALID_OR_EXPIRED_INVITE": "Este enlace de invitación ya no es válido. Pide a tu administrador que te reenvíe la invitación."
+  },
   "sandbox": {
     "banner": "Estás en modo sandbox — los comprobantes se envían al ambiente de pruebas del SRI.",
     "badge": "SRI Pruebas",

@@ -49,6 +49,17 @@
     "EMAIL_TAKEN": "An account with that email already exists.",
     "PASSWORD_MISMATCH": "Passwords do not match."
   },
+  "completeRegistration": {
+    "title": "Activate your account",
+    "subtitle": "Choose a password to complete your registration.",
+    "submit": "Activate account",
+    "submitting": "Activating...",
+    "passwordMismatch": "Passwords do not match.",
+    "unexpectedError": "An unexpected error occurred. Please try again."
+  },
+  "completeRegistrationError": {
+    "INVALID_OR_EXPIRED_INVITE": "This invitation link is no longer valid. Ask your administrator to re-invite you."
+  },
   "sandbox": {
     "banner": "You are in sandbox mode — documents are sent to the SRI test environment.",
     "badge": "SRI Pruebas",
