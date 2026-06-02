@@ -124,9 +124,17 @@ Five roles with a hardcoded permission map in `src/lib/rbac.ts`:
 |---|---|
 | Owner | All permissions including `tenant.promote` (sandbox → production) |
 | Admin | All except `tenant.promote` and `tenant.manage` |
-| BillingOperator | Documents, clients, catalog, issuers.read |
-| Viewer | documents.read, issuers.read |
-| Developer | documents.read, apikeys.read/manage, issuers.read |
+| BillingOperator | Documents, clients, catalog, issuers.read, notifications.read |
+| Viewer | documents.read, issuers.read, notifications.read |
+| Developer | documents.read, apikeys.read/manage, issuers.read, notifications.read |
+
+**Notification and webhook permissions:**
+
+| Permission | Roles |
+|---|---|
+| `notifications.read` | All roles |
+| `notifications.manage` | Owner, Admin |
+| `webhooks.manage` | Owner, Admin |
 
 ---
 
@@ -155,6 +163,18 @@ The page is in `PUBLIC_ROUTES` in `src/proxy.ts` — works from any device witho
 
 ## Protected routes
 
-`src/proxy.ts` applies one rule: unauthenticated requests to non-public routes redirect to `/login`. Public routes: `/login`, `/register`, `/verify-email`, `/onboarding/*`.
+`src/proxy.ts` applies one rule: unauthenticated requests to non-public routes redirect to `/login`. Public routes: `/login`, `/register`, `/verify-email`, `/onboarding/*`, `/complete-registration`.
 
 All finer-grained access control (tenant check, issuer check, permissions) is enforced inside `requireContext()` and `requirePermission()` in each page/action — not in the middleware.
+
+## Complete registration (invited users)
+
+Invited users have `inviteStatus = 'INVITED'` and `passwordHash = null`. Because `authorize()` returns `null` for users without a password, `signIn()` throws `AuthError` — they cannot log in normally.
+
+`loginAction` checks `inviteStatus` and `passwordHash` **before** calling `signIn()`. If the user is INVITED with no password, it redirects to `/complete-registration?email=...`.
+
+`completeRegistrationAction` (Server Action):
+1. Verifies the user is still INVITED with no `passwordHash` (guards against double-submit)
+2. Hashes the password and updates `inviteStatus` → `'ACTIVE'`
+3. Calls `signIn('credentials', ...)` to create the session
+4. Calls `postLoginRedirect()` → routes to onboarding, dashboard, or issuer select

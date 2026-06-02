@@ -572,6 +572,9 @@
     "roleSuccess": "Role updated successfully.",
     "removeSuccess": "User removed from the organization."
   },
+  "certBanner": {
+    "dismiss": "Dismiss certificate alert"
+  },
   "notifications": {
     "panelTitle": "Notifications",
     "empty": "No notifications.",

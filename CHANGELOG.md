@@ -9,6 +9,30 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 ## [Unreleased]
 
 ### Added
+- **Notification system** — real-time notifications delivered via webhooks and surfaced in a bell icon in the sidebar; unread badge auto-refreshes every 60 seconds; panel lists all notifications with relative timestamps and per-item mark-read
+- **Webhook receiver** — `POST /api/webhooks/receive` verifies HMAC-SHA256 signatures and upserts incoming notifications into the local `notifications` table; fan-out logic creates `NotificationRead` rows for Owner/Admin (all) and per-issuer rows for other roles with `UserIssuerAccess`
+- **Catch-up sync on page load** — `<NotificationSync />` fires `catchUpNotificationsAction()` on first authenticated mount, pulling any missed notifications from the API into the local DB in case webhooks were dropped during downtime
+- **Cert-expiry banner** — `<CertExpiryBanner>` shown above page content when an unread `CERT_EXPIRING` or `CERT_EXPIRED` notification exists for the active issuer; amber styling for expiring, destructive red for expired; dismiss calls `markNotificationReadAction` so it won't reappear until a new unread cert alert arrives
+- **Webhook settings screen** — `GET /settings/webhooks` (Owner/Admin only) lets users register a webhook endpoint URL + event types, view active endpoints with last-four of secret, and delete endpoints; includes a collapsible signature verification code block
+- **Notification preferences screen** — `GET /settings/notifications` (Owner/Admin only) shows live-type toggles (`DOCUMENT_AUTHORIZED`, `CERT_EXPIRING`, `CERT_EXPIRED`) with optimistic UI; reserved types shown as coming-soon
+- **Complete registration flow** — invited users who click their invite link and open the app are now correctly redirected to `/complete-registration` instead of getting an `INVALID_CREDENTIALS` error; `completeRegistrationAction` hashes their password and activates their account in one shot, then signs them in and routes to onboarding/dashboard
+- **`Notification`, `NotificationRead`, `WebhookEndpoint` Prisma models** — migration `20260601124000_add_notifications_and_webhooks`
+- **`listNotifications`, `markNotificationRead`, `getNotificationPreferences`, `updateNotificationPreferences`, `registerWebhookEndpoint`, `listWebhookEndpoints`, `updateWebhookEndpoint`, `deleteWebhookEndpoint`** added to `src/lib/api.ts`
+- **`notifications.read`, `notifications.manage`, `webhooks.manage` permissions** added to `src/lib/rbac.ts`; Owner + Admin get manage; all roles get read
+- **`complete-registration`** added to `PUBLIC_ROUTES` in `src/proxy.ts`
+- Settings page cards linking to `/settings/notifications` and `/settings/webhooks` (gated by respective permissions)
+- `certBanner`, `notifications`, `webhooks`, `notificationPreferences`, `completeRegistration`, `completeRegistrationError` i18n namespaces added to `messages/es.json` and `messages/en.json`
+
+### Fixed
+- **Invited users could not authenticate** — `authorize()` returns `null` for users with no `passwordHash`, causing `signIn()` to throw `AuthError` and fall through to `INVALID_CREDENTIALS`; fixed by pre-checking `inviteStatus` before `signIn()` and redirecting to `/complete-registration` when appropriate
+- **Notification `issuerId` matched against wrong field** — cert-expiry banners now compare `notification.issuerId` (API-side BIGSERIAL) against `Issuer.apiIssuerId`, not the local Prisma `Issuer.id`
+- **`appUrl` variable conflict in onboarding.ts** — second `const appUrl` declaration renamed to `webhookAppUrl`
+
+---
+
+## [Unreleased — previous]
+
+### Added
 - **Client management** — CRUD screen at `/clients` (Users icon in nav) to save frequent clients; fields: ID type, ID number, name, email, address (optional); stored in the app's own `clients` table (Prisma), scoped per user
 - **Invoice form: client lookup** — a search icon button on the buyer ID field looks up a saved client by exact ID number and pre-fills ID type, name, email, and address; hidden when Consumidor Final is selected or no clients are saved
 - **Product catalog** — CRUD screen at `/catalog` (Package icon in nav) to save products and services; fields: main code, aux code, description, unit price, IVA rate; stored in the app's own `products` table (Prisma)

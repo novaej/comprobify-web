@@ -68,15 +68,26 @@ src/
       issuers/page.tsx      Issuer management — document types per issuer
       api-keys/page.tsx     API key list/create/revoke
       users/page.tsx        User invite/role/remove management
-      settings/page.tsx     Tenant settings — environment badge + promotion
+      settings/page.tsx              Tenant settings — environment badge + promotion
+      settings/notifications/page.tsx  Notification preferences (Owner/Admin)
+      settings/webhooks/page.tsx       Webhook endpoint management (Owner/Admin)
+      complete-registration/page.tsx   Public — invited user sets password
       login/page.tsx        Public — Auth.js credentials login form
       register/page.tsx     Public — account registration (no tenant)
       verify-email/page.tsx Public — email token verification (session-independent)
     api/
-      documents/[key]/status/route.ts   Proxy for TanStack Query polling
+      documents/[key]/status/route.ts  Proxy for TanStack Query polling
+      webhooks/receive/route.ts        Webhook receiver — HMAC-verified, upserts Notification rows
   components/
     ui/                     shadcn generated — do not edit manually
-    nav.tsx                 Client Component sidebar (TenantBadge, IssuerSwitcher, UserMenu)
+    nav.tsx                 Client Component sidebar (TenantBadge, IssuerSwitcher, UserMenu, NotificationBell)
+    notification-bell.tsx   Bell icon with unread badge; refreshes on open + every 60 s
+    notification-panel.tsx  Dropdown list with mark-read per item
+    notification-sync.tsx   Invisible client component — fires catchUpNotificationsAction on mount
+    cert-expiry-banner.tsx  Dismissible amber/red banner for CERT_EXPIRING / CERT_EXPIRED alerts
+    webhook-manager.tsx     Register/delete webhook endpoints (Client Component)
+    notification-preferences.tsx  Optimistic-UI preference toggles (Client Component)
+    complete-registration-form.tsx  Invited-user password-set form
     status-badge.tsx        Document status pill
     sandbox-banner.tsx      Yellow banner when tenant.environment === 'sandbox'
     email-verification-notice.tsx  Yellow notice + resend button when email unverified
@@ -157,6 +168,12 @@ messages/
 </SelectValue>
 ```
 
+**Notification system:** Notifications arrive via webhook (`POST /api/webhooks/receive`), are upserted into the local `notifications` table, and surfaced in the sidebar bell. `<NotificationSync />` fires a catch-up on every authenticated page load. The bell auto-refreshes every 60 seconds. `notification.issuerId` stores the **API-side** issuer ID (BIGSERIAL → integer) — always compare against `Issuer.apiIssuerId`, never `Issuer.id`. Fan-out: Owner/Admin receive all notifications; other roles only receive issuer-scoped ones if they have a matching `UserIssuerAccess` row; tenant-level notifications (`issuerId = null`) go to all active users.
+
+**Webhook receiver HMAC:** The receiver route (`src/app/api/webhooks/receive/route.ts`) must call `request.text()` **before** any `JSON.parse()` to preserve the raw body for signature verification. Calling `request.json()` first consumes the stream and makes the raw body unavailable for HMAC comparison.
+
+**Complete registration (invited users):** Auth.js `authorize()` returns `null` for users with no `passwordHash`, so `signIn()` throws `AuthError` — invited users cannot authenticate the normal way. `loginAction` pre-checks `inviteStatus` + `passwordHash` **before** calling `signIn()` and redirects to `/complete-registration` when appropriate. `completeRegistrationAction` validates the invite is still pending, hashes the password, marks the user `ACTIVE`, signs them in, and calls `postLoginRedirect()`. The route is in `PUBLIC_ROUTES` in `src/proxy.ts`.
+
 ---
 
 ## Next.js 16 Breaking Changes
@@ -193,6 +210,8 @@ This project runs Next.js **16** (not 13-15). Key differences from older version
 16. **Typing API `id` fields as `number`** — PostgreSQL `BIGSERIAL`/`BIGINT` columns are serialized as JavaScript **strings** by Node's `pg` library before `res.json()` encodes them. Every `id` field from the API arrives as a JSON string (`"42"`, not `42`). Always type these as `string` in the interface and apply `Number(record.id)` at the Prisma write site. Forgetting this causes a Prisma type error or a silent `NaN` stored in an `Int` column.
 17. **Using an API field name that differs from the actual response** — common mismatches: `active` vs `isActive`, `apiKey` vs `key`, `label` vs `name`. Always read the controller's `res.json()` verbatim; do not infer field names from context.
 18. **Assuming a `POST` response contains the created record's `id`** — several endpoints (key creation, promotion) return only a token or minimal data with no `id`. If downstream code needs the `id` (e.g. to store in Prisma), make a follow-up `GET` call with the new token and read the id from the list result.
+19. **Calling `request.json()` before HMAC verification in a webhook route** — `request.json()` consumes the body stream; the raw body is then unavailable. Always call `request.text()` first, store the raw string, then `JSON.parse()` it. Without the raw body the HMAC signature cannot be verified and every webhook will be rejected or accepted insecurely.
+20. **Comparing `notification.issuerId` against local `Issuer.id`** — `notification.issuerId` stores the API-side BIGSERIAL issuer ID, not the local Prisma autoincrement id. Match it against `Issuer.apiIssuerId`. Getting this wrong means cert-expiry banners never appear (or appear for the wrong issuer).
 
 ---
 
@@ -235,6 +254,19 @@ This project runs Next.js **16** (not 13-15). Key differences from older version
 | `src/app/actions/invoice.ts` | `createInvoiceAction` — builds `CreateDocumentPayload` from form data and calls `createDocument`; exports `InvoiceFormData` type |
 | `src/app/actions/clients.ts` | Server Actions for client CRUD; exports `SavedClient` type; all ops scoped to `tenantId` |
 | `src/app/actions/catalog.ts` | Server Actions for product catalog CRUD; exports `CatalogProduct` type; all ops scoped to `tenantId` |
+| `src/app/actions/notifications.ts` | `listNotificationsAction`, `markNotificationReadAction`, `catchUpNotificationsAction`, `getUnreadCountAction`, `getPreferencesAction`, `updatePreferencesAction` |
+| `src/app/actions/webhooks.ts` | `registerWebhookAction`, `deleteWebhookAction`, `listWebhooksAction`, `ensureWebhookRegisteredAction` (Owner/Admin; `webhooks.manage` permission) |
+| `src/app/api/webhooks/receive/route.ts` | Webhook receiver — verifies HMAC-SHA256; upserts `Notification`; fans out `NotificationRead` rows |
+| `src/app/[locale]/settings/notifications/page.tsx` | Server Component — notification preference toggles (Owner/Admin) |
+| `src/app/[locale]/settings/webhooks/page.tsx` | Server Component — webhook endpoint management (Owner/Admin) |
+| `src/app/[locale]/complete-registration/page.tsx` | Public — invited user sets password; bounces already-authenticated users |
+| `src/components/notification-bell.tsx` | Bell icon + unread badge; auto-refreshes every 60 s; opens `NotificationPanel` |
+| `src/components/notification-panel.tsx` | Dropdown notification list with mark-read per item |
+| `src/components/notification-sync.tsx` | Invisible client component — fires `catchUpNotificationsAction` on first mount |
+| `src/components/cert-expiry-banner.tsx` | Dismissible cert-expiry/expired banner (amber / destructive) rendered in locale layout |
+| `src/components/webhook-manager.tsx` | Register/delete webhook endpoints with signature code snippet |
+| `src/components/notification-preferences.tsx` | Optimistic-UI preference toggles; reverts on server error |
+| `src/components/complete-registration-form.tsx` | Invited-user password form — email prefilled from `?email=` param |
 | `src/components/invoice-form.tsx` | Invoice creation form (React Hook Form + Zod); accepts `InvoiceCatalogs` prop; catalog-driven selects, Consumidor Final auto-fill, single-payment auto-sync, product search combobox |
 | `src/app/[locale]/invoices/new/page.tsx` | Server Component — fetches SRI catalogs + user products in parallel, passes as props to `InvoiceForm`; exports `InvoiceCatalogs` type |
 | `src/app/[locale]/clients/page.tsx` | Server Component — fetches tenant clients from DB, renders `ClientCatalog` |

@@ -46,6 +46,12 @@ export function NotificationBell({ initialUnreadCount, initialNotifications }: N
     if (open) refresh();
   }, [open, refresh]);
 
+  // Background poll — keep the unread badge current while the page is open.
+  useEffect(() => {
+    const id = setInterval(refresh, 60_000);
+    return () => clearInterval(id);
+  }, [refresh]);
+
   function handleMarkRead(id: number) {
     startTransition(async () => {
       await markNotificationReadAction(id);

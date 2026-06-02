@@ -11,7 +11,7 @@ Example: user navigates to `/es/dashboard`.
 ```
 1. Browser GET /es/dashboard
    │
-2. Next.js middleware (src/middleware.ts)
+2. Next.js proxy (src/proxy.ts)
    │  • Detects locale from URL prefix: 'es'
    │  • Sets locale header for next-intl
    │
@@ -136,7 +136,70 @@ Example: user clicks the link in the verification email and lands on the fronten
 
 ---
 
-## Middleware chain
+## Webhook notification delivery
+
+Example: Comprobify API fires a `DOCUMENT_AUTHORIZED` event.
+
+```
+1. Comprobify API POST /api/webhooks/receive
+   │  Headers: X-Comprobify-Timestamp, X-Comprobify-Signature
+   │  Body: { type, tenantId, issuerId, notification: { id, type, severity, title, message, ... } }
+   │
+2. src/app/api/webhooks/receive/route.ts (Route Handler)
+   │  • request.text()  ← raw body captured FIRST (JSON.parse after)
+   │  • Lookup WebhookEndpoint in DB by tenantId → decrypt secret
+   │  • HMAC-SHA256(secret, timestamp + "." + rawBody) === signature?  → 401 if not
+   │  • db.notification.upsert(tenantId, apiNotificationId) — idempotent
+   │  • fanOutReads(): create NotificationRead for Owner/Admin and per-issuer roles
+   │  • 200 OK
+   │
+3. Next page load (or bell poll)
+   │  • [locale]/layout.tsx fetches unread notifications from DB
+   │  • NotificationBell badge updates; CertExpiryBanner appears if CERT_* unread
+```
+
+**Catch-up path (missed webhooks):** `<NotificationSync />` fires `catchUpNotificationsAction()`
+on every authenticated page mount → `GET /api/notifications` → upserts any notifications the
+webhook may have missed during downtime.
+
+---
+
+## Complete registration (invited user)
+
+Example: team member clicks email invite link and opens the app.
+
+```
+1. Owner invites user via /users screen → inviteUserAction
+   │  • db.user.create({ inviteStatus: 'INVITED', passwordHash: null })
+   │  • Comprobify API sends invite email with link
+   │
+2. User clicks link → Browser GET /es/complete-registration?email=alice@example.com
+   │
+3. src/proxy.ts — complete-registration is in PUBLIC_ROUTES, no auth redirect
+   │
+4. complete-registration/page.tsx (Server Component)
+   │  • Reads ?email= from searchParams
+   │  • Authenticated user → redirect /dashboard (already registered)
+   │  • Renders <CompleteRegistrationForm email={email} />
+   │
+5. User fills password + confirm, clicks submit
+   │
+6. completeRegistrationAction('alice@example.com', 'password')
+   │  'use server'
+   │  • db.user.findUnique({ email }) — verifies INVITED + no passwordHash
+   │  • bcrypt.hash(password) → db.user.update({ passwordHash, inviteStatus: 'ACTIVE' })
+   │  • signIn('credentials', { email, password })
+   │  • postLoginRedirect() → /onboarding/tenant | /dashboard | /issuer/select
+   │
+7. Login flow (returning invited user — has password now)
+   │  • loginAction pre-checks inviteStatus before signIn
+   │  • INVITED + no passwordHash → redirect /complete-registration
+   │  • ACTIVE → normal signIn → postLoginRedirect
+```
+
+---
+
+## Middleware chain (complete)
 
 Every request (except `/api/`, `/_next/`, `/favicon.ico`) passes through:
 
@@ -146,7 +209,10 @@ Browser request
         ├─ Parses locale from URL prefix (/es/, /en/)
         ├─ Sets locale in request headers
         ├─ Redirects '/' to '/es' (default locale)
-        └─ Continues to Next.js routing
+        ├─ PUBLIC_ROUTES: login, register, verify-email, onboarding/*, complete-registration
+        │    └─► No auth check applied
+        └─ All other routes: unauthenticated → redirect /login
+              Then continues to Next.js routing
 ```
 
 ---
@@ -158,5 +224,8 @@ Browser request
 | Page load | `proxy.ts` → `[locale]/layout.tsx` → `page.tsx` → `context.ts` → `api.ts` |
 | Form submit | `form.tsx` (client) → `actions/*.ts` (server action) → `context.ts` → `api.ts` |
 | Status polling | `invoice-polling.tsx` (client) → `app/api/.../route.ts` → `context.ts` → Comprobify API |
+| Webhook receive | `app/api/webhooks/receive/route.ts` → HMAC verify → `db.notification.upsert` → fan-out reads |
+| Notifications (catch-up) | `notification-sync.tsx` (client) → `catchUpNotificationsAction` → `GET /api/notifications` → upsert |
+| Complete registration | `complete-registration/page.tsx` → `CompleteRegistrationForm` → `completeRegistrationAction` → `signIn` |
 | Navigation | `@/i18n/navigation` (Link, redirect, usePathname) |
 | Translations | `getTranslations()` (server) / `useTranslations()` (client) |

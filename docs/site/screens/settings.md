@@ -8,7 +8,7 @@
 
 ## Purpose
 
-Tenant settings — shows the current environment status and hosts the production promotion flow. Issuer setup has moved to `/onboarding/tenant` (first login) and `/issuers` (adding branches).
+Tenant settings hub — shows environment status, hosts the production promotion flow, and links to sub-pages for notification preferences and webhook management. Issuer setup has moved to `/onboarding/tenant` (first login) and `/issuers` (adding branches).
 
 Access: all authenticated users with a tenant. Calls `requireContext({ skipIssuer: true })` so it is accessible even when no issuer cookie is set.
 
@@ -42,7 +42,15 @@ On confirm → `promoteTenantAction` (`src/app/actions/tenant.ts`):
 3. Updates `Tenant.environment = 'production'`
 4. Next `requireContext()` call automatically picks up the new production key
 
-### 4. Account card
+### 4. Notification preferences card
+
+Shown to Owner/Admin (`notifications.manage` permission). A card linking to `/settings/notifications` with a Bell icon and short description. See `docs/site/screens/notifications.md`.
+
+### 5. Webhooks card
+
+Shown to Owner/Admin (`webhooks.manage` permission). A card linking to `/settings/webhooks` with a Webhook icon and short description. See `docs/site/screens/webhooks.md`.
+
+### 6. Account card
 
 Shows the signed-in user's email address (`ctx.user.email`).
 
@@ -57,3 +65,5 @@ Shows the signed-in user's email address (`ctx.user.email`).
 | `src/components/email-verification-notice.tsx` | Yellow resend banner (Client Component) |
 | `src/components/production-promotion.tsx` | Production promotion card (Client Component) |
 | `src/app/[locale]/verify-email/page.tsx` | Destination for links in verification emails |
+| `src/app/[locale]/settings/notifications/page.tsx` | Notification preferences sub-page |
+| `src/app/[locale]/settings/webhooks/page.tsx` | Webhook management sub-page |

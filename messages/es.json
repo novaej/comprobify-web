@@ -422,6 +422,9 @@
     "WEBHOOK_ENDPOINT_LIMIT_REACHED": "Ha alcanzado el límite de webhooks de su plan.",
     "WEBHOOK_ENDPOINT_NOT_FOUND": "El endpoint de webhook no fue encontrado."
   },
+  "certBanner": {
+    "dismiss": "Descartar alerta de certificado"
+  },
   "notifications": {
     "panelTitle": "Notificaciones",
     "empty": "No hay notificaciones.",

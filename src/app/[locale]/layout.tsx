@@ -6,6 +6,8 @@ import { QueryProvider } from '@/providers/query-provider';
 import { Nav } from '@/components/nav';
 import { Toaster } from '@/components/ui/sonner';
 import { SandboxBanner } from '@/components/sandbox-banner';
+import { CertExpiryBanner } from '@/components/cert-expiry-banner';
+import { NotificationSync } from '@/components/notification-sync';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
 import { readCtxCookie } from '@/lib/context-cookie';
@@ -13,15 +15,23 @@ import type { listNotificationsAction } from '@/app/actions/notifications';
 
 type NotificationItem = Awaited<ReturnType<typeof listNotificationsAction>>['notifications'][number];
 
+interface CertAlertProps {
+  id: number;
+  type: 'CERT_EXPIRING' | 'CERT_EXPIRED';
+  title: string;
+  message: string;
+}
+
 interface LayoutProps {
   hasIssuer: boolean;
   environment: 'sandbox' | 'production';
   tenantName: string | null;
-  currentIssuer: { id: number; name: string; branchCode: string; issuePointCode: string } | null;
-  issuers: Array<{ id: number; name: string; branchCode: string; issuePointCode: string }>;
+  currentIssuer: { id: number; apiIssuerId: number; name: string; branchCode: string; issuePointCode: string } | null;
+  issuers: Array<{ id: number; apiIssuerId: number; name: string; branchCode: string; issuePointCode: string }>;
   userEmail: string;
   initialUnreadCount: number;
   initialNotifications: NotificationItem[];
+  certAlert: CertAlertProps | null;
 }
 
 async function getLayoutProps(userId: string): Promise<LayoutProps | null> {
@@ -39,7 +49,7 @@ async function getLayoutProps(userId: string): Promise<LayoutProps | null> {
           environment: true,
           issuers: {
             orderBy: [{ isDefault: 'desc' as const }, { createdAt: 'asc' as const }],
-            select: { id: true, businessName: true, tradeName: true, branchCode: true, issuePointCode: true },
+            select: { id: true, apiIssuerId: true, businessName: true, tradeName: true, branchCode: true, issuePointCode: true },
           },
         },
       },
@@ -51,6 +61,7 @@ async function getLayoutProps(userId: string): Promise<LayoutProps | null> {
   const ctxCookie = await readCtxCookie();
   const allIssuers = user.tenant.issuers.map((i) => ({
     id: i.id,
+    apiIssuerId: i.apiIssuerId,
     name: i.tradeName ?? i.businessName,
     branchCode: i.branchCode,
     issuePointCode: i.issuePointCode,
@@ -99,6 +110,25 @@ async function getLayoutProps(userId: string): Promise<LayoutProps | null> {
 
   const initialUnreadCount = mappedNotifications.filter((n) => !n.readByMe).length;
 
+  // Find the most urgent unread cert alert for the current issuer (or any issuer if none selected).
+  const certTypes = ['CERT_EXPIRED', 'CERT_EXPIRING'] as const;
+  const certAlert: CertAlertProps | null = (() => {
+    for (const certType of certTypes) {
+      const match = mappedNotifications.find(
+        (n) =>
+          !n.readByMe &&
+          n.type === certType &&
+          (n.issuerId === null ||
+            currentIssuer == null ||
+            n.issuerId === currentIssuer.apiIssuerId),
+      );
+      if (match) {
+        return { id: match.id, type: certType, title: match.title, message: match.message };
+      }
+    }
+    return null;
+  })();
+
   return {
     hasIssuer: allIssuers.length > 0,
     environment: user.tenant.environment as 'sandbox' | 'production',
@@ -108,6 +138,7 @@ async function getLayoutProps(userId: string): Promise<LayoutProps | null> {
     userEmail: user.email,
     initialUnreadCount,
     initialNotifications: mappedNotifications,
+    certAlert,
   };
 }
 
@@ -150,8 +181,17 @@ export default async function LocaleLayout({
               initialUnreadCount={layoutProps.initialUnreadCount}
               initialNotifications={layoutProps.initialNotifications}
             />
+            <NotificationSync />
             <main className="flex-1 overflow-y-auto p-4 md:p-8">
               <SandboxBanner environment={layoutProps.environment} />
+              {layoutProps.certAlert && (
+                <CertExpiryBanner
+                  id={layoutProps.certAlert.id}
+                  type={layoutProps.certAlert.type}
+                  title={layoutProps.certAlert.title}
+                  message={layoutProps.certAlert.message}
+                />
+              )}
               {children}
             </main>
           </div>
