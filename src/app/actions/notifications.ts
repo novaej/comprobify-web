@@ -115,34 +115,44 @@ export async function catchUpNotificationsAction(): Promise<{ upserted: number }
   // Upsert each notification.
   let upserted = 0;
   for (const n of notifications) {
-    const existing = await db.notification.upsert({
-      where: {
-        tenantId_apiNotificationId: { tenantId, apiNotificationId: n.id },
-      },
-      create: {
-        tenantId,
-        apiNotificationId: n.id,
-        type: n.type,
-        severity: n.severity,
-        title: n.title,
-        message: n.message,
-        metadata: toJson(n.metadata),
-        issuerId: n.issuerId ? Number(n.issuerId) : null,
-        apiReadAt: n.readAt ? new Date(n.readAt) : null,
-        expiresAt: n.expiresAt ? new Date(n.expiresAt) : null,
-        apiCreatedAt: new Date(n.createdAt),
-      },
-      update: {
-        type: n.type,
-        severity: n.severity,
-        title: n.title,
-        message: n.message,
-        metadata: toJson(n.metadata),
-        apiReadAt: n.readAt ? new Date(n.readAt) : null,
-        expiresAt: n.expiresAt ? new Date(n.expiresAt) : null,
-      },
-      include: { reads: { select: { userId: true } } },
-    });
+    let existing;
+    try {
+      existing = await db.notification.upsert({
+        where: {
+          tenantId_apiNotificationId: { tenantId, apiNotificationId: n.id },
+        },
+        create: {
+          tenantId,
+          apiNotificationId: n.id,
+          type: n.type,
+          severity: n.severity,
+          title: n.title,
+          message: n.message,
+          metadata: toJson(n.metadata),
+          issuerId: n.issuerId ? Number(n.issuerId) : null,
+          apiReadAt: n.readAt ? new Date(n.readAt) : null,
+          expiresAt: n.expiresAt ? new Date(n.expiresAt) : null,
+          apiCreatedAt: new Date(n.createdAt),
+        },
+        update: {
+          type: n.type,
+          severity: n.severity,
+          title: n.title,
+          message: n.message,
+          metadata: toJson(n.metadata),
+          apiReadAt: n.readAt ? new Date(n.readAt) : null,
+          expiresAt: n.expiresAt ? new Date(n.expiresAt) : null,
+        },
+        include: { reads: { select: { userId: true } } },
+      });
+    } catch (err) {
+      // Concurrent catchUp calls can both attempt to INSERT the same notification.
+      // Skip the duplicate — the other call already handled it.
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        continue;
+      }
+      throw err;
+    }
     // Fan out reads for newly created notifications.
     if (existing) {
       await fanOutReads(tenantId, existing.id, existing.issuerId, existing.reads.map((r: { userId: number }) => r.userId));
