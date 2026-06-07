@@ -13,6 +13,7 @@ import { Logomark, LogoLockup } from '@/components/logo';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { selectIssuerAction } from '@/app/actions/context';
 import { logoutAction } from '@/app/actions/auth';
+import { updateLanguageAction } from '@/app/actions/tenant';
 import { cn } from '@/lib/utils';
 
 const navItems = [
@@ -160,18 +161,25 @@ function IssuerSwitcher({
 function UserMenu({ email, pathname }: { email: string; pathname: string }) {
   const t = useTranslations('nav');
   const locale = useLocale();
+  const router = useRouter();
+
+  function handleLocaleChange(code: string) {
+    if (code === locale) return;
+    // Fire-and-forget: update API preference (no-op for non-Owners).
+    updateLanguageAction(code).catch(() => {});
+    router.replace(pathname, { locale: code as 'es' | 'en' });
+  }
 
   return (
     <div className="border-t border-sidebar-border px-3 py-3 space-y-0.5">
       <p className="truncate px-3 py-1 text-xs text-sidebar-foreground/50">{email}</p>
       <div className="flex items-center justify-between px-3 py-1.5">
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1" title={t('languageTooltip')}>
           <Globe className="h-3.5 w-3.5 shrink-0 text-sidebar-foreground/40" aria-hidden />
           {locales.map(({ code, label }) => (
-            <Link
+            <button
               key={code}
-              href={pathname}
-              locale={code}
+              onClick={() => handleLocaleChange(code)}
               className={cn(
                 'rounded px-1.5 py-0.5 text-xs transition-colors',
                 locale === code
@@ -180,7 +188,7 @@ function UserMenu({ email, pathname }: { email: string; pathname: string }) {
               )}
             >
               {label}
-            </Link>
+            </button>
           ))}
         </div>
         <ThemeToggle />

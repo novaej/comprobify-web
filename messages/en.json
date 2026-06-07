@@ -21,6 +21,7 @@
     "issuers": "Issuers",
     "settings": "Settings",
     "signOut": "Sign out",
+    "languageTooltip": "UI language and Comprobify transactional email language",
     "noIssuer": "No issue point"
   },
   "auth": {

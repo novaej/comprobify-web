@@ -21,6 +21,7 @@
     "issuers": "Emisores",
     "settings": "Configuración",
     "signOut": "Cerrar sesión",
+    "languageTooltip": "Idioma de la interfaz y de los correos transaccionales de Comprobify",
     "noIssuer": "Sin punto de emisión"
   },
   "auth": {

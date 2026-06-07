@@ -470,6 +470,15 @@ export async function promoteTenant(
   );
 }
 
+// Verified against: src/routes/tenants.routes.js → PATCH /api/tenants/language
+export async function updateTenantLanguage(ctx: ApiCtx, language: string): Promise<void> {
+  await request<{ ok: true }>(
+    '/api/tenants/language',
+    { apiKey: ctx.apiKey },
+    { method: 'PATCH', body: JSON.stringify({ language }) },
+  );
+}
+
 // ── API key management ────────────────────────────────────────────────────────
 
 export async function listTenantApiKeys(ctx: ApiCtx): Promise<ApiKeyInfo[]> {

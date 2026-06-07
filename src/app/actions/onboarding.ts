@@ -69,6 +69,7 @@ export async function bootstrapTenantAction(formData: FormData): Promise<Onboard
         requiredAccounting,
         documentTypes: ['01'],
         initialSequentials,
+        language: locale,
       },
       p12Buffer,
       certPassword,

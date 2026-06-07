@@ -4,6 +4,8 @@ import { redirect } from '@/i18n/navigation';
 import { db } from '@/lib/db';
 import { IssuerSetupForm } from '@/components/issuer-setup-form';
 import { LogoLockup } from '@/components/logo';
+import { LocaleSwitcher } from '@/components/locale-switcher';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 export default async function OnboardingTenantPage({
   params,
@@ -32,7 +34,12 @@ export default async function OnboardingTenantPage({
   const t = await getTranslations('onboarding');
 
   return (
-    <div className="min-h-screen bg-muted/40 flex items-start justify-center p-4 pt-12">
+    <div className="min-h-screen bg-muted/40 flex flex-col">
+      <div className="flex items-center justify-end gap-2 px-6 py-5">
+        <ThemeToggle className="text-muted-foreground hover:bg-accent hover:text-accent-foreground" />
+        <LocaleSwitcher />
+      </div>
+      <div className="flex flex-1 items-start justify-center p-4 pt-4">
       <div className="w-full max-w-2xl">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
           <LogoLockup className="h-8 w-auto" />
@@ -45,6 +52,7 @@ export default async function OnboardingTenantPage({
         <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
           <IssuerSetupForm />
         </div>
+      </div>
       </div>
     </div>
   );

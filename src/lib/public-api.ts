@@ -38,6 +38,7 @@ export interface IssuerRegistrationFields {
   requiredAccounting: boolean;
   documentTypes?: string[];
   initialSequentials?: { documentType: string; sequential: number }[];
+  language?: string;
 }
 
 export interface RegisterTenantResult {
@@ -72,6 +73,7 @@ export async function registerTenant(
     form.append('initialSequentials', JSON.stringify(fields.initialSequentials));
   }
   form.append('certPassword', p12Password);
+  if (fields.language) form.append('language', fields.language);
   if (verificationRedirectUrl) form.append('verificationRedirectUrl', verificationRedirectUrl);
 
   const buf = p12Buffer.buffer.slice(

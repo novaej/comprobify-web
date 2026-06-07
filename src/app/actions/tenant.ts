@@ -1,8 +1,8 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { requirePermission, requireContext } from '@/lib/context';
-import { promoteTenant, listTenantApiKeys } from '@/lib/api';
+import { requirePermission, requireContext, type MinimalContext } from '@/lib/context';
+import { promoteTenant, listTenantApiKeys, updateTenantLanguage } from '@/lib/api';
 import { resendVerificationEmail as publicResendVerificationEmail } from '@/lib/public-api';
 import { encrypt, lastFour } from '@/lib/crypto';
 import { revalidatePath } from 'next/cache';
@@ -96,6 +96,26 @@ export async function promoteTenantAction(
   });
 
   revalidatePath('/', 'layout');
+  return null;
+}
+
+export async function updateLanguageAction(language: string): Promise<TenantResult> {
+  // Intentionally catch all context errors including NEXT_REDIRECT — this action is
+  // called fire-and-forget from the nav and must never cause unexpected redirects.
+  let ctx: MinimalContext;
+  try {
+    ctx = await requireContext({ skipIssuer: true });
+  } catch {
+    return null;
+  }
+  // Only Owners can set the org-wide language preference; others switch UI locale only.
+  if (!ctx.permissions.has('tenant.manage')) return null;
+  try {
+    await updateTenantLanguage({ apiKey: ctx.apiKey }, language);
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.code };
+    throw err;
+  }
   return null;
 }
 
