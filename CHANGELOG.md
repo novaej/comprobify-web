@@ -9,6 +9,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 ## [Unreleased]
 
 ### Added
+- **Sentry error monitoring** — `@sentry/nextjs` integrated with client, server, and edge configs; `src/instrumentation.ts` boots the SDK and wires `onRequestError` for automatic Server Action / Route Handler crash capture; `src/app/global-error.tsx` root error boundary reports client-side crashes; disabled locally (no DSN set), active on staging/production with environment tagging via `APP_ENV`
+- **Comprobify logomark favicon** — `src/app/icon.svg` replaces the default Next.js favicon; uses the `logomark-light.svg` mark
 - **Notification system** — real-time notifications delivered via webhooks and surfaced in a bell icon in the sidebar; unread badge auto-refreshes every 60 seconds; panel lists all notifications with relative timestamps and per-item mark-read
 - **Webhook receiver** — `POST /api/webhooks/receive` verifies HMAC-SHA256 signatures and upserts incoming notifications into the local `notifications` table; fan-out logic creates `NotificationRead` rows for Owner/Admin (all) and per-issuer rows for other roles with `UserIssuerAccess`
 - **Catch-up sync on page load** — `<NotificationSync />` fires `catchUpNotificationsAction()` on first authenticated mount, pulling any missed notifications from the API into the local DB in case webhooks were dropped during downtime

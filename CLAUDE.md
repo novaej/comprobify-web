@@ -36,6 +36,7 @@ npm run type-check    # tsc --noEmit
 | Data fetching | TanStack Query (client polling only) |
 | Localization | next-intl (Spanish default) |
 | Auth | Auth.js v5 (next-auth@beta) — JWT session `{ id, email }` only; tenant API keys stored encrypted in `TenantApiKey` table; RBAC with 5 roles via `src/lib/rbac.ts` |
+| Monitoring | Sentry (`@sentry/nextjs`) — disabled locally (no DSN), active on staging/production; environment tagged via `APP_ENV` / `NEXT_PUBLIC_APP_ENV` |
 
 ---
 
@@ -172,6 +173,8 @@ messages/
 
 **Webhook receiver HMAC:** The receiver route (`src/app/api/webhooks/receive/route.ts`) must call `request.text()` **before** any `JSON.parse()` to preserve the raw body for signature verification. Calling `request.json()` first consumes the stream and makes the raw body unavailable for HMAC comparison.
 
+**Error monitoring (Sentry):** `@sentry/nextjs` captures unhandled errors across all runtimes. `src/instrumentation.ts` boots the server/edge SDK via Next.js's `register()` hook and wires `onRequestError` so every Server Component, Server Action, and Route Handler crash is reported automatically. `src/app/global-error.tsx` is the root client-side error boundary — it calls `Sentry.captureException` before showing a recovery UI. Sentry is **disabled locally** (SDK skips `init` when no DSN is set); set `SENTRY_DSN` + `NEXT_PUBLIC_SENTRY_DSN` in Vercel and tag the env with `APP_ENV=staging` or `APP_ENV=production`.
+
 **Complete registration (invited users):** Auth.js `authorize()` returns `null` for users with no `passwordHash`, so `signIn()` throws `AuthError` — invited users cannot authenticate the normal way. `loginAction` pre-checks `inviteStatus` + `passwordHash` **before** calling `signIn()` and redirects to `/complete-registration` when appropriate. `completeRegistrationAction` validates the invite is still pending, hashes the password, marks the user `ACTIVE`, signs them in, and calls `postLoginRedirect()`. The route is in `PUBLIC_ROUTES` in `src/proxy.ts`.
 
 ---
@@ -257,6 +260,11 @@ This project runs Next.js **16** (not 13-15). Key differences from older version
 | `src/app/actions/notifications.ts` | `listNotificationsAction`, `markNotificationReadAction`, `catchUpNotificationsAction`, `getUnreadCountAction`, `getPreferencesAction`, `updatePreferencesAction` |
 | `src/app/actions/webhooks.ts` | `registerWebhookAction`, `deleteWebhookAction`, `listWebhooksAction`, `ensureWebhookRegisteredAction` (Owner/Admin; `webhooks.manage` permission) |
 | `src/app/api/webhooks/receive/route.ts` | Webhook receiver — verifies HMAC-SHA256; upserts `Notification`; fans out `NotificationRead` rows |
+| `src/instrumentation.ts` | Next.js instrumentation hook — boots Sentry server/edge SDK on startup; wires `onRequestError` for automatic crash capture |
+| `src/app/global-error.tsx` | Root client-side error boundary — captures exceptions to Sentry and shows a recovery UI |
+| `sentry.client.config.ts` | Sentry browser SDK init (session replays, env tag) |
+| `sentry.server.config.ts` | Sentry Node.js server SDK init |
+| `sentry.edge.config.ts` | Sentry edge runtime SDK init |
 | `src/app/[locale]/settings/notifications/page.tsx` | Server Component — notification preference toggles (Owner/Admin) |
 | `src/app/[locale]/settings/webhooks/page.tsx` | Server Component — webhook endpoint management (Owner/Admin) |
 | `src/app/[locale]/complete-registration/page.tsx` | Public — invited user sets password; bounces already-authenticated users |

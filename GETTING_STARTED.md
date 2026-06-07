@@ -278,3 +278,5 @@ comprobify-web/
 | `AUTH_SECRET` | Auth.js JWT signing secret — any random 32+ char string | Yes |
 | `ENCRYPTION_KEY` | 32-byte hex — AES-256-GCM key for encrypting tenant API keys at rest | Yes |
 | `CONTEXT_COOKIE_SECRET` | 32-byte hex — HMAC key for signing the issuer-selection cookie | Yes |
+| `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` | Sentry DSN for error monitoring — **leave unset locally**; Sentry is intentionally disabled in dev | No (set in Vercel only) |
+| `APP_ENV` / `NEXT_PUBLIC_APP_ENV` | Tags errors with the environment (`staging` / `production`) — **leave unset locally** | No (set in Vercel only) |

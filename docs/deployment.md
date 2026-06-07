@@ -221,6 +221,11 @@ All variables are required. Set them in each Vercel project under **Settings →
 | `AUTH_SECRET` | Yes | Random 32+ character string used to sign Auth.js JWTs. Generate: `openssl rand -base64 32`. Use a **different value** per environment. |
 | `ENCRYPTION_KEY` | Yes | 32-byte hex string used to encrypt `TenantApiKey` values at rest (AES-256-GCM). Generate: `openssl rand -hex 32`. Use a **different value** per environment. |
 | `CONTEXT_COOKIE_SECRET` | Yes | Secret used to HMAC-sign the `comprobify_ctx` issuer-selection cookie. Generate: `openssl rand -hex 32`. Use a **different value** per environment. |
+| `SENTRY_DSN` | No | Sentry DSN for server-side error capture. Leave unset locally — Sentry is intentionally disabled in local dev. Same DSN value for staging and production; use `APP_ENV` to distinguish environments. |
+| `NEXT_PUBLIC_SENTRY_DSN` | No | Same DSN value as `SENTRY_DSN` — the `NEXT_PUBLIC_` prefix is required for the browser SDK to receive it. |
+| `APP_ENV` | No | Tags server-side errors with the deployment environment (`staging` or `production`). Used by `sentry.server.config.ts` and `sentry.edge.config.ts`. |
+| `NEXT_PUBLIC_APP_ENV` | No | Same as `APP_ENV` but exposed to the browser bundle. Used by `sentry.client.config.ts`. |
+| `SENTRY_AUTH_TOKEN` | No | Sentry auth token for source map uploads during build. Obtain from sentry.io → Settings → Auth Tokens. Without it, stack traces in Sentry show minified code instead of original TypeScript. |
 
 > **Staging:** point `COMPROBIFY_API_URL` at the staging Comprobify API. Use a separate `DATABASE_URL` from production — staging users and production users must be isolated.
 
@@ -259,6 +264,13 @@ All variables are required. Set them in each Vercel project under **Settings →
 - [ ] HTTPS enforced — Vercel handles this automatically for custom domains
 - [ ] `prod` branch is protected in GitHub (no force pushes, restricted push access)
 - [ ] Vercel deployment previews are disabled or restricted for the `prod` project
+
+**Sentry**
+- [ ] `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN` set in each Vercel project (same DSN value for both)
+- [ ] `APP_ENV` set to `staging` in the staging project and `production` in the production project
+- [ ] `NEXT_PUBLIC_APP_ENV` set to match `APP_ENV` in each project
+- [ ] `SENTRY_AUTH_TOKEN` set (obtain from sentry.io → Settings → Auth Tokens) so source maps are uploaded and stack traces show original TypeScript lines
+- [ ] Verified a test error appears in the Sentry dashboard before going live
 
 ---
 
