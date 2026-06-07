@@ -12,7 +12,11 @@ export async function sendToSriAction(accessKey: string): Promise<ActionResult> 
   const ctx = await requireContext();
   const apiCtx = { apiKey: ctx.apiKey, issuerId: ctx.issuer.apiIssuerId };
   try {
-    await sendToSri(apiCtx, accessKey);
+    const doc = await sendToSri(apiCtx, accessKey);
+    // Immediately attempt authorization after a successful send
+    if (doc.status === 'RECEIVED') {
+      await checkAuthorization(apiCtx, accessKey);
+    }
   } catch (err) {
     if (err instanceof ApiError) return { error: err.code };
     throw err;
@@ -34,6 +38,22 @@ export async function authorizeAction(accessKey: string): Promise<ActionResult> 
   const locale = await getLocale();
   redirect({ href: `/invoices/${accessKey}`, locale });
   return null;
+}
+
+// Non-redirecting authorize used by the polling component.
+// Returns the new document status, or an error code if the call fails.
+export async function tryAuthorizeAction(
+  accessKey: string,
+): Promise<{ status: string } | { error: string }> {
+  const ctx = await requireContext();
+  const apiCtx = { apiKey: ctx.apiKey, issuerId: ctx.issuer.apiIssuerId };
+  try {
+    const doc = await checkAuthorization(apiCtx, accessKey);
+    return { status: doc.status };
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.code };
+    throw err;
+  }
 }
 
 export async function resendEmailAction(accessKey: string): Promise<ActionResult> {

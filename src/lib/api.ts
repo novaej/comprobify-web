@@ -83,7 +83,7 @@ export interface DocumentEvent {
   eventType: string;
   fromStatus: string | null;
   toStatus: string | null;
-  detail: string | null;
+  detail: Record<string, unknown> | null;
   createdAt: string;
 }
 

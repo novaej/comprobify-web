@@ -15,6 +15,18 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { AccessKeyCopy } from '@/components/access-key-copy';
+import type { DocumentEvent } from '@/lib/api';
+
+function formatEventDetail(detail: DocumentEvent['detail']): string {
+  if (!detail || Object.keys(detail).length === 0) return '—';
+  if (typeof detail.message === 'string') return detail.message;
+  if (typeof detail.error === 'string') return detail.error;
+  if (typeof detail.to === 'string') return detail.to;
+  if (typeof detail.authorizationNumber === 'string') return detail.authorizationNumber;
+  if (typeof detail.sriStatus === 'string') return detail.sriStatus;
+  if (typeof detail.accessKey === 'string') return detail.accessKey;
+  return JSON.stringify(detail);
+}
 
 export default async function InvoiceDetailPage({
   params,
@@ -152,7 +164,7 @@ export default async function InvoiceDetailPage({
                       {new Date(event.createdAt).toLocaleString('es-EC')}
                     </TableCell>
                     <TableCell className="pr-4 text-xs text-muted-foreground">
-                      {event.detail ?? '—'}
+                      {formatEventDetail(event.detail)}
                     </TableCell>
                   </TableRow>
                 ))}
