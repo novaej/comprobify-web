@@ -2,7 +2,7 @@
 
 import { getLocale } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
-import { createDocument, CreateDocumentPayload } from '@/lib/api';
+import { createDocument, sendToSri, checkAuthorization, CreateDocumentPayload } from '@/lib/api';
 import { ApiError } from '@/lib/errors';
 import { requireContext } from '@/lib/context';
 
@@ -84,11 +84,18 @@ export async function createInvoiceAction(data: InvoiceFormData): Promise<Create
     const { document } = await createDocument(apiCtx, payload);
     accessKey = document.accessKey;
   } catch (err) {
-    if (err instanceof ApiError) {
-      return { error: err.code };
-    }
+    if (err instanceof ApiError) return { error: err.code };
     throw err;
   }
+
+  // Best-effort: send to SRI immediately. If it fails the detail page
+  // shows SIGNED status with a recovery Send button.
+  try {
+    const sent = await sendToSri(apiCtx, accessKey);
+    if (sent.status === 'RECEIVED') {
+      try { await checkAuthorization(apiCtx, accessKey); } catch { /* polling handles it */ }
+    }
+  } catch { /* non-fatal */ }
 
   const locale = await getLocale();
   redirect({ href: `/invoices/${accessKey}`, locale });

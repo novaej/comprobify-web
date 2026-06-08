@@ -6,12 +6,21 @@ import { useForm, useFieldArray, useWatch, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useTranslations } from 'next-intl';
-import { Trash2, Plus, Search } from 'lucide-react';
+import { Trash2, Plus, Search, Send } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -282,43 +291,59 @@ export function InvoiceForm({ catalogs, defaultValues }: Props) {
     }
   };
 
-  const onSubmit = form.handleSubmit((data) => {
+  const [pendingPayload, setPendingPayload] = useState<InvoiceFormData | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const openConfirm = form.handleSubmit((data) => {
+    const payload: InvoiceFormData = {
+      guiaRemision: data.guiaRemision || undefined,
+      buyer: {
+        idType: data.buyer.idType,
+        id: data.buyer.id,
+        name: data.buyer.name,
+        email: data.buyer.email,
+        address: data.buyer.address || undefined,
+      },
+      items: data.items.map((item) => ({
+        mainCode: item.mainCode,
+        auxCode: item.auxCode || undefined,
+        description: item.description,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        discount: item.discount || undefined,
+        taxOption: item.taxOption as TaxOption,
+      })),
+      payments: data.payments.map((p) => ({
+        method: p.method,
+        total: p.total,
+        term: p.term || undefined,
+        termUnit: p.termUnit || undefined,
+      })),
+      additionalInfo: data.additionalInfo?.filter((i) => i.name && i.value) ?? [],
+    };
+    setPendingPayload(payload);
+    setConfirmOpen(true);
+  });
+
+  function handleConfirmedSubmit() {
+    if (!pendingPayload) return;
+    setConfirmOpen(false);
     setServerError(null);
     startTransition(async () => {
-      const payload: InvoiceFormData = {
-        guiaRemision: data.guiaRemision || undefined,
-        buyer: {
-          idType: data.buyer.idType,
-          id: data.buyer.id,
-          name: data.buyer.name,
-          email: data.buyer.email,
-          address: data.buyer.address || undefined,
-        },
-        items: data.items.map((item) => ({
-          mainCode: item.mainCode,
-          auxCode: item.auxCode || undefined,
-          description: item.description,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          discount: item.discount || undefined,
-          taxOption: item.taxOption as TaxOption,
-        })),
-        payments: data.payments.map((p) => ({
-          method: p.method,
-          total: p.total,
-          term: p.term || undefined,
-          termUnit: p.termUnit || undefined,
-        })),
-        additionalInfo: data.additionalInfo?.filter((i) => i.name && i.value) ?? [],
-      };
-      const result = await createInvoiceAction(payload);
-      if (result?.error) setServerError(result.error);
+      const result = await createInvoiceAction(pendingPayload);
+      if (result?.error) {
+        setServerError(result.error);
+        setPendingPayload(null);
+      }
     });
-  });
+  }
+
+  const onSubmit = openConfirm;
 
   const { errors } = form.formState;
 
   return (
+    <>
     <form onSubmit={onSubmit} className="space-y-6">
 
       {/* Invoice header */}
@@ -727,5 +752,24 @@ export function InvoiceForm({ catalogs, defaultValues }: Props) {
         </Link>
       </div>
     </form>
+
+    <Dialog open={confirmOpen} onOpenChange={(open) => { setConfirmOpen(open); if (!open) setPendingPayload(null); }}>
+      <DialogContent showCloseButton={false}>
+        <DialogHeader>
+          <DialogTitle>{t('confirm.title')}</DialogTitle>
+          <DialogDescription>{t('confirm.description')}</DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose render={<Button variant="outline" />}>
+            {t('confirm.cancel')}
+          </DialogClose>
+          <Button onClick={handleConfirmedSubmit}>
+            <Send className="mr-2 h-4 w-4" />
+            {t('confirm.submit')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

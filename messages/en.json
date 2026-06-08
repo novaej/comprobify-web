@@ -151,9 +151,15 @@
   "invoiceForm": {
     "title": "New invoice",
     "rebuildTitle": "Rebuild invoice",
-    "submit": "Generate document",
+    "submit": "Send",
     "submitRebuild": "Rebuild",
-    "submitting": "Processing...",
+    "submitting": "Sending...",
+    "confirm": {
+      "title": "Send to SRI",
+      "description": "The document will be created and submitted to the SRI (Servicio de Rentas Internas) for authorization. The process will continue automatically until complete.",
+      "cancel": "Cancel",
+      "submit": "Send"
+    },
     "issueDate": "Issue date",
     "guiaRemision": "Delivery note",
     "guiaRemisionPlaceholder": "001-001-000000001",

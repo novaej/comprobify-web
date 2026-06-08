@@ -151,9 +151,15 @@
   "invoiceForm": {
     "title": "Nueva factura",
     "rebuildTitle": "Reconstruir factura",
-    "submit": "Generar comprobante",
+    "submit": "Enviar",
     "submitRebuild": "Reconstruir",
-    "submitting": "Procesando...",
+    "submitting": "Enviando...",
+    "confirm": {
+      "title": "Enviar al SRI",
+      "description": "El comprobante será generado y enviado al Servicio de Rentas Internas (SRI) para su autorización. El proceso continuará automáticamente hasta completarse.",
+      "cancel": "Cancelar",
+      "submit": "Enviar"
+    },
     "issueDate": "Fecha de emisión",
     "guiaRemision": "Guía de remisión",
     "guiaRemisionPlaceholder": "001-001-000000001",
