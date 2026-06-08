@@ -343,6 +343,7 @@
     },
     "promote": {
       "description": "When you are ready to issue real invoices, you can activate the production environment. This action is irreversible.",
+      "sriNotice": "Before activating, confirm that your RUC has the production environment enabled in the SRI portal. If you haven't done this, SRI will reject your real invoices.",
       "emailHint": "Before activating production you must verify your email address. Check your inbox.",
       "button": "Activate production",
       "warning": "This action is irreversible. From this point, all invoices will be sent to the live SRI and will have legal validity.",
@@ -500,7 +501,8 @@
   },
   "onboarding": {
     "title": "Set up your company",
-    "description": "Complete your company information to start issuing electronic invoices."
+    "description": "Complete your company information to start issuing electronic invoices.",
+    "sriNotice": "Before continuing, make sure your RUC has the test (certification) environment enabled in the SRI portal. Without this step, SRI will reject the test invoices you issue from here."
   },
   "issuerSelect": {
     "title": "Select an issue point",

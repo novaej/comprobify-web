@@ -1,4 +1,5 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
+import { Info } from 'lucide-react';
 import { auth } from '@/auth';
 import { redirect } from '@/i18n/navigation';
 import { db } from '@/lib/db';
@@ -47,6 +48,14 @@ export default async function OnboardingTenantPage({
             <h1 className="text-xl font-semibold tracking-tight">{t('title')}</h1>
             <p className="mt-1 text-sm text-muted-foreground">{t('description')}</p>
           </div>
+        </div>
+
+        <div
+          role="note"
+          className="mb-4 flex items-start gap-2.5 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300"
+        >
+          <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          <p>{t('sriNotice')}</p>
         </div>
 
         <div className="rounded-xl border border-border bg-card p-6 shadow-sm">

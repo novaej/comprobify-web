@@ -343,6 +343,7 @@
     },
     "promote": {
       "description": "Cuando estés listo para emitir facturas reales, puedes activar el ambiente de producción. Esta acción es irreversible.",
+      "sriNotice": "Antes de activar, confirma que tu RUC tenga habilitado el ambiente de producción en el portal del SRI. Si no lo has hecho, el SRI rechazará tus facturas reales.",
       "emailHint": "Antes de activar producción debes verificar tu correo electrónico. Revisa tu bandeja de entrada.",
       "button": "Activar producción",
       "warning": "Esta acción es irreversible. A partir de este momento todas las facturas se enviarán al SRI real y tendrán validez legal.",
@@ -564,7 +565,8 @@
   },
   "onboarding": {
     "title": "Configura tu empresa",
-    "description": "Completa la información de tu empresa para empezar a emitir comprobantes electrónicos."
+    "description": "Completa la información de tu empresa para empezar a emitir comprobantes electrónicos.",
+    "sriNotice": "Antes de continuar, verifica que tu RUC tenga habilitado el ambiente de pruebas (certificación) en el portal del SRI. Sin este paso previo, el SRI rechazará los comprobantes de prueba que emitas desde aquí."
   },
   "issuerSelect": {
     "title": "Selecciona un punto de emisión",

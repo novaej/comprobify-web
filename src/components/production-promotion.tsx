@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { promoteTenantAction } from '@/app/actions/tenant';
 import { resendVerificationAction } from '@/app/actions/tenant';
-import { AlertTriangle, MailCheck } from 'lucide-react';
+import { AlertTriangle, Info, MailCheck } from 'lucide-react';
 
 export function ProductionPromotion({ documentTypes, emailVerified }: { documentTypes: string[]; emailVerified: boolean }) {
   const t = useTranslations('settings.promote');
@@ -119,6 +119,13 @@ export function ProductionPromotion({ documentTypes, emailVerified }: { document
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">{t('description')}</p>
+      <div
+        role="note"
+        className="flex items-start gap-2.5 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300"
+      >
+        <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+        <p>{t('sriNotice')}</p>
+      </div>
       <Button variant="outline" size="sm" onClick={() => setConfirming(true)} disabled={!emailVerified}>
         {t('button')}
       </Button>
