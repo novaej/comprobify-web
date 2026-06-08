@@ -7,9 +7,11 @@ import {
   listCatalogIdTypes,
   listCatalogPaymentMethods,
   listCatalogTaxRates,
+  listCatalogTermUnits,
   type CatalogIdType,
   type CatalogPaymentMethod,
   type CatalogTaxRate,
+  type CatalogTermUnit,
 } from '@/lib/api';
 import type { CatalogProduct } from '@/app/actions/catalog';
 import type { SavedClient } from '@/app/actions/clients';
@@ -19,6 +21,7 @@ export interface InvoiceCatalogs {
   idTypes: CatalogIdType[];
   paymentMethods: CatalogPaymentMethod[];
   taxRates: CatalogTaxRate[];
+  termUnits: CatalogTermUnit[];
   products: CatalogProduct[];
   clients: SavedClient[];
 }
@@ -47,10 +50,11 @@ export default async function NewInvoicePage({
 
   const apiCtx = { apiKey, issuerId: ctx.issuer.apiIssuerId };
 
-  const [idTypes, paymentMethods, taxRates, productRows, clientRows] = await Promise.all([
+  const [idTypes, paymentMethods, taxRates, termUnits, productRows, clientRows] = await Promise.all([
     listCatalogIdTypes(apiCtx),
     listCatalogPaymentMethods(apiCtx),
     listCatalogTaxRates(apiCtx),
+    listCatalogTermUnits(apiCtx),
     db.product.findMany({
       where: { tenantId: tenant.id },
       orderBy: { mainCode: 'asc' },
@@ -68,7 +72,7 @@ export default async function NewInvoicePage({
     unitPrice: r.unitPrice.toString(),
   }));
 
-  const catalogs: InvoiceCatalogs = { idTypes, paymentMethods, taxRates, products, clients: clientRows };
+  const catalogs: InvoiceCatalogs = { idTypes, paymentMethods, taxRates, termUnits, products, clients: clientRows };
 
   return (
     <div>

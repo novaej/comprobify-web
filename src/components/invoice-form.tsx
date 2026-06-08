@@ -626,7 +626,31 @@ export function InvoiceForm({ catalogs, defaultValues }: Props) {
                         <Input {...form.register(`payments.${index}.term`)} className="h-8 w-14" placeholder="0" />
                       </td>
                       <td className="py-2 pr-2">
-                        <Input {...form.register(`payments.${index}.termUnit`)} className="h-8 w-16" placeholder="dias" />
+                        <Controller
+                          name={`payments.${index}.termUnit`}
+                          control={form.control}
+                          render={({ field: f }) => (
+                            <Select<string>
+                              value={f.value || null}
+                              onValueChange={(v: string | null) => f.onChange(v ?? '')}
+                            >
+                              <SelectTrigger className="h-8 w-24">
+                                <SelectValue>
+                                  {(v: string | null) => v
+                                    ? (catalogs.termUnits.find((u) => u.code === v)?.description ?? v)
+                                    : <span className="text-muted-foreground">—</span>}
+                                </SelectValue>
+                              </SelectTrigger>
+                              <SelectContent>
+                                {catalogs.termUnits.map((u) => (
+                                  <SelectItem key={u.code} value={u.code}>
+                                    {u.description}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
                       </td>
                       <td className="py-2">
                         {paymentFields.length > 1 && (

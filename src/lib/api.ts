@@ -127,6 +127,11 @@ export interface CatalogTaxRate {
   rate: string | number;
 }
 
+export interface CatalogTermUnit {
+  code: string;
+  description: string;
+}
+
 export interface InvoiceTax {
   code: string;
   rateCode: string;
@@ -365,6 +370,14 @@ export async function listCatalogTaxRates(ctx: ApiCtx): Promise<CatalogTaxRate[]
     ctx,
   );
   return result.taxRates;
+}
+
+export async function listCatalogTermUnits(ctx: ApiCtx): Promise<CatalogTermUnit[]> {
+  const result = await request<{ ok: true; termUnits: CatalogTermUnit[] }>(
+    '/api/catalogs/term-units',
+    ctx,
+  );
+  return result.termUnits;
 }
 
 // ── Issuer functions ──────────────────────────────────────────────────────────
