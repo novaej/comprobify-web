@@ -12,6 +12,7 @@ export default async function NotificationsPreferencesPage({
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations('notificationPreferences');
+  const tSettings = await getTranslations('settings');
 
   const ctx = await requirePermission('notifications.manage', { skipIssuer: true });
 
@@ -20,7 +21,7 @@ export default async function NotificationsPreferencesPage({
 
   return (
     <div className="max-w-2xl">
-      <PageHeader title={t('title')} description={t('description')} />
+      <PageHeader title={t('title')} description={t('description')} backHref="/settings" backLabel={tSettings('title')} />
       <NotificationPreferences initialPreferences={preferences} />
     </div>
   );

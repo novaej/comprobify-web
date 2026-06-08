@@ -5,7 +5,7 @@ import { DocumentTable } from '@/components/document-table';
 import { buttonVariants } from '@/components/ui/button';
 import { listDocuments } from '@/lib/api';
 import { requirePermission } from '@/lib/context';
-import { ChevronLeft, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import type { Document } from '@/lib/api';
 
 const CREATE_HREFS: Record<string, string> = {
@@ -38,19 +38,13 @@ export default async function DocumentListPage({
 
   return (
     <div>
-      <Link
-        href="/documents"
-        className="mb-4 flex w-fit items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <ChevronLeft className="h-4 w-4" />
-        {t('title')}
-      </Link>
-
       <PageHeader
         title={typeName}
+        backHref="/documents"
+        backLabel={t('title')}
         action={
           createHref ? (
-            <Link href={createHref} className={buttonVariants({ size: 'sm' })}>
+            <Link href={`${createHref}?from=documents-${type}`} className={buttonVariants({ size: 'sm' })}>
               <Plus className="h-4 w-4" />
               {t('createNew')}
             </Link>
@@ -61,6 +55,7 @@ export default async function DocumentListPage({
       <DocumentTable
         documents={documents}
         fetchError={fetchError}
+        from={`documents-${type}`}
         labels={{
           sequential: t('list.table.sequential'),
           buyer: t('list.table.buyer'),

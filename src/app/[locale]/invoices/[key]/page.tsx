@@ -1,4 +1,6 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
+import { ChevronLeft } from 'lucide-react';
+import { Link } from '@/i18n/navigation';
 import { getDocument, getDocumentEvents } from '@/lib/api';
 import { requireContext } from '@/lib/context';
 import { ApiError } from '@/lib/errors';
@@ -15,6 +17,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { AccessKeyCopy } from '@/components/access-key-copy';
+import { BACK_TARGETS, isBackTargetKey, type BackTargetKey } from '@/lib/back-targets';
 import type { DocumentEvent } from '@/lib/api';
 
 function formatEventDetail(detail: DocumentEvent['detail']): string {
@@ -30,12 +33,23 @@ function formatEventDetail(detail: DocumentEvent['detail']): string {
 
 export default async function InvoiceDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string; key: string }>;
+  searchParams: Promise<{ from?: string }>;
 }) {
   const { locale, key } = await params;
+  const { from } = await searchParams;
   setRequestLocale(locale);
   const t = await getTranslations('invoiceDetail');
+
+  const tDashboard = await getTranslations('dashboard');
+  const tDocuments = await getTranslations('documents');
+
+  const backTargetKey: BackTargetKey = isBackTargetKey(from) ? from : 'dashboard';
+  const backTarget = BACK_TARGETS[backTargetKey];
+  const tBack = backTarget.namespace === 'documents' ? tDocuments : tDashboard;
+  const backLabel = tBack(backTarget.key as Parameters<typeof tBack>[0]);
 
   const ctx = await requireContext();
   const apiCtx = { apiKey: ctx.apiKey, issuerId: ctx.issuer.apiIssuerId };
@@ -56,6 +70,14 @@ export default async function InvoiceDetailPage({
 
   return (
     <div className="space-y-5">
+      <Link
+        href={backTarget.href}
+        className="flex w-fit items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ChevronLeft className="h-4 w-4" />
+        {backLabel}
+      </Link>
+
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">

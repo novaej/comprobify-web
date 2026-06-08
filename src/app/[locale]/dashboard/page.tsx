@@ -42,6 +42,7 @@ export default async function DashboardPage({
       <DocumentTable
         documents={documents}
         fetchError={fetchError}
+        from="dashboard"
         labels={{
           sequential: t('table.sequential'),
           buyer: t('table.buyer'),

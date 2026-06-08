@@ -13,6 +13,7 @@ import {
 } from '@/lib/api';
 import type { CatalogProduct } from '@/app/actions/catalog';
 import type { SavedClient } from '@/app/actions/clients';
+import { BACK_TARGETS, isBackTargetKey, type BackTargetKey } from '@/lib/back-targets';
 
 export interface InvoiceCatalogs {
   idTypes: CatalogIdType[];
@@ -24,12 +25,22 @@ export interface InvoiceCatalogs {
 
 export default async function NewInvoicePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ from?: string }>;
 }) {
   const { locale } = await params;
+  const { from } = await searchParams;
   setRequestLocale(locale);
   const t = await getTranslations('invoiceForm');
+  const tDashboard = await getTranslations('dashboard');
+  const tDocuments = await getTranslations('documents');
+
+  const backTargetKey: BackTargetKey = isBackTargetKey(from) ? from : 'dashboard';
+  const backTarget = BACK_TARGETS[backTargetKey];
+  const tBack = backTarget.namespace === 'documents' ? tDocuments : tDashboard;
+  const backLabel = tBack(backTarget.key as Parameters<typeof tBack>[0]);
 
   const ctx = await requireContext();
   const { apiKey, tenant } = ctx;
@@ -61,7 +72,7 @@ export default async function NewInvoicePage({
 
   return (
     <div>
-      <PageHeader title={t('title')} />
+      <PageHeader title={t('title')} backHref={backTarget.href} backLabel={backLabel} />
       <InvoiceForm catalogs={catalogs} />
     </div>
   );

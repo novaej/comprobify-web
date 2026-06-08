@@ -157,7 +157,7 @@ export default async function DocumentsPage({
                   </Link>
                   {createHref && (
                     <Link
-                      href={createHref}
+                      href={`${createHref}?from=documents`}
                       className={cn(buttonVariants({ size: 'sm' }), 'gap-1.5')}
                     >
                       <Plus className="h-3.5 w-3.5" />

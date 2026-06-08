@@ -12,6 +12,7 @@ export default async function WebhooksPage({
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations('webhooks');
+  const tSettings = await getTranslations('settings');
 
   const ctx = await requirePermission('webhooks.manage', { skipIssuer: true });
 
@@ -23,7 +24,7 @@ export default async function WebhooksPage({
 
   return (
     <div className="max-w-3xl">
-      <PageHeader title={t('title')} description={t('description')} />
+      <PageHeader title={t('title')} description={t('description')} backHref="/settings" backLabel={tSettings('title')} />
       <WebhookManager
         endpoints={endpoints.map((e) => ({
           id: e.id,

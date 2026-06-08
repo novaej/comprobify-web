@@ -25,9 +25,10 @@ interface DocumentTableProps {
   documents: Document[];
   fetchError?: boolean;
   labels: DocumentTableLabels;
+  from?: string;
 }
 
-export function DocumentTable({ documents, fetchError, labels }: DocumentTableProps) {
+export function DocumentTable({ documents, fetchError, labels, from }: DocumentTableProps) {
   return (
     <div className="rounded-xl border border-border bg-card shadow-sm overflow-x-auto">
       <Table>
@@ -69,7 +70,7 @@ export function DocumentTable({ documents, fetchError, labels }: DocumentTablePr
               <TableRow key={doc.accessKey}>
                 <TableCell className="pl-4 font-mono text-sm">
                   <Link
-                    href={`/invoices/${doc.accessKey}`}
+                    href={from ? `/invoices/${doc.accessKey}?from=${from}` : `/invoices/${doc.accessKey}`}
                     className="hover:text-primary hover:underline underline-offset-4 transition-colors"
                   >
                     {doc.sequential}
