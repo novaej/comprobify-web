@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Bell } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { NotificationPanel } from './notification-panel';
@@ -19,17 +20,30 @@ export function NotificationBell({ initialUnreadCount, initialNotifications }: N
   const [unreadCount, setUnreadCount] = useState(initialUnreadCount);
   const [isPending, startTransition] = useTransition();
   const ref = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
-  // Close on outside click
+  // Close on outside click (the panel is portaled to document.body, so it
+  // sits outside `ref` — check it separately or it would close on every click inside it)
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      const target = e.target as Node;
+      if (ref.current?.contains(target)) return;
+      if (panelRef.current?.contains(target)) return;
+      setOpen(false);
     }
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
+
+  function handleToggle() {
+    if (!open && buttonRef.current) {
+      const r = buttonRef.current.getBoundingClientRect();
+      setPos({ top: r.bottom + 8, left: r.left });
+    }
+    setOpen((v) => !v);
+  }
 
   // Refresh notifications from server
   const refresh = useCallback(() => {
@@ -65,7 +79,8 @@ export function NotificationBell({ initialUnreadCount, initialNotifications }: N
   return (
     <div ref={ref} className="relative">
       <button
-        onClick={() => setOpen((v) => !v)}
+        ref={buttonRef}
+        onClick={handleToggle}
         aria-label="Notificaciones"
         className={cn(
           'relative flex h-8 w-8 items-center justify-center rounded-md transition-colors',
@@ -81,13 +96,16 @@ export function NotificationBell({ initialUnreadCount, initialNotifications }: N
         )}
       </button>
 
-      {open && (
+      {open && pos && createPortal(
         <NotificationPanel
           notifications={notifications}
           isLoading={isPending}
           onMarkRead={handleMarkRead}
           onClose={() => setOpen(false)}
-        />
+          panelRef={panelRef}
+          style={{ top: pos.top, left: pos.left }}
+        />,
+        document.body,
       )}
     </div>
   );

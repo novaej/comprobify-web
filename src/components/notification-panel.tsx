@@ -1,5 +1,6 @@
 'use client';
 
+import type { CSSProperties, RefObject } from 'react';
 import { useTranslations, useFormatter } from 'next-intl';
 import { AlertCircle, AlertTriangle, Info, CheckCheck, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -12,6 +13,8 @@ interface NotificationPanelProps {
   isLoading: boolean;
   onMarkRead: (id: number) => void;
   onClose: () => void;
+  panelRef: RefObject<HTMLDivElement | null>;
+  style: CSSProperties;
 }
 
 function SeverityIcon({ severity }: { severity: string }) {
@@ -29,6 +32,8 @@ export function NotificationPanel({
   isLoading,
   onMarkRead,
   onClose,
+  panelRef,
+  style,
 }: NotificationPanelProps) {
   const t = useTranslations('notifications');
   const format = useFormatter();
@@ -37,12 +42,18 @@ export function NotificationPanel({
 
   return (
     <div
+      ref={panelRef}
+      style={style}
       className={cn(
-        'absolute right-0 top-full z-50 mt-2',
+        // Rendered through a portal at document.body and positioned with
+        // fixed coordinates from the bell's bounding rect — this escapes the
+        // sidebar's stacking context so the panel always paints above the
+        // page's main content instead of being overlapped by it.
+        'fixed z-50',
         'w-80 rounded-lg border border-sidebar-border bg-sidebar shadow-xl',
         'flex flex-col overflow-hidden',
         // On mobile: full-width, anchored to the right edge of the screen.
-        'max-sm:fixed max-sm:inset-x-2 max-sm:right-2 max-sm:w-auto'
+        'max-sm:inset-x-2 max-sm:right-2 max-sm:left-2 max-sm:w-auto max-sm:!top-16'
       )}
       role="dialog"
       aria-label={t('panelTitle')}
@@ -90,7 +101,7 @@ export function NotificationPanel({
                 </p>
                 <div className="mt-1.5 flex items-center justify-between gap-2">
                   <span className="text-[10px] text-sidebar-foreground/40">
-                    {format.relativeTime(n.apiCreatedAt)}
+                    {format.relativeTime(n.apiCreatedAt, Date.now())}
                   </span>
                   {!n.readByMe && (
                     <button
