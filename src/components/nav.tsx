@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition, useRef, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import {
@@ -162,12 +163,14 @@ function UserMenu({ email, pathname }: { email: string; pathname: string }) {
   const t = useTranslations('nav');
   const locale = useLocale();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   function handleLocaleChange(code: string) {
     if (code === locale) return;
     // Fire-and-forget: update API preference (no-op for non-Owners).
     updateLanguageAction(code).catch(() => {});
-    router.replace(pathname, { locale: code as 'es' | 'en' });
+    const query = searchParams.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { locale: code as 'es' | 'en' });
   }
 
   return (

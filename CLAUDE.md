@@ -141,6 +141,8 @@ messages/
 
 **Issuer provisioning:** First issuer created during onboarding. Additional branches added via `/issuers` (`createBranchAction` → `POST /api/issuers`). Promoting to production calls `promoteTenantAction` (Owner-only) → `POST /api/tenants/promote`, which revokes all sandbox `TenantApiKey` rows and inserts new production keys.
 
+**Back navigation:** Sub-pages render a "‹ Parent" link via `PageHeader`'s `backHref`/`backLabel` props (or the same `ChevronLeft` + muted-`Link` snippet inline, for pages with a custom header like `invoices/[key]`). Pages with exactly one possible parent hardcode `backHref`/`backLabel`. Pages reachable from **multiple** parent screens (`/invoices/new`, `/invoices/[key]` — linkable from Panel, Comprobantes, and per-type document lists) instead read a `?from=<key>` query param, resolved against the `BACK_TARGETS` allowlist in `src/lib/back-targets.ts`, and every entry-point link must append the matching `from` value (see `DocumentTable`'s `from` prop and the `createHref` links in `documents/page.tsx` / `documents/[type]/page.tsx`). **Adding a new multi-entry sub-page means registering it in `BACK_TARGETS` and updating each entry-point link by hand — this does not happen automatically.** Locale-switching (`UserMenu.handleLocaleChange` in `nav.tsx`) must preserve `useSearchParams().toString()` when calling `router.replace`, or the `from` param (and any other query state) is silently dropped and the back link resets to its default.
+
 **Localization:** Every visible string goes through next-intl. Add keys to `messages/es.json` first, then mirror in `messages/en.json`. Map API `code` fields (e.g. `DOCUMENT_NOT_FOUND`) to user messages via the `apiError` namespace. See `docs/adr/006-next-intl-localization.md`.
 
 **Status polling:** When a document is in `RECEIVED` status, the Invoice Detail page polls `GET /api/documents/:key/status` (a Next.js proxy route) every 5 seconds using TanStack Query. The proxy forwards to the Comprobify API server-side. Polling stops when status changes or after 2 minutes. See `docs/adr/005-tanstack-query-polling.md`.
@@ -215,6 +217,8 @@ This project runs Next.js **16** (not 13-15). Key differences from older version
 18. **Assuming a `POST` response contains the created record's `id`** — several endpoints (key creation, promotion) return only a token or minimal data with no `id`. If downstream code needs the `id` (e.g. to store in Prisma), make a follow-up `GET` call with the new token and read the id from the list result.
 19. **Calling `request.json()` before HMAC verification in a webhook route** — `request.json()` consumes the body stream; the raw body is then unavailable. Always call `request.text()` first, store the raw string, then `JSON.parse()` it. Without the raw body the HMAC signature cannot be verified and every webhook will be rejected or accepted insecurely.
 20. **Comparing `notification.issuerId` against local `Issuer.id`** — `notification.issuerId` stores the API-side BIGSERIAL issuer ID, not the local Prisma autoincrement id. Match it against `Issuer.apiIssuerId`. Getting this wrong means cert-expiry banners never appear (or appear for the wrong issuer).
+21. **Hardcoding `backHref` on a sub-page reachable from more than one parent screen** — e.g. `/invoices/new` and `/invoices/[key]` are linkable from Panel, Comprobantes, and per-type document lists. A fixed `backHref` always returns the user to the same place regardless of where they came from. Use the `?from=<key>` + `BACK_TARGETS` allowlist pattern (`src/lib/back-targets.ts`) instead — see "Back navigation" above — and remember to append `from` on every entry-point link.
+22. **Rebuilding a URL from `usePathname()` alone when switching locale** — `UserMenu.handleLocaleChange` in `nav.tsx` used to call `router.replace(pathname, { locale })`, which drops the query string. Any contextual state carried in query params (e.g. `?from=...` for back-navigation) is silently lost on language switch, and the UI quietly falls back to its default. Always append `useSearchParams().toString()` to the path before calling `router.replace`/`router.push` with a new locale.
 
 ---
 
@@ -235,6 +239,7 @@ This project runs Next.js **16** (not 13-15). Key differences from older version
 | `src/lib/rbac.ts` | `Role`, `Permission` types + `ROLE_PERMISSIONS` map |
 | `src/lib/public-api.ts` | Unauthenticated API calls (`registerTenant`, `verifyEmailToken`, `resendVerificationEmail`) |
 | `src/lib/errors.ts` | `ApiError` + `ProblemDetails` types |
+| `src/lib/back-targets.ts` | `BACK_TARGETS` allowlist + `isBackTargetKey` guard for the `?from=` contextual back-navigation pattern |
 | `src/proxy.ts` | next-intl routing middleware (locale detection + unauthenticated redirect) |
 | `src/i18n/routing.ts` | Locale list, default locale, prefix strategy |
 | `src/i18n/navigation.ts` | Typed navigation helpers (import these, not next/navigation) |
