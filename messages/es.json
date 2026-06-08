@@ -254,8 +254,8 @@
     "authorizationNumber": "Número de autorización",
     "authorizationDate": "Fecha de autorización",
     "actions": {
-      "send": "Enviar al SRI",
-      "sending": "Enviando...",
+      "send": "Enviar",
+      "sending": "Enviando al SRI...",
       "authorize": "Verificar autorización",
       "authorizing": "Verificando...",
       "rebuild": "Reconstruir",
@@ -263,7 +263,13 @@
       "downloadXml": "Descargar XML",
       "resendEmail": "Reenviar correo",
       "resendEmailSuccess": "Correo reenviado correctamente.",
-      "sriErrors": "Ver errores SRI"
+      "sriErrors": "Ver errores SRI",
+      "confirm": {
+        "title": "Enviar al SRI",
+        "description": "El comprobante será enviado al Servicio de Rentas Internas (SRI) para su autorización. El proceso continuará automáticamente hasta completarse.",
+        "cancel": "Cancelar",
+        "submit": "Enviar"
+      }
     },
     "polling": {
       "waiting": "Esperando respuesta del SRI...",

@@ -1,13 +1,28 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useState, useEffect, useRef, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { Send, CheckCircle, Download, Mail } from 'lucide-react';
+import { Send, Download, Mail, Loader2 } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { sendToSriAction, authorizeAction, resendEmailAction } from '@/app/actions/document';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { sendToSriAction, tryAuthorizeAction, resendEmailAction } from '@/app/actions/document';
 import type { DocumentStatus } from '@/lib/api';
 import { toastApiError } from '@/lib/api-error-toast';
+import { useRouter } from '@/i18n/navigation';
+
+const POLL_INTERVAL_MS = 5_000;
+const TIMEOUT_MS = 2 * 60 * 1_000;
+
+type Phase = 'idle' | 'sending' | 'polling';
 
 interface InvoiceActionsProps {
   accessKey: string;
@@ -17,76 +32,141 @@ interface InvoiceActionsProps {
 export function InvoiceActions({ accessKey, status }: InvoiceActionsProps) {
   const t = useTranslations('invoiceDetail');
   const tError = useTranslations('apiError');
-  const [isPending, startTransition] = useTransition();
+  const router = useRouter();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [phase, setPhase] = useState<Phase>('idle');
+  const [resendPending, startResendTransition] = useTransition();
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  function run(
-    action: () => Promise<{ error: string } | null>,
-    onSuccess?: () => void,
-  ) {
-    startTransition(async () => {
-      const result = await action();
+  // When router.refresh() delivers a new status prop, stop any in-flight processing.
+  useEffect(() => {
+    if (status !== 'SIGNED' && phase !== 'idle') {
+      setPhase('idle');
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+    }
+  }, [status, phase]);
+
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+    };
+  }, []);
+
+  async function handleSend() {
+    setConfirmOpen(false);
+    setPhase('sending');
+
+    const result = await sendToSriAction(accessKey);
+    if ('error' in result) {
+      setPhase('idle');
+      toastApiError(result.error, tError);
+      return;
+    }
+
+    if (result.status !== 'RECEIVED') {
+      router.refresh();
+      return;
+    }
+
+    setPhase('polling');
+    const startedAt = Date.now();
+    pollIntervalRef.current = setInterval(async () => {
+      if (Date.now() - startedAt >= TIMEOUT_MS) {
+        clearInterval(pollIntervalRef.current!);
+        pollIntervalRef.current = null;
+        setPhase('idle');
+        router.refresh();
+        return;
+      }
+      const pollResult = await tryAuthorizeAction(accessKey);
+      if ('status' in pollResult && pollResult.status !== 'RECEIVED') {
+        clearInterval(pollIntervalRef.current!);
+        pollIntervalRef.current = null;
+        router.refresh();
+      }
+    }, POLL_INTERVAL_MS);
+  }
+
+  function handleResendEmail() {
+    startResendTransition(async () => {
+      const result = await resendEmailAction(accessKey);
       if (result?.error) {
         toastApiError(result.error, tError);
       } else {
-        onSuccess?.();
+        toast.success(t('actions.resendEmailSuccess'));
       }
     });
   }
 
+  const isProcessing = phase !== 'idle';
+
   return (
-    <div className="flex flex-wrap gap-2">
-      {status === 'SIGNED' && (
-        <Button
-          disabled={isPending}
-          onClick={() => run(() => sendToSriAction(accessKey))}
-        >
-          <Send className="mr-2 h-4 w-4" />
-          {isPending ? t('actions.sending') : t('actions.send')}
-        </Button>
-      )}
+    <>
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>{t('actions.confirm.title')}</DialogTitle>
+            <DialogDescription>{t('actions.confirm.description')}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" />}>
+              {t('actions.confirm.cancel')}
+            </DialogClose>
+            <Button onClick={handleSend}>
+              <Send className="mr-2 h-4 w-4" />
+              {t('actions.confirm.submit')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      {status === 'RECEIVED' && (
-        <Button
-          variant="outline"
-          disabled={isPending}
-          onClick={() => run(() => authorizeAction(accessKey))}
-        >
-          <CheckCircle className="mr-2 h-4 w-4" />
-          {isPending ? t('actions.authorizing') : t('actions.authorize')}
-        </Button>
-      )}
+      {isProcessing ? (
+        <div className="flex items-center gap-2 rounded-lg border p-3 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          {phase === 'sending' ? t('actions.sending') : t('polling.waiting')}
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {status === 'SIGNED' && (
+            <Button onClick={() => setConfirmOpen(true)}>
+              <Send className="mr-2 h-4 w-4" />
+              {t('actions.send')}
+            </Button>
+          )}
 
-      {status === 'AUTHORIZED' && (
-        <>
-          <a
-            href={`/api/documents/${accessKey}/ride`}
-            className={buttonVariants({ variant: 'outline' })}
-            download
-          >
-            <Download className="mr-2 h-4 w-4" />
-            {t('actions.downloadPdf')}
-          </a>
-          <a
-            href={`/api/documents/${accessKey}/xml`}
-            className={buttonVariants({ variant: 'outline' })}
-            download
-          >
-            <Download className="mr-2 h-4 w-4" />
-            {t('actions.downloadXml')}
-          </a>
-          <Button
-            variant="outline"
-            disabled={isPending}
-            onClick={() => run(
-              () => resendEmailAction(accessKey),
-              () => toast.success(t('actions.resendEmailSuccess')),
-            )}
-          >
-            <Mail className="mr-2 h-4 w-4" />
-            {t('actions.resendEmail')}
-          </Button>
-        </>
+          {status === 'AUTHORIZED' && (
+            <>
+              <a
+                href={`/api/documents/${accessKey}/ride`}
+                className={buttonVariants({ variant: 'outline' })}
+                download
+              >
+                <Download className="mr-2 h-4 w-4" />
+                {t('actions.downloadPdf')}
+              </a>
+              <a
+                href={`/api/documents/${accessKey}/xml`}
+                className={buttonVariants({ variant: 'outline' })}
+                download
+              >
+                <Download className="mr-2 h-4 w-4" />
+                {t('actions.downloadXml')}
+              </a>
+              <Button
+                variant="outline"
+                disabled={resendPending}
+                onClick={handleResendEmail}
+              >
+                <Mail className="mr-2 h-4 w-4" />
+                {t('actions.resendEmail')}
+              </Button>
+            </>
+          )}
+        </div>
       )}
-    </div>
+    </>
   );
 }

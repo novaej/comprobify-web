@@ -254,8 +254,8 @@
     "authorizationNumber": "Authorization number",
     "authorizationDate": "Authorization date",
     "actions": {
-      "send": "Send to SRI",
-      "sending": "Sending...",
+      "send": "Send",
+      "sending": "Sending to SRI...",
       "authorize": "Check authorization",
       "authorizing": "Checking...",
       "rebuild": "Rebuild",
@@ -263,7 +263,13 @@
       "downloadXml": "Download XML",
       "resendEmail": "Resend email",
       "resendEmailSuccess": "Email resent successfully.",
-      "sriErrors": "View SRI errors"
+      "sriErrors": "View SRI errors",
+      "confirm": {
+        "title": "Send to SRI",
+        "description": "The document will be submitted to the SRI (Servicio de Rentas Internas) for authorization. The process will continue automatically until complete.",
+        "cancel": "Cancel",
+        "submit": "Send"
+      }
     },
     "polling": {
       "waiting": "Waiting for SRI response...",
