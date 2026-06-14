@@ -60,6 +60,10 @@ src/
     layout.tsx              root layout (html/body, lang from next-intl)
     [locale]/
       layout.tsx            locale layout (NextIntlClientProvider, QueryProvider, Nav)
+      (marketing)/
+        layout.tsx          Marketing layout — public header + footer; no Nav/auth
+        page.tsx            Landing page — hero + feature cards; redirects authed users to /dashboard
+        pricing/page.tsx    Pricing page — plan comparison cards
       dashboard/page.tsx    Server Component — invoice list
       invoices/
         new/page.tsx        Server Component shell + Client form
@@ -171,6 +175,8 @@ messages/
 </SelectValue>
 ```
 
+**Marketing site / domain routing:** The `(marketing)` route group under `src/app/[locale]/` holds all public-facing pages (landing `/` and pricing `/pricing`). These render a standalone header+footer layout with no Nav or auth. `src/proxy.ts` enforces domain separation: `MARKETING_HOSTS` (`comprobify.com`, `staging.comprobify.com`) only serve marketing routes and issue 301 redirects to `DOMAIN_PAIR[host]` for anything else; `APP_HOSTS` (`app.comprobify.com`, `app-staging.comprobify.com`) redirect marketing routes to the marketing host. Localhost and unknown hosts bypass hostname routing so local dev works without configuration. `pricing` is added to `PUBLIC_ROUTES` so unauthenticated users can reach it.
+
 **Notification system:** Notifications arrive via webhook (`POST /api/webhooks/receive`), are upserted into the local `notifications` table, and surfaced in the sidebar bell. `<NotificationSync />` fires a catch-up on every authenticated page load. The bell auto-refreshes every 60 seconds. `notification.issuerId` stores the **API-side** issuer ID (BIGSERIAL → integer) — always compare against `Issuer.apiIssuerId`, never `Issuer.id`. Fan-out: Owner/Admin receive all notifications; other roles only receive issuer-scoped ones if they have a matching `UserIssuerAccess` row; tenant-level notifications (`issuerId = null`) go to all active users.
 
 **Webhook receiver HMAC:** The receiver route (`src/app/api/webhooks/receive/route.ts`) must call `request.text()` **before** any `JSON.parse()` to preserve the raw body for signature verification. Calling `request.json()` first consumes the stream and makes the raw body unavailable for HMAC comparison.
@@ -250,6 +256,9 @@ This project runs Next.js **16** (not 13-15). Key differences from older version
 | `src/components/sandbox-banner.tsx` | Yellow sandbox mode banner |
 | `src/components/email-verification-notice.tsx` | Yellow notice with resend button shown when email is unverified |
 | `src/components/production-promotion.tsx` | Card to promote sandbox issuer to production (gated on email verification) |
+| `src/app/[locale]/(marketing)/layout.tsx` | Marketing layout — public header, nav links, footer; wraps landing + pricing |
+| `src/app/[locale]/(marketing)/page.tsx` | Landing page — hero, feature cards; auto-redirects authenticated users to dashboard |
+| `src/app/[locale]/(marketing)/pricing/page.tsx` | Pricing page — plan comparison cards (Sandbox / Starter / Pro) |
 | `src/app/[locale]/layout.tsx` | Locale layout with providers + nav |
 | `src/app/[locale]/verify-email/page.tsx` | Public email verification page — reads token from query string, updates Prisma by email (no session required) |
 | `src/app/actions/auth.ts` | `loginAction` (post-login routing), `registerAction`, `logoutAction` (clears cookie + signOut) |

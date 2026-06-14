@@ -138,14 +138,38 @@ git checkout main
 
 ---
 
+## Domain routing
+
+The proxy (`src/proxy.ts`) separates marketing pages from the app by hostname. Both the marketing and app sites are served from the **same Next.js deployment** — the proxy does the routing.
+
+| Host | Serves | Redirects everything else to |
+|------|--------|------------------------------|
+| `comprobify.com` | `/` (landing), `/pricing` | `app.comprobify.com` |
+| `staging.comprobify.com` | `/` (landing), `/pricing` | `app-staging.comprobify.com` |
+| `app.comprobify.com` | All app routes (`/dashboard`, `/invoices`, …) | `comprobify.com` |
+| `app-staging.comprobify.com` | All app routes | `staging.comprobify.com` |
+
+Redirects are permanent (301). Localhost and unknown hosts bypass hostname routing so local dev works without any configuration.
+
+**Vercel custom domain setup (production):**
+1. In `comprobify-web-prod`, add **both** `comprobify.com` and `app.comprobify.com` as custom domains.
+2. Point the DNS records for each to Vercel as instructed.
+3. No extra env vars are required — the proxy reads the `host` header at runtime.
+
+**Staging:**
+1. In `comprobify-web-staging`, add `staging.comprobify.com` and `app-staging.comprobify.com`.
+2. Same DNS setup, separate CNAME targets from production.
+
+---
+
 ## CI/CD pipeline
 
 Vercel watches the `staging` and `prod` branches directly. Every push triggers an automatic build and deployment — no workflow files needed.
 
 | Branch | Vercel project | URL |
 |--------|----------------|-----|
-| `staging` | `comprobify-web-staging` | `comprobify-web-staging.vercel.app` (or custom domain) |
-| `prod` | `comprobify-web-prod` | `comprobify-web-prod.vercel.app` (or custom domain) |
+| `staging` | `comprobify-web-staging` | `staging.comprobify.com` + `app-staging.comprobify.com` |
+| `prod` | `comprobify-web-prod` | `comprobify.com` + `app.comprobify.com` |
 
 ### Build settings (both projects)
 

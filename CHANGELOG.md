@@ -9,6 +9,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 ## [Unreleased]
 
 ### Added
+- **Marketing site** — `(marketing)` route group with landing page (`/`) and pricing page (`/pricing`); public, unauthenticated, served on the marketing domain; landing page redirects authenticated users to `/dashboard`
+- **Domain-aware routing** — `src/proxy.ts` now distinguishes marketing hosts (`comprobify.com`, `staging.comprobify.com`) from app hosts (`app.comprobify.com`, `app-staging.comprobify.com`) via `DOMAIN_PAIR` and issues 301 cross-domain redirects to keep each domain serving only its routes; localhost and unknown hosts bypass hostname routing
+- `marketing`, `landing`, and `pricing` i18n namespaces added to `messages/es.json` and `messages/en.json`
 - **Sentry error monitoring** — `@sentry/nextjs` integrated with client, server, and edge configs; `src/instrumentation.ts` boots the SDK and wires `onRequestError` for automatic Server Action / Route Handler crash capture; `src/app/global-error.tsx` root error boundary reports client-side crashes; disabled locally (no DSN set), active on staging/production with environment tagging via `APP_ENV`
 - **Comprobify logomark favicon** — `src/app/icon.svg` replaces the default Next.js favicon; uses the `logomark-light.svg` mark
 - **Notification system** — real-time notifications delivered via webhooks and surfaced in a bell icon in the sidebar; unread badge auto-refreshes every 60 seconds; panel lists all notifications with relative timestamps and per-item mark-read
