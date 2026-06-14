@@ -650,5 +650,89 @@
     "deleteSuccess": "Webhook deleted.",
     "verifyTitle": "How to verify signatures",
     "verifyDescription": "Every request includes X-Comprobify-Signature and X-Comprobify-Timestamp headers. Use HMAC-SHA256 with your secret to verify the signature before processing the event."
+  },
+  "marketing": {
+    "nav": {
+      "pricing": "Pricing",
+      "docs": "API documentation",
+      "login": "Log in",
+      "register": "Sign up"
+    },
+    "footer": {
+      "pricing": "Pricing",
+      "docs": "API documentation",
+      "login": "Log in",
+      "register": "Sign up"
+    }
+  },
+  "landing": {
+    "hero": {
+      "title": "Electronic invoicing for Ecuador, made simple",
+      "subtitle": "Issue, sign, and authorize invoices and tax documents with the SRI. Use our web app or integrate the API directly into your system.",
+      "cta": {
+        "register": "Create a free account",
+        "login": "Log in"
+      }
+    },
+    "features": {
+      "api": {
+        "title": "API for developers",
+        "description": "Integrate electronic invoice generation directly into your application. REST API with token authentication, real-time webhooks, and full documentation.",
+        "cta": "View documentation"
+      },
+      "web": {
+        "title": "Web application",
+        "description": "Create and send invoices, credit notes, and withholding receipts from your browser with zero code. Designed for non-technical teams.",
+        "cta": "Create account"
+      }
+    }
+  },
+  "pricing": {
+    "title": "Plans & pricing",
+    "subtitle": "Start free in the SRI test environment. Move to production when you're ready.",
+    "badge": {
+      "popular": "Most popular"
+    },
+    "plans": {
+      "sandbox": {
+        "name": "Sandbox",
+        "price": "Free",
+        "description": "For developers and teams exploring the platform.",
+        "features": [
+          "Unlimited test documents",
+          "Full API access",
+          "Web app included",
+          "Email support"
+        ],
+        "cta": "Get started free"
+      },
+      "starter": {
+        "name": "Starter",
+        "price": "Coming soon",
+        "description": "For businesses with moderate document volumes.",
+        "features": [
+          "500 documents/month",
+          "SRI production environment",
+          "API access",
+          "Web app included",
+          "Email support"
+        ],
+        "cta": "Contact us"
+      },
+      "pro": {
+        "name": "Professional",
+        "price": "Coming soon",
+        "description": "For high-volume businesses with advanced needs.",
+        "features": [
+          "Unlimited documents",
+          "SRI production environment",
+          "API access",
+          "Web app included",
+          "Real-time webhooks",
+          "Priority support"
+        ],
+        "cta": "Contact us"
+      }
+    }
   }
 }

@@ -650,5 +650,89 @@
     "inviteSuccess": "Invitación enviada a {email}.",
     "roleSuccess": "Rol actualizado correctamente.",
     "removeSuccess": "Usuario eliminado de la organización."
+  },
+  "marketing": {
+    "nav": {
+      "pricing": "Precios",
+      "docs": "Documentación API",
+      "login": "Iniciar sesión",
+      "register": "Registrarse"
+    },
+    "footer": {
+      "pricing": "Precios",
+      "docs": "Documentación API",
+      "login": "Iniciar sesión",
+      "register": "Registrarse"
+    }
+  },
+  "landing": {
+    "hero": {
+      "title": "Facturación electrónica para Ecuador, sin complicaciones",
+      "subtitle": "Emite, firma y autoriza facturas y comprobantes directamente con el SRI. Usa nuestra interfaz web o integra la API en tu sistema.",
+      "cta": {
+        "register": "Crear cuenta gratis",
+        "login": "Iniciar sesión"
+      }
+    },
+    "features": {
+      "api": {
+        "title": "API para desarrolladores",
+        "description": "Integra la emisión de comprobantes electrónicos directamente en tu aplicación. REST API con autenticación por token, webhooks en tiempo real y documentación completa.",
+        "cta": "Ver documentación"
+      },
+      "web": {
+        "title": "Aplicación web",
+        "description": "Crea y envía facturas, notas de crédito y retenciones desde el navegador sin una sola línea de código. Pensado para equipos no técnicos.",
+        "cta": "Crear cuenta"
+      }
+    }
+  },
+  "pricing": {
+    "title": "Planes y precios",
+    "subtitle": "Comienza gratis en el ambiente de pruebas del SRI. Pasa a producción cuando estés listo.",
+    "badge": {
+      "popular": "Más popular"
+    },
+    "plans": {
+      "sandbox": {
+        "name": "Sandbox",
+        "price": "Gratis",
+        "description": "Para desarrolladores y equipos que quieren explorar la plataforma.",
+        "features": [
+          "Comprobantes de prueba ilimitados",
+          "Acceso completo a la API",
+          "Interfaz web incluida",
+          "Soporte por correo"
+        ],
+        "cta": "Empezar gratis"
+      },
+      "starter": {
+        "name": "Básico",
+        "price": "Próximamente",
+        "description": "Para empresas con volumen moderado de comprobantes.",
+        "features": [
+          "500 comprobantes/mes",
+          "Ambiente de producción SRI",
+          "Acceso a la API",
+          "Interfaz web incluida",
+          "Soporte por correo"
+        ],
+        "cta": "Contactar"
+      },
+      "pro": {
+        "name": "Profesional",
+        "price": "Próximamente",
+        "description": "Para empresas con alto volumen y necesidades avanzadas.",
+        "features": [
+          "Comprobantes ilimitados",
+          "Ambiente de producción SRI",
+          "Acceso a la API",
+          "Interfaz web incluida",
+          "Webhooks en tiempo real",
+          "Soporte prioritario"
+        ],
+        "cta": "Contactar"
+      }
+    }
   }
 }
