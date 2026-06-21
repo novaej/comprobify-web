@@ -7,7 +7,7 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 const nextConfig: NextConfig = {};
 
 export default withSentryConfig(withNextIntl(nextConfig), {
-  org: 'o4511524451385344',
+  org: 'novaej',
   project: '4511524532256768',
   silent: !process.env.CI,
   widenClientFileUpload: true,
