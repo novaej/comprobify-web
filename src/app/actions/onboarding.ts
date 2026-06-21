@@ -3,7 +3,7 @@
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
 import { registerTenant } from '@/lib/public-api';
-import { listTenantApiKeys } from '@/lib/api';
+import { listTenantApiKeys, getCurrentTenant, listTenantIssuers, createTenantApiKey, registerWebhookEndpoint } from '@/lib/api';
 import { encrypt, lastFour } from '@/lib/crypto';
 import { writeCtxCookie } from '@/lib/context-cookie';
 import { getLocale } from 'next-intl/server';
@@ -12,6 +12,35 @@ import { revalidatePath } from 'next/cache';
 import { ApiError } from '@/lib/errors';
 
 export type OnboardingResult = { error: string } | null;
+
+/**
+ * Best-effort webhook registration so notifications arrive in near-real time.
+ * Failures here are non-fatal — the app falls back to catch-up polling.
+ */
+async function registerWebhookBestEffort(apiTenantId: number, plainApiKey: string): Promise<void> {
+  const webhookAppUrl = process.env.NEXT_PUBLIC_APP_URL;
+  if (!webhookAppUrl) return;
+
+  try {
+    const receiveUrl = `${webhookAppUrl}/api/webhooks/receive`;
+    const { endpoint, secret } = await registerWebhookEndpoint({ apiKey: plainApiKey }, receiveUrl, []);
+    const tenant = await db.tenant.findFirst({ where: { apiTenantId }, select: { id: true } });
+    if (tenant) {
+      await db.webhookEndpoint.create({
+        data: {
+          tenantId: tenant.id,
+          apiEndpointId: endpoint.id,
+          url: endpoint.url,
+          encryptedSecret: encrypt(secret),
+          eventTypes: endpoint.eventTypes,
+          active: endpoint.active,
+        },
+      });
+    }
+  } catch {
+    // Non-fatal — notifications fall back to catch-up polling.
+  }
+}
 
 export async function bootstrapTenantAction(formData: FormData): Promise<OnboardingResult> {
   const session = await auth();
@@ -148,41 +177,128 @@ export async function bootstrapTenantAction(formData: FormData): Promise<Onboard
   // silently roll back all the DB writes above.
   await writeCtxCookie({ issuerId: newIssuerId, v: 1 });
 
-  // Auto-register webhook endpoint so notifications are delivered in real time.
-  // This is best-effort — a failure here does not block onboarding.
-  const webhookAppUrl = process.env.NEXT_PUBLIC_APP_URL;
-  if (webhookAppUrl) {
-    try {
-      const { registerWebhookEndpoint } = await import('@/lib/api');
-      const { encrypt } = await import('@/lib/crypto');
-      const receiveUrl = `${webhookAppUrl}/api/webhooks/receive`;
-      const { endpoint, secret } = await registerWebhookEndpoint(
-        { apiKey: plainApiKey },
-        receiveUrl,
-        [],
-      );
-      const tenant = await db.tenant.findFirst({
-        where: { apiTenantId },
-        select: { id: true },
-      });
-      if (tenant) {
-        await db.webhookEndpoint.create({
-          data: {
-            tenantId: tenant.id,
-            apiEndpointId: endpoint.id,
-            url: endpoint.url,
-            encryptedSecret: encrypt(secret),
-            eventTypes: endpoint.eventTypes,
-            active: endpoint.active,
-          },
-        });
-      }
-    } catch {
-      // Non-fatal — notifications fall back to catch-up polling.
-    }
-  }
+  await registerWebhookBestEffort(apiTenantId, plainApiKey);
 
   revalidatePath('/', 'layout');
   redirect({ href: isEmailVerified ? '/dashboard' : '/settings', locale });
+  return null;
+}
+
+/**
+ * Links an existing Comprobify API account (registered directly via the API,
+ * not through this app) to the current web session.
+ *
+ * The pasted API key is used once, in-memory, to:
+ *   1. Resolve tenant identity (GET /v1/tenants/me) and issuer list (GET /v1/issuers).
+ *   2. Mint a fresh, dedicated key for the web app (POST /v1/keys) — the pasted
+ *      key itself is never stored, so it keeps working independently elsewhere.
+ *
+ * `Tenant.apiTenantId` is unique in the schema, so a given API tenant can only
+ * be linked once. The first user to link becomes Owner; everyone else joins via
+ * the existing invite flow (`/users`).
+ */
+export async function linkExistingTenantAction(formData: FormData): Promise<OnboardingResult> {
+  const session = await auth();
+  if (!session?.user?.id) return { error: 'UNAUTHORIZED' };
+
+  const userId = Number(session.user.id);
+  const user = await db.user.findUnique({ where: { id: userId } });
+  if (!user) return { error: 'UNAUTHORIZED' };
+  if (user.tenantId) return { error: 'TENANT_ALREADY_EXISTS' };
+
+  const pastedApiKey = (formData.get('apiKey') as string | null)?.trim() ?? '';
+  if (!pastedApiKey) return { error: 'API_KEY_REQUIRED' };
+
+  let tenantInfo: Awaited<ReturnType<typeof getCurrentTenant>>;
+  let apiIssuers: Awaited<ReturnType<typeof listTenantIssuers>>;
+  try {
+    tenantInfo = await getCurrentTenant({ apiKey: pastedApiKey });
+    apiIssuers = await listTenantIssuers({ apiKey: pastedApiKey });
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.code };
+    throw err;
+  }
+
+  if (apiIssuers.length === 0) return { error: 'NO_ISSUERS_FOUND' };
+
+  const apiTenantId = Number(tenantInfo.id);
+  const alreadyLinked = await db.tenant.findUnique({ where: { apiTenantId } });
+  if (alreadyLinked) return { error: 'TENANT_ALREADY_LINKED' };
+
+  let newKey: Awaited<ReturnType<typeof createTenantApiKey>>;
+  try {
+    newKey = await createTenantApiKey(
+      { apiKey: pastedApiKey },
+      'Comprobify Web',
+      tenantInfo.sandbox ? 'sandbox' : 'production',
+    );
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.code };
+    throw err;
+  }
+
+  const defaultIssuer = apiIssuers[0];
+  const environment = tenantInfo.sandbox ? 'sandbox' : 'production';
+
+  let defaultLocalIssuerId: number;
+  try {
+    defaultLocalIssuerId = await db.$transaction(async (tx): Promise<number> => {
+      const tenant = await tx.tenant.create({
+        data: {
+          apiTenantId,
+          ruc: defaultIssuer.ruc,
+          businessName: defaultIssuer.businessName,
+          tradeName: defaultIssuer.tradeName,
+          environment,
+          status: 'ACTIVE', // createTenantApiKey already required tenant.status === ACTIVE
+        },
+      });
+
+      await tx.tenantApiKey.create({
+        data: {
+          tenantId: tenant.id,
+          apiKeyId: newKey.id,
+          label: newKey.label,
+          environment: newKey.environment,
+          encryptedKey: encrypt(newKey.key),
+          lastFour: lastFour(newKey.key),
+          isActive: true,
+        },
+      });
+
+      let firstLocalIssuerId: number | null = null;
+      for (const apiIssuer of apiIssuers) {
+        const issuer: { id: number } = await tx.issuer.create({
+          data: {
+            tenantId: tenant.id,
+            apiIssuerId: Number(apiIssuer.id),
+            branchCode: apiIssuer.branchCode,
+            issuePointCode: apiIssuer.issuePointCode,
+            businessName: apiIssuer.businessName,
+            tradeName: apiIssuer.tradeName,
+            branchAddress: apiIssuer.branchAddress,
+            isDefault: firstLocalIssuerId === null,
+          },
+        });
+        if (firstLocalIssuerId === null) firstLocalIssuerId = issuer.id;
+      }
+
+      await tx.user.update({
+        where: { id: userId },
+        data: { tenantId: tenant.id, role: 'Owner' },
+      });
+
+      return firstLocalIssuerId as number;
+    });
+  } catch {
+    return { error: 'DB_WRITE_FAILED' };
+  }
+
+  await writeCtxCookie({ issuerId: defaultLocalIssuerId, v: 1 });
+  await registerWebhookBestEffort(apiTenantId, newKey.key);
+
+  revalidatePath('/', 'layout');
+  const locale = await getLocale();
+  redirect({ href: '/dashboard', locale });
   return null;
 }

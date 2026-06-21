@@ -173,15 +173,17 @@ export interface CreateDocumentPayload {
 
 // ── Issuer types ──────────────────────────────────────────────────────────────
 
+// Verified against: ../comprobify/src/services/issuer.service.js → listIssuers()
 export interface ApiIssuer {
-  id: number;
+  id: string;           // bigint → serialized as string by pg/JSON
   ruc: string;
   businessName: string;
-  tradeName?: string;
+  tradeName: string | null;
   branchCode: string;
   issuePointCode: string;
-  branchAddress?: string;
-  environment: string;
+  branchAddress: string | null;
+  certFingerprint: string | null;
+  certExpiry: string | null;
 }
 
 export interface CreateIssuerFields {
@@ -462,6 +464,29 @@ export async function removeIssuerDocumentType(
   );
 }
 
+// ── Current tenant identity ────────────────────────────────────────────────────
+
+// Verified against: ../comprobify/src/controllers/tenant.controller.js → getMe()
+// and ../comprobify/src/middleware/authenticate.js (sets req.tenant from the key).
+export interface ApiTenantInfo {
+  id: string;              // bigint (api_keys.tenant_id) → serialized as string by pg/JSON
+  email: string;
+  subscriptionTier: string;
+  status: 'PENDING_VERIFICATION' | 'ACTIVE' | 'SUSPENDED';
+  documentCount: string;   // bigint → serialized as string by pg/JSON
+  documentQuota: number;   // regular int column
+  sandbox: boolean;
+}
+
+// Verified against: ../comprobify/src/routes/tenants.routes.js → GET /v1/tenants/me
+export async function getCurrentTenant(ctx: ApiCtx): Promise<ApiTenantInfo> {
+  const result = await request<{ ok: true; tenant: ApiTenantInfo }>(
+    '/v1/tenants/me',
+    { apiKey: ctx.apiKey },
+  );
+  return result.tenant;
+}
+
 // ── Tenant promotion ──────────────────────────────────────────────────────────
 
 export interface PromoteTenantResult {
@@ -502,12 +527,16 @@ export async function listTenantApiKeys(ctx: ApiCtx): Promise<ApiKeyInfo[]> {
   return result.keys;
 }
 
-export async function createTenantApiKey(ctx: ApiCtx, label: string): Promise<CreatedApiKey> {
+export async function createTenantApiKey(
+  ctx: ApiCtx,
+  label: string,
+  environment?: 'sandbox' | 'production',
+): Promise<CreatedApiKey> {
   // POST /v1/keys returns only the plain token string, not the key's id/label.
   const createResult = await request<{ ok: true; apiKey: string }>(
     '/v1/keys',
     ctx,
-    { method: 'POST', body: JSON.stringify({ label }) },
+    { method: 'POST', body: JSON.stringify({ label, environment }) },
   );
   const plainKey = createResult.apiKey;
 

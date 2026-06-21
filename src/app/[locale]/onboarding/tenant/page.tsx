@@ -3,7 +3,7 @@ import { Info } from 'lucide-react';
 import { auth } from '@/auth';
 import { redirect } from '@/i18n/navigation';
 import { db } from '@/lib/db';
-import { IssuerSetupForm } from '@/components/issuer-setup-form';
+import { OnboardingTabs } from '@/components/onboarding-tabs';
 import { LogoLockup } from '@/components/logo';
 import { LocaleSwitcher } from '@/components/locale-switcher';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -58,9 +58,7 @@ export default async function OnboardingTenantPage({
           <p>{t('sriNotice')}</p>
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-          <IssuerSetupForm />
-        </div>
+        <OnboardingTabs />
       </div>
       </div>
     </div>
