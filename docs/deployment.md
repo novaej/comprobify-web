@@ -4,48 +4,40 @@
 
 ## Branching strategy
 
-Three long-lived branches map directly to environments. Feature branches are always cut from `main` and merged back into `main` via pull request.
+Two long-lived branches map to deployed environments. They are **automation-owned** — promoted forward by tags and GitHub Releases, never by direct or manual pushes. Feature/fix branches are always cut from `main` and merged back via pull request. This mirrors the release model used by the Comprobify API (`../comprobify/docs/deployment.md`), substituting Vercel's native Git integration for Render's deploy hooks.
 
 ```
-  feature/xyz              main               staging                prod
-      │                     │                    │                     │
-      │  PR + merge         │                    │                     │
-      │────────────────────▶│                    │                     │
-      │                     │  merge main →      │                     │
-      │                     │  staging           │                     │
-      │                     │───────────────────▶│──▶ Vercel auto ────▶ comprobify-web-staging
-      │                     │                    │                     │
-      │                     │  merge staging →   │                     │
-      │                     │  prod (full release)                     │
-      │                     │────────────────────┼────────────────────▶│──▶ Vercel auto ──▶ comprobify-web-prod
-      │                     │                    │                     │
-      │                     │  cherry-pick       │                     │
-      │                     │  (selective deploy)│                     │
-      │                     │────────────────────┼── commit SHA ──────▶│──▶ Vercel auto ──▶ comprobify-web-prod
-      │                     │                    │                     │
-  hotfix/xyz                │                    │                     │
-      │  PR + merge         │                    │                     │
-      │────────────────────▶│                    │                     │
-      │                     │  cherry-pick       │                     │
-      │                     │  to prod           │                     │
-      │                     │────────────────────┼── commit SHA ──────▶│──▶ Vercel auto ──▶ comprobify-web-prod
-      │                     │                    │                     │
-      │                     │  cherry-pick       │                     │
-      │                     │  to staging (sync) │                     │
-      │                     │───────────────────▶│                     │
+  feature/xyz              main                                   staging                  production
+      │                     │                                       │                          │
+      │  PR + merge         │                                       │                          │
+      │────────────────────▶│                                       │                          │
+      │                     │  git tag vX.Y.Z + push                │                          │
+      │                     │── release-staging.yml (ff-merge) ────▶│                          │
+      │                     │                                       │                          │
+      │                     │  publish GitHub Release from the tag  │                          │
+      │                     │── release-production.yml (ff-merge) ──┼─────────────────────────▶│
+      │                     │                                                                   │
+  hotfix/xyz                │                                                                   │
+      │  branch off `production` (or `staging` until production exists),                       │
+      │  PR into the hotfix branch, tag vX.Y.Z+1 → same pipeline                                │
+      │  → cherry-pick the merged fix back into `main`                                          │
+      │─────────────────────────────────────────────────────────────────────────────────────▶  │
 ```
 
-| Branch | Environment | Trigger |
-|--------|-------------|---------|
-| `main` | Local / CI tests | — |
-| `staging` | Staging (Vercel) | Push to `staging` |
-| `prod` | Production (Vercel) | Push to `prod` |
+Every push to `staging` or `production` (i.e. every fast-forward the release workflows perform) is picked up automatically by Vercel's Git integration, which builds and deploys the corresponding project (`comprobify-web-staging` / `comprobify-web-production` — see the CI/CD pipeline section below). No deploy step runs inside this repo's workflows.
+
+| Branch | Environment | Promoted by |
+|--------|-------------|-------------|
+| `main` | — (trunk; CI only, no deploy) | PR merge |
+| `staging` | Staging (Vercel) | `release-staging.yml` — fast-forwarded on tag push `vX.Y.Z` |
+| `production` | Production (Vercel) — *not yet provisioned, pipeline disabled* | `release-production.yml` — fast-forwarded when a GitHub Release is published |
 
 **Rules:**
-- All development work happens in `feature/*` branches off `main`
-- Never commit directly to `staging` or `prod`
-- Always flow commits **downward**: `main` → `staging` → `prod`
-- For hotfixes: fix in `main` first, then cherry-pick to `prod`
+- All development happens in feature/fix branches off `main`, merged via PR (1 approval required)
+- `staging` and `production` are **automation-owned** — never push to them directly; they only move forward via fast-forward merges performed by the release workflows. Branch protection restricts direct pushes
+- A **tag** (`vX.Y.Z`, semantic versioning) means *"build this, validate it in staging."* Pushing it triggers `release-staging.yml`, which fast-forwards `staging`. Vercel's Git integration deploys the push automatically — no separate deploy workflow needed
+- A **published GitHub Release**, created from a tag already validated in staging, means *"staging confirmed it, ship to production."* Publishing it is the deliberate, auditable approval gate between staging and production — no extra tooling needed
+- **Hotfixes** branch from the current `production` ref once it exists (until then, branch from `staging`, which is the only environment live today), flow through a PR + tag through the same pipeline, and **must be cherry-picked back into `main`** afterwards so the fix survives the next regular release
 
 ---
 
@@ -71,69 +63,60 @@ git checkout main && git pull origin main
 git branch -d feature/my-feature
 ```
 
-### Deploy to staging
+### Release to staging
+
+Tag the commit on `main` you want to promote — this is the only manual step; the workflow handles the rest.
 
 ```bash
-# Merge main into staging — triggers the staging deploy automatically
-git checkout staging
-git pull origin staging
-git merge main
-git push origin staging
-git checkout main
-```
-
-### Deploy to production
-
-```bash
-# Full release: merge staging into prod
-git checkout prod
-git pull origin prod
-git merge staging
-git push origin prod
-
-# Or: cherry-pick specific commits from main to prod
-git checkout prod
-git pull origin prod
-git cherry-pick <commit-sha>   # repeat for each commit needed
-git push origin prod
-git checkout main
-```
-
-> **Cherry-pick caveat:** cherry-picked commits get a new SHA. If you later do a full `merge staging → prod`, git won't recognise them as already merged and may produce conflicts. To avoid this, after cherry-picking into prod always cherry-pick the same commits into staging so all three branches stay consistent. Periodically do a full merge from staging to prod to reset the debt.
-
-### Sync after cherry-picking
-
-```bash
-# After cherry-picking to prod, keep staging consistent
-git checkout staging
-git cherry-pick <commit-sha>   # same commit(s)
-git push origin staging
-git checkout main
-```
-
-### Hotfix on production
-
-```bash
-# Always fix in main first
 git checkout main
 git pull origin main
-git checkout -b hotfix/critical-fix
-# fix, commit, push
-git push origin hotfix/critical-fix
-# PR → main, merge
+git tag v1.4.0
+git push origin v1.4.0
+```
 
-# Then cherry-pick to prod (and staging to keep in sync)
-git checkout prod
-git pull origin prod
-git cherry-pick <hotfix-commit-sha>
-git push origin prod
+`release-staging.yml` fast-forwards `staging` to `v1.4.0` and pushes it; Vercel's Git integration picks up the push and deploys automatically. Use semantic versioning (`vMAJOR.MINOR.PATCH`) so it's obvious at a glance whether a tag is a feature release (`v1.5.0`) or a hotfix (`v1.4.1`).
 
-git checkout staging
-git pull origin staging
-git cherry-pick <hotfix-commit-sha>
-git push origin staging
+### Promote to production
 
+Once the tag has been validated in staging, promotion is a single deliberate action — **publishing a GitHub Release from that tag**:
+
+1. GitHub UI → **Releases → Draft a new release**
+2. Choose the existing tag (e.g. `v1.4.0`) — do not create a new one
+3. (Optional) generate release notes from the commits since the previous tag — this doubles as the changelog entry, since the publish event *is* the production-ship event
+4. Click **Publish release**
+
+`release-production.yml` then fast-forwards `production` to that commit; Vercel deploys it automatically.
+
+> **Currently disabled** — the production Vercel project, `production` branch, and secrets don't exist yet. See "Production status" below for what's needed to enable this.
+
+### Hotfix flow
+
+Branch from the **currently-deployed `production` ref** (not `main`, which may contain unreleased work). Until production is provisioned, branch from `staging` instead — it's the only environment that's actually live.
+
+```bash
+# 1. Cut a short-lived integration branch from what's live in prod
+git checkout -b hotfix/payment-bug production   # or `staging`, until production exists
+
+# 2. Make the fix on a sub-branch and PR it into the hotfix branch (same review rigor as any change)
+git checkout -b fix/payment-rounding hotfix/payment-bug
+# ...fix, commit, push, open PR: fix/payment-rounding → hotfix/payment-bug, review + merge...
+
+# 3. Tag the merged result — this feeds the same release pipeline
+git checkout hotfix/payment-bug
+git pull origin hotfix/payment-bug
+git tag v1.4.1
+git push origin v1.4.1
+```
+
+From here, run it through the normal tag → staging → release → production pipeline.
+
+**Don't skip this step:** cherry-pick the merged fix commit back into `main` so it isn't silently lost or reverted on the next regular release.
+
+```bash
 git checkout main
+git pull origin main
+git cherry-pick <hotfix-commit-sha>
+git push origin main
 ```
 
 ---
@@ -152,7 +135,7 @@ The proxy (`src/proxy.ts`) separates marketing pages from the app by hostname. B
 Redirects are permanent (301). Localhost and unknown hosts bypass hostname routing so local dev works without any configuration.
 
 **Vercel custom domain setup (production):**
-1. In `comprobify-web-prod`, add **both** `comprobify.com` and `app.comprobify.com` as custom domains.
+1. In `comprobify-web-production`, add **both** `comprobify.com` and `app.comprobify.com` as custom domains.
 2. Point the DNS records for each to Vercel as instructed.
 3. No extra env vars are required — the proxy reads the `host` header at runtime.
 
@@ -164,12 +147,19 @@ Redirects are permanent (301). Localhost and unknown hosts bypass hostname routi
 
 ## CI/CD pipeline
 
-Vercel watches the `staging` and `prod` branches directly. Every push triggers an automatic build and deployment — no workflow files needed.
+### Workflow files
+
+| File | Trigger | Effect |
+|------|---------|--------|
+| `.github/workflows/release-staging.yml` | Push of tag `vX.Y.Z` | Fast-forwards `staging` to the tagged commit and pushes it |
+| `.github/workflows/release-production.yml` | *(disabled)* GitHub Release published | Fast-forwards `production` to the released commit and pushes it |
+
+Unlike the API (which runs on Render and needs an explicit `deploy-staging.yml` / `deploy-production.yml` to call a Render deploy hook), Vercel's Git integration watches `staging` and `production` directly — every push to either branch triggers an automatic build and deployment with no additional workflow file required.
 
 | Branch | Vercel project | URL |
 |--------|----------------|-----|
 | `staging` | `comprobify-web-staging` | `staging.comprobify.com` + `app-staging.comprobify.com` |
-| `prod` | `comprobify-web-prod` | `comprobify.com` + `app.comprobify.com` |
+| `production` | `comprobify-web-production` | `comprobify.com` + `app.comprobify.com` |
 
 ### Build settings (both projects)
 
@@ -181,27 +171,34 @@ Vercel watches the `staging` and `prod` branches directly. Every push triggers a
 | Install command | `npm ci` |
 | Node.js version | 18.x or 20.x |
 
-Vercel handles the rest automatically: installs dependencies, builds the app, and routes traffic to the new deployment.
+### Pipeline stages (staging)
+
+1. **Tag pushed** (`vX.Y.Z`) — `release-staging.yml` checks out the tag and fast-forward-merges `staging` to it, then pushes
+2. **Push to `staging`** — Vercel's Git integration builds and deploys `comprobify-web-staging` automatically
+
+### Production status
+
+The production pipeline is **written but disabled** — `release-production.yml` exists in the repo with its trigger commented out and an `if: false` guard on its job, because the production Vercel project, `production` branch, and secrets don't exist yet.
+
+To enable production once it's provisioned:
+1. Create the `production` branch (fast-forwarded only by the automation, same invariant as `staging`)
+2. Create the `comprobify-web-production` Vercel project, with **independent** `AUTH_SECRET` / `ENCRYPTION_KEY` / `CONTEXT_COOKIE_SECRET` / `DATABASE_URL` from staging — never share these between environments
+3. In `release-production.yml`: uncomment the `release: types: [published]` trigger and remove the `if: false` guard on the `promote` job
+4. Add branch protection to `production` (restrict who can push to the automation only; no force pushes) — see GitHub repository setup below
 
 ---
 
 ## GitHub repository setup
 
-One-time setup after creating the `staging` and `prod` branches.
+### 1. Branches
 
-### 1. Create the branches
+Only `staging` exists today (already created). `production` is created when the production environment is provisioned (see "Production status" above):
 
 ```bash
 git checkout main
 git pull origin main
-
-git checkout -b staging
-git push -u origin staging
-
-git checkout main
-git checkout -b prod
-git push -u origin prod
-
+git checkout -b production
+git push -u origin production
 git checkout main
 ```
 
@@ -213,22 +210,28 @@ git checkout main
 - ✅ Dismiss stale pull request approvals when new commits are pushed
 - ✅ Do not allow bypassing the above settings
 
-### 3. Protect `prod` (Settings → Branches → Add rule)
+### 3. Protect `staging` and `production` (Settings → Branches → Add rule, one for each)
 
-- **Branch name pattern:** `prod`
-- ✅ Restrict who can push — add only yourself
+Both branches are **automation-owned** — they only move forward via fast-forward pushes from `release-staging.yml` / `release-production.yml`. Restrict direct human pushes so the fast-forward invariant can't be broken by a stray commit:
+
+- **Branch name pattern:** `staging` (repeat for `production`)
+- ✅ Restrict who can push — limit to the automation (e.g. a bot account / fine-grained PAT, or repository admins only as a fallback)
 - ✅ Do not allow force pushes
 
-### 4. Leave `staging` open
+### 4. Add secrets (Settings → Secrets and variables → Actions)
 
-`staging` does not need branch protection. Merges from `main` are fast and frequent. Direct push is fine.
+| Secret | Scope | Used by |
+|---|---|---|
+| `RELEASE_PUSH_TOKEN` | Repository | `release-staging.yml` / `release-production.yml` — a fine-grained PAT with `Contents: Read and write` on this repo, needed because the default `GITHUB_TOKEN` cannot push to a protected branch |
+
+No Vercel deploy-hook secret is needed — Vercel's Git integration deploys on push without any token from this repo.
 
 ### 5. Connect to Vercel
 
 1. Go to [vercel.com](https://vercel.com) → **Add New Project**
 2. Import the `comprobify-web` GitHub repository
 3. Create **two separate Vercel projects** — one for staging, one for production:
-   - In each project's **Settings → Git**, set the **Production Branch** to `staging` or `prod` respectively
+   - In each project's **Settings → Git**, set the **Production Branch** to `staging` or `production` respectively
 4. Add environment variables to each project (see table below)
 5. Deploy
 
@@ -261,7 +264,7 @@ All variables are required. Set them in each Vercel project under **Settings →
 |----------|----------------|
 | `COMPROBIFY_API_KEY` | API keys are now per-tenant, stored encrypted in the `TenantApiKey` table, resolved via `requireContext()` |
 | `COMPROBIFY_SANDBOX` | Sandbox/production state is per-tenant, stored in `Tenant.environment` |
-| `COMPROBIFY_ADMIN_SECRET` | Admin API removed — issuer setup uses `POST /api/register` (self-service) |
+| `COMPROBIFY_ADMIN_SECRET` | Admin API removed — issuer setup uses `POST /v1/register` (self-service) |
 | `NEXTAUTH_SECRET` | Renamed to `AUTH_SECRET` (Auth.js v5 convention) |
 
 ---
@@ -286,8 +289,13 @@ All variables are required. Set them in each Vercel project under **Settings →
 - [ ] All env vars are set as server-only (no `NEXT_PUBLIC_` prefix on any secret)
 - [ ] Custom domain configured in Vercel and DNS records updated
 - [ ] HTTPS enforced — Vercel handles this automatically for custom domains
-- [ ] `prod` branch is protected in GitHub (no force pushes, restricted push access)
-- [ ] Vercel deployment previews are disabled or restricted for the `prod` project
+- [ ] `production` branch is protected in GitHub (no force pushes, restricted push access)
+- [ ] Vercel deployment previews are disabled or restricted for the `production` project
+
+**Release pipeline**
+- [ ] `RELEASE_PUSH_TOKEN` secret added to the repository
+- [ ] `production` branch created and the `release-production.yml` trigger uncommented + `if: false` guard removed
+- [ ] A tag has been promoted through staging and validated before the first production release
 
 **Sentry**
 - [ ] `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN` set in each Vercel project (same DSN value for both)
@@ -308,7 +316,7 @@ Key things to monitor:
 |---------|--------------|
 | All users redirected to `/login` in a loop | `AUTH_SECRET` missing or wrong — session JWTs can't be verified |
 | 500 on login / registration | `DATABASE_URL` misconfigured or migration not applied — run `npx prisma migrate deploy` |
-| Issuer setup fails in Settings | `COMPROBIFY_ADMIN_SECRET` missing or doesn't match the Comprobify API's admin secret |
+| Issuer setup fails in onboarding | Comprobify API rejected the registration — check `COMPROBIFY_API_URL` and Render logs on the API side |
 | API calls return 401 after issuer setup | The provisioned API key is invalid or was revoked — re-run setup |
 | Sandbox banner appears for production users | User's `environment` column is still `'sandbox'` — they must use the "Activate production" button in Settings |
 | Invoice status polling stuck | Proxy route `/api/documents/:key/status` can't reach the Comprobify API — check `COMPROBIFY_API_URL` and network access |
