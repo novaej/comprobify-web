@@ -42,7 +42,7 @@ COMPROBIFY_API_URL=http://localhost:8080
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 # Auth secret for encrypting the session JWT — any random 32+ char string
-# Generate one: openssl rand -base64 32
+# Generate one: openssl rand -hex 32
 AUTH_SECRET=replace-me-with-a-random-string
 
 # AES-256-GCM key for encrypting tenant API keys at rest (32-byte hex)
