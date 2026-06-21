@@ -166,10 +166,12 @@ Unlike the API (which runs on Render and needs an explicit `deploy-staging.yml` 
 | Setting | Value |
 |---------|-------|
 | Framework preset | Next.js |
-| Build command | `npm run build` |
+| Build command | `npm run vercel-build` (Vercel auto-detects the `vercel-build` script in `package.json` and uses it instead of `build`) |
 | Output directory | `.next` (Vercel default) |
 | Install command | `npm ci` |
 | Node.js version | 18.x or 20.x |
+
+`vercel-build` runs `prisma generate && prisma migrate deploy && next build` — every deploy applies any pending migrations against `DATABASE_URL` before building. `prisma migrate deploy` only runs migrations not yet recorded in `_prisma_migrations`, so already-applied ones are skipped automatically; it's safe to run on every deploy, including ones with no schema changes.
 
 ### Pipeline stages (staging)
 
@@ -273,7 +275,7 @@ All variables are required. Set them in each Vercel project under **Settings →
 
 **Database**
 - [ ] `DATABASE_URL` points to a production PostgreSQL instance (separate from staging)
-- [ ] `npx prisma migrate deploy` has been run against the production database
+- [ ] `npx prisma migrate deploy` ran successfully on the first deploy (automatic via `vercel-build` — check the build log)
 - [ ] Production database has backups enabled
 
 **Comprobify API**
