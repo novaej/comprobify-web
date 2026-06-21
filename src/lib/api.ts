@@ -199,7 +199,7 @@ export interface CreateIssuerFields {
 
 // ── API key types ─────────────────────────────────────────────────────────────
 
-// Shape returned by GET /api/keys (the API serializes bigint id as a JSON string).
+// Shape returned by GET /v1/keys (the API serializes bigint id as a JSON string).
 export interface ApiKeyInfo {
   id: string;           // bigint → serialized as string by pg/JSON
   label: string | null;
@@ -266,12 +266,12 @@ export async function listDocuments(
   if (params.limit) qs.set('limit', String(params.limit));
 
   const query = qs.toString();
-  return request<ListDocumentsResult>(`/api/documents${query ? `?${query}` : ''}`, ctx);
+  return request<ListDocumentsResult>(`/v1/documents${query ? `?${query}` : ''}`, ctx);
 }
 
 export async function getDocument(ctx: ApiCtx, accessKey: string): Promise<Document> {
   const result = await request<{ ok: true; document: Document }>(
-    `/api/documents/${accessKey}`,
+    `/v1/documents/${accessKey}`,
     ctx,
   );
   return result.document;
@@ -286,7 +286,7 @@ export async function createDocument(
   if (idempotencyKey) extraHeaders['Idempotency-Key'] = idempotencyKey;
 
   const result = await request<{ ok: true; document: Document }>(
-    '/api/documents',
+    '/v1/documents',
     ctx,
     { method: 'POST', body: JSON.stringify(payload), headers: extraHeaders }
   );
@@ -295,7 +295,7 @@ export async function createDocument(
 
 export async function sendToSri(ctx: ApiCtx, accessKey: string): Promise<Document> {
   const result = await request<{ ok: true; document: Document }>(
-    `/api/documents/${accessKey}/send`,
+    `/v1/documents/${accessKey}/send`,
     ctx,
     { method: 'POST' }
   );
@@ -304,7 +304,7 @@ export async function sendToSri(ctx: ApiCtx, accessKey: string): Promise<Documen
 
 export async function checkAuthorization(ctx: ApiCtx, accessKey: string): Promise<Document> {
   const result = await request<{ ok: true; document: Document }>(
-    `/api/documents/${accessKey}/authorize`,
+    `/v1/documents/${accessKey}/authorize`,
     ctx,
   );
   return result.document;
@@ -316,7 +316,7 @@ export async function rebuildDocument(
   payload: CreateDocumentPayload
 ): Promise<Document> {
   const result = await request<{ ok: true; document: Document }>(
-    `/api/documents/${accessKey}/rebuild`,
+    `/v1/documents/${accessKey}/rebuild`,
     ctx,
     { method: 'POST', body: JSON.stringify(payload) }
   );
@@ -328,7 +328,7 @@ export async function getDocumentEvents(
   accessKey: string
 ): Promise<DocumentEvent[]> {
   const result = await request<{ ok: true; events: DocumentEvent[] }>(
-    `/api/documents/${accessKey}/events`,
+    `/v1/documents/${accessKey}/events`,
     ctx,
   );
   return result.events;
@@ -340,7 +340,7 @@ export async function retrySingleEmail(
   force = false
 ): Promise<void> {
   await request(
-    `/api/documents/${accessKey}/email-retry${force ? '?force=true' : ''}`,
+    `/v1/documents/${accessKey}/email-retry${force ? '?force=true' : ''}`,
     ctx,
     { method: 'POST' },
   );
@@ -350,7 +350,7 @@ export async function retrySingleEmail(
 
 export async function listCatalogIdTypes(ctx: ApiCtx): Promise<CatalogIdType[]> {
   const result = await request<{ ok: true; idTypes: CatalogIdType[] }>(
-    '/api/catalogs/id-types',
+    '/v1/catalogs/id-types',
     ctx,
   );
   return result.idTypes;
@@ -358,7 +358,7 @@ export async function listCatalogIdTypes(ctx: ApiCtx): Promise<CatalogIdType[]> 
 
 export async function listCatalogPaymentMethods(ctx: ApiCtx): Promise<CatalogPaymentMethod[]> {
   const result = await request<{ ok: true; paymentMethods: CatalogPaymentMethod[] }>(
-    '/api/catalogs/payment-methods',
+    '/v1/catalogs/payment-methods',
     ctx,
   );
   return result.paymentMethods;
@@ -366,7 +366,7 @@ export async function listCatalogPaymentMethods(ctx: ApiCtx): Promise<CatalogPay
 
 export async function listCatalogTaxRates(ctx: ApiCtx): Promise<CatalogTaxRate[]> {
   const result = await request<{ ok: true; taxRates: CatalogTaxRate[] }>(
-    '/api/catalogs/tax-rates',
+    '/v1/catalogs/tax-rates',
     ctx,
   );
   return result.taxRates;
@@ -374,7 +374,7 @@ export async function listCatalogTaxRates(ctx: ApiCtx): Promise<CatalogTaxRate[]
 
 export async function listCatalogTermUnits(ctx: ApiCtx): Promise<CatalogTermUnit[]> {
   const result = await request<{ ok: true; termUnits: CatalogTermUnit[] }>(
-    '/api/catalogs/term-units',
+    '/v1/catalogs/term-units',
     ctx,
   );
   return result.termUnits;
@@ -384,7 +384,7 @@ export async function listCatalogTermUnits(ctx: ApiCtx): Promise<CatalogTermUnit
 
 export async function listTenantIssuers(ctx: ApiCtx): Promise<ApiIssuer[]> {
   const result = await request<{ ok: true; issuers: ApiIssuer[] }>(
-    '/api/issuers',
+    '/v1/issuers',
     { apiKey: ctx.apiKey },
   );
   return result.issuers;
@@ -417,7 +417,7 @@ export async function createIssuer(
     form.append('cert', new Blob([buf], { type: 'application/x-pkcs12' }), 'cert.p12');
   }
 
-  const res = await fetch(`${getApiUrl()}/api/issuers`, {
+  const res = await fetch(`${getApiUrl()}/v1/issuers`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${ctx.apiKey}` },
     body: form,
@@ -432,7 +432,7 @@ export async function createIssuer(
 
 export async function listIssuerDocumentTypes(ctx: ApiCtx, issuerId: number): Promise<string[]> {
   const result = await request<{ ok: true; documentTypes: string[] }>(
-    `/api/issuers/${issuerId}/document-types`,
+    `/v1/issuers/${issuerId}/document-types`,
     { apiKey: ctx.apiKey },
   );
   return result.documentTypes;
@@ -444,7 +444,7 @@ export async function addIssuerDocumentType(
   code: string,
 ): Promise<void> {
   await request(
-    `/api/issuers/${issuerId}/document-types`,
+    `/v1/issuers/${issuerId}/document-types`,
     { apiKey: ctx.apiKey },
     { method: 'POST', body: JSON.stringify({ code }) },
   );
@@ -456,7 +456,7 @@ export async function removeIssuerDocumentType(
   code: string,
 ): Promise<void> {
   await request(
-    `/api/issuers/${issuerId}/document-types/${code}`,
+    `/v1/issuers/${issuerId}/document-types/${code}`,
     { apiKey: ctx.apiKey },
     { method: 'DELETE' },
   );
@@ -467,7 +467,7 @@ export async function removeIssuerDocumentType(
 export interface PromoteTenantResult {
   ok: true;
   // The API returns { label, apiKey } per key — no id, no environment.
-  // Callers must fetch GET /api/keys with one of these tokens to obtain the
+  // Callers must fetch GET /v1/keys with one of these tokens to obtain the
   // API-side key IDs needed for future revocation.
   apiKeys: Array<{ label: string; apiKey: string }>;
 }
@@ -477,16 +477,16 @@ export async function promoteTenant(
   initialSequentials?: Array<{ issuerId: number; documentType: string; sequential: number }>,
 ): Promise<PromoteTenantResult> {
   return request<PromoteTenantResult>(
-    '/api/tenants/promote',
+    '/v1/tenants/promote',
     { apiKey: ctx.apiKey },
     { method: 'POST', body: JSON.stringify({ initialSequentials: initialSequentials ?? [] }) },
   );
 }
 
-// Verified against: src/routes/tenants.routes.js → PATCH /api/tenants/language
+// Verified against: src/routes/tenants.routes.js → PATCH /v1/tenants/language
 export async function updateTenantLanguage(ctx: ApiCtx, language: string): Promise<void> {
   await request<{ ok: true }>(
-    '/api/tenants/language',
+    '/v1/tenants/language',
     { apiKey: ctx.apiKey },
     { method: 'PATCH', body: JSON.stringify({ language }) },
   );
@@ -496,16 +496,16 @@ export async function updateTenantLanguage(ctx: ApiCtx, language: string): Promi
 
 export async function listTenantApiKeys(ctx: ApiCtx): Promise<ApiKeyInfo[]> {
   const result = await request<{ ok: true; keys: ApiKeyInfo[] }>(
-    '/api/keys',
+    '/v1/keys',
     { apiKey: ctx.apiKey },
   );
   return result.keys;
 }
 
 export async function createTenantApiKey(ctx: ApiCtx, label: string): Promise<CreatedApiKey> {
-  // POST /api/keys returns only the plain token string, not the key's id/label.
+  // POST /v1/keys returns only the plain token string, not the key's id/label.
   const createResult = await request<{ ok: true; apiKey: string }>(
-    '/api/keys',
+    '/v1/keys',
     ctx,
     { method: 'POST', body: JSON.stringify({ label }) },
   );
@@ -514,7 +514,7 @@ export async function createTenantApiKey(ctx: ApiCtx, label: string): Promise<Cr
   // Authenticate with the new token to fetch its metadata (id, label, environment).
   // Keys are ordered newest-first so [0] is the one we just created.
   const listResult = await request<{ ok: true; keys: ApiKeyInfo[] }>(
-    '/api/keys',
+    '/v1/keys',
     { apiKey: plainKey },
   );
   const keyRecord = listResult.keys[0];
@@ -530,7 +530,7 @@ export async function createTenantApiKey(ctx: ApiCtx, label: string): Promise<Cr
 
 export async function revokeTenantApiKey(ctx: ApiCtx, id: number): Promise<void> {
   await request(
-    `/api/keys/${id}`,
+    `/v1/keys/${id}`,
     { apiKey: ctx.apiKey },
     { method: 'DELETE' },
   );
@@ -559,44 +559,44 @@ export interface NotificationPreference {
 
 // ── Notification functions ────────────────────────────────────────────────────
 
-// Verified against: docs/site/endpoints/notifications.md → GET /api/notifications
+// Verified against: docs/site/endpoints/notifications.md → GET /v1/notifications
 export async function listNotifications(
   ctx: ApiCtx,
   sinceId?: string,
 ): Promise<{ notifications: ApiNotification[]; unreadCount: number }> {
   const qs = sinceId ? `?sinceId=${sinceId}` : '';
   return request<{ notifications: ApiNotification[]; unreadCount: number }>(
-    `/api/notifications${qs}`,
+    `/v1/notifications${qs}`,
     { apiKey: ctx.apiKey },
   );
 }
 
-// Verified against: docs/site/endpoints/notifications.md → POST /api/notifications/:id/read
+// Verified against: docs/site/endpoints/notifications.md → POST /v1/notifications/:id/read
 export async function markNotificationRead(ctx: ApiCtx, id: string): Promise<ApiNotification> {
   const result = await request<{ notification: ApiNotification }>(
-    `/api/notifications/${id}/read`,
+    `/v1/notifications/${id}/read`,
     { apiKey: ctx.apiKey },
     { method: 'POST' },
   );
   return result.notification;
 }
 
-// Verified against: docs/site/endpoints/notifications.md → GET /api/notifications/preferences
+// Verified against: docs/site/endpoints/notifications.md → GET /v1/notifications/preferences
 export async function getNotificationPreferences(ctx: ApiCtx): Promise<NotificationPreference[]> {
   const result = await request<{ preferences: NotificationPreference[] }>(
-    '/api/notifications/preferences',
+    '/v1/notifications/preferences',
     { apiKey: ctx.apiKey },
   );
   return result.preferences;
 }
 
-// Verified against: docs/site/endpoints/notifications.md → PATCH /api/notifications/preferences
+// Verified against: docs/site/endpoints/notifications.md → PATCH /v1/notifications/preferences
 export async function updateNotificationPreferences(
   ctx: ApiCtx,
   prefs: NotificationPreference[],
 ): Promise<NotificationPreference[]> {
   const result = await request<{ preferences: NotificationPreference[] }>(
-    '/api/notifications/preferences',
+    '/v1/notifications/preferences',
     { apiKey: ctx.apiKey },
     { method: 'PATCH', body: JSON.stringify(prefs) },
   );
@@ -617,47 +617,47 @@ export interface ApiWebhookEndpoint {
 
 // ── Webhook endpoint functions ────────────────────────────────────────────────
 
-// Verified against: docs/site/endpoints/webhooks.md → POST /api/webhooks
+// Verified against: docs/site/endpoints/webhooks.md → POST /v1/webhooks
 export async function registerWebhookEndpoint(
   ctx: ApiCtx,
   url: string,
   eventTypes?: string[],
 ): Promise<{ endpoint: ApiWebhookEndpoint; secret: string }> {
   const result = await request<{ ok: true; endpoint: ApiWebhookEndpoint; secret: string }>(
-    '/api/webhooks',
+    '/v1/webhooks',
     { apiKey: ctx.apiKey },
     { method: 'POST', body: JSON.stringify({ url, eventTypes }) },
   );
   return { endpoint: result.endpoint, secret: result.secret };
 }
 
-// Verified against: docs/site/endpoints/webhooks.md → GET /api/webhooks
+// Verified against: docs/site/endpoints/webhooks.md → GET /v1/webhooks
 export async function listWebhookEndpoints(ctx: ApiCtx): Promise<ApiWebhookEndpoint[]> {
   const result = await request<{ ok: true; endpoints: ApiWebhookEndpoint[] }>(
-    '/api/webhooks',
+    '/v1/webhooks',
     { apiKey: ctx.apiKey },
   );
   return result.endpoints;
 }
 
-// Verified against: docs/site/endpoints/webhooks.md → PATCH /api/webhooks/:id
+// Verified against: docs/site/endpoints/webhooks.md → PATCH /v1/webhooks/:id
 export async function updateWebhookEndpoint(
   ctx: ApiCtx,
   id: string,
   data: { url?: string; eventTypes?: string[]; active?: boolean },
 ): Promise<ApiWebhookEndpoint> {
   const result = await request<{ ok: true; endpoint: ApiWebhookEndpoint }>(
-    `/api/webhooks/${id}`,
+    `/v1/webhooks/${id}`,
     { apiKey: ctx.apiKey },
     { method: 'PATCH', body: JSON.stringify(data) },
   );
   return result.endpoint;
 }
 
-// Verified against: docs/site/endpoints/webhooks.md → DELETE /api/webhooks/:id
+// Verified against: docs/site/endpoints/webhooks.md → DELETE /v1/webhooks/:id
 export async function deleteWebhookEndpoint(ctx: ApiCtx, id: string): Promise<void> {
   await request(
-    `/api/webhooks/${id}`,
+    `/v1/webhooks/${id}`,
     { apiKey: ctx.apiKey },
     { method: 'DELETE' },
   );

@@ -22,7 +22,7 @@ export async function GET(
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
 
-  const res = await fetch(`${apiUrl}/api/documents/${key}/ride`, {
+  const res = await fetch(`${apiUrl}/v1/documents/${key}/ride`, {
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'X-Issuer-Id': String(issuerId),
