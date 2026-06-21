@@ -9,6 +9,7 @@ import { db } from '@/lib/db';
 import { encrypt } from '@/lib/crypto';
 import { ApiError } from '@/lib/errors';
 import { revalidatePath } from 'next/cache';
+import * as Sentry from '@sentry/nextjs';
 
 export type WebhookActionResult = { error: string } | null;
 
@@ -138,8 +139,10 @@ export async function ensureWebhookRegisteredAction(): Promise<void> {
         active: endpoint.active,
       },
     });
-  } catch {
-    // Non-fatal during onboarding — notifications will fall back to catch-up polling.
+  } catch (err) {
+    // Non-fatal during onboarding — notifications will fall back to catch-up
+    // polling. Still worth knowing about if this starts failing systematically.
+    Sentry.captureException(err, { extra: { tenantId: ctx.tenant.id } });
   }
 }
 

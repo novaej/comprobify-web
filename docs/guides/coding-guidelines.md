@@ -94,6 +94,15 @@ revalidatePath('/', 'layout');
 redirect({ href: '/dashboard', locale });
 ```
 
+**Re-throwing unknown errors (`throw err` above) is what makes Sentry capture them automatically** via `onRequestError` — Next.js only reports errors that propagate unhandled out of the action. If you have a good reason to catch and swallow a non-`ApiError` exception instead (e.g. to show a friendly message rather than a crash page after an external side effect already succeeded — see `linkExistingTenantAction` in `src/app/actions/onboarding.ts`), you are opting out of that automatic reporting. Call `Sentry.captureException(err)` explicitly before returning the generic error code, or the failure becomes invisible:
+
+```ts
+} catch (err) {
+  Sentry.captureException(err);
+  return { error: 'DB_WRITE_FAILED' };
+}
+```
+
 If you use a broad `try/catch` around the entire action body, you must re-throw `NEXT_REDIRECT` errors or the redirect will be swallowed:
 
 ```ts

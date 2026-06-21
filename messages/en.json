@@ -25,6 +25,7 @@
     "noIssuer": "No issue point"
   },
   "auth": {
+    "backToHome": "Back to home",
     "fields": {
       "email": "Email address",
       "password": "Password",

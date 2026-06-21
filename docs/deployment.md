@@ -247,7 +247,7 @@ All variables are required. Set them in each Vercel project under **Settings →
 |----------|----------|-------------|
 | `DATABASE_URL` | Yes | PostgreSQL connection string for the frontend users table. Use a separate database from the Comprobify API DB. Recommended: [Neon](https://neon.tech) free tier on Vercel. |
 | `COMPROBIFY_API_URL` | Yes | Base URL of the Comprobify API — no trailing slash (e.g. `https://api.comprobify.com`) |
-| `AUTH_SECRET` | Yes | Random 32+ character string used to sign Auth.js JWTs. Generate: `openssl rand -base64 32`. Use a **different value** per environment. |
+| `AUTH_SECRET` | Yes | Random 32+ character string used to sign Auth.js JWTs. Generate: `openssl rand -hex 32`. Use a **different value** per environment. |
 | `ENCRYPTION_KEY` | Yes | 32-byte hex string used to encrypt `TenantApiKey` values at rest (AES-256-GCM). Generate: `openssl rand -hex 32`. Use a **different value** per environment. |
 | `CONTEXT_COOKIE_SECRET` | Yes | Secret used to HMAC-sign the `comprobify_ctx` issuer-selection cookie. Generate: `openssl rand -hex 32`. Use a **different value** per environment. |
 | `SENTRY_DSN` | No | Sentry DSN for server-side error capture. Leave unset locally — Sentry is intentionally disabled in local dev. Same DSN value for staging and production; use `APP_ENV` to distinguish environments. |
@@ -284,7 +284,7 @@ All variables are required. Set them in each Vercel project under **Settings →
 - [ ] `ENCRYPTION_KEY` and `CONTEXT_COOKIE_SECRET` are set (generate fresh values per environment)
 
 **Auth**
-- [ ] `AUTH_SECRET` is a unique, randomly generated value — never reuse the staging secret (`openssl rand -base64 32`)
+- [ ] `AUTH_SECRET` is a unique, randomly generated value — never reuse the staging secret (`openssl rand -hex 32`)
 - [ ] No `COMPROBIFY_API_KEY` or `COMPROBIFY_SANDBOX` env vars set — these are removed
 
 **Vercel**
@@ -323,3 +323,6 @@ Key things to monitor:
 | Sandbox banner appears for production users | User's `environment` column is still `'sandbox'` — they must use the "Activate production" button in Settings |
 | Invoice status polling stuck | Proxy route `/api/documents/:key/status` can't reach the Comprobify API — check `COMPROBIFY_API_URL` and network access |
 | Build failing | Run `npm run build` locally and fix type errors before pushing |
+| API calls fail with `Unexpected token '<' ... is not valid JSON` | `COMPROBIFY_API_URL` has a trailing slash, producing a double slash (`...com//v1/...`) that the API's router doesn't match — it falls through to a generic HTML 404 instead of a JSON error. Remove the trailing slash and redeploy. |
+| Build fails source map upload with `Project not found` | `org` in `next.config.ts`'s `withSentryConfig()` call is the numeric ID from the DSN hostname (`o<id>.ingest...`) instead of the organization **slug** — find the slug under Sentry → Settings → General Settings. |
+| Onboarding fails with a generic internal-error message, nothing in Sentry | If the catch block doesn't call `Sentry.captureException` (see CLAUDE.md Common Mistake #23), check `ENCRYPTION_KEY` first — it must be exactly 64 hex characters (`openssl rand -hex 32`); a base64 value throws inside `encrypt()` before any DB write is attempted. |

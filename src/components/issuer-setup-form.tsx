@@ -49,7 +49,8 @@ export function IssuerSetupForm() {
             ? tError(code as Parameters<typeof tError>[0])
             : tError('UNKNOWN'));
         }
-      } catch {
+      } catch (err) {
+        if ((err as { digest?: string })?.digest?.startsWith('NEXT_REDIRECT')) throw err;
         setError(tError('UNKNOWN'));
       }
     });
