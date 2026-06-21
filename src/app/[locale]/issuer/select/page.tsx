@@ -2,7 +2,7 @@ import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { requireContext } from '@/lib/context';
 import { db } from '@/lib/db';
 import { IssuerSelectList } from '@/components/issuer-select-list';
-import { LogoLockup } from '@/components/logo';
+import { LogoLockupStacked } from '@/components/logo';
 
 export default async function IssuerSelectPage({
   params,
@@ -24,7 +24,8 @@ export default async function IssuerSelectPage({
     <div className="min-h-screen bg-muted/40 flex items-start justify-center p-4 pt-12">
       <div className="w-full max-w-md">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <LogoLockup className="h-8 w-auto" />
+          <LogoLockupStacked variant="light" className="h-16 w-auto dark:hidden" />
+          <LogoLockupStacked variant="dark" className="hidden h-16 w-auto dark:block" />
           <div>
             <h1 className="text-xl font-semibold tracking-tight">{t('title')}</h1>
             <p className="mt-1 text-sm text-muted-foreground">{t('description')}</p>
