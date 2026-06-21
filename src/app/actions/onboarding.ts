@@ -38,8 +38,10 @@ async function registerWebhookBestEffort(apiTenantId: number, plainApiKey: strin
         },
       });
     }
-  } catch {
-    // Non-fatal — notifications fall back to catch-up polling.
+  } catch (err) {
+    // Non-fatal — notifications fall back to catch-up polling. Still worth
+    // knowing about if this starts failing systematically.
+    Sentry.captureException(err, { extra: { apiTenantId } });
   }
 }
 

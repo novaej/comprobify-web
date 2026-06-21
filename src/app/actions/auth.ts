@@ -7,6 +7,7 @@ import { AuthError } from 'next-auth';
 import { getLocale } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
 import { writeCtxCookie, clearCtxCookie } from '@/lib/context-cookie';
+import * as Sentry from '@sentry/nextjs';
 
 export type AuthResult = { error: string } | null;
 
@@ -115,8 +116,9 @@ export async function completeRegistrationAction(
 
   try {
     await signIn('credentials', { email, password, redirect: false });
-  } catch {
+  } catch (err) {
     // Should not happen — we just set the password. Fall back to login page.
+    Sentry.captureException(err, { extra: { email } });
     redirect({ href: '/login', locale });
     return null;
   }
@@ -134,7 +136,8 @@ export async function registerAction(email: string, password: string): Promise<A
   // Sign in immediately after registration
   try {
     await signIn('credentials', { email, password, redirect: false });
-  } catch {
+  } catch (err) {
+    Sentry.captureException(err, { extra: { email } });
     const locale = await getLocale();
     redirect({ href: '/login', locale });
     return null;

@@ -12,6 +12,7 @@ import {
 import { db } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 import { ApiError } from '@/lib/errors';
+import * as Sentry from '@sentry/nextjs';
 
 /** Cast API metadata (unknown JSON object) to Prisma's InputJsonValue. */
 function toJson(v: Record<string, unknown> | null | undefined): Prisma.InputJsonValue | undefined {
@@ -106,7 +107,10 @@ export async function catchUpNotificationsAction(): Promise<{ upserted: number }
   try {
     const result = await listNotifications({ apiKey: ctx.apiKey }, sinceId);
     notifications = result.notifications;
-  } catch {
+  } catch (err) {
+    // Non-fatal — the next catch-up poll will retry. Still worth knowing
+    // about if this starts failing systematically (e.g. a revoked key).
+    Sentry.captureException(err, { extra: { tenantId } });
     return { upserted: 0 };
   }
 
