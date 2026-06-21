@@ -12,10 +12,10 @@ Two long-lived branches map to deployed environments. They are **automation-owne
       │  PR + merge         │                                       │                          │
       │────────────────────▶│                                       │                          │
       │                     │  git tag vX.Y.Z + push                │                          │
-      │                     │── release-staging.yml (ff-merge) ────▶│── Vercel auto-deploy ───▶ comprobify-web-staging
+      │                     │── release-staging.yml (ff-merge) ────▶│                          │
       │                     │                                       │                          │
       │                     │  publish GitHub Release from the tag  │                          │
-      │                     │── release-production.yml (ff-merge) ──┼─────────────────────────▶│── Vercel auto-deploy ──▶ comprobify-web-production
+      │                     │── release-production.yml (ff-merge) ──┼─────────────────────────▶│
       │                     │                                                                   │
   hotfix/xyz                │                                                                   │
       │  branch off `production` (or `staging` until production exists),                       │
@@ -23,6 +23,8 @@ Two long-lived branches map to deployed environments. They are **automation-owne
       │  → cherry-pick the merged fix back into `main`                                          │
       │─────────────────────────────────────────────────────────────────────────────────────▶  │
 ```
+
+Every push to `staging` or `production` (i.e. every fast-forward the release workflows perform) is picked up automatically by Vercel's Git integration, which builds and deploys the corresponding project (`comprobify-web-staging` / `comprobify-web-production` — see the CI/CD pipeline section below). No deploy step runs inside this repo's workflows.
 
 | Branch | Environment | Promoted by |
 |--------|-------------|-------------|
