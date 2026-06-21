@@ -38,6 +38,9 @@ export async function bootstrapTenantAction(formData: FormData): Promise<Onboard
 
   const p12Buffer = Buffer.from(await certFile.arrayBuffer());
 
+  const logoFile = formData.get('logo') as File | null;
+  const logoBuffer = logoFile && logoFile.size > 0 ? Buffer.from(await logoFile.arrayBuffer()) : undefined;
+
   const initialSequentials: { documentType: string; sequential: number }[] = [];
   for (const code of ['01', '04', '05', '06', '07']) {
     const seqStr = formData.get(`seq_${code}`) as string | null;
@@ -74,6 +77,7 @@ export async function bootstrapTenantAction(formData: FormData): Promise<Onboard
       p12Buffer,
       certPassword,
       verificationRedirectUrl,
+      logoBuffer,
     );
     apiTenantId = result.tenantId;
     apiIssuerId = result.issuerId;

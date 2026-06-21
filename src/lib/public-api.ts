@@ -54,6 +54,7 @@ export async function registerTenant(
   p12Buffer: Buffer,
   p12Password: string,
   verificationRedirectUrl?: string,
+  logoBuffer?: Buffer,
 ): Promise<RegisterTenantResult> {
   const form = new FormData();
   form.append('email', email);
@@ -82,12 +83,20 @@ export async function registerTenant(
   ) as ArrayBuffer;
   form.append('cert', new Blob([buf], { type: 'application/x-pkcs12' }), 'cert.p12');
 
+  if (logoBuffer) {
+    const logoBuf = logoBuffer.buffer.slice(
+      logoBuffer.byteOffset,
+      logoBuffer.byteOffset + logoBuffer.byteLength,
+    ) as ArrayBuffer;
+    form.append('logo', new Blob([logoBuf]), 'logo');
+  }
+
   const result = await publicRequest<{
     ok: true;
     tenant: { id: number; email: string; status: string };
-    issuer: { id: number; ruc: string; sandbox: boolean };
+    issuer: { id: number; ruc: string };
     apiKey: string;
-  }>('/api/register', { method: 'POST', body: form });
+  }>('/v1/register', { method: 'POST', body: form });
 
   return {
     tenantId: Number(result.tenant.id),
@@ -99,7 +108,7 @@ export async function registerTenant(
 
 export async function verifyEmailToken(token: string): Promise<{ email: string }> {
   const data = await publicRequest<{ ok: true; email: string }>(
-    `/api/verify-email?token=${encodeURIComponent(token)}`,
+    `/v1/verify-email?token=${encodeURIComponent(token)}`,
   );
   return { email: data.email };
 }
@@ -108,7 +117,7 @@ export async function resendVerificationEmail(
   email: string,
   verificationRedirectUrl?: string,
 ): Promise<void> {
-  await publicRequest('/api/resend-verification', {
+  await publicRequest('/v1/resend-verification', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, ...(verificationRedirectUrl && { verificationRedirectUrl }) }),

@@ -143,6 +143,19 @@ export function IssuerSetupForm() {
             </div>
           </div>
 
+          {/* Company logo */}
+          <div className="space-y-1.5">
+            <Label htmlFor="logo">{t('logoFile')}</Label>
+            <Input
+              id="logo"
+              name="logo"
+              type="file"
+              accept="image/png,image/jpeg,image/gif"
+              disabled={isPending}
+            />
+            <p className="text-xs text-muted-foreground">{t('logoHint')}</p>
+          </div>
+
           {/* Initial sequentials */}
           <div className="space-y-2">
             <p className="text-sm font-medium">{t('sequentials')}</p>
