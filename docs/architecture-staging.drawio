@@ -1,0 +1,127 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Staging Architecture" id="comprobify-web-staging-arch">
+    <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="web-title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;" value="Comprobify Web — Staging Architecture" vertex="1">
+          <mxGeometry height="40" width="560" x="340" y="15" as="geometry" />
+        </mxCell>
+
+        <mxCell id="web-cicd-wrapper" parent="1" style="text;html=1;align=left;verticalAlign=top;fontSize=11;fontStyle=1;strokeColor=#cccccc;fillColor=#f9f9f9;dashed=1;spacingLeft=8;spacingTop=6;" value="CI / CD" vertex="1">
+          <mxGeometry height="165" width="800" x="55" y="520" as="geometry" />
+        </mxCell>
+
+        <mxCell id="web-ext-wrapper" parent="1" style="text;html=1;align=left;verticalAlign=top;fontSize=11;fontStyle=1;strokeColor=#cccccc;fillColor=#f9f9f9;dashed=1;spacingLeft=8;spacingTop=6;" value="External Services" vertex="1">
+          <mxGeometry height="380" width="220" x="1170" y="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="web-browser" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="&lt;b&gt;Browser / Users&lt;/b&gt;&lt;br/&gt;non-technical staff&lt;br/&gt;creating &amp; authorizing facturas" vertex="1">
+          <mxGeometry height="70" width="170" x="60" y="195" as="geometry" />
+        </mxCell>
+
+        <mxCell id="web-cf-dns" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d6b656;" value="&lt;b&gt;Cloudflare DNS&lt;/b&gt;&lt;br/&gt;staging.comprobify.com&lt;br/&gt;app-staging.comprobify.com&lt;br/&gt;CNAME → Vercel, DNS only (no proxy)" vertex="1">
+          <mxGeometry height="95" width="230" x="300" y="180" as="geometry" />
+        </mxCell>
+
+        <mxCell id="web-vercel" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;Vercel — comprobify-web-staging&lt;/b&gt;&lt;br&gt;Next.js 16 · Turbopack&lt;br&gt;Branch: staging&lt;br&gt;vercel-build: prisma migrate deploy + next build&lt;br&gt;proxy.ts routes marketing vs. app host" vertex="1">
+          <mxGeometry height="110" width="270" x="600" y="170" as="geometry" />
+        </mxCell>
+
+        <mxCell id="web-neon" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="&lt;b&gt;Neon&lt;/b&gt;&lt;br/&gt;PostgreSQL&lt;br/&gt;users · tenants · tenant_api_keys&lt;br/&gt;issuers · notifications · webhooks" vertex="1">
+          <mxGeometry height="85" width="190" x="1185" y="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="web-api" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;" value="&lt;b&gt;Comprobify API (staging)&lt;/b&gt;&lt;br/&gt;api-staging.comprobify.com&lt;br/&gt;Bearer token (decrypted TenantApiKey)" vertex="1">
+          <mxGeometry height="80" width="190" x="1185" y="235" as="geometry" />
+        </mxCell>
+
+        <mxCell id="web-sentry" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" value="&lt;b&gt;Sentry&lt;/b&gt;&lt;br&gt;Error monitoring&lt;br&gt;environment: staging&lt;br&gt;org: novaej" vertex="1">
+          <mxGeometry height="80" width="190" x="1185" y="350" as="geometry" />
+        </mxCell>
+
+        <mxCell id="web-dev" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="&lt;b&gt;Developer&lt;/b&gt;" vertex="1">
+          <mxGeometry height="60" width="120" x="70" y="575" as="geometry" />
+        </mxCell>
+
+        <mxCell id="web-github" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#24292e;" value="&lt;b&gt;GitHub&lt;/b&gt;&lt;br/&gt;comprobify-web repo&lt;br/&gt;branches: main / staging" vertex="1">
+          <mxGeometry height="80" width="170" x="270" y="560" as="geometry" />
+        </mxCell>
+
+        <mxCell id="web-actions" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#24292e;align=left;spacingLeft=10;fontSize=10;" value="&lt;b&gt;GitHub Actions&lt;/b&gt;&lt;br/&gt;&lt;br/&gt;release-staging.yml — tag vX.Y.Z → fast-forward staging branch (RELEASE_PUSH_TOKEN)&lt;br/&gt;release-production.yml — disabled until production is provisioned" vertex="1">
+          <mxGeometry height="110" width="360" x="520" y="535" as="geometry" />
+        </mxCell>
+
+        <mxCell id="web-e1" edge="1" parent="1" source="web-browser" style="edgeStyle=orthogonalEdgeStyle;html=1;" target="web-cf-dns" value="HTTPS">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="web-e2" edge="1" parent="1" source="web-cf-dns" style="edgeStyle=orthogonalEdgeStyle;html=1;" target="web-vercel" value="CNAME (DNS only)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="web-e3" edge="1" parent="1" source="web-vercel" style="edgeStyle=orthogonalEdgeStyle;html=1;" target="web-neon" value="PostgreSQL / SSL">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="950" y="160" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="web-e4" edge="1" parent="1" source="web-vercel" style="edgeStyle=orthogonalEdgeStyle;html=1;" target="web-api" value="HTTPS, Bearer token">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="950" y="275" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="web-e5" edge="1" parent="1" source="web-api" style="edgeStyle=orthogonalEdgeStyle;html=1;dashed=1;" target="web-vercel" value="webhook (HMAC-SHA256, notifications)">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1000" y="300" />
+              <mxPoint x="1000" y="330" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="web-e6" edge="1" parent="1" source="web-vercel" style="edgeStyle=orthogonalEdgeStyle;html=1;dashed=1;" target="web-sentry" value="captured + uncaught exceptions">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1000" y="420" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="web-e7" edge="1" parent="1" source="web-dev" style="edgeStyle=orthogonalEdgeStyle;html=1;" target="web-github" value="git push / tag vX.Y.Z">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="web-e8" edge="1" parent="1" source="web-github" style="edgeStyle=orthogonalEdgeStyle;html=1;" target="web-actions" value="triggers">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="web-e9" edge="1" parent="1" source="web-actions" style="edgeStyle=orthogonalEdgeStyle;html=1;" target="web-github" value="fast-forward push to staging branch">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="455" y="610" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="web-e10" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.3;entryY=1;entryDx=0;entryDy=0;" target="web-vercel" value="Vercel Git integration auto-deploys (no deploy hook)">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="355" y="560" as="sourcePoint" />
+            <mxPoint x="681" y="280" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="web-legend" parent="1" style="text;html=1;strokeColor=#cccccc;fillColor=#ffffff;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=10;spacingLeft=8;" value="&lt;b&gt;Legend&lt;/b&gt;   ─── request / data flow     - - -  async / background" vertex="1">
+          <mxGeometry height="36" width="370" x="60" y="710" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
