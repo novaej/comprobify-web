@@ -326,6 +326,8 @@
       "issuePointCode": "Código punto de emisión",
       "requiredAccounting": "Obligado a llevar contabilidad",
       "requiredAccountingHint": "Activa si el SRI te exige llevar contabilidad.",
+      "logoFile": "Logo de la empresa (opcional)",
+      "logoHint": "Aparece en la esquina superior izquierda de tus RIDE en PDF. Recomendado: imagen cuadrada o apaisada en PNG, JPEG o GIF, máximo 500 KB.",
       "sequentials": "Secuenciales iniciales en sandbox",
       "sequentialsHint": "Número desde el que empezará cada tipo de comprobante en el ambiente de pruebas. Si ya emites con otro sistema y el último usado fue el 99, ingresa 100. Si empiezas desde cero, deja todo en 1.",
       "docType01": "Factura",
@@ -434,7 +436,8 @@
     "EMAIL_NOT_VERIFIED": "Debe verificar su correo electrónico antes de activar producción.",
     "ALREADY_PRODUCTION": "Su cuenta ya está en modo producción.",
     "WEBHOOK_ENDPOINT_LIMIT_REACHED": "Ha alcanzado el límite de webhooks de su plan.",
-    "WEBHOOK_ENDPOINT_NOT_FOUND": "El endpoint de webhook no fue encontrado."
+    "WEBHOOK_ENDPOINT_NOT_FOUND": "El endpoint de webhook no fue encontrado.",
+    "INVALID_FILE_UPLOAD": "El archivo subido no es válido. Revise el formato y el tamaño máximo permitido."
   },
   "certBanner": {
     "dismiss": "Descartar alerta de certificado"

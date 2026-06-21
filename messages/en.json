@@ -326,6 +326,8 @@
       "issuePointCode": "Issue point code",
       "requiredAccounting": "Required to keep accounting records",
       "requiredAccountingHint": "Enable if the SRI requires you to keep accounting records.",
+      "logoFile": "Company logo (optional)",
+      "logoHint": "Appears in the top-left corner of your PDF RIDE documents. Recommended: square or landscape image in PNG, JPEG, or GIF, max 500 KB.",
       "sequentials": "Starting sequence numbers (sandbox)",
       "sequentialsHint": "The next number Comprobify will use for each document type in the test environment. If you already issue documents with another system and the last number used was 99, enter 100. Leave at 1 if starting fresh.",
       "docType01": "Invoice",
@@ -434,7 +436,8 @@
     "EMAIL_NOT_VERIFIED": "You must verify your email address before activating production.",
     "ALREADY_PRODUCTION": "Your account is already in production mode.",
     "WEBHOOK_ENDPOINT_LIMIT_REACHED": "You have reached the webhook endpoint limit for your plan.",
-    "WEBHOOK_ENDPOINT_NOT_FOUND": "Webhook endpoint not found."
+    "WEBHOOK_ENDPOINT_NOT_FOUND": "Webhook endpoint not found.",
+    "INVALID_FILE_UPLOAD": "The uploaded file is invalid. Check the format and maximum allowed size."
   },
   "clients": {
     "title": "Clients",
