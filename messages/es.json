@@ -432,6 +432,9 @@
     "REQUIRED_FIELDS": "RUC y razón social son obligatorios.",
     "CERT_REQUIRED": "Debe subir su certificado P12.",
     "TENANT_ALREADY_EXISTS": "Ya existe una empresa registrada para este usuario.",
+    "API_KEY_REQUIRED": "Debe ingresar su API key.",
+    "NO_ISSUERS_FOUND": "Esa cuenta no tiene emisores activos. Verifique su API key e intente de nuevo.",
+    "TENANT_ALREADY_LINKED": "Esa cuenta de la API ya fue vinculada por otro usuario. Pida a su administrador que lo invite desde Usuarios.",
     "DB_WRITE_FAILED": "Su empresa fue registrada pero ocurrió un error interno al guardar la configuración. Contacte al soporte con su correo electrónico.",
     "EMAIL_NOT_VERIFIED": "Debe verificar su correo electrónico antes de activar producción.",
     "ALREADY_PRODUCTION": "Su cuenta ya está en modo producción.",
@@ -569,7 +572,14 @@
   "onboarding": {
     "title": "Configura tu empresa",
     "description": "Completa la información de tu empresa para empezar a emitir comprobantes electrónicos.",
-    "sriNotice": "Antes de continuar, verifica que tu RUC tenga habilitado el ambiente de pruebas (certificación) en el portal del SRI. Sin este paso previo, el SRI rechazará los comprobantes de prueba que emitas desde aquí."
+    "sriNotice": "Antes de continuar, verifica que tu RUC tenga habilitado el ambiente de pruebas (certificación) en el portal del SRI. Sin este paso previo, el SRI rechazará los comprobantes de prueba que emitas desde aquí.",
+    "createNewTab": "Crear nueva empresa",
+    "linkExistingTab": "Vincular cuenta existente",
+    "linkTitle": "Vincula tu cuenta de la API",
+    "linkDescription": "¿Ya usas la API de Comprobify directamente? Ingresa tu API key existente para vincular esa cuenta a tu usuario. Tu API key no se reutiliza ni se guarda — solo se usa una vez para confirmar la vinculación y crear una clave nueva para esta aplicación.",
+    "apiKey": "API key",
+    "linkSubmit": "Vincular cuenta",
+    "linkSubmitting": "Vinculando..."
   },
   "issuerSelect": {
     "title": "Selecciona un punto de emisión",

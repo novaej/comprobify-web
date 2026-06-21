@@ -9,6 +9,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 ## [Unreleased]
 
 ### Added
+- **Link an existing Comprobify API account during onboarding** — `/onboarding/tenant` now offers a second tab alongside "Create new company": paste an existing API key to link that tenant instead of registering a new one. Uses the new `GET /v1/tenants/me` endpoint plus `GET /v1/issuers` to resolve tenant/issuer identity, then mints a fresh dedicated key via `POST /v1/keys` (the pasted key is never stored). `Tenant.apiTenantId` is unique, so an API account can only be linked once; the first linker becomes Owner and invites teammates via the existing `/users` flow. New `linkExistingTenantAction` in `src/app/actions/onboarding.ts`; new `getCurrentTenant` function and `ApiTenantInfo` interface in `src/lib/api.ts`.
 - **Marketing site** — `(marketing)` route group with landing page (`/`) and pricing page (`/pricing`); public, unauthenticated, served on the marketing domain; landing page redirects authenticated users to `/dashboard`
 - **Domain-aware routing** — `src/proxy.ts` now distinguishes marketing hosts (`comprobify.com`, `staging.comprobify.com`) from app hosts (`app.comprobify.com`, `app-staging.comprobify.com`) via `DOMAIN_PAIR` and issues 301 cross-domain redirects to keep each domain serving only its routes; localhost and unknown hosts bypass hostname routing
 - `marketing`, `landing`, and `pricing` i18n namespaces added to `messages/es.json` and `messages/en.json`
@@ -29,6 +30,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 - `certBanner`, `notifications`, `webhooks`, `notificationPreferences`, `completeRegistration`, `completeRegistrationError` i18n namespaces added to `messages/es.json` and `messages/en.json`
 
 ### Fixed
+- **`ApiIssuer` interface didn't match the API's actual `GET /v1/issuers` response** — declared `id: number` (it's a `BIGSERIAL`, serialized as a JSON string) and a phantom `environment` field that the API never returns (environment is tenant-level, not issuer-level); now matches `issuer.service.js → listIssuers()` exactly, including the previously-missing `certFingerprint` / `certExpiry` fields
 - **Invited users could not authenticate** — `authorize()` returns `null` for users with no `passwordHash`, causing `signIn()` to throw `AuthError` and fall through to `INVALID_CREDENTIALS`; fixed by pre-checking `inviteStatus` before `signIn()` and redirecting to `/complete-registration` when appropriate
 - **Notification `issuerId` matched against wrong field** — cert-expiry banners now compare `notification.issuerId` (API-side BIGSERIAL) against `Issuer.apiIssuerId`, not the local Prisma `Issuer.id`
 - **`appUrl` variable conflict in onboarding.ts** — second `const appUrl` declaration renamed to `webhookAppUrl`

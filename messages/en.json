@@ -432,6 +432,9 @@
     "REQUIRED_FIELDS": "RUC and business name are required.",
     "CERT_REQUIRED": "Please upload your P12 certificate.",
     "TENANT_ALREADY_EXISTS": "A company is already registered for this user.",
+    "API_KEY_REQUIRED": "Please enter your API key.",
+    "NO_ISSUERS_FOUND": "That account has no active issuers. Check your API key and try again.",
+    "TENANT_ALREADY_LINKED": "That API account has already been linked by another user. Ask your administrator to invite you from Users.",
     "DB_WRITE_FAILED": "Your company was registered but an internal error occurred while saving the configuration. Please contact support with your email address.",
     "EMAIL_NOT_VERIFIED": "You must verify your email address before activating production.",
     "ALREADY_PRODUCTION": "Your account is already in production mode.",
@@ -505,7 +508,14 @@
   "onboarding": {
     "title": "Set up your company",
     "description": "Complete your company information to start issuing electronic invoices.",
-    "sriNotice": "Before continuing, make sure your RUC has the test (certification) environment enabled in the SRI portal. Without this step, SRI will reject the test invoices you issue from here."
+    "sriNotice": "Before continuing, make sure your RUC has the test (certification) environment enabled in the SRI portal. Without this step, SRI will reject the test invoices you issue from here.",
+    "createNewTab": "Create new company",
+    "linkExistingTab": "Link existing account",
+    "linkTitle": "Link your API account",
+    "linkDescription": "Already use the Comprobify API directly? Enter your existing API key to link that account to your user. Your API key isn't reused or stored — it's used once to confirm the link and create a new key dedicated to this app.",
+    "apiKey": "API key",
+    "linkSubmit": "Link account",
+    "linkSubmitting": "Linking..."
   },
   "issuerSelect": {
     "title": "Select an issue point",

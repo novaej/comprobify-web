@@ -141,7 +141,7 @@ messages/
 
 **Auth (multi-tenant):** Auth.js v5 (next-auth@beta) with a JWT session trimmed to `{ id, email }` only. Tenant, issuer, role, and permissions are resolved on every server request by `requireContext()`, which: (1) verifies the session, (2) loads the `User` → `Tenant` chain from DB, (3) resolves the active issuer from the signed `comprobify_ctx` cookie, (4) decrypts the active `TenantApiKey`. Use `requirePermission(code)` to gate by permission and `hasContextPermission(code)` for conditional Server Component rendering.
 
-**Tenant onboarding:** New users (no `tenantId`) are redirected to `/onboarding/tenant`. `bootstrapTenantAction` calls `registerTenant()` from `src/lib/public-api.ts` (→ `POST /api/register`), then creates `Tenant` + `TenantApiKey` + `Issuer` + updates `User.tenantId` and `User.role='Owner'` in a single DB transaction, and sets the `comprobify_ctx` issuer cookie.
+**Tenant onboarding:** New users (no `tenantId`) are redirected to `/onboarding/tenant`, which offers two tabs (`OnboardingTabs`). **Create new company** — `bootstrapTenantAction` calls `registerTenant()` from `src/lib/public-api.ts` (→ `POST /v1/register`), then creates `Tenant` + `TenantApiKey` + `Issuer` + updates `User.tenantId` and `User.role='Owner'` in a single DB transaction, and sets the `comprobify_ctx` issuer cookie. **Link existing API account** — for users who already registered directly via the Comprobify API: `linkExistingTenantAction` takes a pasted API key, calls `getCurrentTenant()` (`GET /v1/tenants/me`) and `listTenantIssuers()` (`GET /v1/issuers`) to resolve identity, then mints a *fresh* dedicated key via `createTenantApiKey()` (`POST /v1/keys`) — the pasted key is never stored, only used in-memory to authenticate the linking calls. `Tenant.apiTenantId` is `@unique`, so a given API tenant can only be linked once; a second attempt returns `TENANT_ALREADY_LINKED`. The first user to link becomes `Owner`; everyone else joins via the existing invite flow (`inviteUserAction` in `/users`). Both actions share `registerWebhookBestEffort()` for the non-fatal webhook auto-registration tail.
 
 **Issuer provisioning:** First issuer created during onboarding. Additional branches added via `/issuers` (`createBranchAction` → `POST /api/issuers`). Promoting to production calls `promoteTenantAction` (Owner-only) → `POST /api/tenants/promote`, which revokes all sandbox `TenantApiKey` rows and inserts new production keys.
 
@@ -262,7 +262,9 @@ This project runs Next.js **16** (not 13-15). Key differences from older version
 | `src/app/[locale]/layout.tsx` | Locale layout with providers + nav |
 | `src/app/[locale]/verify-email/page.tsx` | Public email verification page — reads token from query string, updates Prisma by email (no session required) |
 | `src/app/actions/auth.ts` | `loginAction` (post-login routing), `registerAction`, `logoutAction` (clears cookie + signOut) |
-| `src/app/actions/onboarding.ts` | `bootstrapTenantAction` — creates Tenant + TenantApiKey + Issuer + sets cookie in one transaction |
+| `src/app/actions/onboarding.ts` | `bootstrapTenantAction` (create new tenant) and `linkExistingTenantAction` (link an existing API account) — both create Tenant + TenantApiKey + Issuer + set cookie in one transaction |
+| `src/components/onboarding-tabs.tsx` | Client Component — switches between `IssuerSetupForm` and `LinkExistingAccountForm` on `/onboarding/tenant` |
+| `src/components/link-existing-account-form.tsx` | API-key paste form for linking an existing Comprobify API account |
 | `src/app/actions/context.ts` | `selectIssuerAction` (sets cookie), `clearContextAction` |
 | `src/app/actions/tenant.ts` | `promoteTenantAction` (Owner-only), `updateTenantAction`, `resendVerificationAction` |
 | `src/app/actions/issuers.ts` | `createBranchAction`, `addDocumentTypeAction`, `removeDocumentTypeAction` |
