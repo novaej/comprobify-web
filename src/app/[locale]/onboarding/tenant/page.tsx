@@ -4,7 +4,7 @@ import { auth } from '@/auth';
 import { redirect } from '@/i18n/navigation';
 import { db } from '@/lib/db';
 import { OnboardingTabs } from '@/components/onboarding-tabs';
-import { LogoLockup } from '@/components/logo';
+import { LogoLockupStacked } from '@/components/logo';
 import { LocaleSwitcher } from '@/components/locale-switcher';
 import { ThemeToggle } from '@/components/theme-toggle';
 
@@ -43,7 +43,8 @@ export default async function OnboardingTenantPage({
       <div className="flex flex-1 items-start justify-center p-4 pt-4">
       <div className="w-full max-w-2xl">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <LogoLockup className="h-8 w-auto" />
+          <LogoLockupStacked variant="light" className="h-16 w-auto dark:hidden" />
+          <LogoLockupStacked variant="dark" className="hidden h-16 w-auto dark:block" />
           <div>
             <h1 className="text-xl font-semibold tracking-tight">{t('title')}</h1>
             <p className="mt-1 text-sm text-muted-foreground">{t('description')}</p>
