@@ -10,6 +10,7 @@ import { getLocale } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
 import { revalidatePath } from 'next/cache';
 import { ApiError } from '@/lib/errors';
+import * as Sentry from '@sentry/nextjs';
 
 export type OnboardingResult = { error: string } | null;
 
@@ -168,7 +169,8 @@ export async function bootstrapTenantAction(formData: FormData): Promise<Onboard
 
       return issuer.id;
     });
-  } catch {
+  } catch (err) {
+    Sentry.captureException(err, { extra: { apiTenantId } });
     return { error: 'DB_WRITE_FAILED' };
   }
 
@@ -290,7 +292,8 @@ export async function linkExistingTenantAction(formData: FormData): Promise<Onbo
 
       return firstLocalIssuerId as number;
     });
-  } catch {
+  } catch (err) {
+    Sentry.captureException(err, { extra: { apiTenantId } });
     return { error: 'DB_WRITE_FAILED' };
   }
 
