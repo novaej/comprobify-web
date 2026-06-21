@@ -25,6 +25,7 @@
     "noIssuer": "Sin punto de emisión"
   },
   "auth": {
+    "backToHome": "Volver al inicio",
     "fields": {
       "email": "Correo electrónico",
       "password": "Contraseña",
