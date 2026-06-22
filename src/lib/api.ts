@@ -108,6 +108,19 @@ export interface ListDocumentsParams {
   limit?: number;
 }
 
+export interface DocumentTypeStat {
+  type: string; // short label, e.g. 'FAC', 'CRE' — see cat_document_types.short_name
+  issued: number;
+  authorizedTotal: string; // decimal string, sum of `total` for AUTHORIZED documents
+}
+
+export interface DocumentStats {
+  thisMonth: {
+    byType: DocumentTypeStat[];
+  };
+  needsAttention: number; // all-time count of RETURNED + NOT_AUTHORIZED documents
+}
+
 // ── Catalog types ─────────────────────────────────────────────────────────────
 
 export interface CatalogIdType {
@@ -269,6 +282,12 @@ export async function listDocuments(
 
   const query = qs.toString();
   return request<ListDocumentsResult>(`/v1/documents${query ? `?${query}` : ''}`, ctx);
+}
+
+// Verified against: ../comprobify/src/controllers/documents.controller.js → getStats()
+export async function getDocumentStats(ctx: ApiCtx): Promise<DocumentStats> {
+  const result = await request<{ ok: true; stats: DocumentStats }>('/v1/documents/stats', ctx);
+  return result.stats;
 }
 
 export async function getDocument(ctx: ApiCtx, accessKey: string): Promise<Document> {

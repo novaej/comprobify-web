@@ -85,10 +85,14 @@
   "dashboard": {
     "title": "Panel",
     "newDocument": "Nueva factura",
+    "recent": "Comprobantes recientes",
+    "viewAll": "Ver todos",
     "summary": {
-      "total": "Total de comprobantes",
-      "authorizedThisMonth": "Autorizados este mes",
-      "pending": "Pendientes"
+      "issuedThisMonth": "Emitidos este mes",
+      "netRevenue": "Ingresos netos autorizados (mes)",
+      "needsAttention": "Requieren atención",
+      "noActivity": "Sin actividad este mes",
+      "error": "No se pudo cargar el resumen."
     },
     "table": {
       "sequential": "Número",

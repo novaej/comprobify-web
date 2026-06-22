@@ -85,10 +85,14 @@
   "dashboard": {
     "title": "Dashboard",
     "newDocument": "New invoice",
+    "recent": "Recent documents",
+    "viewAll": "View all",
     "summary": {
-      "total": "Total documents",
-      "authorizedThisMonth": "Authorized this month",
-      "pending": "Pending"
+      "issuedThisMonth": "Issued this month",
+      "netRevenue": "Net authorized revenue (month)",
+      "needsAttention": "Needs attention",
+      "noActivity": "No activity this month",
+      "error": "Could not load the summary."
     },
     "table": {
       "sequential": "Number",
