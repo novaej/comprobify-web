@@ -549,7 +549,22 @@
       "07": "Withholding receipt"
     },
     "addDocTypeSuccess": "Document type enabled.",
-    "removeDocTypeSuccess": "Document type disabled."
+    "removeDocTypeSuccess": "Document type disabled.",
+    "cert": {
+      "title": "Signing certificate",
+      "expiresOn": "Expires on {date}",
+      "expired": "Certificate expired",
+      "fingerprint": "Fingerprint",
+      "unavailable": "Certificate information unavailable."
+    },
+    "logo": {
+      "change": "Change logo",
+      "title": "Change logo",
+      "hint": "PNG, JPEG, or GIF, max 500 KB. Used on PDF invoices (RIDE).",
+      "upload": "Upload",
+      "uploading": "Uploading...",
+      "success": "Logo updated."
+    }
   },
   "apiKeys": {
     "title": "API Keys",

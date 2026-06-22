@@ -2,7 +2,7 @@
 
 import { db } from '@/lib/db';
 import { requirePermission } from '@/lib/context';
-import { createIssuer, addIssuerDocumentType, removeIssuerDocumentType } from '@/lib/api';
+import { createIssuer, addIssuerDocumentType, removeIssuerDocumentType, uploadIssuerLogo } from '@/lib/api';
 import { ApiError } from '@/lib/errors';
 import { revalidatePath } from 'next/cache';
 
@@ -81,6 +81,29 @@ export async function removeDocumentTypeAction(issuerId: number, code: string): 
 
   try {
     await removeIssuerDocumentType({ apiKey: ctx.apiKey }, issuer.apiIssuerId, code);
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.code };
+    throw err;
+  }
+
+  revalidatePath('/issuers');
+  return null;
+}
+
+export async function updateIssuerLogoAction(issuerId: number, formData: FormData): Promise<IssuersResult> {
+  await requirePermission('issuers.manage', { skipIssuer: true });
+  const ctx = await (await import('@/lib/context')).requireContext({ skipIssuer: true });
+
+  const issuer = await db.issuer.findUnique({ where: { id: issuerId } });
+  if (!issuer || issuer.tenantId !== ctx.tenant.id) return { error: 'ISSUER_NOT_FOUND' };
+
+  const logoFile = formData.get('logo') as File | null;
+  if (!logoFile || logoFile.size === 0) return { error: 'INVALID_FILE_UPLOAD' };
+
+  const logoBuffer = Buffer.from(await logoFile.arrayBuffer());
+
+  try {
+    await uploadIssuerLogo({ apiKey: ctx.apiKey }, issuer.apiIssuerId, logoBuffer, logoFile.type);
   } catch (err) {
     if (err instanceof ApiError) return { error: err.code };
     throw err;

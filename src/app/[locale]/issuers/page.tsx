@@ -1,7 +1,7 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { requirePermission } from '@/lib/context';
 import { db } from '@/lib/db';
-import { listIssuerDocumentTypes } from '@/lib/api';
+import { listIssuerDocumentTypes, listTenantIssuers } from '@/lib/api';
 import { PageHeader } from '@/components/page-header';
 import { IssuerManager } from '@/components/issuer-manager';
 
@@ -21,16 +21,24 @@ export default async function IssuersPage({
     orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
   });
 
-  const documentTypesPerIssuer = await Promise.all(
-    issuers.map((issuer) =>
-      listIssuerDocumentTypes({ apiKey: ctx.apiKey }, issuer.apiIssuerId).catch(() => [] as string[])
-    )
-  );
+  const [documentTypesPerIssuer, apiIssuers] = await Promise.all([
+    Promise.all(
+      issuers.map((issuer) =>
+        listIssuerDocumentTypes({ apiKey: ctx.apiKey }, issuer.apiIssuerId).catch(() => [] as string[])
+      )
+    ),
+    listTenantIssuers({ apiKey: ctx.apiKey }).catch(() => []),
+  ]);
 
-  const issuersWithTypes = issuers.map((issuer, i) => ({
-    ...issuer,
-    documentTypes: documentTypesPerIssuer[i],
-  }));
+  const issuersWithTypes = issuers.map((issuer, i) => {
+    const apiIssuer = apiIssuers.find((a) => a.id === String(issuer.apiIssuerId));
+    return {
+      ...issuer,
+      documentTypes: documentTypesPerIssuer[i],
+      certFingerprint: apiIssuer?.certFingerprint ?? null,
+      certExpiry: apiIssuer?.certExpiry ?? null,
+    };
+  });
 
   const canManage = ctx.permissions.has('issuers.manage');
 
