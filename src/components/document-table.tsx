@@ -9,7 +9,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import type { Document } from '@/lib/api';
+import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import type { Document, DocumentSortField } from '@/lib/api';
 
 interface DocumentTableLabels {
   sequential: string;
@@ -18,37 +20,83 @@ interface DocumentTableLabels {
   total: string;
   status: string;
   empty: string;
+  emptyFiltered?: string;
   error: string;
+}
+
+interface DocumentTableSort {
+  field: DocumentSortField | null;
+  dir: 'asc' | 'desc';
+  hrefFor: (field: DocumentSortField) => string;
 }
 
 interface DocumentTableProps {
   documents: Document[];
   fetchError?: boolean;
+  hasActiveFilters?: boolean;
   labels: DocumentTableLabels;
   from?: string;
+  sort?: DocumentTableSort;
 }
 
-export function DocumentTable({ documents, fetchError, labels, from }: DocumentTableProps) {
+function SortableHead({
+  field,
+  label,
+  className,
+  sort,
+}: {
+  field: DocumentSortField;
+  label: string;
+  className?: string;
+  sort?: DocumentTableSort;
+}) {
+  if (!sort) {
+    return (
+      <TableHead className={cn('text-xs font-medium uppercase tracking-wide text-muted-foreground', className)}>
+        {label}
+      </TableHead>
+    );
+  }
+
+  const isActive = sort.field === field;
+  const Icon = isActive ? (sort.dir === 'asc' ? ChevronUp : ChevronDown) : ChevronsUpDown;
+
+  return (
+    <TableHead className={cn('text-xs font-medium uppercase tracking-wide text-muted-foreground', className)}>
+      <Link
+        href={sort.hrefFor(field)}
+        className={cn(
+          'inline-flex items-center gap-1 hover:text-foreground transition-colors',
+          isActive && 'text-foreground'
+        )}
+      >
+        {label}
+        <Icon className="h-3.5 w-3.5" />
+      </Link>
+    </TableHead>
+  );
+}
+
+export function DocumentTable({
+  documents,
+  fetchError,
+  hasActiveFilters,
+  labels,
+  from,
+  sort,
+}: DocumentTableProps) {
   return (
     <div className="rounded-xl border border-border bg-card shadow-sm overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/40 hover:bg-muted/40">
-            <TableHead className="pl-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {labels.sequential}
-            </TableHead>
-            <TableHead className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {labels.buyer}
-            </TableHead>
-            <TableHead className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {labels.date}
-            </TableHead>
+            <SortableHead field="sequential" label={labels.sequential} className="pl-4" sort={sort} />
+            <SortableHead field="buyerName" label={labels.buyer} sort={sort} />
+            <SortableHead field="issueDate" label={labels.date} sort={sort} />
             <TableHead className="text-right text-xs font-medium uppercase tracking-wide text-muted-foreground">
               {labels.total}
             </TableHead>
-            <TableHead className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {labels.status}
-            </TableHead>
+            <SortableHead field="status" label={labels.status} sort={sort} />
             <TableHead className="pr-4" />
           </TableRow>
         </TableHeader>
@@ -62,7 +110,7 @@ export function DocumentTable({ documents, fetchError, labels, from }: DocumentT
           ) : documents.length === 0 ? (
             <TableRow className="hover:bg-transparent">
               <TableCell colSpan={6} className="py-16 text-center text-sm text-muted-foreground">
-                {labels.empty}
+                {hasActiveFilters ? labels.emptyFiltered ?? labels.empty : labels.empty}
               </TableCell>
             </TableRow>
           ) : (

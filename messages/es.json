@@ -144,6 +144,7 @@
     "list": {
       "error": "No se pudo cargar la lista. Verifica que el servicio esté disponible.",
       "empty": "No hay documentos de este tipo aún.",
+      "emptyFiltered": "Ningún comprobante coincide con esos filtros.",
       "table": {
         "sequential": "Número",
         "buyer": "Cliente",
@@ -155,6 +156,17 @@
         "previous": "Anterior",
         "next": "Siguiente",
         "pageInfo": "Página {page} de {totalPages}"
+      },
+      "filters": {
+        "sequential": "Número",
+        "sequentialPlaceholder": "Buscar número...",
+        "buyerName": "Cliente",
+        "buyerNamePlaceholder": "Buscar cliente...",
+        "date": "Fecha",
+        "datePlaceholder": "Elegir fecha",
+        "status": "Estado",
+        "allStatuses": "Todos",
+        "clear": "Limpiar filtros"
       }
     }
   },

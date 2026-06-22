@@ -41,12 +41,15 @@ export interface ApiCtx {
 
 // ── Document types ────────────────────────────────────────────────────────────
 
-export type DocumentStatus =
-  | 'SIGNED'
-  | 'RECEIVED'
-  | 'AUTHORIZED'
-  | 'RETURNED'
-  | 'NOT_AUTHORIZED';
+export const DOCUMENT_STATUSES = [
+  'SIGNED',
+  'RECEIVED',
+  'AUTHORIZED',
+  'RETURNED',
+  'NOT_AUTHORIZED',
+] as const;
+
+export type DocumentStatus = (typeof DOCUMENT_STATUSES)[number];
 
 export type EmailStatus =
   | 'PENDING'
@@ -101,6 +104,9 @@ export interface ListDocumentsResult {
   pagination: Pagination;
 }
 
+export const DOCUMENT_SORT_FIELDS = ['sequential', 'buyerName', 'issueDate', 'status'] as const;
+export type DocumentSortField = (typeof DOCUMENT_SORT_FIELDS)[number];
+
 export interface ListDocumentsParams {
   status?: DocumentStatus;
   from?: string;
@@ -108,6 +114,10 @@ export interface ListDocumentsParams {
   documentType?: string;
   page?: number;
   limit?: number;
+  sequential?: string; // contains-match
+  buyerName?: string; // contains-match
+  sortBy?: DocumentSortField;
+  sortDir?: 'asc' | 'desc';
 }
 
 export interface DocumentTypeStat {
@@ -270,6 +280,8 @@ async function request<T>(
 
 // ── Document functions ────────────────────────────────────────────────────────
 
+// Verified against: ../comprobify/src/validators/common.validator.js → listDocumentsQuery
+// and ../comprobify/src/models/document.model.js → findByIssuerId() (sortBy/sortDir/sequential/buyerName)
 export async function listDocuments(
   ctx: ApiCtx,
   params: ListDocumentsParams = {}
@@ -281,6 +293,10 @@ export async function listDocuments(
   if (params.documentType) qs.set('documentType', params.documentType);
   if (params.page) qs.set('page', String(params.page));
   if (params.limit) qs.set('limit', String(params.limit));
+  if (params.sequential) qs.set('sequential', params.sequential);
+  if (params.buyerName) qs.set('buyerName', params.buyerName);
+  if (params.sortBy) qs.set('sortBy', params.sortBy);
+  if (params.sortDir) qs.set('sortDir', params.sortDir);
 
   const query = qs.toString();
   return request<ListDocumentsResult>(`/v1/documents${query ? `?${query}` : ''}`, ctx);

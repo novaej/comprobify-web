@@ -7,7 +7,7 @@ import type { Pagination as PaginationData } from '@/lib/api';
 
 interface DocumentPaginationProps {
   pagination: PaginationData;
-  basePath: string;
+  hrefFor: (page: number) => string;
   labels: {
     previous: string;
     next: string;
@@ -19,12 +19,10 @@ export function getTotalPages({ total, limit }: PaginationData): number {
   return Math.max(1, Math.ceil(total / limit));
 }
 
-export function DocumentPagination({ pagination, basePath, labels }: DocumentPaginationProps) {
+export function DocumentPagination({ pagination, hrefFor, labels }: DocumentPaginationProps) {
   const { page } = pagination;
   const totalPages = getTotalPages(pagination);
   if (totalPages <= 1) return null;
-
-  const hrefFor = (target: number) => `${basePath}?page=${target}`;
 
   return (
     <Pagination className="mt-4">
