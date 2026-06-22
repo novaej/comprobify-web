@@ -110,6 +110,7 @@ export async function bootstrapTenantAction(formData: FormData): Promise<Onboard
       certPassword,
       verificationRedirectUrl,
       logoBuffer,
+      logoFile?.type,
     );
     apiTenantId = result.tenantId;
     apiIssuerId = result.issuerId;

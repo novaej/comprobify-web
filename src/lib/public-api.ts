@@ -55,6 +55,7 @@ export async function registerTenant(
   p12Password: string,
   verificationRedirectUrl?: string,
   logoBuffer?: Buffer,
+  logoType?: string,
 ): Promise<RegisterTenantResult> {
   const form = new FormData();
   form.append('email', email);
@@ -88,7 +89,7 @@ export async function registerTenant(
       logoBuffer.byteOffset,
       logoBuffer.byteOffset + logoBuffer.byteLength,
     ) as ArrayBuffer;
-    form.append('logo', new Blob([logoBuf]), 'logo');
+    form.append('logo', new Blob([logoBuf], { type: logoType || 'image/png' }), 'logo');
   }
 
   const result = await publicRequest<{
