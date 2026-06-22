@@ -1,8 +1,11 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { buttonVariants } from '@/components/ui/button';
+import { Logomark } from '@/components/logo';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { LocaleSwitcher } from '@/components/locale-switcher';
 
-const API_DOCS_URL = 'https://novaej.github.io/comprobify/';
+const API_DOCS_URL = 'https://docs.comprobify.com/';
 
 export default async function MarketingLayout({
   children,
@@ -18,7 +21,8 @@ export default async function MarketingLayout({
   return (
     <div className="flex flex-col min-h-screen">
       <header className="border-b px-4 md:px-8 py-4 flex items-center justify-between">
-        <Link href="/" locale={locale} className="font-bold text-lg tracking-tight">
+        <Link href="/" locale={locale} className="flex items-center gap-2 font-bold text-lg tracking-tight">
+          <Logomark className="h-7 w-7" />
           Comprobify
         </Link>
         <div className="flex items-center gap-6">
@@ -40,6 +44,8 @@ export default async function MarketingLayout({
             </a>
           </nav>
           <div className="flex items-center gap-2">
+            <LocaleSwitcher />
+            <ThemeToggle className="text-muted-foreground hover:bg-accent hover:text-accent-foreground" />
             <Link
               href="/login"
               locale={locale}
