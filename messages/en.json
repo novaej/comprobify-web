@@ -150,6 +150,11 @@
         "total": "Total",
         "status": "Status",
         "date": "Date"
+      },
+      "pagination": {
+        "previous": "Previous",
+        "next": "Next",
+        "pageInfo": "Page {page} of {totalPages}"
       }
     }
   },

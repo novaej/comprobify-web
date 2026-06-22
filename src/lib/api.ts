@@ -87,11 +87,13 @@ export interface DocumentEvent {
   createdAt: string;
 }
 
+// Verified against: ../comprobify/src/models/document.model.js → findByIssuerId()
+// The API returns only { total, page, limit } — no totalPages field. Derive it
+// client-side (see DocumentPagination's getTotalPages) rather than re-adding it here.
 export interface Pagination {
   page: number;
   limit: number;
   total: number;
-  totalPages: number;
 }
 
 export interface ListDocumentsResult {
