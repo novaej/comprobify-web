@@ -464,6 +464,30 @@ export async function removeIssuerDocumentType(
   );
 }
 
+// Verified against: ../comprobify/src/controllers/issuer.controller.js → uploadLogo()
+// and ../comprobify/src/routes/issuers.routes.js → PATCH /:id/logo (multer 'logo' field,
+// 500KB limit, PNG/JPEG/GIF only). Returns { ok: true } with no body data.
+export async function uploadIssuerLogo(
+  ctx: ApiCtx,
+  issuerId: number,
+  logo: Buffer,
+  mimeType: string,
+): Promise<void> {
+  const form = new FormData();
+  const buf = logo.buffer.slice(logo.byteOffset, logo.byteOffset + logo.byteLength) as ArrayBuffer;
+  form.append('logo', new Blob([buf], { type: mimeType }), 'logo');
+
+  const res = await fetch(`${getApiUrl()}/v1/issuers/${issuerId}/logo`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${ctx.apiKey}` },
+    body: form,
+  });
+  if (!res.ok) {
+    const problem: ProblemDetails = await res.json();
+    throw new ApiError(problem);
+  }
+}
+
 // ── Current tenant identity ────────────────────────────────────────────────────
 
 // Verified against: ../comprobify/src/controllers/tenant.controller.js → getMe()

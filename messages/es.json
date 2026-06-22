@@ -613,7 +613,22 @@
       "07": "Comprobante de retención"
     },
     "addDocTypeSuccess": "Tipo de comprobante habilitado.",
-    "removeDocTypeSuccess": "Tipo de comprobante deshabilitado."
+    "removeDocTypeSuccess": "Tipo de comprobante deshabilitado.",
+    "cert": {
+      "title": "Certificado de firma",
+      "expiresOn": "Expira el {date}",
+      "expired": "Certificado expirado",
+      "fingerprint": "Huella digital",
+      "unavailable": "Información del certificado no disponible."
+    },
+    "logo": {
+      "change": "Cambiar logo",
+      "title": "Cambiar logo",
+      "hint": "PNG, JPEG o GIF, máximo 500 KB. Se usará en las facturas en PDF (RIDE).",
+      "upload": "Subir",
+      "uploading": "Subiendo...",
+      "success": "Logo actualizado."
+    }
   },
   "apiKeys": {
     "title": "API Keys",
