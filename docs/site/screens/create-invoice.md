@@ -93,6 +93,16 @@ Dynamic table — optional. Included in the XML as `infoAdicional/campoAdicional
 | IVA 5% | Subtotal 5% × 0.05 |
 | **Valor a pagar** | Subtotal + IVA 15% + IVA 5% |
 
+### 6. Templates
+
+A "Save as template" / "Load template" pair sits above the form, right-aligned. Templates are **not** sent to or read from the Comprobify API — they're stored in the app's own `document_templates` table (Prisma), scoped per tenant.
+
+- **Save as template** — runs full form validation (same as submit) before opening a name dialog, so a saved template is always complete: buyer, line items, payment methods, and additional fields. Saving under a name that already exists shows an inline warning ("will be overwritten") rather than erroring; the save is an upsert keyed on `(tenantId, documentType, name)`.
+- **Load template** — opens a picker showing each template's name plus a preview (buyer name, item descriptions, computed total) so similarly-named templates stay distinguishable without opening each one. Selecting a template calls `form.reset()` with the stored data, replacing all fields including the line item, payment, and additional-info arrays. Loading also pre-fills that template's name into the save dialog the next time it's opened, so re-saving defaults to "update" rather than "create new."
+- **Delete** — a trash icon per row in the load picker opens a confirm dialog before deleting.
+
+The `DocumentTemplate` Prisma model's `data` column stores the exact same JSON shape as `InvoiceFormData` (`src/app/actions/invoice.ts`). `documentType` defaults to `'01'` (invoices) but is a real column, not hardcoded — other SRI document types can reuse the table once they get a create flow; today only invoices have one.
+
 ---
 
 ## IVA tax options

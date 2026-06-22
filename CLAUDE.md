@@ -168,6 +168,8 @@ messages/
 
 **Product catalog:** Products are saved in the app's own `products` table (Prisma), scoped per **tenant**. The catalog page (`/catalog`) provides full CRUD via `src/app/actions/catalog.ts`. On the invoice creation page, all tenant products are fetched server-side alongside the SRI catalogs and passed to `InvoiceForm` as `catalogs.products`. The `ProductSearch` combobox in each line-item row filters products client-side as the user types, then fills all item fields on selection. The dropdown is rendered via `createPortal(…, document.body)` with `position: fixed` to escape the `overflow-x-auto` table wrapper. ICE and IVA turismo fields are intentionally excluded — the invoice API does not currently support them.
 
+**Document templates:** Full invoices (buyer, line items, payment methods, additional fields) can be saved as reusable templates via `src/app/actions/templates.ts`, backed by the `DocumentTemplate` Prisma model — scoped per **tenant**, not sent to or read from the Comprobify API. The model's `documentType` column defaults to `'01'` (invoices) but is a real, generic column (`@@unique([tenantId, documentType, name])`) so other SRI document types can reuse the same table once they get a create flow — today only invoices do. `saveInvoiceTemplateAction` runs an `upsert` keyed on `(tenantId, documentType, name)`, so saving under an existing name overwrites it; `InvoiceForm` shows an inline warning when the typed name matches an existing template, and pre-fills that name after a template is loaded so re-saving defaults to "update." The stored `data` JSON is the exact same shape as `InvoiceFormData` (`src/app/actions/invoice.ts`) — `toInvoiceFormData`/`templateToFormValues` in `invoice-form.tsx` convert between that and the form's Zod-validated `InvoiceFormValues` (which use `''` for empty optional fields instead of `undefined`).
+
 **Base UI `SelectValue` display:** `@base-ui/react` Select.Value does not mirror the selected item's children text — it renders the raw `value` string by default. To show a human-readable label, pass a render function as children:
 ```tsx
 <SelectValue>
@@ -275,6 +277,7 @@ This project runs Next.js **16** (not 13-15). Key differences from older version
 | `src/app/actions/invoice.ts` | `createInvoiceAction` — builds `CreateDocumentPayload` from form data and calls `createDocument`; exports `InvoiceFormData` type |
 | `src/app/actions/clients.ts` | Server Actions for client CRUD; exports `SavedClient` type; all ops scoped to `tenantId` |
 | `src/app/actions/catalog.ts` | Server Actions for product catalog CRUD; exports `CatalogProduct` type; all ops scoped to `tenantId` |
+| `src/app/actions/templates.ts` | `listInvoiceTemplatesAction`, `saveInvoiceTemplateAction` (upsert by name), `deleteInvoiceTemplateAction`; exports `SavedDocumentTemplate` type; all ops scoped to `tenantId` + `documentType` |
 | `src/app/actions/notifications.ts` | `listNotificationsAction`, `markNotificationReadAction`, `catchUpNotificationsAction`, `getUnreadCountAction`, `getPreferencesAction`, `updatePreferencesAction` |
 | `src/app/actions/webhooks.ts` | `registerWebhookAction`, `deleteWebhookAction`, `listWebhooksAction`, `ensureWebhookRegisteredAction` (Owner/Admin; `webhooks.manage` permission) |
 | `src/app/api/webhooks/receive/route.ts` | Webhook receiver — verifies HMAC-SHA256; upserts `Notification`; fans out `NotificationRead` rows |
@@ -293,8 +296,8 @@ This project runs Next.js **16** (not 13-15). Key differences from older version
 | `src/components/webhook-manager.tsx` | Register/delete webhook endpoints with signature code snippet |
 | `src/components/notification-preferences.tsx` | Optimistic-UI preference toggles; reverts on server error |
 | `src/components/complete-registration-form.tsx` | Invited-user password form — email prefilled from `?email=` param |
-| `src/components/invoice-form.tsx` | Invoice creation form (React Hook Form + Zod); accepts `InvoiceCatalogs` prop; catalog-driven selects, Consumidor Final auto-fill, single-payment auto-sync, product search combobox |
-| `src/app/[locale]/invoices/new/page.tsx` | Server Component — fetches SRI catalogs + user products in parallel, passes as props to `InvoiceForm`; exports `InvoiceCatalogs` type |
+| `src/components/invoice-form.tsx` | Invoice creation form (React Hook Form + Zod); accepts `InvoiceCatalogs` prop; catalog-driven selects, Consumidor Final auto-fill, single-payment auto-sync, product search combobox, save/load/delete document templates |
+| `src/app/[locale]/invoices/new/page.tsx` | Server Component — fetches SRI catalogs + user products/clients/templates in parallel, passes as props to `InvoiceForm`; exports `InvoiceCatalogs` type |
 | `src/app/[locale]/clients/page.tsx` | Server Component — fetches tenant clients from DB, renders `ClientCatalog` |
 | `src/components/client-catalog.tsx` | Client Component — client CRUD table with add/edit/delete dialogs |
 | `src/app/[locale]/catalog/page.tsx` | Server Component — fetches tenant products from DB, renders `ProductCatalog` |
