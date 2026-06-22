@@ -5,7 +5,7 @@ import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Code2, FileText, ArrowRight } from 'lucide-react';
 
-const API_DOCS_URL = 'https://novaej.github.io/comprobify/';
+const API_DOCS_URL = 'https://docs.comprobify.com/';
 
 export default async function LandingPage({
   params,
