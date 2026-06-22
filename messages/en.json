@@ -155,6 +155,17 @@
     "submit": "Send",
     "submitRebuild": "Rebuild",
     "submitting": "Sending...",
+    "templates": {
+      "load": "Load template",
+      "save": "Save as template",
+      "saveDialogTitle": "Save as template",
+      "nameLabel": "Template name",
+      "namePlaceholder": "e.g. Monthly retainer",
+      "overwriteWarning": "A template named “{name}” already exists and will be overwritten. Change the name to save a new one instead.",
+      "delete": "Delete",
+      "confirmDeleteTitle": "Delete template?",
+      "confirmDeleteDescription": "This template will be permanently removed."
+    },
     "confirm": {
       "title": "Send to SRI",
       "description": "The document will be created and submitted to the SRI (Servicio de Rentas Internas) for authorization. The process will continue automatically until complete.",

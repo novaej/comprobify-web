@@ -6,7 +6,8 @@ import { useForm, useFieldArray, useWatch, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useTranslations } from 'next-intl';
-import { Trash2, Plus, Search, Send } from 'lucide-react';
+import { useRouter } from '@/i18n/navigation';
+import { Trash2, Plus, Search, Send, FolderOpen, Save } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,6 +30,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { createInvoiceAction, type InvoiceFormData } from '@/app/actions/invoice';
+import {
+  saveInvoiceTemplateAction,
+  deleteInvoiceTemplateAction,
+  type SavedDocumentTemplate,
+} from '@/app/actions/templates';
 import { Link } from '@/i18n/navigation';
 import type { InvoiceCatalogs } from '@/app/[locale]/invoices/new/page';
 import type { CatalogProduct } from '@/app/actions/catalog';
@@ -100,6 +106,64 @@ function todayDDMMYYYY(): string {
 
 function fmt(n: number): string {
   return n.toFixed(2);
+}
+
+function toInvoiceFormData(data: InvoiceFormValues): InvoiceFormData {
+  return {
+    guiaRemision: data.guiaRemision || undefined,
+    buyer: {
+      idType: data.buyer.idType,
+      id: data.buyer.id,
+      name: data.buyer.name,
+      email: data.buyer.email,
+      address: data.buyer.address || undefined,
+    },
+    items: data.items.map((item) => ({
+      mainCode: item.mainCode,
+      auxCode: item.auxCode || undefined,
+      description: item.description,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      discount: item.discount || undefined,
+      taxOption: item.taxOption as TaxOption,
+    })),
+    payments: data.payments.map((p) => ({
+      method: p.method,
+      total: p.total,
+      term: p.term || undefined,
+      termUnit: p.termUnit || undefined,
+    })),
+    additionalInfo: data.additionalInfo?.filter((i) => i.name && i.value) ?? [],
+  };
+}
+
+function templateToFormValues(data: InvoiceFormData): InvoiceFormValues {
+  return {
+    guiaRemision: data.guiaRemision ?? '',
+    buyer: {
+      idType: data.buyer.idType,
+      id: data.buyer.id,
+      name: data.buyer.name,
+      email: data.buyer.email,
+      address: data.buyer.address ?? '',
+    },
+    items: data.items.map((item) => ({
+      mainCode: item.mainCode,
+      auxCode: item.auxCode ?? '',
+      description: item.description,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      discount: item.discount ?? '',
+      taxOption: item.taxOption,
+    })),
+    payments: data.payments.map((p) => ({
+      method: p.method,
+      total: p.total,
+      term: p.term ?? '',
+      termUnit: p.termUnit ?? '',
+    })),
+    additionalInfo: data.additionalInfo ?? [],
+  };
 }
 
 interface Totals {
@@ -295,35 +359,61 @@ export function InvoiceForm({ catalogs, defaultValues }: Props) {
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const openConfirm = form.handleSubmit((data) => {
-    const payload: InvoiceFormData = {
-      guiaRemision: data.guiaRemision || undefined,
-      buyer: {
-        idType: data.buyer.idType,
-        id: data.buyer.id,
-        name: data.buyer.name,
-        email: data.buyer.email,
-        address: data.buyer.address || undefined,
-      },
-      items: data.items.map((item) => ({
-        mainCode: item.mainCode,
-        auxCode: item.auxCode || undefined,
-        description: item.description,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        discount: item.discount || undefined,
-        taxOption: item.taxOption as TaxOption,
-      })),
-      payments: data.payments.map((p) => ({
-        method: p.method,
-        total: p.total,
-        term: p.term || undefined,
-        termUnit: p.termUnit || undefined,
-      })),
-      additionalInfo: data.additionalInfo?.filter((i) => i.name && i.value) ?? [],
-    };
-    setPendingPayload(payload);
+    setPendingPayload(toInvoiceFormData(data));
     setConfirmOpen(true);
   });
+
+  // Templates: save current (validated) form as a reusable template, or load/delete a saved one.
+  const router = useRouter();
+  const [isTemplatePending, startTemplateTransition] = useTransition();
+  const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<SavedDocumentTemplate | null>(null);
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [saveName, setSaveName] = useState('');
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [pendingTemplateData, setPendingTemplateData] = useState<InvoiceFormData | null>(null);
+  // Prefilled into the save dialog so re-saving a loaded template defaults to "update" rather than "new".
+  const [loadedTemplateName, setLoadedTemplateName] = useState<string | null>(null);
+
+  const existingTemplateMatch = catalogs.templates.find(
+    (tpl) => tpl.name.trim().toLowerCase() === saveName.trim().toLowerCase()
+  );
+
+  const openSaveDialog = form.handleSubmit((data) => {
+    setPendingTemplateData(toInvoiceFormData(data));
+    setSaveName(loadedTemplateName ?? '');
+    setSaveError(null);
+    setSaveOpen(true);
+  });
+
+  function handleSaveTemplate() {
+    if (!pendingTemplateData || !saveName.trim()) return;
+    startTemplateTransition(async () => {
+      const result = await saveInvoiceTemplateAction(saveName.trim(), pendingTemplateData);
+      if (result?.error) {
+        setSaveError(result.error);
+      } else {
+        setSaveOpen(false);
+        router.refresh();
+      }
+    });
+  }
+
+  function handleLoadTemplate(tpl: SavedDocumentTemplate) {
+    form.reset(templateToFormValues(tpl.data));
+    setLoadedTemplateName(tpl.name);
+    setTemplatesOpen(false);
+  }
+
+  function handleDeleteTemplate() {
+    if (!deleteTarget) return;
+    const id = deleteTarget.id;
+    startTemplateTransition(async () => {
+      await deleteInvoiceTemplateAction(id);
+      setDeleteTarget(null);
+      router.refresh();
+    });
+  }
 
   function handleConfirmedSubmit() {
     if (!pendingPayload) return;
@@ -345,6 +435,20 @@ export function InvoiceForm({ catalogs, defaultValues }: Props) {
   return (
     <>
     <form onSubmit={onSubmit} className="space-y-6">
+
+      {/* Templates */}
+      <div className="flex flex-wrap justify-end gap-2">
+        {catalogs.templates.length > 0 && (
+          <Button type="button" variant="outline" size="sm" onClick={() => setTemplatesOpen(true)}>
+            <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
+            {t('templates.load')}
+          </Button>
+        )}
+        <Button type="button" variant="outline" size="sm" onClick={openSaveDialog}>
+          <Save className="mr-1.5 h-3.5 w-3.5" />
+          {t('templates.save')}
+        </Button>
+      </div>
 
       {/* Invoice header */}
       <Card>
@@ -790,6 +894,92 @@ export function InvoiceForm({ catalogs, defaultValues }: Props) {
           <Button onClick={handleConfirmedSubmit}>
             <Send className="mr-2 h-4 w-4" />
             {t('confirm.submit')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    {/* Load template — picker with buyer/items/total preview */}
+    <Dialog open={templatesOpen} onOpenChange={setTemplatesOpen}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{t('templates.load')}</DialogTitle>
+        </DialogHeader>
+        <div className="max-h-[60vh] space-y-2 overflow-y-auto">
+          {catalogs.templates.map((tpl) => {
+            const previewTotals = computeTotals(tpl.data.items as InvoiceFormValues['items']);
+            const itemsLabel = tpl.data.items.map((i) => i.description).join(', ');
+            return (
+              <div key={tpl.id} className="flex items-start justify-between gap-2 rounded-md border p-3">
+                <button type="button" className="flex-1 text-left" onClick={() => handleLoadTemplate(tpl)}>
+                  <p className="font-medium">{tpl.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">{tpl.data.buyer.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">{itemsLabel}</p>
+                  <p className="font-mono text-xs">${fmt(previewTotals.total)}</p>
+                </button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-destructive hover:text-destructive"
+                  onClick={() => setDeleteTarget(tpl)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    {/* Delete template confirmation */}
+    <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>{t('templates.confirmDeleteTitle')}</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground">{t('templates.confirmDeleteDescription')}</p>
+        {deleteTarget && <p className="text-sm font-medium">{deleteTarget.name}</p>}
+        <DialogFooter>
+          <Button variant="destructive" onClick={handleDeleteTemplate} disabled={isTemplatePending}>
+            {t('templates.delete')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    {/* Save as template — name prompt */}
+    <Dialog open={saveOpen} onOpenChange={(open) => { setSaveOpen(open); if (!open) setPendingTemplateData(null); }}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>{t('templates.saveDialogTitle')}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-1.5">
+          <Label>{t('templates.nameLabel')}</Label>
+          <Input
+            value={saveName}
+            onChange={(e) => setSaveName(e.target.value)}
+            placeholder={t('templates.namePlaceholder')}
+            autoFocus
+          />
+          {existingTemplateMatch && (
+            <p className="text-xs text-amber-600 dark:text-amber-500">
+              {t('templates.overwriteWarning', { name: existingTemplateMatch.name })}
+            </p>
+          )}
+          {saveError && (
+            <p className="text-xs text-destructive">
+              {tError.has(saveError as Parameters<typeof tError>[0]) ? tError(saveError as Parameters<typeof tError>[0]) : saveError}
+            </p>
+          )}
+        </div>
+        <DialogFooter>
+          <DialogClose render={<Button variant="outline" />}>
+            {tCommon('cancel')}
+          </DialogClose>
+          <Button onClick={handleSaveTemplate} disabled={isTemplatePending || !saveName.trim()}>
+            {tCommon('save')}
           </Button>
         </DialogFooter>
       </DialogContent>

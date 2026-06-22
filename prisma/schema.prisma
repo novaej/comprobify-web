@@ -41,6 +41,7 @@ model Tenant {
   issuerAccess UserIssuerAccess[]
   products     Product[]
   clients      Client[]
+  documentTemplates DocumentTemplate[]
 
   @@map("tenants")
 }
@@ -123,6 +124,23 @@ model Client {
 
   @@index([tenantId])
   @@map("clients")
+}
+
+/// A saved, reusable starting point for creating a document (currently only
+/// invoices — documentType '01' — but the shape generalizes to other SRI
+/// document types as the create flows for those are built).
+model DocumentTemplate {
+  id           Int      @id @default(autoincrement())
+  tenantId     Int      @map("tenant_id")
+  documentType String   @default("01") @map("document_type") @db.VarChar(2)
+  name         String
+  data         Json
+  createdAt    DateTime @default(now()) @map("created_at")
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, documentType, name])
+  @@index([tenantId, documentType])
+  @@map("document_templates")
 }
 
 // ── Notifications ─────────────────────────────────────────────────────────────
