@@ -15,6 +15,7 @@ import {
 } from '@/lib/api';
 import type { CatalogProduct } from '@/app/actions/catalog';
 import type { SavedClient } from '@/app/actions/clients';
+import { listInvoiceTemplatesAction, type SavedDocumentTemplate } from '@/app/actions/templates';
 import { BACK_TARGETS, isBackTargetKey, type BackTargetKey } from '@/lib/back-targets';
 
 export interface InvoiceCatalogs {
@@ -24,6 +25,7 @@ export interface InvoiceCatalogs {
   termUnits: CatalogTermUnit[];
   products: CatalogProduct[];
   clients: SavedClient[];
+  templates: SavedDocumentTemplate[];
 }
 
 export default async function NewInvoicePage({
@@ -50,7 +52,7 @@ export default async function NewInvoicePage({
 
   const apiCtx = { apiKey, issuerId: ctx.issuer.apiIssuerId };
 
-  const [idTypes, paymentMethods, taxRates, termUnits, productRows, clientRows] = await Promise.all([
+  const [idTypes, paymentMethods, taxRates, termUnits, productRows, clientRows, templates] = await Promise.all([
     listCatalogIdTypes(apiCtx),
     listCatalogPaymentMethods(apiCtx),
     listCatalogTaxRates(apiCtx),
@@ -65,6 +67,7 @@ export default async function NewInvoicePage({
       orderBy: { name: 'asc' },
       select: { id: true, idType: true, idNumber: true, name: true, email: true, address: true },
     }),
+    listInvoiceTemplatesAction(),
   ]);
 
   const products: CatalogProduct[] = productRows.map((r) => ({
@@ -72,7 +75,7 @@ export default async function NewInvoicePage({
     unitPrice: r.unitPrice.toString(),
   }));
 
-  const catalogs: InvoiceCatalogs = { idTypes, paymentMethods, taxRates, termUnits, products, clients: clientRows };
+  const catalogs: InvoiceCatalogs = { idTypes, paymentMethods, taxRates, termUnits, products, clients: clientRows, templates };
 
   return (
     <div>

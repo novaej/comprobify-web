@@ -155,6 +155,17 @@
     "submit": "Enviar",
     "submitRebuild": "Reconstruir",
     "submitting": "Enviando...",
+    "templates": {
+      "load": "Cargar plantilla",
+      "save": "Guardar como plantilla",
+      "saveDialogTitle": "Guardar como plantilla",
+      "nameLabel": "Nombre de la plantilla",
+      "namePlaceholder": "p. ej. Cliente mensual",
+      "overwriteWarning": "Ya existe una plantilla llamada “{name}” y será sobrescrita. Cambie el nombre para guardar una nueva.",
+      "delete": "Eliminar",
+      "confirmDeleteTitle": "¿Eliminar plantilla?",
+      "confirmDeleteDescription": "Esta plantilla se eliminará permanentemente."
+    },
     "confirm": {
       "title": "Enviar al SRI",
       "description": "El comprobante será generado y enviado al Servicio de Rentas Internas (SRI) para su autorización. El proceso continuará automáticamente hasta completarse.",
