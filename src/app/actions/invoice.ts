@@ -45,7 +45,10 @@ const TAX_MAP: Record<TaxOption, { code: string; rateCode: string; rate: string 
 
 export type CreateInvoiceResult = { error: string } | null;
 
-export async function createInvoiceAction(data: InvoiceFormData): Promise<CreateInvoiceResult> {
+export async function createInvoiceAction(
+  data: InvoiceFormData,
+  sendAfterSigning: boolean
+): Promise<CreateInvoiceResult> {
   const ctx = await requireContext();
   const apiCtx = { apiKey: ctx.apiKey, issuerId: ctx.issuer.apiIssuerId };
 
@@ -88,14 +91,17 @@ export async function createInvoiceAction(data: InvoiceFormData): Promise<Create
     throw err;
   }
 
-  // Best-effort: send to SRI immediately. If it fails the detail page
-  // shows SIGNED status with a recovery Send button.
-  try {
-    const sent = await sendToSri(apiCtx, accessKey);
-    if (sent.status === 'RECEIVED') {
-      try { await checkAuthorization(apiCtx, accessKey); } catch { /* polling handles it */ }
-    }
-  } catch { /* non-fatal */ }
+  // Best-effort: send to SRI immediately, unless the user chose "Firmar" (sign only).
+  // If it fails — or was skipped — the detail page shows SIGNED status with a
+  // recovery Send button (src/components/invoice-actions.tsx).
+  if (sendAfterSigning) {
+    try {
+      const sent = await sendToSri(apiCtx, accessKey);
+      if (sent.status === 'RECEIVED') {
+        try { await checkAuthorization(apiCtx, accessKey); } catch { /* polling handles it */ }
+      }
+    } catch { /* non-fatal */ }
+  }
 
   const locale = await getLocale();
   redirect({ href: `/invoices/${accessKey}`, locale });

@@ -123,14 +123,26 @@ The form Zod schema mirrors the API validator (`src/validators/invoice.validator
 
 ---
 
+## Submit buttons
+
+Two buttons, both validating the form (React Hook Form) and opening the same confirmation dialog before anything is created:
+
+| Button | Confirms as | Behavior |
+|---|---|---|
+| Firmar y Enviar (primary, Enter-key default) | "Enviar al SRI" | Creates + signs the document, then a best-effort `sendToSri()` call right after. Matches the old single "Enviar" button. |
+| Firmar (outline) | "Firmar comprobante" | Creates + signs the document only — `sendToSri()` is skipped entirely. Document stays in `SIGNED` status. |
+
+Both paths redirect to the Invoice Detail page on success. A `SIGNED` document is not a dead end: that page shows its own "Enviar" button (see `invoice-detail.md`) to send to the SRI whenever the user is ready.
+
 ## Success flow
 
 ```
 Form submit (Server Action)
   → POST /api/documents
   → 201 Created
+  → sendAfterSigning ? best-effort sendToSri() : skipped
   → redirect('/invoices/:accessKey')
-  → Invoice Detail page (status: SIGNED)
+  → Invoice Detail page (status: SIGNED, or RECEIVED/AUTHORIZED if sent)
 ```
 
 ---

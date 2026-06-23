@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
-import { Trash2, Plus, Search, Send, FolderOpen, Save } from 'lucide-react';
+import { Trash2, Plus, Search, Send, FolderOpen, Save, ClipboardSignature } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -357,8 +357,16 @@ export function InvoiceForm({ catalogs, defaultValues }: Props) {
 
   const [pendingPayload, setPendingPayload] = useState<InvoiceFormData | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [submitIntent, setSubmitIntent] = useState<'sign' | 'signAndSend'>('signAndSend');
 
-  const openConfirm = form.handleSubmit((data) => {
+  const openConfirmSignAndSend = form.handleSubmit((data) => {
+    setSubmitIntent('signAndSend');
+    setPendingPayload(toInvoiceFormData(data));
+    setConfirmOpen(true);
+  });
+
+  const openConfirmSignOnly = form.handleSubmit((data) => {
+    setSubmitIntent('sign');
     setPendingPayload(toInvoiceFormData(data));
     setConfirmOpen(true);
   });
@@ -420,7 +428,7 @@ export function InvoiceForm({ catalogs, defaultValues }: Props) {
     setConfirmOpen(false);
     setServerError(null);
     startTransition(async () => {
-      const result = await createInvoiceAction(pendingPayload);
+      const result = await createInvoiceAction(pendingPayload, submitIntent === 'signAndSend');
       if (result?.error) {
         setServerError(result.error);
         setPendingPayload(null);
@@ -428,7 +436,7 @@ export function InvoiceForm({ catalogs, defaultValues }: Props) {
     });
   }
 
-  const onSubmit = openConfirm;
+  const onSubmit = openConfirmSignAndSend;
 
   const { errors } = form.formState;
 
@@ -871,9 +879,12 @@ export function InvoiceForm({ catalogs, defaultValues }: Props) {
         </p>
       )}
 
-      <div className="flex gap-3 pb-6">
+      <div className="flex flex-wrap gap-3 pb-6">
         <Button type="submit" disabled={isPending}>
-          {isPending ? t('submitting') : t('submit')}
+          {isPending && submitIntent === 'signAndSend' ? t('submitting') : t('submit')}
+        </Button>
+        <Button type="button" variant="outline" disabled={isPending} onClick={openConfirmSignOnly}>
+          {isPending && submitIntent === 'sign' ? t('signingOnly') : t('signOnly')}
         </Button>
         <Link href="/dashboard" className={buttonVariants({ variant: 'outline' })}>
           {tCommon('back')}
@@ -884,16 +895,22 @@ export function InvoiceForm({ catalogs, defaultValues }: Props) {
     <Dialog open={confirmOpen} onOpenChange={(open) => { setConfirmOpen(open); if (!open) setPendingPayload(null); }}>
       <DialogContent showCloseButton={false}>
         <DialogHeader>
-          <DialogTitle>{t('confirm.title')}</DialogTitle>
-          <DialogDescription>{t('confirm.description')}</DialogDescription>
+          <DialogTitle>{submitIntent === 'sign' ? t('confirmSignOnly.title') : t('confirm.title')}</DialogTitle>
+          <DialogDescription>
+            {submitIntent === 'sign' ? t('confirmSignOnly.description') : t('confirm.description')}
+          </DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>
-            {t('confirm.cancel')}
+            {submitIntent === 'sign' ? t('confirmSignOnly.cancel') : t('confirm.cancel')}
           </DialogClose>
           <Button onClick={handleConfirmedSubmit}>
-            <Send className="mr-2 h-4 w-4" />
-            {t('confirm.submit')}
+            {submitIntent === 'sign' ? (
+              <ClipboardSignature className="mr-2 h-4 w-4" />
+            ) : (
+              <Send className="mr-2 h-4 w-4" />
+            )}
+            {submitIntent === 'sign' ? t('confirmSignOnly.submit') : t('confirm.submit')}
           </Button>
         </DialogFooter>
       </DialogContent>

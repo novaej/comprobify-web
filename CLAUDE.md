@@ -176,6 +176,8 @@ messages/
 
 **Document templates:** Full invoices (buyer, line items, payment methods, additional fields) can be saved as reusable templates via `src/app/actions/templates.ts`, backed by the `DocumentTemplate` Prisma model — scoped per **tenant**, not sent to or read from the Comprobify API. The model's `documentType` column defaults to `'01'` (invoices) but is a real, generic column (`@@unique([tenantId, documentType, name])`) so other SRI document types can reuse the same table once they get a create flow — today only invoices do. `saveInvoiceTemplateAction` runs an `upsert` keyed on `(tenantId, documentType, name)`, so saving under an existing name overwrites it; `InvoiceForm` shows an inline warning when the typed name matches an existing template, and pre-fills that name after a template is loaded so re-saving defaults to "update." The stored `data` JSON is the exact same shape as `InvoiceFormData` (`src/app/actions/invoice.ts`) — `toInvoiceFormData`/`templateToFormValues` in `invoice-form.tsx` convert between that and the form's Zod-validated `InvoiceFormValues` (which use `''` for empty optional fields instead of `undefined`).
 
+**Sign-only vs. sign-and-send on invoice creation:** `InvoiceForm` exposes two submit buttons — "Firmar y Enviar" (primary, also the Enter-key default) and "Firmar" (outline). Both call `form.handleSubmit()` to validate, then open the *same* confirmation `Dialog`, tracked by a `submitIntent: 'sign' | 'signAndSend'` state that switches the dialog's title/description/icon/submit label between the `confirm` and `confirmSignOnly` i18n blocks. `handleConfirmedSubmit` passes `submitIntent === 'signAndSend'` as `createInvoiceAction`'s second argument (`sendAfterSigning: boolean`), which gates the existing best-effort `sendToSri()` call — `false` skips it entirely, leaving the document in `SIGNED` status. A document signed-only is not stuck: the Invoice Detail page already shows a recovery "Enviar" button for any `SIGNED` document (`src/components/invoice-actions.tsx`), so this reuses an existing path rather than adding a new one.
+
 **Base UI `SelectValue` display:** `@base-ui/react` Select.Value does not mirror the selected item's children text — it renders the raw `value` string by default. To show a human-readable label, pass a render function as children:
 ```tsx
 <SelectValue>
@@ -282,7 +284,7 @@ This project runs Next.js **16** (not 13-15). Key differences from older version
 | `src/components/issuer-manager.tsx` | Client Component — issuer cards on `/issuers`: document type add/remove, cert expiry/fingerprint badge, "Cambiar logo" dialog |
 | `src/app/actions/apiKeys.ts` | `createTenantApiKeyAction` (returns cleartext key once), `revokeTenantApiKeyAction` |
 | `src/app/actions/users.ts` | `inviteUserAction`, `updateUserRoleAction`, `removeUserAction`, `setUserIssuerAccessAction` |
-| `src/app/actions/invoice.ts` | `createInvoiceAction` — builds `CreateDocumentPayload` from form data and calls `createDocument`; exports `InvoiceFormData` type |
+| `src/app/actions/invoice.ts` | `createInvoiceAction(data, sendAfterSigning)` — builds `CreateDocumentPayload` from form data and calls `createDocument`; `sendAfterSigning` gates the best-effort `sendToSri()` call (sign-only vs. sign-and-send); exports `InvoiceFormData` type |
 | `src/app/actions/clients.ts` | Server Actions for client CRUD; exports `SavedClient` type; all ops scoped to `tenantId` |
 | `src/app/actions/catalog.ts` | Server Actions for product catalog CRUD; exports `CatalogProduct` type; all ops scoped to `tenantId` |
 | `src/app/actions/templates.ts` | `listInvoiceTemplatesAction`, `saveInvoiceTemplateAction` (upsert by name), `deleteInvoiceTemplateAction`; exports `SavedDocumentTemplate` type; all ops scoped to `tenantId` + `documentType` |
@@ -304,7 +306,7 @@ This project runs Next.js **16** (not 13-15). Key differences from older version
 | `src/components/webhook-manager.tsx` | Register/delete webhook endpoints with signature code snippet |
 | `src/components/notification-preferences.tsx` | Optimistic-UI preference toggles; reverts on server error |
 | `src/components/complete-registration-form.tsx` | Invited-user password form — email prefilled from `?email=` param |
-| `src/components/invoice-form.tsx` | Invoice creation form (React Hook Form + Zod); accepts `InvoiceCatalogs` prop; catalog-driven selects, Consumidor Final auto-fill, single-payment auto-sync, product search combobox, save/load/delete document templates |
+| `src/components/invoice-form.tsx` | Invoice creation form (React Hook Form + Zod); accepts `InvoiceCatalogs` prop; catalog-driven selects, Consumidor Final auto-fill, single-payment auto-sync, product search combobox, save/load/delete document templates, "Firmar"/"Firmar y Enviar" dual submit |
 | `src/app/[locale]/invoices/new/page.tsx` | Server Component — fetches SRI catalogs + user products/clients/templates in parallel, passes as props to `InvoiceForm`; exports `InvoiceCatalogs` type |
 | `src/app/[locale]/clients/page.tsx` | Server Component — fetches tenant clients from DB, renders `ClientCatalog` |
 | `src/components/client-catalog.tsx` | Client Component — client CRUD table with add/edit/delete dialogs |

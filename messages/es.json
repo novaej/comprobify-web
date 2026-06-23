@@ -173,9 +173,11 @@
   "invoiceForm": {
     "title": "Nueva factura",
     "rebuildTitle": "Reconstruir factura",
-    "submit": "Enviar",
+    "submit": "Firmar y Enviar",
+    "signOnly": "Firmar",
     "submitRebuild": "Reconstruir",
     "submitting": "Enviando...",
+    "signingOnly": "Firmando...",
     "templates": {
       "load": "Cargar plantilla",
       "save": "Guardar como plantilla",
@@ -189,9 +191,15 @@
     },
     "confirm": {
       "title": "Enviar al SRI",
-      "description": "El comprobante será generado y enviado al Servicio de Rentas Internas (SRI) para su autorización. El proceso continuará automáticamente hasta completarse.",
+      "description": "El comprobante será generado, firmado y enviado al Servicio de Rentas Internas (SRI) para su autorización. El proceso continuará automáticamente hasta completarse.",
       "cancel": "Cancelar",
-      "submit": "Enviar"
+      "submit": "Firmar y Enviar"
+    },
+    "confirmSignOnly": {
+      "title": "Firmar comprobante",
+      "description": "El comprobante será generado y firmado, pero no se enviará al SRI todavía. Podrás enviarlo más tarde desde el detalle del comprobante.",
+      "cancel": "Cancelar",
+      "submit": "Firmar"
     },
     "issueDate": "Fecha de emisión",
     "guiaRemision": "Guía de remisión",

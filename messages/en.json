@@ -173,9 +173,11 @@
   "invoiceForm": {
     "title": "New invoice",
     "rebuildTitle": "Rebuild invoice",
-    "submit": "Send",
+    "submit": "Sign & Send",
+    "signOnly": "Sign",
     "submitRebuild": "Rebuild",
     "submitting": "Sending...",
+    "signingOnly": "Signing...",
     "templates": {
       "load": "Load template",
       "save": "Save as template",
@@ -189,9 +191,15 @@
     },
     "confirm": {
       "title": "Send to SRI",
-      "description": "The document will be created and submitted to the SRI (Servicio de Rentas Internas) for authorization. The process will continue automatically until complete.",
+      "description": "The document will be created, signed, and submitted to the SRI (Servicio de Rentas Internas) for authorization. The process will continue automatically until complete.",
       "cancel": "Cancel",
-      "submit": "Send"
+      "submit": "Sign & Send"
+    },
+    "confirmSignOnly": {
+      "title": "Sign document",
+      "description": "The document will be created and signed, but not sent to the SRI yet. You can send it later from the document detail page.",
+      "cancel": "Cancel",
+      "submit": "Sign"
     },
     "issueDate": "Issue date",
     "guiaRemision": "Delivery note",
