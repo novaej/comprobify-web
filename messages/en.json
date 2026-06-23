@@ -337,6 +337,14 @@
       "waiting": "Waiting for SRI response...",
       "timeout": "SRI is taking longer than expected. Check manually when ready."
     },
+    "pdfPreview": {
+      "toggleLabel": "PDF Preview",
+      "loading": "Loading preview...",
+      "error": "Could not load the PDF preview.",
+      "previous": "Previous",
+      "next": "Next",
+      "pageInfo": "Page {page} of {numPages}"
+    },
     "items": {
       "title": "Line items",
       "description": "Description",
@@ -357,7 +365,7 @@
       "SENT": "Sent to SRI",
       "STATUS_CHANGED": "Status updated",
       "ERROR": "Error",
-      "REBUILT": "Rebuilt",
+      "REBUILT": "Fixed",
       "EMAIL_SENT": "Email sent",
       "EMAIL_FAILED": "Email failed",
       "EMAIL_DELIVERED": "Email delivered",

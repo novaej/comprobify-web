@@ -337,6 +337,14 @@
       "waiting": "Esperando respuesta del SRI...",
       "timeout": "El SRI tardó más de lo esperado. Verifica manualmente cuando estés listo."
     },
+    "pdfPreview": {
+      "toggleLabel": "Vista previa PDF",
+      "loading": "Cargando vista previa...",
+      "error": "No se pudo cargar la vista previa del PDF.",
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "pageInfo": "Página {page} de {numPages}"
+    },
     "items": {
       "title": "Detalle de productos / servicios",
       "description": "Descripción",
@@ -357,7 +365,7 @@
       "SENT": "Enviado al SRI",
       "STATUS_CHANGED": "Estado actualizado",
       "ERROR": "Error",
-      "REBUILT": "Reconstruido",
+      "REBUILT": "Corregido",
       "EMAIL_SENT": "Correo enviado",
       "EMAIL_FAILED": "Error en correo",
       "EMAIL_DELIVERED": "Correo entregado",

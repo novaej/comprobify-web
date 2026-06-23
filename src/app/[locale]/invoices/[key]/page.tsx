@@ -8,6 +8,7 @@ import { notFound } from 'next/navigation';
 import { StatusBadge } from '@/components/status-badge';
 import { InvoiceActions } from '@/components/invoice-actions';
 import { InvoicePolling } from '@/components/invoice-polling';
+import { InvoicePdfPreviewToggle } from '@/components/invoice-pdf-preview-toggle';
 import {
   Table,
   TableBody,
@@ -154,6 +155,11 @@ export default async function InvoiceDetailPage({
 
       {/* Action buttons */}
       <InvoiceActions accessKey={document.accessKey} status={document.status} from={backTargetKey} />
+
+      {/* PDF preview */}
+      {document.status === 'AUTHORIZED' && (
+        <InvoicePdfPreviewToggle accessKey={document.accessKey} />
+      )}
 
       {/* Events timeline */}
       {events.length > 0 && (

@@ -60,7 +60,7 @@ Shows the full state of a document and provides contextual actions based on its 
 |---|---|
 | SIGNED | "Enviar" button |
 | RECEIVED | "Verificar autorización" button + polling spinner |
-| AUTHORIZED | "Descargar PDF", "Descargar XML", "Reenviar correo" |
+| AUTHORIZED | "Descargar PDF", "Descargar XML", "Reenviar correo", plus a separate "Vista previa PDF" toggle (see below) |
 | RETURNED | "Corregir" button (`src/components/invoice-actions.tsx`) |
 | NOT_AUTHORIZED | Same as RETURNED |
 
@@ -98,3 +98,20 @@ Invoice Detail (RETURNED or NOT_AUTHORIZED, ?from=<backTargetKey>)
 ```
 
 Both the create form and the rebuild form share one confirmation dialog and one pair of buttons (sign-only / sign-and-send) — see `docs/site/screens/create-invoice.md` → "Submit buttons". `?from=` is threaded through this entire loop (Invoice Detail → rebuild form → back to Invoice Detail) so the top/bottom back links keep pointing at wherever the user actually started (e.g. `/documents/01`) instead of always falling back to the dashboard.
+
+---
+
+## PDF preview (AUTHORIZED)
+
+Shown below the action buttons via `<InvoicePdfPreviewToggle accessKey={...} />` (`src/components/invoice-pdf-preview-toggle.tsx`): a single "Vista previa PDF" button (label never changes — only the `Eye`/`EyeOff` icon flips with state) that lazy-mounts the actual viewer on first click, rather than always rendering it.
+
+```
+AUTHORIZED, collapsed
+  → click "Vista previa PDF"
+  → InvoicePdfPreview mounts (via next/dynamic, ssr: false — see invoice-pdf-preview-lazy.tsx)
+  → <Document file="/api/documents/:key/ride"> (react-pdf) fetches and renders the existing download route
+  → ResizeObserver keeps the rendered page width responsive
+  → Previous/Next controls appear only if the PDF has more than one page
+```
+
+No new API endpoint — it points at the same `/api/documents/:key/ride` route the "Descargar PDF" button already uses. The worker script (`pdfjs-dist`) is resolved via `new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url)` so the bundler serves it with correct headers, instead of a manually-copied `public/` file (which failed at runtime — see CLAUDE.md Common Mistake #27).
