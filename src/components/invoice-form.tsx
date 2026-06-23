@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
-import { Trash2, Plus, Search, Send, FolderOpen, Save, ClipboardSignature } from 'lucide-react';
+import { Trash2, Plus, Search, Send, FolderOpen, Save, ClipboardSignature, Hammer } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,7 +29,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { createInvoiceAction, type InvoiceFormData } from '@/app/actions/invoice';
+import { createInvoiceAction, rebuildInvoiceAction, type InvoiceFormData } from '@/app/actions/invoice';
+import type { CreateDocumentPayload } from '@/lib/api';
 import {
   saveInvoiceTemplateAction,
   deleteInvoiceTemplateAction,
@@ -39,6 +40,7 @@ import { Link } from '@/i18n/navigation';
 import type { InvoiceCatalogs } from '@/app/[locale]/invoices/new/page';
 import type { CatalogProduct } from '@/app/actions/catalog';
 import type { SavedClient } from '@/app/actions/clients';
+import type { BackTargetKey } from '@/lib/back-targets';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -166,6 +168,39 @@ function templateToFormValues(data: InvoiceFormData): InvoiceFormValues {
   };
 }
 
+// Inverse of buildCreateDocumentPayload (src/app/actions/invoice.ts) — converts a
+// document's requestPayload (the exact body it was created/last rebuilt with) back
+// into form values, to pre-fill the rebuild form. Each item only ever has one tax
+// entry (see buildCreateDocumentPayload), so taxOption is recovered directly from it.
+function requestPayloadToFormValues(payload: CreateDocumentPayload): InvoiceFormValues {
+  return {
+    guiaRemision: payload.guiaRemision ?? '',
+    buyer: {
+      idType: payload.buyer.idType,
+      id: payload.buyer.id,
+      name: payload.buyer.name,
+      email: payload.buyer.email,
+      address: payload.buyer.address ?? '',
+    },
+    items: payload.items.map((item) => ({
+      mainCode: item.mainCode,
+      auxCode: item.auxCode ?? '',
+      description: item.description,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      discount: item.discount ?? '',
+      taxOption: `${item.taxes[0].code}-${item.taxes[0].rateCode}`,
+    })),
+    payments: payload.payments.map((p) => ({
+      method: p.method,
+      total: p.total,
+      term: p.term !== undefined ? String(p.term) : '',
+      termUnit: p.termUnit ?? '',
+    })),
+    additionalInfo: payload.additionalInfo ?? [],
+  };
+}
+
 interface Totals {
   subtotalNoTax: number;
   taxable15: number;
@@ -285,17 +320,27 @@ function TotalsRow({ label, value }: { label: string; value: number }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
+interface RebuildSource {
+  accessKey: string;
+  payload: CreateDocumentPayload;
+  issueDate: string;
+}
+
 interface Props {
   catalogs: InvoiceCatalogs;
   defaultValues?: Partial<InvoiceFormValues>;
+  rebuildFrom?: RebuildSource;
+  backHref: string;
+  from?: BackTargetKey;
 }
 
-export function InvoiceForm({ catalogs, defaultValues }: Props) {
+export function InvoiceForm({ catalogs, defaultValues, rebuildFrom, backHref, from }: Props) {
   const t = useTranslations('invoiceForm');
   const tError = useTranslations('apiError');
   const tCommon = useTranslations('common');
   const [isPending, startTransition] = useTransition();
   const [serverError, setServerError] = useState<string | null>(null);
+  const isRebuild = Boolean(rebuildFrom);
 
   // Filter to IVA rates (tax code 2) in preferred display order
   const ivaRates = useMemo(
@@ -307,10 +352,11 @@ export function InvoiceForm({ catalogs, defaultValues }: Props) {
   );
 
   const defaultTaxOption: string = ivaRates[0] ? `2-${ivaRates[0].rateCode}` : '2-4';
+  const rebuildDefaultValues = rebuildFrom ? requestPayloadToFormValues(rebuildFrom.payload) : undefined;
 
   const form = useForm<InvoiceFormValues>({
     resolver: zodResolver(invoiceSchema),
-    defaultValues: defaultValues ?? {
+    defaultValues: rebuildDefaultValues ?? defaultValues ?? {
       guiaRemision: '',
       buyer: { idType: '05', id: '', name: '', email: '', address: '' },
       items: [{ mainCode: '', auxCode: '', description: '', quantity: '1', unitPrice: '0.00', discount: '0.00', taxOption: defaultTaxOption }],
@@ -428,7 +474,9 @@ export function InvoiceForm({ catalogs, defaultValues }: Props) {
     setConfirmOpen(false);
     setServerError(null);
     startTransition(async () => {
-      const result = await createInvoiceAction(pendingPayload, submitIntent === 'signAndSend');
+      const result = rebuildFrom
+        ? await rebuildInvoiceAction(rebuildFrom.accessKey, pendingPayload, submitIntent === 'signAndSend', from)
+        : await createInvoiceAction(pendingPayload, submitIntent === 'signAndSend', from);
       if (result?.error) {
         setServerError(result.error);
         setPendingPayload(null);
@@ -439,6 +487,34 @@ export function InvoiceForm({ catalogs, defaultValues }: Props) {
   const onSubmit = openConfirmSignAndSend;
 
   const { errors } = form.formState;
+
+  const dialogCopy = isRebuild
+    ? submitIntent === 'sign'
+      ? {
+          title: t('confirmRebuildSignOnly.title'),
+          description: t('confirmRebuildSignOnly.description'),
+          cancel: t('confirmRebuildSignOnly.cancel'),
+          submit: t('confirmRebuildSignOnly.submit'),
+        }
+      : {
+          title: t('confirmRebuild.title'),
+          description: t('confirmRebuild.description'),
+          cancel: t('confirmRebuild.cancel'),
+          submit: t('confirmRebuild.submit'),
+        }
+    : submitIntent === 'sign'
+      ? {
+          title: t('confirmSignOnly.title'),
+          description: t('confirmSignOnly.description'),
+          cancel: t('confirmSignOnly.cancel'),
+          submit: t('confirmSignOnly.submit'),
+        }
+      : {
+          title: t('confirm.title'),
+          description: t('confirm.description'),
+          cancel: t('confirm.cancel'),
+          submit: t('confirm.submit'),
+        };
 
   return (
     <>
@@ -463,7 +539,11 @@ export function InvoiceForm({ catalogs, defaultValues }: Props) {
         <CardContent className="grid gap-4 pt-6 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label className="text-muted-foreground">{t('issueDate')}</Label>
-            <Input value={todayDDMMYYYY()} readOnly className="bg-muted text-muted-foreground" />
+            <Input
+              value={rebuildFrom?.issueDate ?? todayDDMMYYYY()}
+              readOnly
+              className="bg-muted text-muted-foreground"
+            />
           </div>
           <div className="space-y-1.5">
             <Label>{t('guiaRemision')}</Label>
@@ -881,12 +961,16 @@ export function InvoiceForm({ catalogs, defaultValues }: Props) {
 
       <div className="flex flex-wrap gap-3 pb-6">
         <Button type="submit" disabled={isPending}>
-          {isPending && submitIntent === 'signAndSend' ? t('submitting') : t('submit')}
+          {isPending && submitIntent === 'signAndSend'
+            ? isRebuild ? t('submittingRebuild') : t('submitting')
+            : isRebuild ? t('submitRebuild') : t('submit')}
         </Button>
         <Button type="button" variant="outline" disabled={isPending} onClick={openConfirmSignOnly}>
-          {isPending && submitIntent === 'sign' ? t('signingOnly') : t('signOnly')}
+          {isPending && submitIntent === 'sign'
+            ? isRebuild ? t('signingOnlyRebuild') : t('signingOnly')
+            : isRebuild ? t('signOnlyRebuild') : t('signOnly')}
         </Button>
-        <Link href="/dashboard" className={buttonVariants({ variant: 'outline' })}>
+        <Link href={backHref} className={buttonVariants({ variant: 'outline' })}>
           {tCommon('back')}
         </Link>
       </div>
@@ -895,22 +979,22 @@ export function InvoiceForm({ catalogs, defaultValues }: Props) {
     <Dialog open={confirmOpen} onOpenChange={(open) => { setConfirmOpen(open); if (!open) setPendingPayload(null); }}>
       <DialogContent showCloseButton={false}>
         <DialogHeader>
-          <DialogTitle>{submitIntent === 'sign' ? t('confirmSignOnly.title') : t('confirm.title')}</DialogTitle>
-          <DialogDescription>
-            {submitIntent === 'sign' ? t('confirmSignOnly.description') : t('confirm.description')}
-          </DialogDescription>
+          <DialogTitle>{dialogCopy.title}</DialogTitle>
+          <DialogDescription>{dialogCopy.description}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>
-            {submitIntent === 'sign' ? t('confirmSignOnly.cancel') : t('confirm.cancel')}
+            {dialogCopy.cancel}
           </DialogClose>
           <Button onClick={handleConfirmedSubmit}>
-            {submitIntent === 'sign' ? (
+            {isRebuild ? (
+              <Hammer className="mr-2 h-4 w-4" />
+            ) : submitIntent === 'sign' ? (
               <ClipboardSignature className="mr-2 h-4 w-4" />
             ) : (
               <Send className="mr-2 h-4 w-4" />
             )}
-            {submitIntent === 'sign' ? t('confirmSignOnly.submit') : t('confirm.submit')}
+            {dialogCopy.submit}
           </Button>
         </DialogFooter>
       </DialogContent>

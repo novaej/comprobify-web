@@ -58,11 +58,13 @@ Shows the full state of a document and provides contextual actions based on its 
 
 | Status | Actions shown |
 |---|---|
-| SIGNED | "Enviar al SRI" button |
+| SIGNED | "Enviar" button |
 | RECEIVED | "Verificar autorización" button + polling spinner |
 | AUTHORIZED | "Descargar PDF", "Descargar XML", "Reenviar correo" |
-| RETURNED | "Ver errores SRI" (collapsible), "Reconstruir" |
+| RETURNED | "Corregir" button (`src/components/invoice-actions.tsx`) |
 | NOT_AUTHORIZED | Same as RETURNED |
+
+Rendered by `<InvoiceActions accessKey={...} status={...} from={backTargetKey} />` — `from` is this page's own validated `?from=` value, forwarded into the "Corregir" link (`/invoices/new?rebuild=:accessKey&from=...`) so the correction form's back-link chain stays correct (see "Rebuild flow" below).
 
 ---
 
@@ -79,17 +81,20 @@ When `status === 'RECEIVED'`:
 
 ## SRI errors display (RETURNED / NOT_AUTHORIZED)
 
-The SRI response is stored in `sri_responses` table on the API side. Currently not returned by the document presenter — needs a new field or endpoint. For MVP, show a generic message: "El SRI devolvió errores. Reconstruye el comprobante para corregirlos."
+**Known gap** — there's no dedicated "why was this returned" panel. The closest thing today is the Events timeline at the bottom of the page, which already surfaces `detail.message`/`detail.error`/`detail.sriStatus` for the `RETURNED`/`NOT_AUTHORIZED` transition event (via `formatEventDetail()` in `src/app/[locale]/invoices/[key]/page.tsx`). A dedicated, more prominent error display would be a follow-up, not yet built.
 
 ---
 
-## Rebuild flow
+## Rebuild ("Corregir") flow
 
 ```
-Invoice Detail (RETURNED or NOT_AUTHORIZED)
-  → user clicks "Reconstruir"
-  → navigate to /invoices/new?rebuild=:accessKey
-  → form pre-filled with original data (from document.requestPayload or re-parsed)
-  → submit → POST /api/documents/:key/rebuild
-  → redirect to Invoice Detail (status: SIGNED)
+Invoice Detail (RETURNED or NOT_AUTHORIZED, ?from=<backTargetKey>)
+  → user clicks "Corregir"
+  → navigate to /invoices/new?rebuild=:accessKey&from=<backTargetKey>
+  → form pre-filled from document.requestPayload (src/components/invoice-form.tsx → requestPayloadToFormValues)
+  → user picks "Corregir" (sign-only) or "Corregir y Enviar" (sign + best-effort send)
+  → submit → POST /api/documents/:key/rebuild (same accessKey/sequential, status → SIGNED)
+  → redirect to Invoice Detail at the SAME accessKey, with ?from= preserved
 ```
+
+Both the create form and the rebuild form share one confirmation dialog and one pair of buttons (sign-only / sign-and-send) — see `docs/site/screens/create-invoice.md` → "Submit buttons". `?from=` is threaded through this entire loop (Invoice Detail → rebuild form → back to Invoice Detail) so the top/bottom back links keep pointing at wherever the user actually started (e.g. `/documents/01`) instead of always falling back to the dashboard.

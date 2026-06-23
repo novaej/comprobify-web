@@ -74,6 +74,9 @@ export interface Document {
   };
   authorizationNumber?: string;
   authorizationDate?: string;
+  // Present whenever the document has one (every document created since request_payload was
+  // added) — the exact original create/rebuild body, used to pre-fill the rebuild form.
+  requestPayload?: CreateDocumentPayload;
   email: {
     status: EmailStatus;
     sentAt?: string;
@@ -349,6 +352,9 @@ export async function checkAuthorization(ctx: ApiCtx, accessKey: string): Promis
   return result.document;
 }
 
+// Verified against: ../comprobify/src/controllers/documents.controller.js → rebuild()
+// Only valid for RETURNED/NOT_AUTHORIZED documents (../comprobify/src/constants/document-state-machine.js);
+// the access key and sequential are preserved, the document is re-signed back to SIGNED.
 export async function rebuildDocument(
   ctx: ApiCtx,
   accessKey: string,

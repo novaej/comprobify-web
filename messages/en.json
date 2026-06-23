@@ -172,12 +172,15 @@
   },
   "invoiceForm": {
     "title": "New invoice",
-    "rebuildTitle": "Rebuild invoice",
+    "rebuildTitle": "Fix invoice",
     "submit": "Sign & Send",
     "signOnly": "Sign",
-    "submitRebuild": "Rebuild",
+    "submitRebuild": "Fix & Send",
+    "signOnlyRebuild": "Fix",
     "submitting": "Sending...",
     "signingOnly": "Signing...",
+    "submittingRebuild": "Fixing & sending...",
+    "signingOnlyRebuild": "Fixing...",
     "templates": {
       "load": "Load template",
       "save": "Save as template",
@@ -200,6 +203,18 @@
       "description": "The document will be created and signed, but not sent to the SRI yet. You can send it later from the document detail page.",
       "cancel": "Cancel",
       "submit": "Sign"
+    },
+    "confirmRebuild": {
+      "title": "Fix and send to SRI",
+      "description": "The document will be corrected, re-signed, and resubmitted to the SRI (Servicio de Rentas Internas) for authorization. The document number and access key stay the same.",
+      "cancel": "Cancel",
+      "submit": "Fix & Send"
+    },
+    "confirmRebuildSignOnly": {
+      "title": "Fix document",
+      "description": "The document will be corrected and re-signed, but not sent to the SRI yet. You can send it later from the document detail page.",
+      "cancel": "Cancel",
+      "submit": "Fix"
     },
     "issueDate": "Issue date",
     "guiaRemision": "Delivery note",
@@ -305,7 +320,7 @@
       "sending": "Sending to SRI...",
       "authorize": "Check authorization",
       "authorizing": "Checking...",
-      "rebuild": "Rebuild",
+      "rebuild": "Fix",
       "downloadPdf": "Download PDF (RIDE)",
       "downloadXml": "Download XML",
       "resendEmail": "Resend email",

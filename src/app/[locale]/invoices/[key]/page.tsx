@@ -153,7 +153,7 @@ export default async function InvoiceDetailPage({
       )}
 
       {/* Action buttons */}
-      <InvoiceActions accessKey={document.accessKey} status={document.status} />
+      <InvoiceActions accessKey={document.accessKey} status={document.status} from={backTargetKey} />
 
       {/* Events timeline */}
       {events.length > 0 && (

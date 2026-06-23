@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { Send, Download, Mail, Loader2 } from 'lucide-react';
+import { Send, Download, Mail, Loader2, Hammer } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
   Dialog,
@@ -17,7 +17,7 @@ import {
 import { sendToSriAction, tryAuthorizeAction, resendEmailAction } from '@/app/actions/document';
 import type { DocumentStatus } from '@/lib/api';
 import { toastApiError } from '@/lib/api-error-toast';
-import { useRouter } from '@/i18n/navigation';
+import { Link, useRouter } from '@/i18n/navigation';
 
 const POLL_INTERVAL_MS = 5_000;
 const TIMEOUT_MS = 2 * 60 * 1_000;
@@ -27,9 +27,10 @@ type Phase = 'idle' | 'sending' | 'polling';
 interface InvoiceActionsProps {
   accessKey: string;
   status: DocumentStatus;
+  from?: string;
 }
 
-export function InvoiceActions({ accessKey, status }: InvoiceActionsProps) {
+export function InvoiceActions({ accessKey, status, from }: InvoiceActionsProps) {
   const t = useTranslations('invoiceDetail');
   const tError = useTranslations('apiError');
   const router = useRouter();
@@ -135,6 +136,16 @@ export function InvoiceActions({ accessKey, status }: InvoiceActionsProps) {
               <Send className="mr-2 h-4 w-4" />
               {t('actions.send')}
             </Button>
+          )}
+
+          {(status === 'RETURNED' || status === 'NOT_AUTHORIZED') && (
+            <Link
+              href={from ? `/invoices/new?rebuild=${accessKey}&from=${from}` : `/invoices/new?rebuild=${accessKey}`}
+              className={buttonVariants({})}
+            >
+              <Hammer className="mr-2 h-4 w-4" />
+              {t('actions.rebuild')}
+            </Link>
           )}
 
           {status === 'AUTHORIZED' && (

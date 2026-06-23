@@ -172,12 +172,15 @@
   },
   "invoiceForm": {
     "title": "Nueva factura",
-    "rebuildTitle": "Reconstruir factura",
+    "rebuildTitle": "Corregir factura",
     "submit": "Firmar y Enviar",
     "signOnly": "Firmar",
-    "submitRebuild": "Reconstruir",
+    "submitRebuild": "Corregir y Enviar",
+    "signOnlyRebuild": "Corregir",
     "submitting": "Enviando...",
     "signingOnly": "Firmando...",
+    "submittingRebuild": "Corrigiendo y enviando...",
+    "signingOnlyRebuild": "Corrigiendo...",
     "templates": {
       "load": "Cargar plantilla",
       "save": "Guardar como plantilla",
@@ -200,6 +203,18 @@
       "description": "El comprobante será generado y firmado, pero no se enviará al SRI todavía. Podrás enviarlo más tarde desde el detalle del comprobante.",
       "cancel": "Cancelar",
       "submit": "Firmar"
+    },
+    "confirmRebuild": {
+      "title": "Corregir y enviar al SRI",
+      "description": "El comprobante será corregido, firmado nuevamente y reenviado al Servicio de Rentas Internas (SRI) para su autorización. El número de comprobante y la clave de acceso no cambian.",
+      "cancel": "Cancelar",
+      "submit": "Corregir y Enviar"
+    },
+    "confirmRebuildSignOnly": {
+      "title": "Corregir comprobante",
+      "description": "El comprobante será corregido y firmado nuevamente, pero no se enviará al SRI todavía. Podrás enviarlo más tarde desde el detalle del comprobante.",
+      "cancel": "Cancelar",
+      "submit": "Corregir"
     },
     "issueDate": "Fecha de emisión",
     "guiaRemision": "Guía de remisión",
@@ -305,7 +320,7 @@
       "sending": "Enviando al SRI...",
       "authorize": "Verificar autorización",
       "authorizing": "Verificando...",
-      "rebuild": "Reconstruir",
+      "rebuild": "Corregir",
       "downloadPdf": "Descargar PDF (RIDE)",
       "downloadXml": "Descargar XML",
       "resendEmail": "Reenviar correo",
