@@ -5,8 +5,8 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import { useTranslations } from 'next-intl';
-import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { ChevronLeft, ChevronRight, Download, Loader2 } from 'lucide-react';
 
 // Let the bundler resolve + serve the worker (with correct headers/hashing) instead of
 // a manually-copied public/ file — Next.js's static file server doesn't reliably send a
@@ -40,6 +40,16 @@ export function InvoicePdfPreview({ accessKey }: InvoicePdfPreviewProps) {
 
   return (
     <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+      <div className="mb-3 flex justify-end">
+        <a
+          href={`/api/documents/${accessKey}/ride`}
+          download
+          className={buttonVariants({ variant: 'outline', size: 'sm' })}
+        >
+          <Download className="h-3.5 w-3.5" />
+          {t('download')}
+        </a>
+      </div>
       <div ref={containerRef} className="overflow-auto rounded-lg bg-muted/40">
         {loadError ? (
           <p className="p-8 text-center text-sm text-destructive">{t('error')}</p>

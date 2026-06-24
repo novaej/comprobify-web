@@ -422,11 +422,11 @@
       "authorizing": "Verificando...",
       "rebuild": "Corregir",
       "createCreditNote": "Crear nota de crédito",
-      "downloadPdf": "Descargar PDF (RIDE)",
       "downloadXml": "Descargar XML",
       "resendEmail": "Reenviar correo",
       "resendEmailSuccess": "Correo reenviado correctamente.",
       "sriErrors": "Ver errores SRI",
+      "moreActions": "Más acciones",
       "confirm": {
         "title": "Enviar al SRI",
         "description": "El comprobante será enviado al Servicio de Rentas Internas (SRI) para su autorización. El proceso continuará automáticamente hasta completarse.",
@@ -440,6 +440,7 @@
     },
     "pdfPreview": {
       "toggleLabel": "Vista previa PDF",
+      "download": "Descargar",
       "loading": "Cargando vista previa...",
       "error": "No se pudo cargar la vista previa del PDF.",
       "previous": "Anterior",

@@ -422,11 +422,11 @@
       "authorizing": "Checking...",
       "rebuild": "Fix",
       "createCreditNote": "Create credit note",
-      "downloadPdf": "Download PDF (RIDE)",
       "downloadXml": "Download XML",
       "resendEmail": "Resend email",
       "resendEmailSuccess": "Email resent successfully.",
       "sriErrors": "View SRI errors",
+      "moreActions": "More actions",
       "confirm": {
         "title": "Send to SRI",
         "description": "The document will be submitted to the SRI (Servicio de Rentas Internas) for authorization. The process will continue automatically until complete.",
@@ -440,6 +440,7 @@
     },
     "pdfPreview": {
       "toggleLabel": "PDF Preview",
+      "download": "Download",
       "loading": "Loading preview...",
       "error": "Could not load the PDF preview.",
       "previous": "Previous",
