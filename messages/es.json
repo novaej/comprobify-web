@@ -312,6 +312,97 @@
       "total": "Valor a pagar"
     }
   },
+  "creditNoteForm": {
+    "title": "Nueva nota de crédito",
+    "rebuildTitle": "Corregir nota de crédito",
+    "submit": "Firmar y Enviar",
+    "signOnly": "Firmar",
+    "submitRebuild": "Corregir y Enviar",
+    "signOnlyRebuild": "Corregir",
+    "submitting": "Enviando...",
+    "signingOnly": "Firmando...",
+    "submittingRebuild": "Corrigiendo y enviando...",
+    "signingOnlyRebuild": "Corrigiendo...",
+    "confirm": {
+      "title": "Enviar al SRI",
+      "description": "La nota de crédito será generada, firmada y enviada al Servicio de Rentas Internas (SRI) para su autorización. El proceso continuará automáticamente hasta completarse.",
+      "cancel": "Cancelar",
+      "submit": "Firmar y Enviar"
+    },
+    "confirmSignOnly": {
+      "title": "Firmar nota de crédito",
+      "description": "La nota de crédito será generada y firmada, pero no se enviará al SRI todavía. Podrás enviarla más tarde desde el detalle del comprobante.",
+      "cancel": "Cancelar",
+      "submit": "Firmar"
+    },
+    "confirmRebuild": {
+      "title": "Corregir y enviar al SRI",
+      "description": "La nota de crédito será corregida, firmada nuevamente y reenviada al Servicio de Rentas Internas (SRI) para su autorización. El número de comprobante y la clave de acceso no cambian.",
+      "cancel": "Cancelar",
+      "submit": "Corregir y Enviar"
+    },
+    "confirmRebuildSignOnly": {
+      "title": "Corregir nota de crédito",
+      "description": "La nota de crédito será corregida y firmada nuevamente, pero no se enviará al SRI todavía. Podrás enviarla más tarde desde el detalle del comprobante.",
+      "cancel": "Cancelar",
+      "submit": "Corregir"
+    },
+    "issueDate": "Fecha de emisión",
+    "originalDocument": {
+      "title": "Comprobante a corregir",
+      "empty": "Aún no se ha seleccionado un comprobante.",
+      "search": "Buscar comprobante",
+      "searchPlaceholder": "Buscar por número de comprobante",
+      "searchEmpty": "No se encontraron facturas autorizadas. Intente otra búsqueda.",
+      "change": "Buscar otro",
+      "required": "Seleccione el comprobante a corregir"
+    },
+    "buyer": {
+      "title": "Adquirente",
+      "idType": "Tipo de identificación",
+      "id": "Identificación",
+      "name": "Razón social",
+      "email": "Correo electrónico",
+      "address": "Dirección",
+      "searchClient": "Buscar en clientes guardados"
+    },
+    "items": {
+      "title": "Detalle",
+      "add": "Agregar ítem",
+      "mainCode": "Cód. principal",
+      "auxCode": "Cód. auxiliar",
+      "description": "Descripción",
+      "quantity": "Cantidad",
+      "unitPrice": "P. unitario",
+      "discount": "Descuento",
+      "tax": "Tarifa",
+      "lineTotal": "Valor total"
+    },
+    "motivo": {
+      "title": "Motivo",
+      "placeholder": "p. ej. Devolución de mercadería por defecto de fabricación"
+    },
+    "totals": {
+      "title": "Totales",
+      "subtotalNoTax": "Subtotal sin impuestos",
+      "subtotal15": "Subtotal 15.00%",
+      "subtotal5": "Subtotal 5%",
+      "subtotal0": "Subtotal 0%",
+      "subtotalNoObj": "Subtotal no objeto de IVA",
+      "subtotalExempt": "Subtotal exento de IVA",
+      "totalDiscount": "Total descuento",
+      "iva15": "IVA 15%",
+      "iva5": "IVA 5%",
+      "total": "Valor a pagar"
+    },
+    "additionalInfo": {
+      "title": "Campos adicionales",
+      "add": "Añadir campo adicional",
+      "name": "Nombre",
+      "value": "Descripción",
+      "empty": "No existen campos adicionales"
+    }
+  },
   "invoiceDetail": {
     "notFound": "Comprobante no encontrado.",
     "accessKey": "Clave de acceso",
@@ -330,6 +421,7 @@
       "authorize": "Verificar autorización",
       "authorizing": "Verificando...",
       "rebuild": "Corregir",
+      "createCreditNote": "Crear nota de crédito",
       "downloadPdf": "Descargar PDF (RIDE)",
       "downloadXml": "Descargar XML",
       "resendEmail": "Reenviar correo",

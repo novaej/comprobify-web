@@ -183,7 +183,7 @@ export interface InvoicePayment {
   termUnit?: string;
 }
 
-export interface CreateDocumentPayload {
+export interface CreateInvoicePayload {
   documentType: '01';
   issueDate?: string;
   guiaRemision?: string;
@@ -198,6 +198,34 @@ export interface CreateDocumentPayload {
   payments: InvoicePayment[];
   additionalInfo?: Array<{ name: string; value: string }>;
 }
+
+// Verified against: ../comprobify/src/validators/credit-note.validator.js and
+// ../comprobify/src/builders/credit-note.builder.js. No `payments` block — credit
+// notes instead require `originalDocument` (the document being credited) and `motivo`.
+// Item/tax shape is identical to invoices (mainCode/auxCode naming confirmed in
+// credit-note.builder.js's buildDetalles(), not `auxiliaryCode` as the docs site
+// example shows — see CLAUDE.md Common Mistake #15/25 on trusting docs over source).
+export interface CreateCreditNotePayload {
+  documentType: '04';
+  issueDate?: string;
+  buyer: {
+    idType: string;
+    id: string;
+    name: string;
+    email: string;
+    address?: string;
+  };
+  originalDocument: {
+    documentType: string;
+    number: string; // NNN-NNN-NNNNNNNNN
+    issueDate: string; // DD/MM/YYYY
+  };
+  motivo: string;
+  items: InvoiceItem[];
+  additionalInfo?: Array<{ name: string; value: string }>;
+}
+
+export type CreateDocumentPayload = CreateInvoicePayload | CreateCreditNotePayload;
 
 // ── Issuer types ──────────────────────────────────────────────────────────────
 

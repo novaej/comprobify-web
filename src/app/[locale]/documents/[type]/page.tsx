@@ -12,6 +12,7 @@ import type { Document, Pagination, DocumentSortField, DocumentStatus } from '@/
 
 const CREATE_HREFS: Record<string, string> = {
   '01': '/invoices/new',
+  '04': '/credit-notes/new',
 };
 
 const PAGE_SIZE = 20;

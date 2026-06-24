@@ -21,7 +21,7 @@ import type { LucideIcon } from 'lucide-react';
 const TYPE_META: Record<string, { icon: LucideIcon; createHref?: string }> = {
   '01': { icon: FileText, createHref: '/invoices/new' },
   '03': { icon: ShoppingBag },
-  '04': { icon: FileMinus },
+  '04': { icon: FileMinus, createHref: '/credit-notes/new' },
   '05': { icon: FilePlus },
   '06': { icon: Truck },
   '07': { icon: Percent },

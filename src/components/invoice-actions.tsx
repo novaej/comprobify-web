@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { Send, Download, Mail, Loader2, Hammer } from 'lucide-react';
+import { Send, Download, Mail, Loader2, Hammer, FileMinus } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
   Dialog,
@@ -27,10 +27,17 @@ type Phase = 'idle' | 'sending' | 'polling';
 interface InvoiceActionsProps {
   accessKey: string;
   status: DocumentStatus;
+  documentType: string;
   from?: string;
 }
 
-export function InvoiceActions({ accessKey, status, from }: InvoiceActionsProps) {
+// Document types whose "Corregir" link goes through /credit-notes/new instead of
+// /invoices/new — every other type (today, just invoices) uses the invoice form.
+const REBUILD_HREFS: Record<string, string> = {
+  '04': '/credit-notes/new',
+};
+
+export function InvoiceActions({ accessKey, status, documentType, from }: InvoiceActionsProps) {
   const t = useTranslations('invoiceDetail');
   const tError = useTranslations('apiError');
   const router = useRouter();
@@ -140,11 +147,24 @@ export function InvoiceActions({ accessKey, status, from }: InvoiceActionsProps)
 
           {(status === 'RETURNED' || status === 'NOT_AUTHORIZED') && (
             <Link
-              href={from ? `/invoices/new?rebuild=${accessKey}&from=${from}` : `/invoices/new?rebuild=${accessKey}`}
+              href={(() => {
+                const base = REBUILD_HREFS[documentType] ?? '/invoices/new';
+                return from ? `${base}?rebuild=${accessKey}&from=${from}` : `${base}?rebuild=${accessKey}`;
+              })()}
               className={buttonVariants({})}
             >
               <Hammer className="mr-2 h-4 w-4" />
               {t('actions.rebuild')}
+            </Link>
+          )}
+
+          {status === 'AUTHORIZED' && documentType === '01' && (
+            <Link
+              href={from ? `/credit-notes/new?fromInvoice=${accessKey}&from=${from}` : `/credit-notes/new?fromInvoice=${accessKey}`}
+              className={buttonVariants({ variant: 'outline' })}
+            >
+              <FileMinus className="mr-2 h-4 w-4" />
+              {t('actions.createCreditNote')}
             </Link>
           )}
 

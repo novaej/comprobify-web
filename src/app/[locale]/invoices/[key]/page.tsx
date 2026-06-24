@@ -156,7 +156,12 @@ export default async function InvoiceDetailPage({
       )}
 
       {/* Action buttons */}
-      <InvoiceActions accessKey={document.accessKey} status={document.status} from={backTargetKey} />
+      <InvoiceActions
+        accessKey={document.accessKey}
+        status={document.status}
+        documentType={document.documentType}
+        from={backTargetKey}
+      />
 
       {/* PDF preview */}
       {document.status === 'AUTHORIZED' && (
