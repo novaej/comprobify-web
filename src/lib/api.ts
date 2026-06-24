@@ -511,6 +511,8 @@ export async function listIssuerDocumentTypes(ctx: ApiCtx, issuerId: number): Pr
   return result.documentTypes;
 }
 
+// Verified against: ../comprobify/src/routes/issuers.routes.js → addDocumentTypeValidator
+// (body field is `documentType`, not `code` — see CLAUDE.md Common Mistake #17).
 export async function addIssuerDocumentType(
   ctx: ApiCtx,
   issuerId: number,
@@ -519,7 +521,7 @@ export async function addIssuerDocumentType(
   await request(
     `/v1/issuers/${issuerId}/document-types`,
     { apiKey: ctx.apiKey },
-    { method: 'POST', body: JSON.stringify({ code }) },
+    { method: 'POST', body: JSON.stringify({ documentType: code }) },
   );
 }
 

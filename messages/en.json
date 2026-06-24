@@ -704,6 +704,12 @@
     },
     "addDocTypeSuccess": "Document type enabled.",
     "removeDocTypeSuccess": "Document type disabled.",
+    "confirmAddDocType": {
+      "title": "Enable document type?",
+      "description": "\"{docType}\" will be enabled for this branch. You'll be able to issue this document type right away.",
+      "cancel": "Cancel",
+      "submit": "Enable"
+    },
     "cert": {
       "title": "Signing certificate",
       "expiresOn": "Expires on {date}",

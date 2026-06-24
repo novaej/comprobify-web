@@ -768,6 +768,12 @@
     },
     "addDocTypeSuccess": "Tipo de comprobante habilitado.",
     "removeDocTypeSuccess": "Tipo de comprobante deshabilitado.",
+    "confirmAddDocType": {
+      "title": "¿Habilitar tipo de comprobante?",
+      "description": "Se habilitará \"{docType}\" para este punto de emisión. Podrás emitir este tipo de comprobante de inmediato.",
+      "cancel": "Cancelar",
+      "submit": "Habilitar"
+    },
     "cert": {
       "title": "Certificado de firma",
       "expiresOn": "Expira el {date}",
