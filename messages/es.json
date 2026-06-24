@@ -13,6 +13,10 @@
     "hide": "Ocultar",
     "back": "Volver"
   },
+  "errorBoundary": {
+    "title": "Algo salió mal",
+    "backToDashboard": "Volver al panel"
+  },
   "nav": {
     "dashboard": "Panel",
     "documents": "Comprobantes",

@@ -13,6 +13,10 @@
     "hide": "Hide",
     "back": "Back"
   },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "backToDashboard": "Back to dashboard"
+  },
   "nav": {
     "dashboard": "Dashboard",
     "documents": "Documents",
