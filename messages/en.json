@@ -616,7 +616,15 @@
       "expiresOn": "Expires on {date}",
       "expired": "Certificate expired",
       "fingerprint": "Fingerprint",
-      "unavailable": "Certificate information unavailable."
+      "unavailable": "Certificate information unavailable.",
+      "renew": "Renew certificate",
+      "renewTitle": "Renew certificate",
+      "renewHint": "Upload the new P12/PFX file issued by Banco Central or Security Data. Already-signed documents are not affected.",
+      "passwordLabel": "Certificate password (optional)",
+      "passwordHint": "If the certificate has a password, enter it. If you leave it blank and the certificate requires one, the upload will fail.",
+      "renewSubmit": "Renew",
+      "renewing": "Renewing...",
+      "renewSuccess": "Certificate renewed."
     },
     "logo": {
       "change": "Change logo",

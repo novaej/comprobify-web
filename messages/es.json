@@ -680,7 +680,15 @@
       "expiresOn": "Expira el {date}",
       "expired": "Certificado expirado",
       "fingerprint": "Huella digital",
-      "unavailable": "Información del certificado no disponible."
+      "unavailable": "Información del certificado no disponible.",
+      "renew": "Renovar certificado",
+      "renewTitle": "Renovar certificado",
+      "renewHint": "Sube el nuevo archivo P12/PFX emitido por el Banco Central o Security Data. Los comprobantes ya firmados no se ven afectados.",
+      "passwordLabel": "Contraseña del certificado (opcional)",
+      "passwordHint": "Si el certificado tiene contraseña, ingrésala. Si no la ingresas y el certificado la requiere, la subida fallará.",
+      "renewSubmit": "Renovar",
+      "renewing": "Renovando...",
+      "renewSuccess": "Certificado renovado."
     },
     "logo": {
       "change": "Cambiar logo",

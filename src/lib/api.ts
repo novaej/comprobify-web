@@ -531,6 +531,34 @@ export async function uploadIssuerLogo(
   }
 }
 
+// Verified against: ../comprobify/src/controllers/issuer.controller.js → renewCertificate()
+// and ../comprobify/src/services/issuer.service.js → renewCertificate(). multer 'cert' field
+// (see ../comprobify/src/routes/issuers.routes.js → PATCH /:id/certificate). Returns
+// { ok: true, certFingerprint, certExpiry } — certExpiry is an ISO date string.
+export async function renewIssuerCertificate(
+  ctx: ApiCtx,
+  issuerId: number,
+  p12: Buffer,
+  p12Password?: string,
+): Promise<{ certFingerprint: string; certExpiry: string }> {
+  const form = new FormData();
+  const buf = p12.buffer.slice(p12.byteOffset, p12.byteOffset + p12.byteLength) as ArrayBuffer;
+  form.append('cert', new Blob([buf], { type: 'application/x-pkcs12' }), 'cert.p12');
+  if (p12Password) form.append('certPassword', p12Password);
+
+  const res = await fetch(`${getApiUrl()}/v1/issuers/${issuerId}/certificate`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${ctx.apiKey}` },
+    body: form,
+  });
+  if (!res.ok) {
+    const problem: ProblemDetails = await res.json();
+    throw new ApiError(problem);
+  }
+  const data = await res.json() as { ok: true; certFingerprint: string; certExpiry: string };
+  return { certFingerprint: data.certFingerprint, certExpiry: data.certExpiry };
+}
+
 // ── Current tenant identity ────────────────────────────────────────────────────
 
 // Verified against: ../comprobify/src/controllers/tenant.controller.js → getMe()
