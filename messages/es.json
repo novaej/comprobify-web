@@ -17,6 +17,11 @@
     "title": "Algo salió mal",
     "backToDashboard": "Volver al panel"
   },
+  "notFoundPage": {
+    "title": "Página no encontrada",
+    "description": "La página que buscas no existe o fue movida.",
+    "backToDashboard": "Volver al panel"
+  },
   "nav": {
     "dashboard": "Panel",
     "documents": "Comprobantes",

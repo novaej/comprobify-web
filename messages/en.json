@@ -17,6 +17,11 @@
     "title": "Something went wrong",
     "backToDashboard": "Back to dashboard"
   },
+  "notFoundPage": {
+    "title": "Page not found",
+    "description": "The page you're looking for doesn't exist or was moved.",
+    "backToDashboard": "Back to dashboard"
+  },
   "nav": {
     "dashboard": "Dashboard",
     "documents": "Documents",

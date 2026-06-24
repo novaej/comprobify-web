@@ -63,7 +63,9 @@ export default async function InvoiceDetailPage({
       getDocumentEvents(apiCtx, key),
     ]);
   } catch (err) {
-    if (err instanceof ApiError && err.isNotFound()) {
+    // key is the only param this call validates, so VALIDATION_FAILED here
+    // always means a malformed access key — treat it the same as not found.
+    if (err instanceof ApiError && (err.isNotFound() || err.isValidation())) {
       notFound();
     }
     throw err;
