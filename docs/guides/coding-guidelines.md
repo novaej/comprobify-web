@@ -55,6 +55,32 @@ Add the label to `messages/es.json` and `messages/en.json`:
 
 Add a namespace to both message files. Always update both files together.
 
+### 4. Add a loading skeleton (if needed)
+
+Not every screen needs `loading.tsx` — only add one where the page's Server Component does a real data fetch with perceptible latency (an external Comprobify API call, not a fast local DB read) and the page has a stable enough layout that a matching skeleton is worth maintaining. Skip it for pages that render near-instantly or whose layout changes often.
+
+When it's warranted:
+```
+src/app/[locale]/your-screen/loading.tsx
+```
+
+`loading.tsx` is a Suspense boundary Next.js shows automatically (on both client navigation and SSR streaming) while the page awaits its data — it needs no props, no translations, and no `'use client'`:
+
+```tsx
+import { Skeleton } from '@/components/ui/skeleton';
+
+export default function YourScreenLoading() {
+  return (
+    <div className="space-y-6">
+      <Skeleton className="h-6 w-40" />
+      {/* mirror the real page's layout, not a generic spinner */}
+    </div>
+  );
+}
+```
+
+Shape the skeleton after the actual page (card grid, table rows, etc.) so there's no layout shift when real content replaces it — see `src/app/[locale]/dashboard/loading.tsx` and `src/app/[locale]/invoices/[key]/loading.tsx` for examples. If the page's layout changes later, update its skeleton to match.
+
 ---
 
 ## Adding a Server Action (mutation)

@@ -8,6 +8,7 @@ import { notFound } from 'next/navigation';
 import { StatusBadge } from '@/components/status-badge';
 import { InvoiceActions } from '@/components/invoice-actions';
 import { InvoicePolling } from '@/components/invoice-polling';
+import { InvoicePdfPreviewToggle } from '@/components/invoice-pdf-preview-toggle';
 import {
   Table,
   TableBody,
@@ -62,7 +63,9 @@ export default async function InvoiceDetailPage({
       getDocumentEvents(apiCtx, key),
     ]);
   } catch (err) {
-    if (err instanceof ApiError && err.isNotFound()) {
+    // key is the only param this call validates, so VALIDATION_FAILED here
+    // always means a malformed access key — treat it the same as not found.
+    if (err instanceof ApiError && (err.isNotFound() || err.isValidation())) {
       notFound();
     }
     throw err;
@@ -153,7 +156,12 @@ export default async function InvoiceDetailPage({
       )}
 
       {/* Action buttons */}
-      <InvoiceActions accessKey={document.accessKey} status={document.status} />
+      <InvoiceActions accessKey={document.accessKey} status={document.status} from={backTargetKey} />
+
+      {/* PDF preview */}
+      {document.status === 'AUTHORIZED' && (
+        <InvoicePdfPreviewToggle accessKey={document.accessKey} />
+      )}
 
       {/* Events timeline */}
       {events.length > 0 && (

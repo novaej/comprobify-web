@@ -41,12 +41,15 @@ export interface ApiCtx {
 
 // ── Document types ────────────────────────────────────────────────────────────
 
-export type DocumentStatus =
-  | 'SIGNED'
-  | 'RECEIVED'
-  | 'AUTHORIZED'
-  | 'RETURNED'
-  | 'NOT_AUTHORIZED';
+export const DOCUMENT_STATUSES = [
+  'SIGNED',
+  'RECEIVED',
+  'AUTHORIZED',
+  'RETURNED',
+  'NOT_AUTHORIZED',
+] as const;
+
+export type DocumentStatus = (typeof DOCUMENT_STATUSES)[number];
 
 export type EmailStatus =
   | 'PENDING'
@@ -71,6 +74,9 @@ export interface Document {
   };
   authorizationNumber?: string;
   authorizationDate?: string;
+  // Present whenever the document has one (every document created since request_payload was
+  // added) — the exact original create/rebuild body, used to pre-fill the rebuild form.
+  requestPayload?: CreateDocumentPayload;
   email: {
     status: EmailStatus;
     sentAt?: string;
@@ -87,17 +93,22 @@ export interface DocumentEvent {
   createdAt: string;
 }
 
+// Verified against: ../comprobify/src/models/document.model.js → findByIssuerId()
+// The API returns only { total, page, limit } — no totalPages field. Derive it
+// client-side (see DocumentPagination's getTotalPages) rather than re-adding it here.
 export interface Pagination {
   page: number;
   limit: number;
   total: number;
-  totalPages: number;
 }
 
 export interface ListDocumentsResult {
   data: Document[];
   pagination: Pagination;
 }
+
+export const DOCUMENT_SORT_FIELDS = ['sequential', 'buyerName', 'issueDate', 'status'] as const;
+export type DocumentSortField = (typeof DOCUMENT_SORT_FIELDS)[number];
 
 export interface ListDocumentsParams {
   status?: DocumentStatus;
@@ -106,6 +117,23 @@ export interface ListDocumentsParams {
   documentType?: string;
   page?: number;
   limit?: number;
+  sequential?: string; // contains-match
+  buyerName?: string; // contains-match
+  sortBy?: DocumentSortField;
+  sortDir?: 'asc' | 'desc';
+}
+
+export interface DocumentTypeStat {
+  type: string; // short label, e.g. 'FAC', 'CRE' — see cat_document_types.short_name
+  issued: number;
+  authorizedTotal: string; // decimal string, sum of `total` for AUTHORIZED documents
+}
+
+export interface DocumentStats {
+  thisMonth: {
+    byType: DocumentTypeStat[];
+  };
+  needsAttention: number; // all-time count of RETURNED + NOT_AUTHORIZED documents
 }
 
 // ── Catalog types ─────────────────────────────────────────────────────────────
@@ -255,6 +283,8 @@ async function request<T>(
 
 // ── Document functions ────────────────────────────────────────────────────────
 
+// Verified against: ../comprobify/src/validators/common.validator.js → listDocumentsQuery
+// and ../comprobify/src/models/document.model.js → findByIssuerId() (sortBy/sortDir/sequential/buyerName)
 export async function listDocuments(
   ctx: ApiCtx,
   params: ListDocumentsParams = {}
@@ -266,9 +296,19 @@ export async function listDocuments(
   if (params.documentType) qs.set('documentType', params.documentType);
   if (params.page) qs.set('page', String(params.page));
   if (params.limit) qs.set('limit', String(params.limit));
+  if (params.sequential) qs.set('sequential', params.sequential);
+  if (params.buyerName) qs.set('buyerName', params.buyerName);
+  if (params.sortBy) qs.set('sortBy', params.sortBy);
+  if (params.sortDir) qs.set('sortDir', params.sortDir);
 
   const query = qs.toString();
   return request<ListDocumentsResult>(`/v1/documents${query ? `?${query}` : ''}`, ctx);
+}
+
+// Verified against: ../comprobify/src/controllers/documents.controller.js → getStats()
+export async function getDocumentStats(ctx: ApiCtx): Promise<DocumentStats> {
+  const result = await request<{ ok: true; stats: DocumentStats }>('/v1/documents/stats', ctx);
+  return result.stats;
 }
 
 export async function getDocument(ctx: ApiCtx, accessKey: string): Promise<Document> {
@@ -312,6 +352,9 @@ export async function checkAuthorization(ctx: ApiCtx, accessKey: string): Promis
   return result.document;
 }
 
+// Verified against: ../comprobify/src/controllers/documents.controller.js → rebuild()
+// Only valid for RETURNED/NOT_AUTHORIZED documents (../comprobify/src/constants/document-state-machine.js);
+// the access key and sequential are preserved, the document is re-signed back to SIGNED.
 export async function rebuildDocument(
   ctx: ApiCtx,
   accessKey: string,
@@ -486,6 +529,34 @@ export async function uploadIssuerLogo(
     const problem: ProblemDetails = await res.json();
     throw new ApiError(problem);
   }
+}
+
+// Verified against: ../comprobify/src/controllers/issuer.controller.js → renewCertificate()
+// and ../comprobify/src/services/issuer.service.js → renewCertificate(). multer 'cert' field
+// (see ../comprobify/src/routes/issuers.routes.js → PATCH /:id/certificate). Returns
+// { ok: true, certFingerprint, certExpiry } — certExpiry is an ISO date string.
+export async function renewIssuerCertificate(
+  ctx: ApiCtx,
+  issuerId: number,
+  p12: Buffer,
+  p12Password?: string,
+): Promise<{ certFingerprint: string; certExpiry: string }> {
+  const form = new FormData();
+  const buf = p12.buffer.slice(p12.byteOffset, p12.byteOffset + p12.byteLength) as ArrayBuffer;
+  form.append('cert', new Blob([buf], { type: 'application/x-pkcs12' }), 'cert.p12');
+  if (p12Password) form.append('certPassword', p12Password);
+
+  const res = await fetch(`${getApiUrl()}/v1/issuers/${issuerId}/certificate`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${ctx.apiKey}` },
+    body: form,
+  });
+  if (!res.ok) {
+    const problem: ProblemDetails = await res.json();
+    throw new ApiError(problem);
+  }
+  const data = await res.json() as { ok: true; certFingerprint: string; certExpiry: string };
+  return { certFingerprint: data.certFingerprint, certExpiry: data.certExpiry };
 }
 
 // ── Current tenant identity ────────────────────────────────────────────────────

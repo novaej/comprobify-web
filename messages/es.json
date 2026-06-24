@@ -13,6 +13,15 @@
     "hide": "Ocultar",
     "back": "Volver"
   },
+  "errorBoundary": {
+    "title": "Algo salió mal",
+    "backToDashboard": "Volver al panel"
+  },
+  "notFoundPage": {
+    "title": "Página no encontrada",
+    "description": "La página que buscas no existe o fue movida.",
+    "backToDashboard": "Volver al panel"
+  },
   "nav": {
     "dashboard": "Panel",
     "documents": "Comprobantes",
@@ -85,10 +94,14 @@
   "dashboard": {
     "title": "Panel",
     "newDocument": "Nueva factura",
+    "recent": "Comprobantes recientes",
+    "viewAll": "Ver todos",
     "summary": {
-      "total": "Total de comprobantes",
-      "authorizedThisMonth": "Autorizados este mes",
-      "pending": "Pendientes"
+      "issuedThisMonth": "Emitidos este mes",
+      "netRevenue": "Ingresos netos autorizados (mes)",
+      "needsAttention": "Requieren atención",
+      "noActivity": "Sin actividad este mes",
+      "error": "No se pudo cargar el resumen."
     },
     "table": {
       "sequential": "Número",
@@ -140,21 +153,43 @@
     "list": {
       "error": "No se pudo cargar la lista. Verifica que el servicio esté disponible.",
       "empty": "No hay documentos de este tipo aún.",
+      "emptyFiltered": "Ningún comprobante coincide con esos filtros.",
       "table": {
         "sequential": "Número",
         "buyer": "Cliente",
         "total": "Total",
         "status": "Estado",
         "date": "Fecha"
+      },
+      "pagination": {
+        "previous": "Anterior",
+        "next": "Siguiente",
+        "pageInfo": "Página {page} de {totalPages}"
+      },
+      "filters": {
+        "sequential": "Número",
+        "sequentialPlaceholder": "Buscar número...",
+        "buyerName": "Cliente",
+        "buyerNamePlaceholder": "Buscar cliente...",
+        "date": "Fecha",
+        "datePlaceholder": "Elegir fecha",
+        "status": "Estado",
+        "allStatuses": "Todos",
+        "clear": "Limpiar filtros"
       }
     }
   },
   "invoiceForm": {
     "title": "Nueva factura",
-    "rebuildTitle": "Reconstruir factura",
-    "submit": "Enviar",
-    "submitRebuild": "Reconstruir",
+    "rebuildTitle": "Corregir factura",
+    "submit": "Firmar y Enviar",
+    "signOnly": "Firmar",
+    "submitRebuild": "Corregir y Enviar",
+    "signOnlyRebuild": "Corregir",
     "submitting": "Enviando...",
+    "signingOnly": "Firmando...",
+    "submittingRebuild": "Corrigiendo y enviando...",
+    "signingOnlyRebuild": "Corrigiendo...",
     "templates": {
       "load": "Cargar plantilla",
       "save": "Guardar como plantilla",
@@ -168,9 +203,27 @@
     },
     "confirm": {
       "title": "Enviar al SRI",
-      "description": "El comprobante será generado y enviado al Servicio de Rentas Internas (SRI) para su autorización. El proceso continuará automáticamente hasta completarse.",
+      "description": "El comprobante será generado, firmado y enviado al Servicio de Rentas Internas (SRI) para su autorización. El proceso continuará automáticamente hasta completarse.",
       "cancel": "Cancelar",
-      "submit": "Enviar"
+      "submit": "Firmar y Enviar"
+    },
+    "confirmSignOnly": {
+      "title": "Firmar comprobante",
+      "description": "El comprobante será generado y firmado, pero no se enviará al SRI todavía. Podrás enviarlo más tarde desde el detalle del comprobante.",
+      "cancel": "Cancelar",
+      "submit": "Firmar"
+    },
+    "confirmRebuild": {
+      "title": "Corregir y enviar al SRI",
+      "description": "El comprobante será corregido, firmado nuevamente y reenviado al Servicio de Rentas Internas (SRI) para su autorización. El número de comprobante y la clave de acceso no cambian.",
+      "cancel": "Cancelar",
+      "submit": "Corregir y Enviar"
+    },
+    "confirmRebuildSignOnly": {
+      "title": "Corregir comprobante",
+      "description": "El comprobante será corregido y firmado nuevamente, pero no se enviará al SRI todavía. Podrás enviarlo más tarde desde el detalle del comprobante.",
+      "cancel": "Cancelar",
+      "submit": "Corregir"
     },
     "issueDate": "Fecha de emisión",
     "guiaRemision": "Guía de remisión",
@@ -276,7 +329,7 @@
       "sending": "Enviando al SRI...",
       "authorize": "Verificar autorización",
       "authorizing": "Verificando...",
-      "rebuild": "Reconstruir",
+      "rebuild": "Corregir",
       "downloadPdf": "Descargar PDF (RIDE)",
       "downloadXml": "Descargar XML",
       "resendEmail": "Reenviar correo",
@@ -292,6 +345,14 @@
     "polling": {
       "waiting": "Esperando respuesta del SRI...",
       "timeout": "El SRI tardó más de lo esperado. Verifica manualmente cuando estés listo."
+    },
+    "pdfPreview": {
+      "toggleLabel": "Vista previa PDF",
+      "loading": "Cargando vista previa...",
+      "error": "No se pudo cargar la vista previa del PDF.",
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "pageInfo": "Página {page} de {numPages}"
     },
     "items": {
       "title": "Detalle de productos / servicios",
@@ -313,7 +374,7 @@
       "SENT": "Enviado al SRI",
       "STATUS_CHANGED": "Estado actualizado",
       "ERROR": "Error",
-      "REBUILT": "Reconstruido",
+      "REBUILT": "Corregido",
       "EMAIL_SENT": "Correo enviado",
       "EMAIL_FAILED": "Error en correo",
       "EMAIL_DELIVERED": "Correo entregado",
@@ -619,7 +680,15 @@
       "expiresOn": "Expira el {date}",
       "expired": "Certificado expirado",
       "fingerprint": "Huella digital",
-      "unavailable": "Información del certificado no disponible."
+      "unavailable": "Información del certificado no disponible.",
+      "renew": "Renovar certificado",
+      "renewTitle": "Renovar certificado",
+      "renewHint": "Sube el nuevo archivo P12/PFX emitido por el Banco Central o Security Data. Los comprobantes ya firmados no se ven afectados.",
+      "passwordLabel": "Contraseña del certificado (opcional)",
+      "passwordHint": "Si el certificado tiene contraseña, ingrésala. Si no la ingresas y el certificado la requiere, la subida fallará.",
+      "renewSubmit": "Renovar",
+      "renewing": "Renovando...",
+      "renewSuccess": "Certificado renovado."
     },
     "logo": {
       "change": "Cambiar logo",

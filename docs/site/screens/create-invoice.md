@@ -8,7 +8,7 @@
 
 ## Purpose
 
-Multi-section form for creating an electronic invoice. Maps to `POST /api/documents`. On success, redirects to the Invoice Detail screen for the created document.
+Multi-section form for creating an electronic invoice. Maps to `POST /api/documents`. Also doubles as the "Corregir" (rebuild) form for `RETURNED`/`NOT_AUTHORIZED` documents via `?rebuild=<accessKey>` — see "Rebuild mode" below. On success, redirects to the Invoice Detail screen for the document.
 
 ---
 
@@ -17,6 +17,7 @@ Multi-section form for creating an electronic invoice. Maps to `POST /api/docume
 | Method | Endpoint | Purpose |
 |---|---|---|
 | POST | `/api/documents` | Create and sign invoice |
+| POST | `/api/documents/:key/rebuild` | Rebuild mode only — correct and re-sign an existing `RETURNED`/`NOT_AUTHORIZED` document, same accessKey/sequential |
 
 ---
 
@@ -26,7 +27,7 @@ Multi-section form for creating an electronic invoice. Maps to `POST /api/docume
 
 | Field | Required | Notes |
 |---|---|---|
-| Issue date (issueDate) | — | Read-only; always today's date. SRI only accepts today. |
+| Issue date (issueDate) | — | Read-only; today's date, except in rebuild mode (see below) where it shows the document's original issue date. SRI only accepts today for new documents; rebuild always preserves the original date regardless of what's sent. |
 | Delivery note (guiaRemision) | No | Format `NNN-NNN-NNNNNNNNN` (e.g. `001-001-000000001`) |
 
 ### 1. Buyer (Adquirente)
@@ -123,15 +124,39 @@ The form Zod schema mirrors the API validator (`src/validators/invoice.validator
 
 ---
 
-## Success flow
+## Submit buttons
+
+Two buttons, both validating the form (React Hook Form) and opening the same confirmation dialog before anything is created. Their labels and the dialog copy switch between a create-mode and a rebuild-mode set, based on whether `rebuildFrom` is set (see "Rebuild mode" below):
+
+| Button | Create mode | Rebuild mode | Behavior |
+|---|---|---|---|
+| Primary (Enter-key default) | "Firmar y Enviar" → confirms as "Enviar al SRI" | "Corregir y Enviar" → confirms as "Corregir y enviar al SRI" | Creates/rebuilds + signs the document, then a best-effort `sendToSri()` call right after. |
+| Outline | "Firmar" → confirms as "Firmar comprobante" | "Corregir" → confirms as "Corregir comprobante" | Signs only — `sendToSri()` is skipped entirely. Document stays in `SIGNED` status. |
+
+Both paths redirect to the Invoice Detail page on success. A `SIGNED` document is not a dead end: that page shows its own "Enviar" button (see `invoice-detail.md`) to send to the SRI whenever the user is ready.
+
+## Rebuild mode (`?rebuild=<accessKey>`)
+
+When the page is reached via `/invoices/new?rebuild=<accessKey>` (the "Corregir" button on Invoice Detail, only shown for `RETURNED`/`NOT_AUTHORIZED` documents):
+
+1. The Server Component fetches the document and validates its status and the presence of `requestPayload`. Any failure (not found, wrong status, no `requestPayload`) silently falls back to a normal blank create form.
+2. `requestPayloadToFormValues()` (`src/components/invoice-form.tsx`) converts `document.requestPayload` — the exact body the document was created/last rebuilt with — into the form's `defaultValues`, so it's pre-filled on first render with no flash of blank fields. It's the inverse of `buildCreateDocumentPayload()` in `src/app/actions/invoice.ts`.
+3. The read-only "Fecha de emisión" field shows the document's **original** issue date, not today — the API ignores any `issueDate` sent on rebuild and always keeps the original.
+4. Both the top header back-link and the bottom "Volver" button point at the Invoice Detail page for this document (`/invoices/:accessKey`), not the generic dashboard/documents hub.
+5. Submitting calls `rebuildInvoiceAction(accessKey, data, sendAfterSigning, from)` instead of `createInvoiceAction`, which calls `POST /api/documents/:key/rebuild` — same `accessKey`/sequential, status returns to `SIGNED`.
+
+## Success flow and `?from=` threading
 
 ```
 Form submit (Server Action)
-  → POST /api/documents
-  → 201 Created
-  → redirect('/invoices/:accessKey')
-  → Invoice Detail page (status: SIGNED)
+  → POST /api/documents  (or /api/documents/:key/rebuild in rebuild mode)
+  → 201 Created (or 200 OK for rebuild)
+  → sendAfterSigning ? best-effort sendToSri() : skipped
+  → redirect('/invoices/:accessKey?from=<backTargetKey>')
+  → Invoice Detail page (status: SIGNED, or RECEIVED/AUTHORIZED if sent)
 ```
+
+`from` is the page's own validated `BackTargetKey` (e.g. `documents-01`, defaulting to `dashboard`) — the same value used to compute this page's own back-link. It's passed all the way through to `createInvoiceAction`/`rebuildInvoiceAction` so the **post-submit redirect** carries it too; without this, Invoice Detail's back-link would always fall back to "Panel" regardless of where the user actually started (e.g. a per-type document list). For the rebuild loop specifically, the chain is: Invoice Detail (`?from=X`) → "Corregir" link (`?rebuild=...&from=X`) → this page forwards `X` into `rebuildInvoiceAction` → redirect lands back on Invoice Detail with `?from=X` intact.
 
 ---
 

@@ -2,7 +2,7 @@
 
 import { db } from '@/lib/db';
 import { requirePermission } from '@/lib/context';
-import { createIssuer, addIssuerDocumentType, removeIssuerDocumentType, uploadIssuerLogo } from '@/lib/api';
+import { createIssuer, addIssuerDocumentType, removeIssuerDocumentType, uploadIssuerLogo, renewIssuerCertificate } from '@/lib/api';
 import { ApiError } from '@/lib/errors';
 import { revalidatePath } from 'next/cache';
 
@@ -104,6 +104,30 @@ export async function updateIssuerLogoAction(issuerId: number, formData: FormDat
 
   try {
     await uploadIssuerLogo({ apiKey: ctx.apiKey }, issuer.apiIssuerId, logoBuffer, logoFile.type);
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.code };
+    throw err;
+  }
+
+  revalidatePath('/issuers');
+  return null;
+}
+
+export async function renewIssuerCertificateAction(issuerId: number, formData: FormData): Promise<IssuersResult> {
+  await requirePermission('issuers.manage', { skipIssuer: true });
+  const ctx = await (await import('@/lib/context')).requireContext({ skipIssuer: true });
+
+  const issuer = await db.issuer.findUnique({ where: { id: issuerId } });
+  if (!issuer || issuer.tenantId !== ctx.tenant.id) return { error: 'ISSUER_NOT_FOUND' };
+
+  const certFile = formData.get('cert') as File | null;
+  if (!certFile || certFile.size === 0) return { error: 'INVALID_FILE_UPLOAD' };
+  const certPassword = (formData.get('certPassword') as string | null) || undefined;
+
+  const p12Buffer = Buffer.from(await certFile.arrayBuffer());
+
+  try {
+    await renewIssuerCertificate({ apiKey: ctx.apiKey }, issuer.apiIssuerId, p12Buffer, certPassword);
   } catch (err) {
     if (err instanceof ApiError) return { error: err.code };
     throw err;

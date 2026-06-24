@@ -39,7 +39,7 @@ export class ApiError extends Error {
   }
 
   isValidation(): boolean {
-    return this.status === 422;
+    return this.code === 'VALIDATION_FAILED';
   }
 
   isRateLimit(): boolean {

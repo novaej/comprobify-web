@@ -3,8 +3,9 @@
 import { useRef, useState, useTransition } from 'react';
 import { useTranslations, useFormatter } from 'next-intl';
 import { toast } from 'sonner';
-import { addDocumentTypeAction, removeDocumentTypeAction, updateIssuerLogoAction } from '@/app/actions/issuers';
+import { addDocumentTypeAction, removeDocumentTypeAction, updateIssuerLogoAction, renewIssuerCertificateAction } from '@/app/actions/issuers';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
@@ -12,7 +13,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Building2, Plus, X, ShieldCheck, AlertTriangle, AlertCircle, Image as ImageIcon } from 'lucide-react';
+import { Building2, Plus, X, ShieldCheck, AlertTriangle, AlertCircle, Image as ImageIcon, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toastApiError } from '@/lib/api-error-toast';
 
@@ -116,6 +117,66 @@ function LogoDialog({ issuerId, open, onOpenChange }: { issuerId: number; open: 
   );
 }
 
+function CertRenewalDialog({ issuerId, open, onOpenChange }: { issuerId: number; open: boolean; onOpenChange: (open: boolean) => void }) {
+  const t = useTranslations('issuers');
+  const tError = useTranslations('apiError');
+  const [isPending, startTransition] = useTransition();
+  const [hasFile, setHasFile] = useState(false);
+  const [password, setPassword] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function handleSubmit() {
+    const file = fileInputRef.current?.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.set('cert', file);
+    if (password) formData.set('certPassword', password);
+    startTransition(async () => {
+      const result = await renewIssuerCertificateAction(issuerId, formData);
+      if (result?.error) {
+        toastApiError(result.error, tError);
+      } else {
+        toast.success(t('cert.renewSuccess'));
+        onOpenChange(false);
+      }
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>{t('cert.renewTitle')}</DialogTitle>
+        </DialogHeader>
+        <p className="text-xs text-muted-foreground">{t('cert.renewHint')}</p>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".p12,.pfx,application/x-pkcs12"
+          disabled={isPending}
+          onChange={(e) => setHasFile(!!e.target.files?.[0])}
+          className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-primary"
+        />
+        <div className="space-y-1">
+          <Input
+            type="password"
+            placeholder={t('cert.passwordLabel')}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            disabled={isPending}
+          />
+          <p className="text-xs text-muted-foreground">{t('cert.passwordHint')}</p>
+        </div>
+        <DialogFooter>
+          <Button size="sm" onClick={handleSubmit} disabled={isPending || !hasFile}>
+            {isPending ? t('cert.renewing') : t('cert.renewSubmit')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function IssuerManager({
   issuers,
   canManage,
@@ -127,6 +188,7 @@ export function IssuerManager({
   const tError = useTranslations('apiError');
   const [isPending, startTransition] = useTransition();
   const [logoTarget, setLogoTarget] = useState<number | null>(null);
+  const [certTarget, setCertTarget] = useState<number | null>(null);
 
   function handleAddType(issuerId: number, code: string) {
     startTransition(async () => {
@@ -186,9 +248,17 @@ export function IssuerManager({
             </div>
 
             <div className="mb-4">
-              <p className="mb-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                {t('cert.title')}
-              </p>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  {t('cert.title')}
+                </p>
+                {canManage && (
+                  <Button size="sm" variant="outline" onClick={() => setCertTarget(issuer.id)} className="shrink-0">
+                    <RefreshCw className="h-3.5 w-3.5 sm:mr-1.5" />
+                    <span className="hidden sm:inline">{t('cert.renew')}</span>
+                  </Button>
+                )}
+              </div>
               <CertInfo certFingerprint={issuer.certFingerprint} certExpiry={issuer.certExpiry} />
             </div>
 
@@ -236,6 +306,14 @@ export function IssuerManager({
           issuerId={logoTarget}
           open={logoTarget !== null}
           onOpenChange={(open) => { if (!open) setLogoTarget(null); }}
+        />
+      )}
+
+      {canManage && certTarget !== null && (
+        <CertRenewalDialog
+          issuerId={certTarget}
+          open={certTarget !== null}
+          onOpenChange={(open) => { if (!open) setCertTarget(null); }}
         />
       )}
     </div>

@@ -13,6 +13,15 @@
     "hide": "Hide",
     "back": "Back"
   },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "backToDashboard": "Back to dashboard"
+  },
+  "notFoundPage": {
+    "title": "Page not found",
+    "description": "The page you're looking for doesn't exist or was moved.",
+    "backToDashboard": "Back to dashboard"
+  },
   "nav": {
     "dashboard": "Dashboard",
     "documents": "Documents",
@@ -85,10 +94,14 @@
   "dashboard": {
     "title": "Dashboard",
     "newDocument": "New invoice",
+    "recent": "Recent documents",
+    "viewAll": "View all",
     "summary": {
-      "total": "Total documents",
-      "authorizedThisMonth": "Authorized this month",
-      "pending": "Pending"
+      "issuedThisMonth": "Issued this month",
+      "netRevenue": "Net authorized revenue (month)",
+      "needsAttention": "Needs attention",
+      "noActivity": "No activity this month",
+      "error": "Could not load the summary."
     },
     "table": {
       "sequential": "Number",
@@ -140,21 +153,43 @@
     "list": {
       "error": "Could not load documents. Please check that the service is available.",
       "empty": "No documents of this type yet.",
+      "emptyFiltered": "No documents match those filters.",
       "table": {
         "sequential": "Number",
         "buyer": "Customer",
         "total": "Total",
         "status": "Status",
         "date": "Date"
+      },
+      "pagination": {
+        "previous": "Previous",
+        "next": "Next",
+        "pageInfo": "Page {page} of {totalPages}"
+      },
+      "filters": {
+        "sequential": "Number",
+        "sequentialPlaceholder": "Search number...",
+        "buyerName": "Customer",
+        "buyerNamePlaceholder": "Search customer...",
+        "date": "Date",
+        "datePlaceholder": "Pick a date",
+        "status": "Status",
+        "allStatuses": "All",
+        "clear": "Clear filters"
       }
     }
   },
   "invoiceForm": {
     "title": "New invoice",
-    "rebuildTitle": "Rebuild invoice",
-    "submit": "Send",
-    "submitRebuild": "Rebuild",
+    "rebuildTitle": "Fix invoice",
+    "submit": "Sign & Send",
+    "signOnly": "Sign",
+    "submitRebuild": "Fix & Send",
+    "signOnlyRebuild": "Fix",
     "submitting": "Sending...",
+    "signingOnly": "Signing...",
+    "submittingRebuild": "Fixing & sending...",
+    "signingOnlyRebuild": "Fixing...",
     "templates": {
       "load": "Load template",
       "save": "Save as template",
@@ -168,9 +203,27 @@
     },
     "confirm": {
       "title": "Send to SRI",
-      "description": "The document will be created and submitted to the SRI (Servicio de Rentas Internas) for authorization. The process will continue automatically until complete.",
+      "description": "The document will be created, signed, and submitted to the SRI (Servicio de Rentas Internas) for authorization. The process will continue automatically until complete.",
       "cancel": "Cancel",
-      "submit": "Send"
+      "submit": "Sign & Send"
+    },
+    "confirmSignOnly": {
+      "title": "Sign document",
+      "description": "The document will be created and signed, but not sent to the SRI yet. You can send it later from the document detail page.",
+      "cancel": "Cancel",
+      "submit": "Sign"
+    },
+    "confirmRebuild": {
+      "title": "Fix and send to SRI",
+      "description": "The document will be corrected, re-signed, and resubmitted to the SRI (Servicio de Rentas Internas) for authorization. The document number and access key stay the same.",
+      "cancel": "Cancel",
+      "submit": "Fix & Send"
+    },
+    "confirmRebuildSignOnly": {
+      "title": "Fix document",
+      "description": "The document will be corrected and re-signed, but not sent to the SRI yet. You can send it later from the document detail page.",
+      "cancel": "Cancel",
+      "submit": "Fix"
     },
     "issueDate": "Issue date",
     "guiaRemision": "Delivery note",
@@ -276,7 +329,7 @@
       "sending": "Sending to SRI...",
       "authorize": "Check authorization",
       "authorizing": "Checking...",
-      "rebuild": "Rebuild",
+      "rebuild": "Fix",
       "downloadPdf": "Download PDF (RIDE)",
       "downloadXml": "Download XML",
       "resendEmail": "Resend email",
@@ -292,6 +345,14 @@
     "polling": {
       "waiting": "Waiting for SRI response...",
       "timeout": "SRI is taking longer than expected. Check manually when ready."
+    },
+    "pdfPreview": {
+      "toggleLabel": "PDF Preview",
+      "loading": "Loading preview...",
+      "error": "Could not load the PDF preview.",
+      "previous": "Previous",
+      "next": "Next",
+      "pageInfo": "Page {page} of {numPages}"
     },
     "items": {
       "title": "Line items",
@@ -313,7 +374,7 @@
       "SENT": "Sent to SRI",
       "STATUS_CHANGED": "Status updated",
       "ERROR": "Error",
-      "REBUILT": "Rebuilt",
+      "REBUILT": "Fixed",
       "EMAIL_SENT": "Email sent",
       "EMAIL_FAILED": "Email failed",
       "EMAIL_DELIVERED": "Email delivered",
@@ -555,7 +616,15 @@
       "expiresOn": "Expires on {date}",
       "expired": "Certificate expired",
       "fingerprint": "Fingerprint",
-      "unavailable": "Certificate information unavailable."
+      "unavailable": "Certificate information unavailable.",
+      "renew": "Renew certificate",
+      "renewTitle": "Renew certificate",
+      "renewHint": "Upload the new P12/PFX file issued by Banco Central or Security Data. Already-signed documents are not affected.",
+      "passwordLabel": "Certificate password (optional)",
+      "passwordHint": "If the certificate has a password, enter it. If you leave it blank and the certificate requires one, the upload will fail.",
+      "renewSubmit": "Renew",
+      "renewing": "Renewing...",
+      "renewSuccess": "Certificate renewed."
     },
     "logo": {
       "change": "Change logo",

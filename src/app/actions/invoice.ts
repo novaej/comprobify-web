@@ -2,9 +2,14 @@
 
 import { getLocale } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
-import { createDocument, sendToSri, checkAuthorization, CreateDocumentPayload } from '@/lib/api';
+import { createDocument, rebuildDocument, sendToSri, checkAuthorization, CreateDocumentPayload } from '@/lib/api';
 import { ApiError } from '@/lib/errors';
 import { requireContext } from '@/lib/context';
+import type { BackTargetKey } from '@/lib/back-targets';
+
+function invoiceHref(accessKey: string, from?: BackTargetKey): string {
+  return from ? `/invoices/${accessKey}?from=${from}` : `/invoices/${accessKey}`;
+}
 
 type TaxOption = '2-4' | '2-0' | '2-5' | '2-6' | '2-7';
 
@@ -45,11 +50,8 @@ const TAX_MAP: Record<TaxOption, { code: string; rateCode: string; rate: string 
 
 export type CreateInvoiceResult = { error: string } | null;
 
-export async function createInvoiceAction(data: InvoiceFormData): Promise<CreateInvoiceResult> {
-  const ctx = await requireContext();
-  const apiCtx = { apiKey: ctx.apiKey, issuerId: ctx.issuer.apiIssuerId };
-
-  const payload: CreateDocumentPayload = {
+function buildCreateDocumentPayload(data: InvoiceFormData): CreateDocumentPayload {
+  return {
     documentType: '01',
     ...(data.guiaRemision ? { guiaRemision: data.guiaRemision } : {}),
     buyer: {
@@ -78,6 +80,33 @@ export async function createInvoiceAction(data: InvoiceFormData): Promise<Create
       ? { additionalInfo: data.additionalInfo }
       : {}),
   };
+}
+
+// Best-effort: send to SRI immediately, unless the user chose "Firmar" (sign only).
+// If it fails — or was skipped — the detail page shows SIGNED status with a
+// recovery Send button (src/components/invoice-actions.tsx).
+async function sendAfterSigningIfRequested(
+  apiCtx: { apiKey: string; issuerId: number },
+  accessKey: string,
+  sendAfterSigning: boolean
+): Promise<void> {
+  if (!sendAfterSigning) return;
+  try {
+    const sent = await sendToSri(apiCtx, accessKey);
+    if (sent.status === 'RECEIVED') {
+      try { await checkAuthorization(apiCtx, accessKey); } catch { /* polling handles it */ }
+    }
+  } catch { /* non-fatal */ }
+}
+
+export async function createInvoiceAction(
+  data: InvoiceFormData,
+  sendAfterSigning: boolean,
+  from?: BackTargetKey
+): Promise<CreateInvoiceResult> {
+  const ctx = await requireContext();
+  const apiCtx = { apiKey: ctx.apiKey, issuerId: ctx.issuer.apiIssuerId };
+  const payload = buildCreateDocumentPayload(data);
 
   let accessKey: string;
   try {
@@ -88,16 +117,33 @@ export async function createInvoiceAction(data: InvoiceFormData): Promise<Create
     throw err;
   }
 
-  // Best-effort: send to SRI immediately. If it fails the detail page
-  // shows SIGNED status with a recovery Send button.
-  try {
-    const sent = await sendToSri(apiCtx, accessKey);
-    if (sent.status === 'RECEIVED') {
-      try { await checkAuthorization(apiCtx, accessKey); } catch { /* polling handles it */ }
-    }
-  } catch { /* non-fatal */ }
+  await sendAfterSigningIfRequested(apiCtx, accessKey, sendAfterSigning);
 
   const locale = await getLocale();
-  redirect({ href: `/invoices/${accessKey}`, locale });
+  redirect({ href: invoiceHref(accessKey, from), locale });
+  return null;
+}
+
+export async function rebuildInvoiceAction(
+  accessKey: string,
+  data: InvoiceFormData,
+  sendAfterSigning: boolean,
+  from?: BackTargetKey
+): Promise<CreateInvoiceResult> {
+  const ctx = await requireContext();
+  const apiCtx = { apiKey: ctx.apiKey, issuerId: ctx.issuer.apiIssuerId };
+  const payload = buildCreateDocumentPayload(data);
+
+  try {
+    await rebuildDocument(apiCtx, accessKey, payload);
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.code };
+    throw err;
+  }
+
+  await sendAfterSigningIfRequested(apiCtx, accessKey, sendAfterSigning);
+
+  const locale = await getLocale();
+  redirect({ href: invoiceHref(accessKey, from), locale });
   return null;
 }
