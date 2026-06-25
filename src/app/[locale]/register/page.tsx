@@ -1,6 +1,7 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
+import { auth } from '@/auth';
 import { RegisterForm } from '@/components/register-form';
-import { Link } from '@/i18n/navigation';
+import { Link, redirect } from '@/i18n/navigation';
 import { LocaleSwitcher } from '@/components/locale-switcher';
 import { LogoLockupStacked } from '@/components/logo';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -13,6 +14,12 @@ export default async function RegisterPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
+
+  const session = await auth();
+  if (session) {
+    redirect({ href: '/dashboard', locale });
+  }
+
   const t = await getTranslations('auth');
 
   return (
