@@ -458,9 +458,25 @@
     "events": {
       "title": "Event history",
       "type": "Event",
+      "from": "Previous status",
+      "to": "New status",
       "date": "Date",
       "detail": "Detail",
-      "empty": "No events recorded."
+      "empty": "No events recorded.",
+      "created": "Document created and signed",
+      "rebuilt": "Document corrected",
+      "sent": "Sent to SRI",
+      "processing": "Being processed by SRI",
+      "statusChangedAuthorized": "Authorized by SRI",
+      "statusChangedNotAuthorized": "Not authorized by SRI",
+      "errorSend": "Error sending to SRI",
+      "errorAuthorize": "Error checking authorization",
+      "emailSent": "Email sent",
+      "emailResent": "Email resent",
+      "emailFailed": "Error sending email",
+      "emailDelivered": "Email delivered",
+      "emailTempFailed": "Temporary error delivering email",
+      "emailComplained": "Email marked as spam"
     },
     "eventTypes": {
       "CREATED": "Created",

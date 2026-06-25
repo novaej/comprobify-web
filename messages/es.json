@@ -458,9 +458,25 @@
     "events": {
       "title": "Historial",
       "type": "Evento",
+      "from": "Estado anterior",
+      "to": "Estado nuevo",
       "date": "Fecha",
       "detail": "Detalle",
-      "empty": "Sin eventos registrados."
+      "empty": "Sin eventos registrados.",
+      "created": "Comprobante creado y firmado",
+      "rebuilt": "Comprobante corregido",
+      "sent": "Enviado al SRI",
+      "processing": "En procesamiento por el SRI",
+      "statusChangedAuthorized": "Autorizado por el SRI",
+      "statusChangedNotAuthorized": "No autorizado por el SRI",
+      "errorSend": "Error al enviar al SRI",
+      "errorAuthorize": "Error al verificar autorización",
+      "emailSent": "Correo enviado",
+      "emailResent": "Correo reenviado",
+      "emailFailed": "Error al enviar el correo",
+      "emailDelivered": "Correo entregado",
+      "emailTempFailed": "Error temporal al entregar el correo",
+      "emailComplained": "Correo marcado como spam"
     },
     "eventTypes": {
       "CREATED": "Creado",
