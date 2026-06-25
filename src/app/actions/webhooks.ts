@@ -3,13 +3,14 @@
 import { requirePermission } from '@/lib/context';
 import {
   registerWebhookEndpoint,
+  updateWebhookEndpoint,
   deleteWebhookEndpoint,
 } from '@/lib/api';
 import { db } from '@/lib/db';
 import { encrypt } from '@/lib/crypto';
 import { ApiError } from '@/lib/errors';
+import { getCanonicalWebhookUrl } from '@/lib/webhook-url';
 import { revalidatePath } from 'next/cache';
-import * as Sentry from '@sentry/nextjs';
 
 export type WebhookActionResult = { error: string } | null;
 
@@ -103,46 +104,59 @@ export async function listWebhooksAction(): Promise<{
 }
 
 /**
- * Ensure this tenant has an active webhook endpoint registered for the
- * canonical receive URL. Creates one if none exists.
+ * Register the canonical in-app webhook endpoint for the current tenant, so
+ * notifications (document authorized, cert expiry, etc.) arrive in near-real
+ * time instead of relying solely on the catch-up poll.
  *
- * Called during onboarding after the tenant + API key are created.
+ * Idempotent — a no-op if an active endpoint for this URL already exists. If
+ * one exists but was previously deactivated, PATCHes it back to active rather
+ * than registering a new API-side record, so a tenant never accumulates more
+ * than one endpoint row for this same consumer (the API's `active` column is
+ * a toggle, not a soft-delete marker — deregistering doesn't free the record
+ * for reuse on its own).
  */
-export async function ensureWebhookRegisteredAction(): Promise<void> {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-  if (!appUrl) return; // No public URL configured — skip silently.
+export async function activateCanonicalWebhookAction(): Promise<WebhookActionResult> {
+  const receiveUrl = getCanonicalWebhookUrl();
+  if (!receiveUrl) return { error: 'APP_URL_NOT_CONFIGURED' };
 
-  const receiveUrl = `${appUrl}/api/webhooks/receive`;
   const ctx = await requirePermission('webhooks.manage', { skipIssuer: true });
 
-  // Check if there's already an active endpoint for this URL.
   const existing = await db.webhookEndpoint.findFirst({
-    where: { tenantId: ctx.tenant.id, url: receiveUrl, active: true },
+    where: { tenantId: ctx.tenant.id, url: receiveUrl },
   });
-  if (existing) return;
+  if (existing?.active) return null;
 
-  // Register with the API.
   try {
-    const { endpoint, secret } = await registerWebhookEndpoint(
-      { apiKey: ctx.apiKey },
-      receiveUrl,
-      [], // subscribe to all event types
-    );
+    if (existing) {
+      await updateWebhookEndpoint({ apiKey: ctx.apiKey }, existing.apiEndpointId, { active: true });
+      await db.webhookEndpoint.update({
+        where: { id: existing.id },
+        data: { active: true },
+      });
+    } else {
+      const { endpoint, secret } = await registerWebhookEndpoint(
+        { apiKey: ctx.apiKey },
+        receiveUrl,
+        [], // subscribe to all event types
+      );
 
-    await db.webhookEndpoint.create({
-      data: {
-        tenantId: ctx.tenant.id,
-        apiEndpointId: endpoint.id,
-        url: endpoint.url,
-        encryptedSecret: encrypt(secret),
-        eventTypes: endpoint.eventTypes,
-        active: endpoint.active,
-      },
-    });
+      await db.webhookEndpoint.create({
+        data: {
+          tenantId: ctx.tenant.id,
+          apiEndpointId: endpoint.id,
+          url: endpoint.url,
+          encryptedSecret: encrypt(secret),
+          eventTypes: endpoint.eventTypes,
+          active: endpoint.active,
+        },
+      });
+    }
   } catch (err) {
-    // Non-fatal during onboarding — notifications will fall back to catch-up
-    // polling. Still worth knowing about if this starts failing systematically.
-    Sentry.captureException(err, { extra: { tenantId: ctx.tenant.id } });
+    if (err instanceof ApiError) return { error: err.code };
+    throw err;
   }
+
+  revalidatePath('/settings/webhooks');
+  return null;
 }
 

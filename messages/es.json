@@ -584,6 +584,7 @@
   },
   "apiError": {
     "UNKNOWN": "Ha ocurrido un error inesperado.",
+    "APP_URL_NOT_CONFIGURED": "Esta función no está disponible en este entorno.",
     "BAD_REQUEST": "La solicitud no es válida. Revise los datos ingresados.",
     "NOT_FOUND": "El recurso solicitado no existe.",
     "FORBIDDEN": "No tiene permisos para realizar esta acción.",
@@ -677,6 +678,18 @@
   "webhooks": {
     "title": "Webhooks",
     "description": "Registra URLs HTTPS para recibir notificaciones en tiempo real. Comprobify enviará un POST firmado a cada endpoint activo cuando ocurra un evento.",
+    "canonical": {
+      "title": "Notificaciones en la app",
+      "description": "Activa esto para que las notificaciones (facturas autorizadas, certificados por vencer, etc.) lleguen de inmediato en lugar de esperar la revisión periódica.",
+      "activate": "Activar",
+      "activating": "Activando...",
+      "deactivate": "Desactivar",
+      "confirmDeactivate": "¿Desactivar las notificaciones en tiempo real? Seguirán llegando mediante revisión periódica.",
+      "activateSuccess": "Notificaciones en tiempo real activadas.",
+      "deactivateSuccess": "Notificaciones en tiempo real desactivadas.",
+      "appUrlNotConfigured": "No disponible en este entorno.",
+      "httpsRequired": "Requiere una URL pública con HTTPS — no funciona con localhost en desarrollo local."
+    },
     "empty": "No hay webhooks registrados.",
     "add": "Registrar webhook",
     "delete": "Eliminar",

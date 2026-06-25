@@ -584,6 +584,7 @@
   },
   "apiError": {
     "UNKNOWN": "An unexpected error occurred.",
+    "APP_URL_NOT_CONFIGURED": "This feature isn't available in this environment.",
     "BAD_REQUEST": "The request is invalid. Please review the data entered.",
     "NOT_FOUND": "The requested resource does not exist.",
     "FORBIDDEN": "You do not have permission to perform this action.",
@@ -864,6 +865,18 @@
   "webhooks": {
     "title": "Webhooks",
     "description": "Register HTTPS URLs to receive real-time notifications. Comprobify will POST a signed payload to each active endpoint when an event occurs.",
+    "canonical": {
+      "title": "In-app notifications",
+      "description": "Turn this on so notifications (authorized invoices, certificates about to expire, etc.) arrive immediately instead of waiting for the periodic check.",
+      "activate": "Activate",
+      "activating": "Activating...",
+      "deactivate": "Deactivate",
+      "confirmDeactivate": "Deactivate real-time notifications? They'll keep arriving via periodic check instead.",
+      "activateSuccess": "Real-time notifications activated.",
+      "deactivateSuccess": "Real-time notifications deactivated.",
+      "appUrlNotConfigured": "Not available in this environment.",
+      "httpsRequired": "Requires a public HTTPS URL — won't work with localhost in local development."
+    },
     "empty": "No webhooks registered.",
     "add": "Register webhook",
     "delete": "Delete",
