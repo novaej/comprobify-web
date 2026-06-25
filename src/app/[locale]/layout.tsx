@@ -12,6 +12,7 @@ import { auth } from '@/auth';
 import { db } from '@/lib/db';
 import { readCtxCookie } from '@/lib/context-cookie';
 import type { listNotificationsAction } from '@/app/actions/notifications';
+import packageJson from '../../../package.json';
 
 type NotificationItem = Awaited<ReturnType<typeof listNotificationsAction>>['notifications'][number];
 
@@ -180,6 +181,7 @@ export default async function LocaleLayout({
               userEmail={layoutProps.userEmail}
               initialUnreadCount={layoutProps.initialUnreadCount}
               initialNotifications={layoutProps.initialNotifications}
+              appVersion={packageJson.version}
             />
             <NotificationSync />
             <main className="flex-1 overflow-y-auto p-4 md:p-8">

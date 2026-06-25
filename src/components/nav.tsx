@@ -49,6 +49,7 @@ interface NavProps {
   userEmail: string;
   initialUnreadCount: number;
   initialNotifications: NotificationItem[];
+  appVersion: string;
 }
 
 // ── TenantBadge ───────────────────────────────────────────────────────────────
@@ -211,7 +212,7 @@ function UserMenu({ email, pathname }: { email: string; pathname: string }) {
 
 // ── Nav ───────────────────────────────────────────────────────────────────────
 
-export function Nav({ hasIssuer, environment, tenantName, currentIssuer, issuers, userEmail, initialUnreadCount, initialNotifications }: NavProps) {
+export function Nav({ hasIssuer, environment, tenantName, currentIssuer, issuers, userEmail, initialUnreadCount, initialNotifications, appVersion }: NavProps) {
   const t = useTranslations('nav');
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
@@ -258,6 +259,7 @@ export function Nav({ hasIssuer, environment, tenantName, currentIssuer, issuers
 
       {/* User menu */}
       <UserMenu email={userEmail} pathname={pathname} />
+      <p className="px-3 py-1.5 text-center text-[10px] text-sidebar-foreground/30">v{appVersion}</p>
     </>
   );
 
