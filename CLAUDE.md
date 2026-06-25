@@ -284,7 +284,7 @@ This project runs Next.js **16** (not 13-15). Key differences from older version
 | `docs/guides/code-flow.md` | Request lifecycle walkthrough |
 | `docs/guides/coding-guidelines.md` | How to add screens, actions, and components |
 | `docs/adr/` | Architecture Decision Records |
-| `docs/deployment.md` | Branching strategy, Vercel setup, env vars, production checklist |
+| `docs/deployment.md` | Branching strategy, Vercel setup, env vars, production checklist, release/versioning workflow (`npm version` on a branch + PR, then tag the merge commit — never tag `main` directly, since every commit there is a squash-merged PR) |
 | `src/lib/api.ts` | Typed Comprobify API client — all API calls go through here; functions take `ApiCtx` |
 | `src/lib/context.ts` | `requireContext()`, `requirePermission()`, `hasContextPermission()` |
 | `src/lib/context-cookie.ts` | Signed `comprobify_ctx` cookie helpers |
