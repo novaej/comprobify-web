@@ -3,11 +3,11 @@
 import { useState, useTransition } from 'react';
 import { useTranslations, useFormatter } from 'next-intl';
 import { toast } from 'sonner';
-import { registerWebhookAction, deleteWebhookAction } from '@/app/actions/webhooks';
+import { registerWebhookAction, deleteWebhookAction, activateCanonicalWebhookAction } from '@/app/actions/webhooks';
 import { toastApiError } from '@/lib/api-error-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Webhook, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Webhook, Trash2, ChevronDown, ChevronUp, Bell } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const ALL_EVENT_TYPES = [
@@ -27,16 +27,51 @@ interface WebhookRow {
   createdAt: string;
 }
 
-export function WebhookManager({ endpoints: initial }: { endpoints: WebhookRow[] }) {
+export type CanonicalAvailability = 'available' | 'not_configured' | 'invalid_url';
+
+interface WebhookManagerProps {
+  endpoints: WebhookRow[];
+  canonicalAvailability: CanonicalAvailability;
+  canonicalEndpointId: number | null;
+}
+
+export function WebhookManager({ endpoints: initial, canonicalAvailability, canonicalEndpointId }: WebhookManagerProps) {
   const t = useTranslations('webhooks');
   const tError = useTranslations('apiError');
   const format = useFormatter();
   const [isPending, startTransition] = useTransition();
   const [endpoints, setEndpoints] = useState<WebhookRow[]>(initial);
+  const [canonicalId, setCanonicalId] = useState<number | null>(canonicalEndpointId);
   const [showForm, setShowForm] = useState(false);
   const [url, setUrl] = useState('');
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]); // empty = all
   const [showEventPicker, setShowEventPicker] = useState(false);
+
+  function handleActivateCanonical() {
+    startTransition(async () => {
+      const result = await activateCanonicalWebhookAction();
+      if (result?.error) {
+        toastApiError(result.error, tError);
+      } else {
+        toast.success(t('canonical.activateSuccess'));
+        window.location.reload();
+      }
+    });
+  }
+
+  function handleDeactivateCanonical() {
+    if (canonicalId === null) return;
+    if (!confirm(t('canonical.confirmDeactivate'))) return;
+    startTransition(async () => {
+      const result = await deleteWebhookAction(canonicalId);
+      if (result?.error) {
+        toastApiError(result.error, tError);
+      } else {
+        toast.success(t('canonical.deactivateSuccess'));
+        setCanonicalId(null);
+      }
+    });
+  }
 
   function toggleType(type: string) {
     setSelectedTypes((prev) =>
@@ -80,6 +115,41 @@ export function WebhookManager({ endpoints: initial }: { endpoints: WebhookRow[]
 
   return (
     <div className="space-y-4">
+      {/* Canonical in-app notification webhook */}
+      <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-start gap-3">
+            <Bell className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+            <div>
+              <h2 className="text-sm font-semibold">{t('canonical.title')}</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">{t('canonical.description')}</p>
+              {canonicalAvailability === 'not_configured' && (
+                <p className="text-xs text-amber-600 dark:text-amber-500 mt-1.5">{t('canonical.appUrlNotConfigured')}</p>
+              )}
+              {canonicalAvailability === 'invalid_url' && (
+                <p className="text-xs text-amber-600 dark:text-amber-500 mt-1.5">{t('canonical.httpsRequired')}</p>
+              )}
+            </div>
+          </div>
+          {canonicalAvailability === 'available' && (
+            canonicalId !== null ? (
+              <div className="flex shrink-0 items-center gap-2">
+                <span className="rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-500/10 dark:text-green-400">
+                  {t('status.active')}
+                </span>
+                <Button size="sm" variant="outline" onClick={handleDeactivateCanonical} disabled={isPending}>
+                  {t('canonical.deactivate')}
+                </Button>
+              </div>
+            ) : (
+              <Button size="sm" onClick={handleActivateCanonical} disabled={isPending} className="shrink-0">
+                {isPending ? t('canonical.activating') : t('canonical.activate')}
+              </Button>
+            )
+          )}
+        </div>
+      </div>
+
       {/* Register form */}
       {showForm ? (
         <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">

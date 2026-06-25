@@ -3,7 +3,7 @@
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
 import { registerTenant } from '@/lib/public-api';
-import { listTenantApiKeys, getCurrentTenant, listTenantIssuers, createTenantApiKey, registerWebhookEndpoint } from '@/lib/api';
+import { listTenantApiKeys, getCurrentTenant, listTenantIssuers, createTenantApiKey } from '@/lib/api';
 import { encrypt, lastFour } from '@/lib/crypto';
 import { writeCtxCookie } from '@/lib/context-cookie';
 import { getLocale } from 'next-intl/server';
@@ -13,37 +13,6 @@ import { ApiError } from '@/lib/errors';
 import * as Sentry from '@sentry/nextjs';
 
 export type OnboardingResult = { error: string } | null;
-
-/**
- * Best-effort webhook registration so notifications arrive in near-real time.
- * Failures here are non-fatal — the app falls back to catch-up polling.
- */
-async function registerWebhookBestEffort(apiTenantId: number, plainApiKey: string): Promise<void> {
-  const webhookAppUrl = process.env.NEXT_PUBLIC_APP_URL;
-  if (!webhookAppUrl) return;
-
-  try {
-    const receiveUrl = `${webhookAppUrl}/api/webhooks/receive`;
-    const { endpoint, secret } = await registerWebhookEndpoint({ apiKey: plainApiKey }, receiveUrl, []);
-    const tenant = await db.tenant.findFirst({ where: { apiTenantId }, select: { id: true } });
-    if (tenant) {
-      await db.webhookEndpoint.create({
-        data: {
-          tenantId: tenant.id,
-          apiEndpointId: endpoint.id,
-          url: endpoint.url,
-          encryptedSecret: encrypt(secret),
-          eventTypes: endpoint.eventTypes,
-          active: endpoint.active,
-        },
-      });
-    }
-  } catch (err) {
-    // Non-fatal — notifications fall back to catch-up polling. Still worth
-    // knowing about if this starts failing systematically.
-    Sentry.captureException(err, { extra: { apiTenantId } });
-  }
-}
 
 export async function bootstrapTenantAction(formData: FormData): Promise<OnboardingResult> {
   const session = await auth();
@@ -182,8 +151,6 @@ export async function bootstrapTenantAction(formData: FormData): Promise<Onboard
   // silently roll back all the DB writes above.
   await writeCtxCookie({ issuerId: newIssuerId, v: 1 });
 
-  await registerWebhookBestEffort(apiTenantId, plainApiKey);
-
   revalidatePath('/', 'layout');
   redirect({ href: isEmailVerified ? '/dashboard' : '/settings', locale });
   return null;
@@ -301,7 +268,6 @@ export async function linkExistingTenantAction(formData: FormData): Promise<Onbo
   }
 
   await writeCtxCookie({ issuerId: defaultLocalIssuerId, v: 1 });
-  await registerWebhookBestEffort(apiTenantId, newKey.key);
 
   revalidatePath('/', 'layout');
   const locale = await getLocale();
