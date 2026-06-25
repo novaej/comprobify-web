@@ -153,6 +153,9 @@ export default async function DocumentListPage({
           empty: t('list.empty'),
           emptyFiltered: t('list.emptyFiltered'),
           error: t('list.error'),
+          actions: t('list.table.actions'),
+          downloadPdf: t('list.table.downloadPdf'),
+          downloadXml: t('list.table.downloadXml'),
         }}
       />
 

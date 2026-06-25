@@ -1,6 +1,7 @@
 import { Link } from '@/i18n/navigation';
 import { StatusBadge } from '@/components/status-badge';
 import { DocumentRowAction } from '@/components/document-row-action';
+import { buttonVariants } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -9,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
+import { ChevronUp, ChevronDown, ChevronsUpDown, FileText, FileCode } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Document, DocumentSortField } from '@/lib/api';
 
@@ -22,6 +23,9 @@ interface DocumentTableLabels {
   empty: string;
   emptyFiltered?: string;
   error: string;
+  actions?: string;
+  downloadPdf: string;
+  downloadXml: string;
 }
 
 interface DocumentTableSort {
@@ -97,7 +101,9 @@ export function DocumentTable({
               {labels.total}
             </TableHead>
             <SortableHead field="status" label={labels.status} sort={sort} />
-            <TableHead className="pr-4" />
+            <TableHead className="pr-4 text-right text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {labels.actions}
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -131,7 +137,31 @@ export function DocumentTable({
                   <StatusBadge status={doc.status} />
                 </TableCell>
                 <TableCell className="pr-4 text-right">
-                  <DocumentRowAction accessKey={doc.accessKey} status={doc.status} />
+                  <div className="flex items-center justify-end gap-1">
+                    {doc.status === 'AUTHORIZED' && (
+                      <>
+                        <a
+                          href={`/api/documents/${doc.accessKey}/ride`}
+                          download
+                          title={labels.downloadPdf}
+                          aria-label={labels.downloadPdf}
+                          className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'h-8 w-8')}
+                        >
+                          <FileText className="h-4 w-4" />
+                        </a>
+                        <a
+                          href={`/api/documents/${doc.accessKey}/xml`}
+                          download
+                          title={labels.downloadXml}
+                          aria-label={labels.downloadXml}
+                          className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'h-8 w-8')}
+                        >
+                          <FileCode className="h-4 w-4" />
+                        </a>
+                      </>
+                    )}
+                    <DocumentRowAction accessKey={doc.accessKey} status={doc.status} />
+                  </div>
                 </TableCell>
               </TableRow>
             ))

@@ -110,7 +110,10 @@
       "status": "Estado",
       "date": "Fecha",
       "empty": "No hay comprobantes aún.",
-      "error": "No se pudo cargar la lista de comprobantes. Verifica que el servicio esté disponible."
+      "error": "No se pudo cargar la lista de comprobantes. Verifica que el servicio esté disponible.",
+      "actions": "Acciones",
+      "downloadPdf": "Descargar PDF (RIDE)",
+      "downloadXml": "Descargar XML"
     }
   },
   "documents": {
@@ -159,7 +162,10 @@
         "buyer": "Cliente",
         "total": "Total",
         "status": "Estado",
-        "date": "Fecha"
+        "date": "Fecha",
+        "actions": "Acciones",
+        "downloadPdf": "Descargar PDF (RIDE)",
+        "downloadXml": "Descargar XML"
       },
       "pagination": {
         "previous": "Anterior",

@@ -110,7 +110,10 @@
       "status": "Status",
       "date": "Date",
       "empty": "No documents yet.",
-      "error": "Could not load documents. Please check that the service is available."
+      "error": "Could not load documents. Please check that the service is available.",
+      "actions": "Actions",
+      "downloadPdf": "Download PDF (RIDE)",
+      "downloadXml": "Download XML"
     }
   },
   "documents": {
@@ -159,7 +162,10 @@
         "buyer": "Customer",
         "total": "Total",
         "status": "Status",
-        "date": "Date"
+        "date": "Date",
+        "actions": "Actions",
+        "downloadPdf": "Download PDF (RIDE)",
+        "downloadXml": "Download XML"
       },
       "pagination": {
         "previous": "Previous",

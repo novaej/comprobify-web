@@ -94,6 +94,9 @@ export default async function DashboardPage({
           status: t('table.status'),
           empty: t('table.empty'),
           error: t('table.error'),
+          actions: t('table.actions'),
+          downloadPdf: t('table.downloadPdf'),
+          downloadXml: t('table.downloadXml'),
         }}
       />
     </div>
