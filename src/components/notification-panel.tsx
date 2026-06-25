@@ -4,6 +4,8 @@ import type { CSSProperties, RefObject } from 'react';
 import { useTranslations, useFormatter } from 'next-intl';
 import { AlertCircle, AlertTriangle, Info, CheckCheck, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useRouter } from '@/i18n/navigation';
+import { getNotificationHref } from '@/lib/notification-link';
 import type { listNotificationsAction } from '@/app/actions/notifications';
 
 type Notification = Awaited<ReturnType<typeof listNotificationsAction>>['notifications'][number];
@@ -37,8 +39,17 @@ export function NotificationPanel({
 }: NotificationPanelProps) {
   const t = useTranslations('notifications');
   const format = useFormatter();
+  const router = useRouter();
 
   const unread = notifications.filter((n) => !n.readByMe);
+
+  function handleRowClick(n: Notification) {
+    const href = getNotificationHref(n.type, n.metadata);
+    if (!href) return;
+    if (!n.readByMe) onMarkRead(n.id);
+    onClose();
+    router.push(href);
+  }
 
   return (
     <div
@@ -78,44 +89,60 @@ export function NotificationPanel({
             {t('empty')}
           </li>
         ) : (
-          notifications.map((n) => (
-            <li
-              key={n.id}
-              className={cn(
-                'flex gap-3 px-4 py-3 transition-colors',
-                !n.readByMe && 'bg-sidebar-accent/30',
-              )}
-            >
-              <div className="mt-0.5">
-                <SeverityIcon severity={n.severity} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className={cn(
-                  'text-xs leading-snug text-sidebar-foreground',
-                  n.readByMe && 'text-sidebar-foreground/60',
-                )}>
-                  <span className="font-medium">{n.title}</span>
-                </p>
-                <p className="mt-0.5 text-xs leading-snug text-sidebar-foreground/60 line-clamp-2">
-                  {n.message}
-                </p>
-                <div className="mt-1.5 flex items-center justify-between gap-2">
-                  <span className="text-[10px] text-sidebar-foreground/40">
-                    {format.relativeTime(n.apiCreatedAt, Date.now())}
-                  </span>
-                  {!n.readByMe && (
-                    <button
-                      onClick={() => onMarkRead(n.id)}
-                      className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-sidebar-foreground/50 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
-                    >
-                      <CheckCheck className="h-3 w-3" aria-hidden />
-                      {t('markRead')}
-                    </button>
-                  )}
+          notifications.map((n) => {
+            const href = getNotificationHref(n.type, n.metadata);
+            return (
+              <li
+                key={n.id}
+                onClick={href ? () => handleRowClick(n) : undefined}
+                onKeyDown={href ? (e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleRowClick(n);
+                  }
+                } : undefined}
+                role={href ? 'button' : undefined}
+                tabIndex={href ? 0 : undefined}
+                className={cn(
+                  'flex gap-3 px-4 py-3 transition-colors',
+                  !n.readByMe && 'bg-sidebar-accent/30',
+                  href && 'cursor-pointer hover:bg-sidebar-accent/50',
+                )}
+              >
+                <div className="mt-0.5">
+                  <SeverityIcon severity={n.severity} />
                 </div>
-              </div>
-            </li>
-          ))
+                <div className="min-w-0 flex-1">
+                  <p className={cn(
+                    'text-xs leading-snug text-sidebar-foreground',
+                    n.readByMe && 'text-sidebar-foreground/60',
+                  )}>
+                    <span className="font-medium">{n.title}</span>
+                  </p>
+                  <p className="mt-0.5 text-xs leading-snug text-sidebar-foreground/60 line-clamp-2">
+                    {n.message}
+                  </p>
+                  <div className="mt-1.5 flex items-center justify-between gap-2">
+                    <span className="text-[10px] text-sidebar-foreground/40">
+                      {format.relativeTime(n.apiCreatedAt, Date.now())}
+                    </span>
+                    {!n.readByMe && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onMarkRead(n.id);
+                        }}
+                        className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-sidebar-foreground/50 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                      >
+                        <CheckCheck className="h-3 w-3" aria-hidden />
+                        {t('markRead')}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </li>
+            );
+          })
         )}
       </ul>
     </div>
