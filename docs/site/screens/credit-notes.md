@@ -22,6 +22,7 @@ Kept as a separate form from Create Invoice rather than reusing `InvoiceForm` �
 | POST | `/api/documents/:key/rebuild` | Rebuild mode only — correct and re-sign an existing `RETURNED`/`NOT_AUTHORIZED` credit note |
 | GET | `/api/documents/:key` (via `getInvoiceForCreditNoteAction`) | Resolve an invoice's `originalDocument`/buyer/items for pre-fill |
 | GET | `/api/documents?documentType=01&status=AUTHORIZED&sequential=...` (via `searchCreditableInvoicesAction`) | "Buscar comprobante" picker |
+| GET | `/api/documents/:key/credit-notes` (via `getCreditNotesBalance`) | Remaining creditable balance against the original invoice |
 
 ---
 
@@ -32,11 +33,23 @@ Kept as a separate form from Create Invoice rather than reusing `InvoiceForm` �
 | From an invoice's detail page | "Crear nota de crédito" in the Acciones dropdown on an `AUTHORIZED` type-`01` document (see `invoice-detail.md`) → `/credit-notes/new?fromInvoice=<accessKey>` | `originalDocument`, buyer, and items — fetched server-side before first render |
 | Standalone (documents hub) | The "+ Nuevo" tile on `/documents` or `/documents/04` → `/credit-notes/new` | Nothing — the form opens with a "Buscar comprobante" prompt instead |
 
-Either way, every pre-filled field stays editable afterward — including replacing the items entirely, for a credit note that doesn't track specific products (e.g. a flat monetary adjustment: a manual `mainCode`/description with the credited amount as `unitPrice`).
+Either way, every pre-filled field stays editable afterward — including replacing the items entirely, for a credit note that doesn't track specific products (e.g. a flat monetary adjustment: a manual `mainCode`/description with the credited amount as `unitPrice`) — **except buyer identity**, see "Buyer lock" below.
+
+There is **no way to select an invoice not created in this system.** SRI's only public web services are submission and authorization-status-by-known-access-key (`../comprobify/src/services/sri.service.js`) — there is no service to search/validate a document by buyer ID + date + number (the fields SRI's own free invoicing tool's "Validar Factura" uses), since that would let any taxpayer query any other taxpayer's invoice history. The "Comprobante a corregir" card shows a hint explaining this.
 
 ### Original document number reconstruction
 
 The Comprobify API has no endpoint to look up a document by its `NNN-NNN-NNNNNNNNN` number — only by access key. So `originalDocument.number` is **always** reconstructed server-side (`getInvoiceForCreditNoteAction`, `src/app/actions/credit-note.ts`) as `${issuer.branchCode}-${issuer.issuePointCode}-${document.sequential}`, never typed by hand by the user, and only ever for `AUTHORIZED` type-`01` documents belonging to the active issuer.
+
+### Remaining balance enforcement
+
+`getInvoiceForCreditNoteAction` also calls `GET /api/documents/:key/credit-notes` (`getCreditNotesBalance`), which sums every `AUTHORIZED` credit note already referencing the invoice and returns `remaining = total − creditedTotal`. The form shows this next to the original total and **disables both submit buttons** (with a destructive warning) once the live-computed credit note total would exceed it. `createCreditNoteAction`/`rebuildCreditNoteAction` re-run the same check server-side (`assertWithinRemainingBalance`) against the actually-submitted items, as defense-in-depth against a stale or bypassed client. Per the endpoint's own docs this is a UI guard, not a hard guarantee — concurrently-created credit notes (before the first authorizes) aren't locked against each other.
+
+In rebuild mode, the stored `requestPayload.originalDocument` has no access key (only `documentType`/`number`/`issueDate`), so `resolveOriginalAccessKeyAction` re-derives it via an exact-match lookup on the embedded sequential before the balance can be fetched; if that resolution is ambiguous, the balance display and check are silently skipped for that rebuild.
+
+### Buyer lock
+
+Once an `originalDocument` is selected (either entry point), buyer `idType`/`id`/`name` become read-only — a credit note must legally apply to the same buyer as the invoice it credits. `address`/`email` stay editable (delivery details, not legal identity).
 
 ### "Buscar comprobante" picker
 

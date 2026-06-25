@@ -9,6 +9,7 @@ import {
   checkAuthorization,
   getDocument,
   listDocuments,
+  getCreditNotesBalance,
   type CreateCreditNotePayload,
 } from '@/lib/api';
 import { ApiError } from '@/lib/errors';
@@ -60,6 +61,47 @@ const TAX_MAP: Record<CreditNoteFormData['items'][number]['taxOption'], { code: 
 
 export type CreateCreditNoteResult = { error: string } | null;
 
+// Mirrors computeTotals()'s grand-total math in credit-note-form.tsx (server-side, so it
+// can't import that Client Component) — used to re-check the remaining balance against
+// the actual submitted items rather than trusting a client-computed total.
+function computeGrandTotal(items: CreditNoteFormData['items']): number {
+  let total = 0;
+  for (const item of items) {
+    const qty = parseFloat(item.quantity) || 0;
+    const price = parseFloat(item.unitPrice) || 0;
+    const discount = parseFloat(item.discount || '0') || 0;
+    const lineNet = qty * price - discount;
+    const rate = parseFloat(TAX_MAP[item.taxOption].rate) || 0;
+    total += lineNet + lineNet * (rate / 100);
+  }
+  return total;
+}
+
+// Authoritative re-check (defense-in-depth against a stale/bypassed client) that this
+// credit note's total doesn't exceed the original document's remaining creditable balance —
+// see GET /v1/documents/:key/credit-notes (only AUTHORIZED credit notes count toward
+// creditedTotal; documented there as a UI guard, not a hard guarantee, due to a known race
+// between concurrently-created credit notes).
+async function assertWithinRemainingBalance(
+  apiCtx: { apiKey: string; issuerId: number },
+  originalAccessKey: string,
+  data: CreditNoteFormData
+): Promise<{ error: string } | null> {
+  let balance;
+  try {
+    balance = await getCreditNotesBalance(apiCtx, originalAccessKey);
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.code };
+    throw err;
+  }
+  const grandTotal = computeGrandTotal(data.items);
+  const remaining = parseFloat(balance.remaining);
+  if (grandTotal > remaining + 0.005) {
+    return { error: 'CREDIT_NOTE_EXCEEDS_REMAINING' };
+  }
+  return null;
+}
+
 function buildCreditNotePayload(data: CreditNoteFormData): CreateCreditNotePayload {
   return {
     documentType: '04',
@@ -109,11 +151,18 @@ async function sendAfterSigningIfRequested(
 
 export async function createCreditNoteAction(
   data: CreditNoteFormData,
+  originalAccessKey: string | undefined,
   sendAfterSigning: boolean,
   from?: BackTargetKey
 ): Promise<CreateCreditNoteResult> {
   const ctx = await requireContext();
   const apiCtx = { apiKey: ctx.apiKey, issuerId: ctx.issuer.apiIssuerId };
+
+  if (originalAccessKey) {
+    const balanceError = await assertWithinRemainingBalance(apiCtx, originalAccessKey, data);
+    if (balanceError) return balanceError;
+  }
+
   const payload = buildCreditNotePayload(data);
 
   let accessKey: string;
@@ -135,11 +184,18 @@ export async function createCreditNoteAction(
 export async function rebuildCreditNoteAction(
   accessKey: string,
   data: CreditNoteFormData,
+  originalAccessKey: string | undefined,
   sendAfterSigning: boolean,
   from?: BackTargetKey
 ): Promise<CreateCreditNoteResult> {
   const ctx = await requireContext();
   const apiCtx = { apiKey: ctx.apiKey, issuerId: ctx.issuer.apiIssuerId };
+
+  if (originalAccessKey) {
+    const balanceError = await assertWithinRemainingBalance(apiCtx, originalAccessKey, data);
+    if (balanceError) return balanceError;
+  }
+
   const payload = buildCreditNotePayload(data);
 
   try {
@@ -201,6 +257,9 @@ export async function searchCreditableInvoicesAction(
 
 export interface CreditNotePrefillData {
   originalDocument: { documentType: string; number: string; issueDate: string };
+  originalAccessKey: string;
+  originalTotal: string;
+  remaining: string;
   buyer: { idType: string; id: string; name: string; email: string };
   items: CreditNoteFormData['items'];
 }
@@ -233,6 +292,14 @@ export async function getInvoiceForCreditNoteAction(
     return { error: 'DOCUMENT_NOT_AUTHORIZED' };
   }
 
+  let balance;
+  try {
+    balance = await getCreditNotesBalance(apiCtx, accessKey);
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.code };
+    throw err;
+  }
+
   const items: CreditNoteFormData['items'] =
     document.requestPayload && document.requestPayload.documentType === '01'
       ? document.requestPayload.items.map((item) => ({
@@ -253,6 +320,9 @@ export async function getInvoiceForCreditNoteAction(
         number: `${ctx.issuer.branchCode}-${ctx.issuer.issuePointCode}-${document.sequential}`,
         issueDate: document.issueDate,
       },
+      originalAccessKey: document.accessKey,
+      originalTotal: balance.originalDocument.total,
+      remaining: balance.remaining,
       buyer: {
         idType: document.buyer.idType,
         id: document.buyer.id,
@@ -262,4 +332,55 @@ export async function getInvoiceForCreditNoteAction(
       items,
     },
   };
+}
+
+// Rebuild mode only has the original document's documentType/number/issueDate (recovered
+// from the credit note's own requestPayload) — not its accessKey, which the remaining-
+// balance check requires. Resolves it by an exact match on the embedded sequential (the
+// last 9 digits of `number`) against the active issuer's AUTHORIZED documents of that type.
+// Returns undefined on any ambiguity or failure — callers must treat that as "unknown"
+// and skip the balance check rather than guessing.
+export async function resolveOriginalAccessKeyAction(
+  documentType: string,
+  number: string
+): Promise<string | undefined> {
+  const sequential = number.split('-').pop();
+  if (!sequential) return undefined;
+
+  const ctx = await requireContext();
+  const apiCtx = { apiKey: ctx.apiKey, issuerId: ctx.issuer.apiIssuerId };
+
+  try {
+    const { data } = await listDocuments(apiCtx, {
+      documentType,
+      status: CREDITABLE_STATUS,
+      sequential,
+      limit: 5,
+    });
+    const matches = data.filter((doc) => doc.sequential === sequential);
+    return matches.length === 1 ? matches[0].accessKey : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export type GetCreditNotesBalanceResult =
+  | { originalTotal: string; remaining: string }
+  | { error: string };
+
+// Thin wrapper so credit-notes/new/page.tsx (Server Component) and rebuild mode can
+// refresh the remaining-balance display without duplicating the getCreditNotesBalance
+// import/error-handling — kept as a Server Action for symmetry with the rest of this file.
+export async function getRemainingBalanceAction(
+  originalAccessKey: string
+): Promise<GetCreditNotesBalanceResult> {
+  const ctx = await requireContext();
+  const apiCtx = { apiKey: ctx.apiKey, issuerId: ctx.issuer.apiIssuerId };
+  try {
+    const balance = await getCreditNotesBalance(apiCtx, originalAccessKey);
+    return { originalTotal: balance.originalDocument.total, remaining: balance.remaining };
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.code };
+    throw err;
+  }
 }

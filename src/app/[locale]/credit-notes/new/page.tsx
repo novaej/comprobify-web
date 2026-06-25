@@ -13,7 +13,12 @@ import {
 } from '@/lib/api';
 import type { CatalogProduct } from '@/app/actions/catalog';
 import type { SavedClient } from '@/app/actions/clients';
-import { getInvoiceForCreditNoteAction, type CreditNotePrefillData } from '@/app/actions/credit-note';
+import {
+  getInvoiceForCreditNoteAction,
+  resolveOriginalAccessKeyAction,
+  getRemainingBalanceAction,
+  type CreditNotePrefillData,
+} from '@/app/actions/credit-note';
 import { BACK_TARGETS, isBackTargetKey, type BackTargetKey } from '@/lib/back-targets';
 
 export interface CreditNoteCatalogs {
@@ -75,6 +80,32 @@ export default async function NewCreditNotePage({
     if ('data' in result) invoicePrefill = result.data;
   }
 
+  // Rebuild mode only has documentType/number/issueDate for the original (recovered from
+  // the credit note's own requestPayload), not its accessKey — resolve it so the form can
+  // still show/enforce the remaining balance. Best-effort: silently shows nothing if the
+  // original can't be uniquely resolved (e.g. issuer/sequential changed since creation).
+  let initialOriginalAccessKey: string | undefined;
+  let initialOriginalTotal: string | undefined;
+  let initialRemaining: string | undefined;
+  if (rebuildFrom) {
+    const resolved = await resolveOriginalAccessKeyAction(
+      rebuildFrom.payload.originalDocument.documentType,
+      rebuildFrom.payload.originalDocument.number
+    );
+    if (resolved) {
+      const balanceResult = await getRemainingBalanceAction(resolved);
+      if (!('error' in balanceResult)) {
+        initialOriginalAccessKey = resolved;
+        initialOriginalTotal = balanceResult.originalTotal;
+        initialRemaining = balanceResult.remaining;
+      }
+    }
+  } else if (invoicePrefill) {
+    initialOriginalAccessKey = invoicePrefill.originalAccessKey;
+    initialOriginalTotal = invoicePrefill.originalTotal;
+    initialRemaining = invoicePrefill.remaining;
+  }
+
   const backTargetKey: BackTargetKey = isBackTargetKey(from) ? from : 'dashboard';
   const backTarget = BACK_TARGETS[backTargetKey];
   const tBack = backTarget.namespace === 'documents' ? tDocuments : tDashboard;
@@ -109,6 +140,9 @@ export default async function NewCreditNotePage({
       <CreditNoteForm
         catalogs={catalogs}
         defaultValues={invoicePrefill}
+        initialOriginalAccessKey={initialOriginalAccessKey}
+        initialOriginalTotal={initialOriginalTotal}
+        initialRemaining={initialRemaining}
         rebuildFrom={rebuildFrom}
         backHref={backHref}
         from={backTargetKey}

@@ -407,6 +407,35 @@ export async function getDocumentEvents(
   return result.events;
 }
 
+// Verified against: ../comprobify/src/controllers/documents.controller.js → getCreditNotes()
+// and docs/site/endpoints/get-credit-notes.md. Only AUTHORIZED credit notes count toward
+// creditedTotal — known limitation: no locking against concurrent credit note creation,
+// so `remaining` is a UI guard, not a hard guarantee against over-crediting.
+export interface CreditNoteAgainstDocument {
+  accessKey: string;
+  sequential: string;
+  total: string;
+  issueDate: string;
+}
+
+export interface CreditNotesBalance {
+  originalDocument: { accessKey: string; total: string };
+  creditedTotal: string;
+  remaining: string;
+  creditNotes: CreditNoteAgainstDocument[];
+}
+
+export async function getCreditNotesBalance(
+  ctx: ApiCtx,
+  accessKey: string
+): Promise<CreditNotesBalance> {
+  const result = await request<{ ok: true } & CreditNotesBalance>(
+    `/v1/documents/${accessKey}/credit-notes`,
+    ctx,
+  );
+  return result;
+}
+
 export async function retrySingleEmail(
   ctx: ApiCtx,
   accessKey: string,

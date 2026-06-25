@@ -42,6 +42,7 @@ import { Link } from '@/i18n/navigation';
 import type { CreditNoteCatalogs } from '@/app/[locale]/credit-notes/new/page';
 import type { BackTargetKey } from '@/lib/back-targets';
 import { toastApiError } from '@/lib/api-error-toast';
+import { cn } from '@/lib/utils';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -210,12 +211,24 @@ interface RebuildSource {
 interface Props {
   catalogs: CreditNoteCatalogs;
   defaultValues?: Partial<CreditNoteFormValues>;
+  initialOriginalAccessKey?: string;
+  initialOriginalTotal?: string;
+  initialRemaining?: string;
   rebuildFrom?: RebuildSource;
   backHref: string;
   from?: BackTargetKey;
 }
 
-export function CreditNoteForm({ catalogs, defaultValues, rebuildFrom, backHref, from }: Props) {
+export function CreditNoteForm({
+  catalogs,
+  defaultValues,
+  initialOriginalAccessKey,
+  initialOriginalTotal,
+  initialRemaining,
+  rebuildFrom,
+  backHref,
+  from,
+}: Props) {
   const t = useTranslations('creditNoteForm');
   const tError = useTranslations('apiError');
   const tCommon = useTranslations('common');
@@ -253,6 +266,10 @@ export function CreditNoteForm({ catalogs, defaultValues, rebuildFrom, backHref,
   const watchedIdType = useWatch({ control: form.control, name: 'buyer.idType' });
   const watchedOriginalDocument = useWatch({ control: form.control, name: 'originalDocument' });
   const totals = computeTotals(watchedItems ?? []);
+  const hasOriginalDocument = Boolean(watchedOriginalDocument?.number);
+  // The buyer must match the original invoice's buyer once one is selected — only
+  // legal-identity fields are locked; address/email stay editable (delivery details).
+  const buyerLocked = hasOriginalDocument;
 
   // ── Original document search dialog ─────────────────────────────────────────
   const [searchOpen, setSearchOpen] = useState(false);
@@ -260,6 +277,10 @@ export function CreditNoteForm({ catalogs, defaultValues, rebuildFrom, backHref,
   const [searchResults, setSearchResults] = useState<CreditableInvoiceSummary[]>([]);
   const [isSearching, startSearchTransition] = useTransition();
   const [isApplying, startApplyTransition] = useTransition();
+  const [originalAccessKey, setOriginalAccessKey] = useState<string | undefined>(initialOriginalAccessKey);
+  const [originalTotal, setOriginalTotal] = useState<string | undefined>(initialOriginalTotal);
+  const [remaining, setRemaining] = useState<string | undefined>(initialRemaining);
+  const exceedsRemaining = remaining !== undefined && totals.total > parseFloat(remaining) + 0.005;
 
   function runSearch() {
     startSearchTransition(async () => {
@@ -285,6 +306,9 @@ export function CreditNoteForm({ catalogs, defaultValues, rebuildFrom, backHref,
       form.setValue('buyer.name', result.data.buyer.name, { shouldValidate: true });
       form.setValue('buyer.email', result.data.buyer.email, { shouldValidate: true });
       replaceItems(result.data.items.length > 0 ? result.data.items : [{ ...BLANK_ITEM, taxOption: defaultTaxOption as TaxOption }]);
+      setOriginalAccessKey(result.data.originalAccessKey);
+      setOriginalTotal(result.data.originalTotal);
+      setRemaining(result.data.remaining);
       setSearchOpen(false);
     });
   }
@@ -311,8 +335,8 @@ export function CreditNoteForm({ catalogs, defaultValues, rebuildFrom, backHref,
     setServerError(null);
     startTransition(async () => {
       const result = rebuildFrom
-        ? await rebuildCreditNoteAction(rebuildFrom.accessKey, pendingPayload, submitIntent === 'signAndSend', from)
-        : await createCreditNoteAction(pendingPayload, submitIntent === 'signAndSend', from);
+        ? await rebuildCreditNoteAction(rebuildFrom.accessKey, pendingPayload, originalAccessKey, submitIntent === 'signAndSend', from)
+        : await createCreditNoteAction(pendingPayload, originalAccessKey, submitIntent === 'signAndSend', from);
       if (result?.error) {
         setServerError(result.error);
         setPendingPayload(null);
@@ -356,6 +380,16 @@ export function CreditNoteForm({ catalogs, defaultValues, rebuildFrom, backHref,
               <div className="min-w-0">
                 <p className="font-mono text-sm font-medium">{watchedOriginalDocument.number}</p>
                 <p className="text-xs text-muted-foreground">{watchedOriginalDocument.issueDate}</p>
+                {originalTotal && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t('originalDocument.total')}: <span className="font-mono font-medium">${originalTotal}</span>
+                  </p>
+                )}
+                {remaining !== undefined && (
+                  <p className={cn('text-xs', exceedsRemaining ? 'text-destructive font-medium' : 'text-muted-foreground')}>
+                    {t('originalDocument.remaining')}: <span className="font-mono font-medium">${remaining}</span>
+                  </p>
+                )}
               </div>
               {!isRebuild && (
                 <Button type="button" variant="outline" size="sm" onClick={() => setSearchOpen(true)} disabled={isApplying}>
@@ -376,6 +410,7 @@ export function CreditNoteForm({ catalogs, defaultValues, rebuildFrom, backHref,
           {errors.originalDocument?.number && (
             <p className="text-xs text-destructive">{t('originalDocument.required')}</p>
           )}
+          <p className="text-xs text-muted-foreground">{t('originalDocument.hint')}</p>
         </CardContent>
       </Card>
 
@@ -385,13 +420,16 @@ export function CreditNoteForm({ catalogs, defaultValues, rebuildFrom, backHref,
           <CardTitle>{t('buyer.title')}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
+          {buyerLocked && (
+            <p className="text-xs text-muted-foreground sm:col-span-2">{t('buyer.lockedHint')}</p>
+          )}
           <div className="space-y-1.5">
             <Label>{t('buyer.idType')} *</Label>
             <Controller
               name="buyer.idType"
               control={form.control}
               render={({ field }) => (
-                <Select<string> value={field.value} onValueChange={(v: string | null) => field.onChange(v ?? '05')}>
+                <Select<string> value={field.value} onValueChange={(v: string | null) => field.onChange(v ?? '05')} disabled={buyerLocked}>
                   <SelectTrigger className="w-full">
                     <SelectValue>
                       {(v: string | null) => catalogs.idTypes.find((idT) => idT.code === v)?.description ?? v}
@@ -412,11 +450,11 @@ export function CreditNoteForm({ catalogs, defaultValues, rebuildFrom, backHref,
             <div className="flex gap-1">
               <Input
                 {...form.register('buyer.id')}
-                readOnly={watchedIdType === CONSUMIDOR_FINAL_CODE}
-                className={watchedIdType === CONSUMIDOR_FINAL_CODE ? 'bg-muted text-muted-foreground' : ''}
+                readOnly={buyerLocked || watchedIdType === CONSUMIDOR_FINAL_CODE}
+                className={buyerLocked || watchedIdType === CONSUMIDOR_FINAL_CODE ? 'bg-muted text-muted-foreground' : ''}
                 aria-invalid={!!errors.buyer?.id}
               />
-              {watchedIdType !== CONSUMIDOR_FINAL_CODE && catalogs.clients.length > 0 && (
+              {!buyerLocked && watchedIdType !== CONSUMIDOR_FINAL_CODE && catalogs.clients.length > 0 && (
                 <Button
                   type="button"
                   variant="outline"
@@ -442,7 +480,12 @@ export function CreditNoteForm({ catalogs, defaultValues, rebuildFrom, backHref,
 
           <div className="space-y-1.5 sm:col-span-2">
             <Label>{t('buyer.name')} *</Label>
-            <Input {...form.register('buyer.name')} aria-invalid={!!errors.buyer?.name} />
+            <Input
+              {...form.register('buyer.name')}
+              readOnly={buyerLocked}
+              className={buyerLocked ? 'bg-muted text-muted-foreground' : ''}
+              aria-invalid={!!errors.buyer?.name}
+            />
             {errors.buyer?.name && <p className="text-xs text-destructive">{errors.buyer.name.message}</p>}
           </div>
 
@@ -650,6 +693,10 @@ export function CreditNoteForm({ catalogs, defaultValues, rebuildFrom, backHref,
         </CardContent>
       </Card>
 
+      {exceedsRemaining && (
+        <p className="text-sm text-destructive">{t('originalDocument.exceedsRemaining', { remaining: remaining ?? '0.00' })}</p>
+      )}
+
       {serverError && (
         <p className="text-sm text-destructive">
           {tError.has(serverError as Parameters<typeof tError>[0]) ? tError(serverError as Parameters<typeof tError>[0]) : serverError}
@@ -657,12 +704,17 @@ export function CreditNoteForm({ catalogs, defaultValues, rebuildFrom, backHref,
       )}
 
       <div className="flex flex-wrap gap-3 pb-6">
-        <Button type="submit" disabled={isPending}>
+        <Button type="submit" disabled={isPending || !hasOriginalDocument || exceedsRemaining}>
           {isPending && submitIntent === 'signAndSend'
             ? isRebuild ? t('submittingRebuild') : t('submitting')
             : isRebuild ? t('submitRebuild') : t('submit')}
         </Button>
-        <Button type="button" variant="outline" disabled={isPending} onClick={openConfirmSignOnly}>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={isPending || !hasOriginalDocument || exceedsRemaining}
+          onClick={openConfirmSignOnly}
+        >
           {isPending && submitIntent === 'sign'
             ? isRebuild ? t('signingOnlyRebuild') : t('signingOnly')
             : isRebuild ? t('signOnlyRebuild') : t('signOnly')}

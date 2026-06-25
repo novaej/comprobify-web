@@ -361,10 +361,15 @@
       "searchPlaceholder": "Search by document number",
       "searchEmpty": "No authorized invoices found. Try another search.",
       "change": "Search another",
-      "required": "Select the document being credited"
+      "required": "Select the document being credited",
+      "hint": "Only invoices created in this system can be selected. Documents issued by other systems cannot be looked up or validated here.",
+      "total": "Invoice total",
+      "remaining": "Remaining balance available for credit notes",
+      "exceedsRemaining": "This credit note's total exceeds the original invoice's remaining balance (${remaining})."
     },
     "buyer": {
       "title": "Buyer",
+      "lockedHint": "This information comes from the original invoice and can't be changed.",
       "idType": "ID type",
       "id": "ID number",
       "name": "Legal name",
@@ -593,6 +598,7 @@
     "DOCUMENT_TYPE_NOT_SUPPORTED": "Document type not supported by the system.",
     "INVALID_STATE_TRANSITION": "This operation is not valid for the document's current status.",
     "DOCUMENT_NOT_AUTHORIZED": "The document is not yet authorized. This operation requires an authorized document.",
+    "CREDIT_NOTE_EXCEEDS_REMAINING": "The credit note amount exceeds the original invoice's remaining balance.",
     "CERTIFICATE_INVALID": "The P12 file is invalid or corrupted.",
     "CERTIFICATE_PASSWORD_INVALID": "The P12 certificate password is incorrect.",
     "CERTIFICATE_KEY_NOT_FOUND": "Signing key not found inside the P12 file.",

@@ -361,10 +361,15 @@
       "searchPlaceholder": "Buscar por número de comprobante",
       "searchEmpty": "No se encontraron facturas autorizadas. Intente otra búsqueda.",
       "change": "Buscar otro",
-      "required": "Seleccione el comprobante a corregir"
+      "required": "Seleccione el comprobante a corregir",
+      "hint": "Solo se pueden seleccionar facturas creadas en este sistema. No es posible validar ni buscar comprobantes emitidos por otros sistemas.",
+      "total": "Total de la factura",
+      "remaining": "Saldo disponible para nota de crédito",
+      "exceedsRemaining": "El valor de esta nota de crédito supera el saldo disponible (${remaining}) de la factura original."
     },
     "buyer": {
       "title": "Adquirente",
+      "lockedHint": "Estos datos provienen de la factura original y no se pueden modificar.",
       "idType": "Tipo de identificación",
       "id": "Identificación",
       "name": "Razón social",
@@ -593,6 +598,7 @@
     "DOCUMENT_TYPE_NOT_SUPPORTED": "Tipo de comprobante no soportado por el sistema.",
     "INVALID_STATE_TRANSITION": "La operación no es válida para el estado actual del comprobante.",
     "DOCUMENT_NOT_AUTHORIZED": "El comprobante aún no está autorizado. Esta operación requiere un comprobante autorizado.",
+    "CREDIT_NOTE_EXCEEDS_REMAINING": "El valor de la nota de crédito supera el saldo disponible de la factura original.",
     "CERTIFICATE_INVALID": "El archivo P12 no es válido o está dañado.",
     "CERTIFICATE_PASSWORD_INVALID": "La contraseña del certificado P12 es incorrecta.",
     "CERTIFICATE_KEY_NOT_FOUND": "No se encontró la clave de firma dentro del archivo P12.",
