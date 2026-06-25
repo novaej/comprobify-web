@@ -44,6 +44,11 @@ export default async function DashboardPage({
     statsError = true;
   }
 
+  const typeName = (code: string) => {
+    const key = `types.${code}.name` as Parameters<typeof tDocs>[0];
+    return tDocs.has(key) ? tDocs(key) : code;
+  };
+
   return (
     <div>
       <PageHeader
@@ -66,10 +71,7 @@ export default async function DashboardPage({
           noActivity: t('summary.noActivity'),
           error: t('summary.error'),
         }}
-        typeName={(code) => {
-          const key = `types.${code}.name` as Parameters<typeof tDocs>[0];
-          return tDocs.has(key) ? tDocs(key) : code;
-        }}
+        typeName={typeName}
       />
 
       <div className="mb-3 flex items-center justify-between gap-3">
@@ -86,8 +88,10 @@ export default async function DashboardPage({
         documents={documents}
         fetchError={fetchError}
         from="dashboard"
+        typeName={typeName}
         labels={{
           sequential: t('table.sequential'),
+          type: t('table.type'),
           buyer: t('table.buyer'),
           date: t('table.date'),
           total: t('table.total'),

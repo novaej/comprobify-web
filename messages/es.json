@@ -105,6 +105,7 @@
     },
     "table": {
       "sequential": "Número",
+      "type": "Tipo",
       "buyer": "Cliente",
       "total": "Total",
       "status": "Estado",

@@ -16,6 +16,7 @@ import type { Document, DocumentSortField } from '@/lib/api';
 
 interface DocumentTableLabels {
   sequential: string;
+  type?: string;
   buyer: string;
   date: string;
   total: string;
@@ -41,6 +42,11 @@ interface DocumentTableProps {
   labels: DocumentTableLabels;
   from?: string;
   sort?: DocumentTableSort;
+  // Resolves a documentType code (e.g. "01") to its display name. Omit to hide the
+  // "Tipo" column entirely — used on /documents/[type], where every row already shares
+  // the same type and the column would be redundant; the dashboard's mixed-type preview
+  // passes it in.
+  typeName?: (code: string) => string;
 }
 
 function SortableHead({
@@ -88,13 +94,20 @@ export function DocumentTable({
   labels,
   from,
   sort,
+  typeName,
 }: DocumentTableProps) {
+  const columnCount = typeName ? 7 : 6;
   return (
     <div className="rounded-xl border border-border bg-card shadow-sm overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/40 hover:bg-muted/40">
             <SortableHead field="sequential" label={labels.sequential} className="pl-4" sort={sort} />
+            {typeName && (
+              <TableHead className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {labels.type}
+              </TableHead>
+            )}
             <SortableHead field="buyerName" label={labels.buyer} sort={sort} />
             <SortableHead field="issueDate" label={labels.date} sort={sort} />
             <TableHead className="text-right text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -109,13 +122,13 @@ export function DocumentTable({
         <TableBody>
           {fetchError ? (
             <TableRow className="hover:bg-transparent">
-              <TableCell colSpan={6} className="py-16 text-center text-sm text-destructive">
+              <TableCell colSpan={columnCount} className="py-16 text-center text-sm text-destructive">
                 {labels.error}
               </TableCell>
             </TableRow>
           ) : documents.length === 0 ? (
             <TableRow className="hover:bg-transparent">
-              <TableCell colSpan={6} className="py-16 text-center text-sm text-muted-foreground">
+              <TableCell colSpan={columnCount} className="py-16 text-center text-sm text-muted-foreground">
                 {hasActiveFilters ? labels.emptyFiltered ?? labels.empty : labels.empty}
               </TableCell>
             </TableRow>
@@ -130,6 +143,9 @@ export function DocumentTable({
                     {doc.sequential}
                   </Link>
                 </TableCell>
+                {typeName && (
+                  <TableCell className="text-sm text-muted-foreground">{typeName(doc.documentType)}</TableCell>
+                )}
                 <TableCell className="text-sm">{doc.buyer.name}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{doc.issueDate}</TableCell>
                 <TableCell className="text-right text-sm font-medium">${doc.total}</TableCell>
