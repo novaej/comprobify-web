@@ -11,7 +11,7 @@ Two long-lived branches map to deployed environments. They are **automation-owne
       │                     │                                       │                          │
       │  PR + merge         │                                       │                          │
       │────────────────────▶│                                       │                          │
-      │                     │  git tag vX.Y.Z + push                │                          │
+      │                     │  bump version (PR) → tag merge commit │                          │
       │                     │── release-staging.yml (ff-merge) ────▶│                          │
       │                     │                                       │                          │
       │                     │  publish GitHub Release from the tag  │                          │
@@ -65,16 +65,23 @@ git branch -d feature/my-feature
 
 ### Release to staging
 
-Tag the commit on `main` you want to promote — this is the only manual step; the workflow handles the rest.
+Every commit on `main` is a merged PR (often squash-merged, so the SHA on `main` differs from any local commit you made on the branch). That means **`npm version`'s built-in commit+tag step cannot run directly on `main`** — it would push a version-bump commit straight to `main`, bypassing review, and the tag would point at a commit that PR review never saw. `package.json`'s version and the git tag must move together, so bump it the same way every other change ships, then tag the result:
 
-```bash
-git checkout main
-git pull origin main
-git tag v1.4.0
-git push origin v1.4.0
-```
+1. Branch off `main`: `git checkout -b chore/release`
+2. Bump the version **without** letting npm create its own commit/tag: `npm --no-git-tag-version version <patch|minor|major>` (updates `package.json` + `package-lock.json` only)
+3. In the same branch, rename `CHANGELOG.md`'s `## [Unreleased]` header to `## [X.Y.Z] — <today's date>` (matching the version just written) and start a fresh empty `## [Unreleased]` above it
+4. Commit (`chore: bump version to X.Y.Z`), open a PR, merge it like any other change
+5. **After** that PR is merged, pull `main`, then tag the resulting merge commit directly — not the commit you made on the branch:
+   ```bash
+   git checkout main
+   git pull origin main
+   git tag -a vX.Y.Z -m vX.Y.Z
+   git push origin vX.Y.Z
+   ```
 
-`release-staging.yml` fast-forwards `staging` to `v1.4.0` and pushes it; Vercel's Git integration picks up the push and deploys automatically. Use semantic versioning (`vMAJOR.MINOR.PATCH`) so it's obvious at a glance whether a tag is a feature release (`v1.5.0`) or a hotfix (`v1.4.1`).
+`release-staging.yml` fast-forwards `staging` to `vX.Y.Z` and pushes it; Vercel's Git integration picks up the push and deploys automatically. Use semantic versioning (`vMAJOR.MINOR.PATCH`) so it's obvious at a glance whether a tag is a feature release (`v1.5.0`) or a hotfix (`v1.4.1`).
+
+The tag still tracks `package.json`'s version — there's just a merge step between bumping it and tagging it, because the squash-merge changes the commit SHA. **Never push a follow-up commit to `main` that changes the version after a tag is created** — that would leave the tagged commit's `package.json` permanently out of sync with its own tag name, and would race with `staging` already having been fast-forwarded to it. If `package.json`'s version and the latest git tag ever drift apart, fix it with a manual one-off sync commit (`chore:`), then resume this sequence for every release after that.
 
 ### Promote to production
 
@@ -82,7 +89,7 @@ Once the tag has been validated in staging, promotion is a single deliberate act
 
 1. GitHub UI → **Releases → Draft a new release**
 2. Choose the existing tag (e.g. `v1.4.0`) — do not create a new one
-3. (Optional) generate release notes from the commits since the previous tag — this doubles as the changelog entry, since the publish event *is* the production-ship event
+3. Paste in that version's section from `CHANGELOG.md` as the release notes (it was already written when the version was bumped — see "Release to staging" above) — no need to regenerate from commits
 4. Click **Publish release**
 
 `release-production.yml` then fast-forwards `production` to that commit; Vercel deploys it automatically.
@@ -101,10 +108,19 @@ git checkout -b hotfix/payment-bug production   # or `staging`, until production
 git checkout -b fix/payment-rounding hotfix/payment-bug
 # ...fix, commit, push, open PR: fix/payment-rounding → hotfix/payment-bug, review + merge...
 
-# 3. Tag the merged result — this feeds the same release pipeline
+# 3. Bump the patch version on another sub-branch off the hotfix branch — same rule as a
+#    regular release: never let npm tag/commit directly on a branch that gets squash-merged
+git checkout -b chore/release hotfix/payment-bug
+npm --no-git-tag-version version patch
+# rename CHANGELOG.md's `## [Unreleased]` to `## [X.Y.Z] — <today>`, start a fresh `## [Unreleased]`
+git add package.json package-lock.json CHANGELOG.md
+git commit -m "chore: bump version to X.Y.Z"
+# ...open PR: chore/release → hotfix/payment-bug, review + merge...
+
+# 4. Tag the merged result — this feeds the same release pipeline
 git checkout hotfix/payment-bug
 git pull origin hotfix/payment-bug
-git tag v1.4.1
+git tag -a v1.4.1 -m v1.4.1
 git push origin v1.4.1
 ```
 
