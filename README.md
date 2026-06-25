@@ -33,7 +33,8 @@ All Comprobify API calls happen server-side (BFF pattern). The API key is never 
 |---|---|
 | `/es/dashboard` | Invoice list + summary |
 | `/es/invoices/new` | Create invoice form |
-| `/es/invoices/:key` | Invoice detail + actions |
+| `/es/credit-notes/new` | Create credit note (Nota de Crédito) form |
+| `/es/invoices/:key` | Invoice/credit-note detail + actions |
 | `/es/settings` | Issuer info + API key reveal |
 
 ## Getting started

@@ -68,6 +68,8 @@ If `getDocumentStats()` fails, all three cards show an inline error message inst
 
 Capped to 10 rows (`listDocuments(apiCtx, { limit: 10 })`) — this is a preview, not a paginated list. A "Ver todos" link next to the "Comprobantes recientes" heading routes to `/documents` (the full Comprobantes hub), which is where users browse the complete, paginated list per document type via `src/app/[locale]/documents/[type]/page.tsx` and `src/components/document-pagination.tsx`.
 
+Rendered by the shared `<DocumentTable>` (`src/components/document-table.tsx`, also used by `/documents/[type]`). Each `AUTHORIZED` row has an "Acciones" column with two icon buttons — download PDF (RIDE) and download XML — linking to the same `/api/documents/:key/ride`/`xml` routes used on Invoice Detail. `RECEIVED` rows instead show a "Verificar autorización" button (`<DocumentRowAction>`); the two are mutually exclusive since a document is never both statuses at once.
+
 ---
 
 ## Status badge colors

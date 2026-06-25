@@ -161,6 +161,8 @@ messages/
 
 **Document list pagination:** `/documents/[type]` (e.g. `/documents/01`) is the canonical full list for a document type and does paginate, via the generic `<DocumentPagination>` component (`src/components/document-pagination.tsx`) reading/writing a `?page=` query param. The Comprobify API's `GET /v1/documents` only returns `pagination: { total, page, limit }` — **no `totalPages` field exists in the response.** Derive it with the exported `getTotalPages({ total, limit })` helper (`Math.ceil(total / limit)`, floored at 1) rather than expecting the API to provide it. See Common Mistake #25.
 
+**`DocumentTable` is shared by two screens:** `/documents/[type]` and the dashboard's recent-documents preview both render `src/components/document-table.tsx` — there is no per-screen copy. Its `labels` prop is a single object with no optional fields beyond `emptyFiltered`/`actions`, so adding a column (e.g. the "Acciones" PDF/XML download buttons, gated on `doc.status === 'AUTHORIZED'`) requires updating **both** call sites' `labels={{ ... }}` construction in `documents/[type]/page.tsx` and `dashboard/page.tsx` — TypeScript will error on a missing required label key at either site, which is the intended guardrail against shipping a half-updated table.
+
 **Sandbox mode:** The `environment` column on the `tenants` table (`'sandbox'` | `'production'`) drives the yellow `SandboxBanner` and the environment badge in Settings. It starts as `'sandbox'` and is flipped to `'production'` once on promotion. There is no `COMPROBIFY_SANDBOX` env var — sandbox state is per-tenant, not global.
 
 **Error handling:** The Comprobify API returns RFC 7807 Problem Details on all errors. `ApiError` in `src/lib/errors.ts` wraps these. In Server Actions, catch `ApiError` and pass `error.code` to the i18n `apiError` namespace for user-friendly messages.
@@ -353,6 +355,7 @@ This project runs Next.js **16** (not 13-15). Key differences from older version
 | `src/components/product-catalog.tsx` | Client Component — product catalog CRUD table with add/edit/delete dialogs |
 | `src/components/dashboard-summary-cards.tsx` | Issued-this-month / net revenue / needs-attention KPI cards on `/dashboard`, fed by `getDocumentStats()` |
 | `src/components/document-pagination.tsx` | Previous/Next pager for `/documents/[type]`; exports `getTotalPages()` since the API never returns a `totalPages` field |
+| `src/components/document-table.tsx` | Shared by `/documents/[type]` and the dashboard's recent-documents preview — no per-screen copy; sortable headers, status badges, and an "Acciones" column (PDF/XML download for `AUTHORIZED`, "Verificar autorización" via `<DocumentRowAction>` for `RECEIVED`) |
 | `src/app/api/documents/[key]/status/route.ts` | Proxy for TanStack Query polling |
 | `messages/es.json` | Spanish translations (default — always complete) |
 | `messages/en.json` | English translations (secondary — kept in sync) |
