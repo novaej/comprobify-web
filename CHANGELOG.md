@@ -8,6 +8,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-06-24
+
 ### Added
 - **App version shown in the sidebar** — a small `v{version}` line below the user menu, reading `package.json`'s version directly (`src/app/[locale]/layout.tsx` imports it and passes it down as a prop) so it never has to be updated by hand or via an env var.
 - **Document type column on the dashboard's recent-documents table** — since that table mixes invoices, credit notes, and other types together (unlike `/documents/[type]`, which is already filtered to one type), each row now shows a "Tipo" column. `DocumentTable` (`src/components/document-table.tsx`) takes an optional `typeName` resolver prop to render it — omitted on `/documents/[type]` where it would be redundant.
