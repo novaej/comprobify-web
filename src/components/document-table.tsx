@@ -1,6 +1,7 @@
 import { Link } from '@/i18n/navigation';
 import { StatusBadge } from '@/components/status-badge';
 import { DocumentRowAction } from '@/components/document-row-action';
+import { buttonVariants } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -9,12 +10,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
+import { ChevronUp, ChevronDown, ChevronsUpDown, FileText, FileCode } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Document, DocumentSortField } from '@/lib/api';
 
 interface DocumentTableLabels {
   sequential: string;
+  type?: string;
   buyer: string;
   date: string;
   total: string;
@@ -22,6 +24,9 @@ interface DocumentTableLabels {
   empty: string;
   emptyFiltered?: string;
   error: string;
+  actions?: string;
+  downloadPdf: string;
+  downloadXml: string;
 }
 
 interface DocumentTableSort {
@@ -37,6 +42,11 @@ interface DocumentTableProps {
   labels: DocumentTableLabels;
   from?: string;
   sort?: DocumentTableSort;
+  // Resolves a documentType code (e.g. "01") to its display name. Omit to hide the
+  // "Tipo" column entirely — used on /documents/[type], where every row already shares
+  // the same type and the column would be redundant; the dashboard's mixed-type preview
+  // passes it in.
+  typeName?: (code: string) => string;
 }
 
 function SortableHead({
@@ -84,32 +94,41 @@ export function DocumentTable({
   labels,
   from,
   sort,
+  typeName,
 }: DocumentTableProps) {
+  const columnCount = typeName ? 7 : 6;
   return (
     <div className="rounded-xl border border-border bg-card shadow-sm overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/40 hover:bg-muted/40">
             <SortableHead field="sequential" label={labels.sequential} className="pl-4" sort={sort} />
+            {typeName && (
+              <TableHead className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {labels.type}
+              </TableHead>
+            )}
             <SortableHead field="buyerName" label={labels.buyer} sort={sort} />
             <SortableHead field="issueDate" label={labels.date} sort={sort} />
             <TableHead className="text-right text-xs font-medium uppercase tracking-wide text-muted-foreground">
               {labels.total}
             </TableHead>
             <SortableHead field="status" label={labels.status} sort={sort} />
-            <TableHead className="pr-4" />
+            <TableHead className="pr-4 text-right text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {labels.actions}
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {fetchError ? (
             <TableRow className="hover:bg-transparent">
-              <TableCell colSpan={6} className="py-16 text-center text-sm text-destructive">
+              <TableCell colSpan={columnCount} className="py-16 text-center text-sm text-destructive">
                 {labels.error}
               </TableCell>
             </TableRow>
           ) : documents.length === 0 ? (
             <TableRow className="hover:bg-transparent">
-              <TableCell colSpan={6} className="py-16 text-center text-sm text-muted-foreground">
+              <TableCell colSpan={columnCount} className="py-16 text-center text-sm text-muted-foreground">
                 {hasActiveFilters ? labels.emptyFiltered ?? labels.empty : labels.empty}
               </TableCell>
             </TableRow>
@@ -124,6 +143,9 @@ export function DocumentTable({
                     {doc.sequential}
                   </Link>
                 </TableCell>
+                {typeName && (
+                  <TableCell className="text-sm text-muted-foreground">{typeName(doc.documentType)}</TableCell>
+                )}
                 <TableCell className="text-sm">{doc.buyer.name}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{doc.issueDate}</TableCell>
                 <TableCell className="text-right text-sm font-medium">${doc.total}</TableCell>
@@ -131,7 +153,31 @@ export function DocumentTable({
                   <StatusBadge status={doc.status} />
                 </TableCell>
                 <TableCell className="pr-4 text-right">
-                  <DocumentRowAction accessKey={doc.accessKey} status={doc.status} />
+                  <div className="flex items-center justify-end gap-1">
+                    {doc.status === 'AUTHORIZED' && (
+                      <>
+                        <a
+                          href={`/api/documents/${doc.accessKey}/ride`}
+                          download
+                          title={labels.downloadPdf}
+                          aria-label={labels.downloadPdf}
+                          className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'h-8 w-8')}
+                        >
+                          <FileText className="h-4 w-4" />
+                        </a>
+                        <a
+                          href={`/api/documents/${doc.accessKey}/xml`}
+                          download
+                          title={labels.downloadXml}
+                          aria-label={labels.downloadXml}
+                          className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'h-8 w-8')}
+                        >
+                          <FileCode className="h-4 w-4" />
+                        </a>
+                      </>
+                    )}
+                    <DocumentRowAction accessKey={doc.accessKey} status={doc.status} />
+                  </div>
                 </TableCell>
               </TableRow>
             ))

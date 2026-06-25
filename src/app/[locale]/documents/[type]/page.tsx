@@ -12,6 +12,7 @@ import type { Document, Pagination, DocumentSortField, DocumentStatus } from '@/
 
 const CREATE_HREFS: Record<string, string> = {
   '01': '/invoices/new',
+  '04': '/credit-notes/new',
 };
 
 const PAGE_SIZE = 20;
@@ -152,6 +153,9 @@ export default async function DocumentListPage({
           empty: t('list.empty'),
           emptyFiltered: t('list.emptyFiltered'),
           error: t('list.error'),
+          actions: t('list.table.actions'),
+          downloadPdf: t('list.table.downloadPdf'),
+          downloadXml: t('list.table.downloadXml'),
         }}
       />
 

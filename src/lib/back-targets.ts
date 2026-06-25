@@ -8,6 +8,7 @@ export const BACK_TARGETS = {
   dashboard: { href: '/dashboard', namespace: 'dashboard', key: 'title' },
   documents: { href: '/documents', namespace: 'documents', key: 'title' },
   'documents-01': { href: '/documents/01', namespace: 'documents', key: 'types.01.name' },
+  'documents-04': { href: '/documents/04', namespace: 'documents', key: 'types.04.name' },
 } as const;
 
 export type BackTargetKey = keyof typeof BACK_TARGETS;

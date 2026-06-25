@@ -2,7 +2,7 @@
 
 import { getLocale } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
-import { createDocument, rebuildDocument, sendToSri, checkAuthorization, CreateDocumentPayload } from '@/lib/api';
+import { createDocument, rebuildDocument, sendToSri, checkAuthorization, type CreateInvoicePayload } from '@/lib/api';
 import { ApiError } from '@/lib/errors';
 import { requireContext } from '@/lib/context';
 import type { BackTargetKey } from '@/lib/back-targets';
@@ -50,7 +50,7 @@ const TAX_MAP: Record<TaxOption, { code: string; rateCode: string; rate: string 
 
 export type CreateInvoiceResult = { error: string } | null;
 
-function buildCreateDocumentPayload(data: InvoiceFormData): CreateDocumentPayload {
+function buildCreateDocumentPayload(data: InvoiceFormData): CreateInvoicePayload {
   return {
     documentType: '01',
     ...(data.guiaRemision ? { guiaRemision: data.guiaRemision } : {}),

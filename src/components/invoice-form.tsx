@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useTransition, useEffect, useMemo, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import { useState, useTransition, useEffect, useMemo } from 'react';
 import { useForm, useFieldArray, useWatch, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -30,7 +29,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { createInvoiceAction, rebuildInvoiceAction, type InvoiceFormData } from '@/app/actions/invoice';
-import type { CreateDocumentPayload } from '@/lib/api';
+import type { CreateInvoicePayload } from '@/lib/api';
+import { ProductSearch } from '@/components/product-search';
 import {
   saveInvoiceTemplateAction,
   deleteInvoiceTemplateAction,
@@ -38,7 +38,6 @@ import {
 } from '@/app/actions/templates';
 import { Link } from '@/i18n/navigation';
 import type { InvoiceCatalogs } from '@/app/[locale]/invoices/new/page';
-import type { CatalogProduct } from '@/app/actions/catalog';
 import type { SavedClient } from '@/app/actions/clients';
 import type { BackTargetKey } from '@/lib/back-targets';
 
@@ -172,7 +171,7 @@ function templateToFormValues(data: InvoiceFormData): InvoiceFormValues {
 // document's requestPayload (the exact body it was created/last rebuilt with) back
 // into form values, to pre-fill the rebuild form. Each item only ever has one tax
 // entry (see buildCreateDocumentPayload), so taxOption is recovered directly from it.
-function requestPayloadToFormValues(payload: CreateDocumentPayload): InvoiceFormValues {
+function requestPayloadToFormValues(payload: CreateInvoicePayload): InvoiceFormValues {
   return {
     guiaRemision: payload.guiaRemision ?? '',
     buyer: {
@@ -239,76 +238,6 @@ function computeTotals(items: InvoiceFormValues['items']): Totals {
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function ProductSearch({
-  value,
-  onChange,
-  onSelect,
-  products,
-  className,
-  'aria-invalid': ariaInvalid,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  onSelect: (p: CatalogProduct) => void;
-  products: CatalogProduct[];
-  className?: string;
-  'aria-invalid'?: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
-
-  const updatePos = () => {
-    if (inputRef.current) {
-      const r = inputRef.current.getBoundingClientRect();
-      setPos({ top: r.bottom + 2, left: r.left });
-    }
-  };
-
-  const filtered = value.trim().length > 0
-    ? products
-        .filter(
-          (p) =>
-            p.mainCode.toLowerCase().includes(value.toLowerCase()) ||
-            p.description.toLowerCase().includes(value.toLowerCase()),
-        )
-        .slice(0, 7)
-    : [];
-
-  return (
-    <div className="relative">
-      <Input
-        ref={inputRef}
-        value={value}
-        onChange={(e) => { onChange(e.target.value); updatePos(); setOpen(true); }}
-        onFocus={() => { updatePos(); setOpen(true); }}
-        onBlur={() => setTimeout(() => setOpen(false), 150)}
-        className={className}
-        aria-invalid={ariaInvalid}
-      />
-      {open && filtered.length > 0 && pos && createPortal(
-        <div
-          className="fixed z-50 min-w-[220px] rounded-md border bg-popover shadow-md"
-          style={{ top: pos.top, left: pos.left }}
-        >
-          {filtered.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              className="flex w-full flex-col px-3 py-2 text-left hover:bg-muted"
-              onMouseDown={() => { onSelect(p); setOpen(false); }}
-            >
-              <span className="font-mono text-xs font-medium">{p.mainCode}</span>
-              <span className="truncate text-xs text-muted-foreground">{p.description}</span>
-            </button>
-          ))}
-        </div>,
-        document.body,
-      )}
-    </div>
-  );
-}
-
 function TotalsRow({ label, value }: { label: string; value: number }) {
   return (
     <div className="flex justify-between">
@@ -322,7 +251,7 @@ function TotalsRow({ label, value }: { label: string; value: number }) {
 
 interface RebuildSource {
   accessKey: string;
-  payload: CreateDocumentPayload;
+  payload: CreateInvoicePayload;
   issueDate: string;
 }
 

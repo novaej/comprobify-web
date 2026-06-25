@@ -1,5 +1,5 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, ArrowRight } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { getDocument, getDocumentEvents } from '@/lib/api';
 import { requireContext } from '@/lib/context';
@@ -8,7 +8,6 @@ import { notFound } from 'next/navigation';
 import { StatusBadge } from '@/components/status-badge';
 import { InvoiceActions } from '@/components/invoice-actions';
 import { InvoicePolling } from '@/components/invoice-polling';
-import { InvoicePdfPreviewToggle } from '@/components/invoice-pdf-preview-toggle';
 import {
   Table,
   TableBody,
@@ -19,18 +18,7 @@ import {
 } from '@/components/ui/table';
 import { AccessKeyCopy } from '@/components/access-key-copy';
 import { BACK_TARGETS, isBackTargetKey, type BackTargetKey } from '@/lib/back-targets';
-import type { DocumentEvent } from '@/lib/api';
-
-function formatEventDetail(detail: DocumentEvent['detail']): string {
-  if (!detail || Object.keys(detail).length === 0) return '—';
-  if (typeof detail.message === 'string') return detail.message;
-  if (typeof detail.error === 'string') return detail.error;
-  if (typeof detail.to === 'string') return detail.to;
-  if (typeof detail.authorizationNumber === 'string') return detail.authorizationNumber;
-  if (typeof detail.sriStatus === 'string') return detail.sriStatus;
-  if (typeof detail.accessKey === 'string') return detail.accessKey;
-  return JSON.stringify(detail);
-}
+import { describeDocumentEvent } from '@/lib/event-description';
 
 export default async function InvoiceDetailPage({
   params,
@@ -155,24 +143,31 @@ export default async function InvoiceDetailPage({
         <InvoicePolling accessKey={document.accessKey} />
       )}
 
-      {/* Action buttons */}
-      <InvoiceActions accessKey={document.accessKey} status={document.status} from={backTargetKey} />
-
-      {/* PDF preview */}
-      {document.status === 'AUTHORIZED' && (
-        <InvoicePdfPreviewToggle accessKey={document.accessKey} />
-      )}
+      {/* Action buttons (includes inline PDF preview toggle for AUTHORIZED) */}
+      <InvoiceActions
+        accessKey={document.accessKey}
+        status={document.status}
+        documentType={document.documentType}
+        from={backTargetKey}
+      />
 
       {/* Events timeline */}
       {events.length > 0 && (
         <div>
           <h2 className="mb-3 text-sm font-semibold">{t('events.title')}</h2>
-          <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+          <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/40 hover:bg-muted/40">
                   <TableHead className="pl-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     {t('events.type')}
+                  </TableHead>
+                  <TableHead className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {t('events.from')}
+                  </TableHead>
+                  <TableHead className="text-xs font-medium uppercase tracking-wide text-muted-foreground"></TableHead>
+                  <TableHead className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {t('events.to')}
                   </TableHead>
                   <TableHead className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     {t('events.date')}
@@ -183,21 +178,43 @@ export default async function InvoiceDetailPage({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {events.map((event) => (
-                  <TableRow key={event.id}>
-                    <TableCell className="pl-4 text-sm">
-                      {t.has(`eventTypes.${event.eventType}` as Parameters<typeof t>[0])
-                        ? t(`eventTypes.${event.eventType}` as Parameters<typeof t>[0])
-                        : event.eventType}
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                      {new Date(event.createdAt).toLocaleString('es-EC')}
-                    </TableCell>
-                    <TableCell className="pr-4 text-xs text-muted-foreground">
-                      {formatEventDetail(event.detail)}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {events.map((event) => {
+                  const desc = describeDocumentEvent(event, t);
+                  const isAuthorizationNumber = event.eventType === 'STATUS_CHANGED' && desc.detail && event.toStatus === 'AUTHORIZED';
+                  return (
+                    <TableRow key={event.id}>
+                      <TableCell className="pl-4 text-sm font-medium">{desc.title}</TableCell>
+                      <TableCell>
+                        {desc.transition?.from ? <StatusBadge status={desc.transition.from} /> : <span className="text-xs text-muted-foreground">—</span>}
+                      </TableCell>
+                      <TableCell className="px-0">
+                        {desc.transition && desc.transition.from && desc.transition.to && (
+                          <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {desc.transition?.to ? <StatusBadge status={desc.transition.to} /> : <span className="text-xs text-muted-foreground">—</span>}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                        {new Date(event.createdAt).toLocaleString('es-EC')}
+                      </TableCell>
+                      <TableCell className="pr-4 text-xs text-muted-foreground">
+                        {desc.detail ? (
+                          isAuthorizationNumber ? (
+                            <div className="flex items-center gap-1">
+                              <span className="font-mono break-all">{desc.detail}</span>
+                              <AccessKeyCopy value={desc.detail} />
+                            </div>
+                          ) : (
+                            desc.detail
+                          )
+                        ) : (
+                          '—'
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>

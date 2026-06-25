@@ -13,7 +13,7 @@ import {
   type CatalogPaymentMethod,
   type CatalogTaxRate,
   type CatalogTermUnit,
-  type CreateDocumentPayload,
+  type CreateInvoicePayload,
 } from '@/lib/api';
 import type { CatalogProduct } from '@/app/actions/catalog';
 import type { SavedClient } from '@/app/actions/clients';
@@ -55,11 +55,15 @@ export default async function NewInvoicePage({
   // Rebuild mode: pre-fill the form from an existing RETURNED/NOT_AUTHORIZED document's
   // requestPayload. Any failure (not found, wrong status, no requestPayload) silently
   // falls back to a normal blank create form rather than erroring the whole page.
-  let rebuildFrom: { accessKey: string; payload: CreateDocumentPayload; issueDate: string } | undefined;
+  let rebuildFrom: { accessKey: string; payload: CreateInvoicePayload; issueDate: string } | undefined;
   if (rebuild) {
     try {
       const document = await getDocument(apiCtx, rebuild);
-      if (REBUILDABLE_STATUSES.includes(document.status) && document.requestPayload) {
+      if (
+        REBUILDABLE_STATUSES.includes(document.status) &&
+        document.requestPayload &&
+        document.requestPayload.documentType === '01'
+      ) {
         rebuildFrom = {
           accessKey: document.accessKey,
           payload: document.requestPayload,

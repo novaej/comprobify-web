@@ -105,12 +105,16 @@
     },
     "table": {
       "sequential": "Número",
+      "type": "Tipo",
       "buyer": "Cliente",
       "total": "Total",
       "status": "Estado",
       "date": "Fecha",
       "empty": "No hay comprobantes aún.",
-      "error": "No se pudo cargar la lista de comprobantes. Verifica que el servicio esté disponible."
+      "error": "No se pudo cargar la lista de comprobantes. Verifica que el servicio esté disponible.",
+      "actions": "Acciones",
+      "downloadPdf": "Descargar PDF (RIDE)",
+      "downloadXml": "Descargar XML"
     }
   },
   "documents": {
@@ -159,7 +163,10 @@
         "buyer": "Cliente",
         "total": "Total",
         "status": "Estado",
-        "date": "Fecha"
+        "date": "Fecha",
+        "actions": "Acciones",
+        "downloadPdf": "Descargar PDF (RIDE)",
+        "downloadXml": "Descargar XML"
       },
       "pagination": {
         "previous": "Anterior",
@@ -312,6 +319,102 @@
       "total": "Valor a pagar"
     }
   },
+  "creditNoteForm": {
+    "title": "Nueva nota de crédito",
+    "rebuildTitle": "Corregir nota de crédito",
+    "submit": "Firmar y Enviar",
+    "signOnly": "Firmar",
+    "submitRebuild": "Corregir y Enviar",
+    "signOnlyRebuild": "Corregir",
+    "submitting": "Enviando...",
+    "signingOnly": "Firmando...",
+    "submittingRebuild": "Corrigiendo y enviando...",
+    "signingOnlyRebuild": "Corrigiendo...",
+    "confirm": {
+      "title": "Enviar al SRI",
+      "description": "La nota de crédito será generada, firmada y enviada al Servicio de Rentas Internas (SRI) para su autorización. El proceso continuará automáticamente hasta completarse.",
+      "cancel": "Cancelar",
+      "submit": "Firmar y Enviar"
+    },
+    "confirmSignOnly": {
+      "title": "Firmar nota de crédito",
+      "description": "La nota de crédito será generada y firmada, pero no se enviará al SRI todavía. Podrás enviarla más tarde desde el detalle del comprobante.",
+      "cancel": "Cancelar",
+      "submit": "Firmar"
+    },
+    "confirmRebuild": {
+      "title": "Corregir y enviar al SRI",
+      "description": "La nota de crédito será corregida, firmada nuevamente y reenviada al Servicio de Rentas Internas (SRI) para su autorización. El número de comprobante y la clave de acceso no cambian.",
+      "cancel": "Cancelar",
+      "submit": "Corregir y Enviar"
+    },
+    "confirmRebuildSignOnly": {
+      "title": "Corregir nota de crédito",
+      "description": "La nota de crédito será corregida y firmada nuevamente, pero no se enviará al SRI todavía. Podrás enviarla más tarde desde el detalle del comprobante.",
+      "cancel": "Cancelar",
+      "submit": "Corregir"
+    },
+    "issueDate": "Fecha de emisión",
+    "originalDocument": {
+      "title": "Comprobante a corregir",
+      "empty": "Aún no se ha seleccionado un comprobante.",
+      "search": "Buscar comprobante",
+      "searchPlaceholder": "Buscar por número de comprobante",
+      "searchEmpty": "No se encontraron facturas autorizadas. Intente otra búsqueda.",
+      "change": "Buscar otro",
+      "required": "Seleccione el comprobante a corregir",
+      "hint": "Solo se pueden seleccionar facturas creadas en este sistema. No es posible validar ni buscar comprobantes emitidos por otros sistemas.",
+      "total": "Total de la factura",
+      "remaining": "Saldo disponible para nota de crédito",
+      "exceedsRemaining": "El valor de esta nota de crédito supera el saldo disponible (${remaining}) de la factura original."
+    },
+    "buyer": {
+      "title": "Adquirente",
+      "lockedHint": "Estos datos provienen de la factura original y no se pueden modificar.",
+      "idType": "Tipo de identificación",
+      "id": "Identificación",
+      "name": "Razón social",
+      "email": "Correo electrónico",
+      "address": "Dirección",
+      "searchClient": "Buscar en clientes guardados"
+    },
+    "items": {
+      "title": "Detalle",
+      "add": "Agregar ítem",
+      "mainCode": "Cód. principal",
+      "auxCode": "Cód. auxiliar",
+      "description": "Descripción",
+      "quantity": "Cantidad",
+      "unitPrice": "P. unitario",
+      "discount": "Descuento",
+      "tax": "Tarifa",
+      "lineTotal": "Valor total"
+    },
+    "motivo": {
+      "title": "Motivo",
+      "placeholder": "p. ej. Devolución de mercadería por defecto de fabricación"
+    },
+    "totals": {
+      "title": "Totales",
+      "subtotalNoTax": "Subtotal sin impuestos",
+      "subtotal15": "Subtotal 15.00%",
+      "subtotal5": "Subtotal 5%",
+      "subtotal0": "Subtotal 0%",
+      "subtotalNoObj": "Subtotal no objeto de IVA",
+      "subtotalExempt": "Subtotal exento de IVA",
+      "totalDiscount": "Total descuento",
+      "iva15": "IVA 15%",
+      "iva5": "IVA 5%",
+      "total": "Valor a pagar"
+    },
+    "additionalInfo": {
+      "title": "Campos adicionales",
+      "add": "Añadir campo adicional",
+      "name": "Nombre",
+      "value": "Descripción",
+      "empty": "No existen campos adicionales"
+    }
+  },
   "invoiceDetail": {
     "notFound": "Comprobante no encontrado.",
     "accessKey": "Clave de acceso",
@@ -330,11 +433,12 @@
       "authorize": "Verificar autorización",
       "authorizing": "Verificando...",
       "rebuild": "Corregir",
-      "downloadPdf": "Descargar PDF (RIDE)",
+      "createCreditNote": "Crear nota de crédito",
       "downloadXml": "Descargar XML",
       "resendEmail": "Reenviar correo",
       "resendEmailSuccess": "Correo reenviado correctamente.",
       "sriErrors": "Ver errores SRI",
+      "moreActions": "Más acciones",
       "confirm": {
         "title": "Enviar al SRI",
         "description": "El comprobante será enviado al Servicio de Rentas Internas (SRI) para su autorización. El proceso continuará automáticamente hasta completarse.",
@@ -348,6 +452,7 @@
     },
     "pdfPreview": {
       "toggleLabel": "Vista previa PDF",
+      "download": "Descargar",
       "loading": "Cargando vista previa...",
       "error": "No se pudo cargar la vista previa del PDF.",
       "previous": "Anterior",
@@ -365,9 +470,25 @@
     "events": {
       "title": "Historial",
       "type": "Evento",
+      "from": "Estado anterior",
+      "to": "Estado nuevo",
       "date": "Fecha",
       "detail": "Detalle",
-      "empty": "Sin eventos registrados."
+      "empty": "Sin eventos registrados.",
+      "created": "Comprobante creado y firmado",
+      "rebuilt": "Comprobante corregido",
+      "sent": "Enviado al SRI",
+      "processing": "En procesamiento por el SRI",
+      "statusChangedAuthorized": "Autorizado por el SRI",
+      "statusChangedNotAuthorized": "No autorizado por el SRI",
+      "errorSend": "Error al enviar al SRI",
+      "errorAuthorize": "Error al verificar autorización",
+      "emailSent": "Correo enviado",
+      "emailResent": "Correo reenviado",
+      "emailFailed": "Error al enviar el correo",
+      "emailDelivered": "Correo entregado",
+      "emailTempFailed": "Error temporal al entregar el correo",
+      "emailComplained": "Correo marcado como spam"
     },
     "eventTypes": {
       "CREATED": "Creado",
@@ -478,6 +599,7 @@
     "DOCUMENT_TYPE_NOT_SUPPORTED": "Tipo de comprobante no soportado por el sistema.",
     "INVALID_STATE_TRANSITION": "La operación no es válida para el estado actual del comprobante.",
     "DOCUMENT_NOT_AUTHORIZED": "El comprobante aún no está autorizado. Esta operación requiere un comprobante autorizado.",
+    "CREDIT_NOTE_EXCEEDS_REMAINING": "El valor de la nota de crédito supera el saldo disponible de la factura original.",
     "CERTIFICATE_INVALID": "El archivo P12 no es válido o está dañado.",
     "CERTIFICATE_PASSWORD_INVALID": "La contraseña del certificado P12 es incorrecta.",
     "CERTIFICATE_KEY_NOT_FOUND": "No se encontró la clave de firma dentro del archivo P12.",
@@ -675,6 +797,12 @@
     },
     "addDocTypeSuccess": "Tipo de comprobante habilitado.",
     "removeDocTypeSuccess": "Tipo de comprobante deshabilitado.",
+    "confirmAddDocType": {
+      "title": "¿Habilitar tipo de comprobante?",
+      "description": "Se habilitará \"{docType}\" para este punto de emisión. Podrás emitir este tipo de comprobante de inmediato.",
+      "cancel": "Cancelar",
+      "submit": "Habilitar"
+    },
     "cert": {
       "title": "Certificado de firma",
       "expiresOn": "Expira el {date}",

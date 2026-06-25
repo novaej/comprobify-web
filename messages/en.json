@@ -105,12 +105,16 @@
     },
     "table": {
       "sequential": "Number",
+      "type": "Type",
       "buyer": "Customer",
       "total": "Total",
       "status": "Status",
       "date": "Date",
       "empty": "No documents yet.",
-      "error": "Could not load documents. Please check that the service is available."
+      "error": "Could not load documents. Please check that the service is available.",
+      "actions": "Actions",
+      "downloadPdf": "Download PDF (RIDE)",
+      "downloadXml": "Download XML"
     }
   },
   "documents": {
@@ -159,7 +163,10 @@
         "buyer": "Customer",
         "total": "Total",
         "status": "Status",
-        "date": "Date"
+        "date": "Date",
+        "actions": "Actions",
+        "downloadPdf": "Download PDF (RIDE)",
+        "downloadXml": "Download XML"
       },
       "pagination": {
         "previous": "Previous",
@@ -312,6 +319,102 @@
       "total": "Total due"
     }
   },
+  "creditNoteForm": {
+    "title": "New credit note",
+    "rebuildTitle": "Fix credit note",
+    "submit": "Sign & Send",
+    "signOnly": "Sign",
+    "submitRebuild": "Fix & Send",
+    "signOnlyRebuild": "Fix",
+    "submitting": "Sending...",
+    "signingOnly": "Signing...",
+    "submittingRebuild": "Fixing and sending...",
+    "signingOnlyRebuild": "Fixing...",
+    "confirm": {
+      "title": "Send to SRI",
+      "description": "The credit note will be created, signed, and submitted to the SRI (Servicio de Rentas Internas) for authorization. The process will continue automatically until complete.",
+      "cancel": "Cancel",
+      "submit": "Sign & Send"
+    },
+    "confirmSignOnly": {
+      "title": "Sign credit note",
+      "description": "The credit note will be created and signed, but not sent to the SRI yet. You can send it later from the document detail page.",
+      "cancel": "Cancel",
+      "submit": "Sign"
+    },
+    "confirmRebuild": {
+      "title": "Fix and send to SRI",
+      "description": "The credit note will be corrected, re-signed, and resubmitted to the SRI (Servicio de Rentas Internas) for authorization. The document number and access key stay the same.",
+      "cancel": "Cancel",
+      "submit": "Fix & Send"
+    },
+    "confirmRebuildSignOnly": {
+      "title": "Fix credit note",
+      "description": "The credit note will be corrected and re-signed, but not sent to the SRI yet. You can send it later from the document detail page.",
+      "cancel": "Cancel",
+      "submit": "Fix"
+    },
+    "issueDate": "Issue date",
+    "originalDocument": {
+      "title": "Document being credited",
+      "empty": "No document selected yet.",
+      "search": "Search document",
+      "searchPlaceholder": "Search by document number",
+      "searchEmpty": "No authorized invoices found. Try another search.",
+      "change": "Search another",
+      "required": "Select the document being credited",
+      "hint": "Only invoices created in this system can be selected. Documents issued by other systems cannot be looked up or validated here.",
+      "total": "Invoice total",
+      "remaining": "Remaining balance available for credit notes",
+      "exceedsRemaining": "This credit note's total exceeds the original invoice's remaining balance (${remaining})."
+    },
+    "buyer": {
+      "title": "Buyer",
+      "lockedHint": "This information comes from the original invoice and can't be changed.",
+      "idType": "ID type",
+      "id": "ID number",
+      "name": "Legal name",
+      "email": "Email address",
+      "address": "Address",
+      "searchClient": "Search saved clients"
+    },
+    "items": {
+      "title": "Line items",
+      "add": "Add item",
+      "mainCode": "Main code",
+      "auxCode": "Aux. code",
+      "description": "Description",
+      "quantity": "Qty",
+      "unitPrice": "Unit price",
+      "discount": "Discount",
+      "tax": "Rate",
+      "lineTotal": "Total"
+    },
+    "motivo": {
+      "title": "Reason",
+      "placeholder": "e.g. Return of goods due to a manufacturing defect"
+    },
+    "totals": {
+      "title": "Totals",
+      "subtotalNoTax": "Subtotal (excl. tax)",
+      "subtotal15": "Subtotal 15.00%",
+      "subtotal5": "Subtotal 5%",
+      "subtotal0": "Subtotal 0%",
+      "subtotalNoObj": "Subtotal not subject to VAT",
+      "subtotalExempt": "Subtotal VAT exempt",
+      "totalDiscount": "Total discount",
+      "iva15": "VAT 15%",
+      "iva5": "VAT 5%",
+      "total": "Total due"
+    },
+    "additionalInfo": {
+      "title": "Additional fields",
+      "add": "Add field",
+      "name": "Name",
+      "value": "Value",
+      "empty": "No additional fields"
+    }
+  },
   "invoiceDetail": {
     "notFound": "Document not found.",
     "accessKey": "Access key",
@@ -330,11 +433,12 @@
       "authorize": "Check authorization",
       "authorizing": "Checking...",
       "rebuild": "Fix",
-      "downloadPdf": "Download PDF (RIDE)",
+      "createCreditNote": "Create credit note",
       "downloadXml": "Download XML",
       "resendEmail": "Resend email",
       "resendEmailSuccess": "Email resent successfully.",
       "sriErrors": "View SRI errors",
+      "moreActions": "More actions",
       "confirm": {
         "title": "Send to SRI",
         "description": "The document will be submitted to the SRI (Servicio de Rentas Internas) for authorization. The process will continue automatically until complete.",
@@ -348,6 +452,7 @@
     },
     "pdfPreview": {
       "toggleLabel": "PDF Preview",
+      "download": "Download",
       "loading": "Loading preview...",
       "error": "Could not load the PDF preview.",
       "previous": "Previous",
@@ -365,9 +470,25 @@
     "events": {
       "title": "Event history",
       "type": "Event",
+      "from": "Previous status",
+      "to": "New status",
       "date": "Date",
       "detail": "Detail",
-      "empty": "No events recorded."
+      "empty": "No events recorded.",
+      "created": "Document created and signed",
+      "rebuilt": "Document corrected",
+      "sent": "Sent to SRI",
+      "processing": "Being processed by SRI",
+      "statusChangedAuthorized": "Authorized by SRI",
+      "statusChangedNotAuthorized": "Not authorized by SRI",
+      "errorSend": "Error sending to SRI",
+      "errorAuthorize": "Error checking authorization",
+      "emailSent": "Email sent",
+      "emailResent": "Email resent",
+      "emailFailed": "Error sending email",
+      "emailDelivered": "Email delivered",
+      "emailTempFailed": "Temporary error delivering email",
+      "emailComplained": "Email marked as spam"
     },
     "eventTypes": {
       "CREATED": "Created",
@@ -478,6 +599,7 @@
     "DOCUMENT_TYPE_NOT_SUPPORTED": "Document type not supported by the system.",
     "INVALID_STATE_TRANSITION": "This operation is not valid for the document's current status.",
     "DOCUMENT_NOT_AUTHORIZED": "The document is not yet authorized. This operation requires an authorized document.",
+    "CREDIT_NOTE_EXCEEDS_REMAINING": "The credit note amount exceeds the original invoice's remaining balance.",
     "CERTIFICATE_INVALID": "The P12 file is invalid or corrupted.",
     "CERTIFICATE_PASSWORD_INVALID": "The P12 certificate password is incorrect.",
     "CERTIFICATE_KEY_NOT_FOUND": "Signing key not found inside the P12 file.",
@@ -611,6 +733,12 @@
     },
     "addDocTypeSuccess": "Document type enabled.",
     "removeDocTypeSuccess": "Document type disabled.",
+    "confirmAddDocType": {
+      "title": "Enable document type?",
+      "description": "\"{docType}\" will be enabled for this branch. You'll be able to issue this document type right away.",
+      "cancel": "Cancel",
+      "submit": "Enable"
+    },
     "cert": {
       "title": "Signing certificate",
       "expiresOn": "Expires on {date}",

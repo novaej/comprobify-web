@@ -8,7 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
   Dialog,
+  DialogClose,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -189,8 +191,12 @@ export function IssuerManager({
   const [isPending, startTransition] = useTransition();
   const [logoTarget, setLogoTarget] = useState<number | null>(null);
   const [certTarget, setCertTarget] = useState<number | null>(null);
+  const [addTarget, setAddTarget] = useState<{ issuerId: number; code: string } | null>(null);
 
-  function handleAddType(issuerId: number, code: string) {
+  function handleAddType() {
+    if (!addTarget) return;
+    const { issuerId, code } = addTarget;
+    setAddTarget(null);
     startTransition(async () => {
       const result = await addDocumentTypeAction(issuerId, code);
       if (result?.error) {
@@ -287,7 +293,7 @@ export function IssuerManager({
                 {canManage && missing.map((code) => (
                   <button
                     key={code}
-                    onClick={() => handleAddType(issuer.id, code)}
+                    onClick={() => setAddTarget({ issuerId: issuer.id, code })}
                     disabled={isPending}
                     className="flex items-center gap-1 rounded-md border border-dashed border-border px-2.5 py-1 text-xs text-muted-foreground hover:border-primary hover:text-primary disabled:opacity-50"
                   >
@@ -316,6 +322,27 @@ export function IssuerManager({
           onOpenChange={(open) => { if (!open) setCertTarget(null); }}
         />
       )}
+
+      <Dialog open={addTarget !== null} onOpenChange={(open) => { if (!open) setAddTarget(null); }}>
+        <DialogContent showCloseButton={false} className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('confirmAddDocType.title')}</DialogTitle>
+            <DialogDescription>
+              {addTarget
+                ? t('confirmAddDocType.description', { docType: t(`docType.${addTarget.code}` as Parameters<typeof t>[0]) })
+                : null}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" />}>
+              {t('confirmAddDocType.cancel')}
+            </DialogClose>
+            <Button onClick={handleAddType} disabled={isPending}>
+              {t('confirmAddDocType.submit')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
