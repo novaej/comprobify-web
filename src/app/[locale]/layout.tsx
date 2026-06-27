@@ -49,6 +49,7 @@ async function getLayoutProps(userId: string): Promise<LayoutProps | null> {
           tradeName: true,
           environment: true,
           issuers: {
+            where: { active: true },
             orderBy: [{ isDefault: 'desc' as const }, { createdAt: 'asc' as const }],
             select: { id: true, apiIssuerId: true, businessName: true, tradeName: true, branchCode: true, issuePointCode: true },
           },

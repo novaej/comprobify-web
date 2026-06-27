@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { listIssuerDocumentTypes, listTenantIssuers } from '@/lib/api';
 import { PageHeader } from '@/components/page-header';
 import { IssuerManager } from '@/components/issuer-manager';
+import { CreateIssuerDialog } from '@/components/create-issuer-dialog';
 
 export default async function IssuersPage({
   params,
@@ -16,10 +17,14 @@ export default async function IssuersPage({
 
   const ctx = await requirePermission('issuers.read', { skipIssuer: true });
 
+  // Includes inactive issuers too, so a deactivated one can still be shown
+  // (greyed out) with a way to reactivate it — only active ones are eligible
+  // as a "source" to inherit from when creating a new branch/issue point.
   const issuers = await db.issuer.findMany({
     where: { tenantId: ctx.tenant.id },
-    orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
+    orderBy: [{ active: 'desc' }, { isDefault: 'desc' }, { createdAt: 'asc' }],
   });
+  const activeIssuers = issuers.filter((i) => i.active);
 
   const [documentTypesPerIssuer, apiIssuers] = await Promise.all([
     Promise.all(
@@ -44,7 +49,11 @@ export default async function IssuersPage({
 
   return (
     <div>
-      <PageHeader title={t('title')} description={t('description')} />
+      <PageHeader
+        title={t('title')}
+        description={t('description')}
+        action={canManage ? <CreateIssuerDialog issuers={activeIssuers} /> : undefined}
+      />
       <IssuerManager issuers={issuersWithTypes} canManage={canManage} />
     </div>
   );

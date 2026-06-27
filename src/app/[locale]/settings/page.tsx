@@ -26,7 +26,7 @@ export default async function SettingsPage({
   const canManageNotifications = ctx.permissions.has('notifications.manage');
 
   const defaultIssuer = await db.issuer.findFirst({
-    where: { tenantId },
+    where: { tenantId, active: true },
     orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
   });
   const hasIssuer = !!defaultIssuer;
