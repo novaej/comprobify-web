@@ -8,6 +8,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-06-27
+
 ### Added
 - **Full issuer CRUD on `/issuers`** — a "Nuevo emisor" dialog creates either a new branch or a new issue point under an existing branch (both go through the same `POST /v1/issuers`, distinguished by `branchCode` reuse), a new `/issuers/:id` edit page consolidates trade name/branch address editing, logo, and certificate renewal (moved off the list cards), and each card now has an Active/Inactive toggle for soft-delete/reactivate instead of a one-way delete. New `comprobify` endpoints: `PATCH /v1/issuers/:id` (trade name/branch address), `DELETE /v1/issuers/:id` (soft-delete, guarded against removing the last active issuer or one with documents), `PATCH /v1/issuers/:id/activate` (reactivate, re-checking plan tier limits). New local `Issuer.active` column, filtered everywhere a tenant's issuer set is resolved except `/issuers` itself, which shows both states so the toggle has something to act on.
 - **Manual sequential correction per document type/environment** — `/issuers/:id` shows each enabled document type's current/next sequential for sandbox and production side by side, with an edit dialog gated to whichever environment matches the tenant's current `environment` (editing the dormant one wouldn't affect any real document). Backed by new `GET`/`PATCH /v1/issuers/:id/sequentials[/:documentType]`, the latter rejecting a `nextSequential` that doesn't exceed the current value (`SEQUENTIAL_CANNOT_DECREASE`) under a `FOR UPDATE` lock so it can't race a concurrent document creation into a duplicate sequential.
