@@ -46,7 +46,7 @@ async function postLoginRedirect(email: string, locale: string): Promise<null> {
     select: {
       tenantId: true,
       inviteStatus: true,
-      tenant: { select: { _count: { select: { issuers: true } } } },
+      tenant: { select: { _count: { select: { issuers: { where: { active: true } } } } } },
     },
   });
 
@@ -71,7 +71,7 @@ async function postLoginRedirect(email: string, locale: string): Promise<null> {
 
   if (issuerCount === 1) {
     const issuer = await db.issuer.findFirst({
-      where: { tenantId: user.tenantId! },
+      where: { tenantId: user.tenantId!, active: true },
       select: { id: true },
     });
     if (issuer) await writeCtxCookie({ issuerId: issuer.id, v: 1 });

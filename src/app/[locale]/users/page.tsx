@@ -22,7 +22,7 @@ export default async function UsersPage({
       include: { issuerAccess: { select: { issuerId: true } } },
     }),
     db.issuer.findMany({
-      where: { tenantId: ctx.tenant.id },
+      where: { tenantId: ctx.tenant.id, active: true },
       orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
       select: { id: true, branchCode: true, issuePointCode: true, businessName: true, tradeName: true },
     }),

@@ -38,7 +38,7 @@ export async function promoteTenantAction(
   if (ctx.tenant.environment === 'production') return { error: 'ALREADY_PRODUCTION' };
 
   // Map sequentials to include apiIssuerId — use first/default issuer
-  const issuers = await db.issuer.findMany({ where: { tenantId: ctx.tenant.id } });
+  const issuers = await db.issuer.findMany({ where: { tenantId: ctx.tenant.id, active: true } });
   const apiSequentials = issuers.flatMap((issuer) =>
     initialSequentials.map((s) => ({
       issuerId: issuer.apiIssuerId,

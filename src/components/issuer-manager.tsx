@@ -1,11 +1,12 @@
 'use client';
 
-import { useRef, useState, useTransition } from 'react';
-import { useTranslations, useFormatter } from 'next-intl';
+import { useState, useTransition } from 'react';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { addDocumentTypeAction, removeDocumentTypeAction, updateIssuerLogoAction, renewIssuerCertificateAction } from '@/app/actions/issuers';
+import { Link } from '@/i18n/navigation';
+import { addDocumentTypeAction, removeDocumentTypeAction, removeIssuerAction, activateIssuerAction } from '@/app/actions/issuers';
+import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogClose,
@@ -15,9 +16,10 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Building2, Plus, X, ShieldCheck, AlertTriangle, AlertCircle, Image as ImageIcon, RefreshCw } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Building2, Plus, X, Pencil } from 'lucide-react';
+import { CertInfo } from '@/components/cert-info';
 import { toastApiError } from '@/lib/api-error-toast';
+import { cn } from '@/lib/utils';
 
 interface IssuerWithTypes {
   id: number;
@@ -26,6 +28,7 @@ interface IssuerWithTypes {
   businessName: string;
   tradeName: string | null;
   isDefault: boolean;
+  active: boolean;
   documentTypes: string[];
   certFingerprint: string | null;
   certExpiry: string | null;
@@ -33,154 +36,8 @@ interface IssuerWithTypes {
 
 const ALL_DOC_TYPES = ['01', '04', '05', '06', '07'];
 
-// Mirrors the thresholds in comprobify/src/services/notification.service.js
-const CERT_WARN_DAYS = 30;
-const CERT_ERROR_DAYS = 7;
-
-function CertInfo({ certFingerprint, certExpiry }: { certFingerprint: string | null; certExpiry: string | null }) {
-  const t = useTranslations('issuers');
-  const format = useFormatter();
-
-  if (!certFingerprint || !certExpiry) {
-    return <p className="text-xs text-muted-foreground">{t('cert.unavailable')}</p>;
-  }
-
-  const daysRemaining = Math.floor((new Date(certExpiry).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-  const status =
-    daysRemaining <= 0 ? 'expired' : daysRemaining <= CERT_ERROR_DAYS ? 'critical' : daysRemaining <= CERT_WARN_DAYS ? 'warning' : 'ok';
-
-  const Icon = status === 'ok' ? ShieldCheck : status === 'warning' ? AlertTriangle : AlertCircle;
-
-  return (
-    <div
-      className={cn(
-        'flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md border px-3 py-2 text-xs',
-        status === 'ok' && 'border-border bg-muted/40 text-muted-foreground',
-        status === 'warning' && 'border-amber-400/40 bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300',
-        (status === 'critical' || status === 'expired') && 'border-destructive/40 bg-destructive/5 text-destructive',
-      )}
-    >
-      <span className="flex items-center gap-1.5 font-medium">
-        <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
-        {status === 'expired'
-          ? t('cert.expired')
-          : t('cert.expiresOn', { date: format.dateTime(new Date(certExpiry), { dateStyle: 'medium' }) })}
-      </span>
-      <span className="font-mono opacity-80 break-all">{t('cert.fingerprint')}: {certFingerprint}</span>
-    </div>
-  );
-}
-
-function LogoDialog({ issuerId, open, onOpenChange }: { issuerId: number; open: boolean; onOpenChange: (open: boolean) => void }) {
-  const t = useTranslations('issuers');
-  const tError = useTranslations('apiError');
-  const [isPending, startTransition] = useTransition();
-  const [hasFile, setHasFile] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  function handleSubmit() {
-    const file = fileInputRef.current?.files?.[0];
-    if (!file) return;
-    const formData = new FormData();
-    formData.set('logo', file);
-    startTransition(async () => {
-      const result = await updateIssuerLogoAction(issuerId, formData);
-      if (result?.error) {
-        toastApiError(result.error, tError);
-      } else {
-        toast.success(t('logo.success'));
-        onOpenChange(false);
-      }
-    });
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>{t('logo.title')}</DialogTitle>
-        </DialogHeader>
-        <p className="text-xs text-muted-foreground">{t('logo.hint')}</p>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/png,image/jpeg,image/gif"
-          disabled={isPending}
-          onChange={(e) => setHasFile(!!e.target.files?.[0])}
-          className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-primary"
-        />
-        <DialogFooter>
-          <Button size="sm" onClick={handleSubmit} disabled={isPending || !hasFile}>
-            {isPending ? t('logo.uploading') : t('logo.upload')}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function CertRenewalDialog({ issuerId, open, onOpenChange }: { issuerId: number; open: boolean; onOpenChange: (open: boolean) => void }) {
-  const t = useTranslations('issuers');
-  const tError = useTranslations('apiError');
-  const [isPending, startTransition] = useTransition();
-  const [hasFile, setHasFile] = useState(false);
-  const [password, setPassword] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  function handleSubmit() {
-    const file = fileInputRef.current?.files?.[0];
-    if (!file) return;
-    const formData = new FormData();
-    formData.set('cert', file);
-    if (password) formData.set('certPassword', password);
-    startTransition(async () => {
-      const result = await renewIssuerCertificateAction(issuerId, formData);
-      if (result?.error) {
-        toastApiError(result.error, tError);
-      } else {
-        toast.success(t('cert.renewSuccess'));
-        onOpenChange(false);
-      }
-    });
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>{t('cert.renewTitle')}</DialogTitle>
-        </DialogHeader>
-        <p className="text-xs text-muted-foreground">{t('cert.renewHint')}</p>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".p12,.pfx,application/x-pkcs12"
-          disabled={isPending}
-          onChange={(e) => setHasFile(!!e.target.files?.[0])}
-          className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-primary"
-        />
-        <div className="space-y-1">
-          <Input
-            type="password"
-            placeholder={t('cert.passwordLabel')}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            disabled={isPending}
-          />
-          <p className="text-xs text-muted-foreground">{t('cert.passwordHint')}</p>
-        </div>
-        <DialogFooter>
-          <Button size="sm" onClick={handleSubmit} disabled={isPending || !hasFile}>
-            {isPending ? t('cert.renewing') : t('cert.renewSubmit')}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 export function IssuerManager({
-  issuers,
+  issuers: initialIssuers,
   canManage,
 }: {
   issuers: IssuerWithTypes[];
@@ -189,8 +46,7 @@ export function IssuerManager({
   const t = useTranslations('issuers');
   const tError = useTranslations('apiError');
   const [isPending, startTransition] = useTransition();
-  const [logoTarget, setLogoTarget] = useState<number | null>(null);
-  const [certTarget, setCertTarget] = useState<number | null>(null);
+  const [issuers, setIssuers] = useState<IssuerWithTypes[]>(initialIssuers);
   const [addTarget, setAddTarget] = useState<{ issuerId: number; code: string } | null>(null);
 
   function handleAddType() {
@@ -218,6 +74,24 @@ export function IssuerManager({
     });
   }
 
+  function handleToggleActive(issuerId: number, nextActive: boolean) {
+    setIssuers((prev) => prev.map((i) => (i.id === issuerId ? { ...i, active: nextActive } : i)));
+
+    startTransition(async () => {
+      const result = nextActive
+        ? await activateIssuerAction(issuerId)
+        : await removeIssuerAction(issuerId);
+
+      if (result?.error) {
+        // Revert optimistic update on error.
+        setIssuers((prev) => prev.map((i) => (i.id === issuerId ? { ...i, active: !nextActive } : i)));
+        toastApiError(result.error, tError);
+      } else {
+        toast.success(nextActive ? t('activateSuccess') : t('removeSuccess'));
+      }
+    });
+  }
+
   if (issuers.length === 0) {
     return <p className="text-sm text-muted-foreground">{t('empty')}</p>;
   }
@@ -227,8 +101,14 @@ export function IssuerManager({
       {issuers.map((issuer) => {
         const missing = ALL_DOC_TYPES.filter((c) => !issuer.documentTypes.includes(c));
         return (
-          <div key={issuer.id} className="rounded-xl border border-border bg-card p-5 shadow-sm">
-            <div className="flex items-start justify-between gap-3 mb-4">
+          <div
+            key={issuer.id}
+            className={cn(
+              'rounded-xl border border-border bg-card p-5 shadow-sm transition-opacity',
+              !issuer.active && 'opacity-60',
+            )}
+          >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-4">
               <div className="flex items-start gap-3">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
                   <Building2 className="h-4 w-4 text-primary" />
@@ -246,25 +126,34 @@ export function IssuerManager({
                 </div>
               </div>
               {canManage && (
-                <Button size="sm" variant="outline" onClick={() => setLogoTarget(issuer.id)} className="shrink-0">
-                  <ImageIcon className="h-3.5 w-3.5 sm:mr-1.5" />
-                  <span className="hidden sm:inline">{t('logo.change')}</span>
-                </Button>
+                <div className="flex shrink-0 items-center gap-3">
+                  {issuer.active && (
+                    <Link
+                      href={`/issuers/${issuer.id}`}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium shadow-sm transition-colors hover:bg-accent"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">{t('edit')}</span>
+                    </Link>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      {issuer.active ? t('status.active') : t('status.inactive')}
+                    </span>
+                    <Switch
+                      checked={issuer.active}
+                      onCheckedChange={(checked) => handleToggleActive(issuer.id, checked)}
+                      disabled={isPending}
+                    />
+                  </div>
+                </div>
               )}
             </div>
 
             <div className="mb-4">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  {t('cert.title')}
-                </p>
-                {canManage && (
-                  <Button size="sm" variant="outline" onClick={() => setCertTarget(issuer.id)} className="shrink-0">
-                    <RefreshCw className="h-3.5 w-3.5 sm:mr-1.5" />
-                    <span className="hidden sm:inline">{t('cert.renew')}</span>
-                  </Button>
-                )}
-              </div>
+              <p className="mb-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                {t('cert.title')}
+              </p>
               <CertInfo certFingerprint={issuer.certFingerprint} certExpiry={issuer.certExpiry} />
             </div>
 
@@ -279,7 +168,7 @@ export function IssuerManager({
                     className="flex items-center gap-1 rounded-md border border-border bg-muted px-2.5 py-1 text-xs font-medium"
                   >
                     {t(`docType.${code}` as Parameters<typeof t>[0])} ({code})
-                    {canManage && (
+                    {canManage && issuer.active && (
                       <button
                         onClick={() => handleRemoveType(issuer.id, code)}
                         disabled={isPending}
@@ -290,7 +179,7 @@ export function IssuerManager({
                     )}
                   </span>
                 ))}
-                {canManage && missing.map((code) => (
+                {canManage && issuer.active && missing.map((code) => (
                   <button
                     key={code}
                     onClick={() => setAddTarget({ issuerId: issuer.id, code })}
@@ -306,22 +195,6 @@ export function IssuerManager({
           </div>
         );
       })}
-
-      {canManage && logoTarget !== null && (
-        <LogoDialog
-          issuerId={logoTarget}
-          open={logoTarget !== null}
-          onOpenChange={(open) => { if (!open) setLogoTarget(null); }}
-        />
-      )}
-
-      {canManage && certTarget !== null && (
-        <CertRenewalDialog
-          issuerId={certTarget}
-          open={certTarget !== null}
-          onOpenChange={(open) => { if (!open) setCertTarget(null); }}
-        />
-      )}
 
       <Dialog open={addTarget !== null} onOpenChange={(open) => { if (!open) setAddTarget(null); }}>
         <DialogContent showCloseButton={false} className="sm:max-w-sm">

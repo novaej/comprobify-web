@@ -25,14 +25,14 @@ export interface MinimalContext {
 
 async function getAccessibleIssuers(userId: number, tenantId: number, role: Role) {
   if (role === 'Owner' || role === 'Admin') {
-    return db.issuer.findMany({ where: { tenantId }, select: { id: true } });
+    return db.issuer.findMany({ where: { tenantId, active: true }, select: { id: true } });
   }
   const access = await db.userIssuerAccess.findMany({
-    where: { userId, tenantId },
+    where: { userId, tenantId, issuer: { active: true } },
     select: { issuerId: true },
   });
   if (access.length === 0) {
-    return db.issuer.findMany({ where: { tenantId }, select: { id: true } });
+    return db.issuer.findMany({ where: { tenantId, active: true }, select: { id: true } });
   }
   return access.map((a) => ({ id: a.issuerId }));
 }
@@ -125,10 +125,10 @@ export async function requireContext(opts?: { skipIssuer?: boolean }): Promise<C
     }
   }
 
-  // 5. Verify issuer belongs to this tenant and user has access
+  // 5. Verify issuer belongs to this tenant, is active, and user has access
   const issuer = await db.issuer.findUnique({ where: { id: issuerId } });
 
-  if (!issuer || issuer.tenantId !== tenant.id) {
+  if (!issuer || issuer.tenantId !== tenant.id || !issuer.active) {
     await clearCtxCookie();
     redirect({ href: '/issuer/select', locale });
     return null as never;

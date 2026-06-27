@@ -242,17 +242,21 @@ export interface ApiIssuer {
   certExpiry: string | null;
 }
 
+// Verified against: ../comprobify/src/validators/issuer.validator.js → createBranch
 export interface CreateIssuerFields {
-  ruc: string;
-  businessName: string;
-  tradeName?: string;
-  mainAddress?: string;
+  sourceIssuerId?: number;
   branchCode: string;
   issuePointCode: string;
-  emissionType: string;
-  requiredAccounting: boolean;
+  branchAddress?: string;
   documentTypes?: string[];
   initialSequentials?: { documentType: string; sequential: number }[];
+}
+
+// Verified against: ../comprobify/src/services/sequential.service.js → getCounters()
+export interface ApiIssuerSequential {
+  documentType: string;
+  sandbox: { current: number; next: number };
+  production: { current: number; next: number };
 }
 
 // ── API key types ─────────────────────────────────────────────────────────────
@@ -499,22 +503,18 @@ export async function createIssuer(
   p12Password?: string,
 ): Promise<ApiIssuer> {
   const form = new FormData();
-  form.append('ruc', fields.ruc);
-  form.append('businessName', fields.businessName);
-  if (fields.tradeName) form.append('tradeName', fields.tradeName);
-  if (fields.mainAddress) form.append('mainAddress', fields.mainAddress);
+  if (fields.sourceIssuerId !== undefined) form.append('sourceIssuerId', String(fields.sourceIssuerId));
   form.append('branchCode', fields.branchCode);
   form.append('issuePointCode', fields.issuePointCode);
-  form.append('emissionType', fields.emissionType);
-  form.append('requiredAccounting', fields.requiredAccounting ? 'true' : 'false');
+  if (fields.branchAddress) form.append('branchAddress', fields.branchAddress);
   if (fields.documentTypes?.length) {
     form.append('documentTypes', JSON.stringify(fields.documentTypes));
   }
   if (fields.initialSequentials?.length) {
     form.append('initialSequentials', JSON.stringify(fields.initialSequentials));
   }
-  if (p12 && p12Password) {
-    form.append('certPassword', p12Password);
+  if (p12) {
+    if (p12Password) form.append('certPassword', p12Password);
     const buf = p12.buffer.slice(p12.byteOffset, p12.byteOffset + p12.byteLength) as ArrayBuffer;
     form.append('cert', new Blob([buf], { type: 'application/x-pkcs12' }), 'cert.p12');
   }
@@ -530,6 +530,54 @@ export async function createIssuer(
   }
   const data = await res.json() as { ok: true; issuer: ApiIssuer };
   return data.issuer;
+}
+
+// Verified against: ../comprobify/src/controllers/issuer.controller.js → updateIssuer
+export async function updateIssuer(
+  ctx: ApiCtx,
+  issuerId: number,
+  fields: { tradeName?: string; branchAddress?: string },
+): Promise<ApiIssuer> {
+  const result = await request<{ ok: true; issuer: ApiIssuer }>(
+    `/v1/issuers/${issuerId}`,
+    { apiKey: ctx.apiKey },
+    { method: 'PATCH', body: JSON.stringify(fields) },
+  );
+  return result.issuer;
+}
+
+// Verified against: ../comprobify/src/controllers/issuer.controller.js → removeIssuer
+export async function removeIssuer(ctx: ApiCtx, issuerId: number): Promise<void> {
+  await request(`/v1/issuers/${issuerId}`, { apiKey: ctx.apiKey }, { method: 'DELETE' });
+}
+
+// Verified against: ../comprobify/src/controllers/issuer.controller.js → activateIssuer
+export async function activateIssuer(ctx: ApiCtx, issuerId: number): Promise<void> {
+  await request(`/v1/issuers/${issuerId}/activate`, { apiKey: ctx.apiKey }, { method: 'PATCH' });
+}
+
+// Verified against: ../comprobify/src/services/sequential.service.js → getCounters()
+export async function getIssuerSequentials(ctx: ApiCtx, issuerId: number): Promise<ApiIssuerSequential[]> {
+  const result = await request<{ ok: true; sequentials: ApiIssuerSequential[] }>(
+    `/v1/issuers/${issuerId}/sequentials`,
+    { apiKey: ctx.apiKey },
+  );
+  return result.sequentials;
+}
+
+// Verified against: ../comprobify/src/services/sequential.service.js → setNext()
+export async function setIssuerSequential(
+  ctx: ApiCtx,
+  issuerId: number,
+  documentType: string,
+  environment: 'sandbox' | 'production',
+  nextSequential: number,
+): Promise<void> {
+  await request(
+    `/v1/issuers/${issuerId}/sequentials/${documentType}`,
+    { apiKey: ctx.apiKey },
+    { method: 'PATCH', body: JSON.stringify({ environment, nextSequential }) },
+  );
 }
 
 export async function listIssuerDocumentTypes(ctx: ApiCtx, issuerId: number): Promise<string[]> {

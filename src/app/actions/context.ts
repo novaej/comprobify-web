@@ -11,7 +11,7 @@ export async function selectIssuerAction(issuerId: number): Promise<ContextResul
   const ctx = await requireContext({ skipIssuer: true });
 
   const issuer = await db.issuer.findUnique({ where: { id: issuerId } });
-  if (!issuer || issuer.tenantId !== ctx.tenant.id) {
+  if (!issuer || issuer.tenantId !== ctx.tenant.id || !issuer.active) {
     return { error: 'ISSUER_NOT_FOUND' };
   }
 

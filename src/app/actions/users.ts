@@ -82,7 +82,7 @@ export async function setUserIssuerAccessAction(
 
   // Verify all issuer IDs belong to this tenant
   const issuers = await db.issuer.findMany({
-    where: { id: { in: issuerIds }, tenantId: ctx.tenant.id },
+    where: { id: { in: issuerIds }, tenantId: ctx.tenant.id, active: true },
   });
   if (issuers.length !== issuerIds.length) return { error: 'ISSUER_NOT_FOUND' };
 

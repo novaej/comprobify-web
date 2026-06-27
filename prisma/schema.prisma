@@ -73,6 +73,7 @@ model Issuer {
   tradeName      String?  @map("trade_name")
   branchAddress  String?  @map("branch_address")
   isDefault      Boolean  @default(false) @map("is_default")
+  active         Boolean  @default(true) @map("active")
   createdAt      DateTime @default(now()) @map("created_at")
   tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   access         UserIssuerAccess[]
