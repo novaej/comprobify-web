@@ -666,7 +666,11 @@
       "CERT_EXPIRED": "Certificado vencido",
       "SRI_SUBMISSION_FAILED": "Error de envío al SRI",
       "EMAIL_DELIVERY_FAILED": "Error de entrega de correo",
-      "QUOTA_WARNING": "Aviso de cuota"
+      "QUOTA_WARNING": "Aviso de cuota",
+      "PAYMENT_VERIFIED": "Pago verificado",
+      "PAYMENT_REJECTED": "Pago rechazado",
+      "SUBSCRIPTION_RENEWAL_DUE": "Renovación próxima",
+      "SUBSCRIPTION_EXPIRED": "Suscripción vencida"
     }
   },
   "notificationPreferences": {
@@ -687,7 +691,11 @@
       "CERT_EXPIRED": "Se crea cuando el certificado P12 de un emisor ya venció. Impide emitir nuevos comprobantes hasta que se renueve.",
       "SRI_SUBMISSION_FAILED": "Se creará cuando el SRI rechace permanentemente un envío después de todos los reintentos.",
       "EMAIL_DELIVERY_FAILED": "Se creará cuando Mailgun reporte un fallo permanente de entrega de correo electrónico.",
-      "QUOTA_WARNING": "Se creará cuando la organización esté próxima a alcanzar el límite mensual de comprobantes."
+      "QUOTA_WARNING": "Se creará cuando la organización esté próxima a alcanzar el límite mensual de comprobantes.",
+      "PAYMENT_VERIFIED": "Se crea cuando tu proveedor verifica un comprobante de pago que subiste — suscripción inicial, cambio de plan o renovación.",
+      "PAYMENT_REJECTED": "Se crea cuando tu proveedor rechaza un comprobante de pago. Incluye el motivo del rechazo.",
+      "SUBSCRIPTION_RENEWAL_DUE": "Se crea unos 7 días antes de que termine tu periodo de facturación actual, con los datos para renovar.",
+      "SUBSCRIPTION_EXPIRED": "Se crea si tu suscripción vence sin una renovación verificada — tu plan baja automáticamente a Gratis."
     }
   },
   "webhooks": {
@@ -1067,14 +1075,18 @@
     "noProofYet": "Sin comprobante",
     "downgradeScheduled": "Tu plan bajará a {tier} el {date}.",
     "tierChangeTo": "Cambio a {tier}",
+    "renewal": "Renovación",
     "billingInterval": {
       "MONTHLY": "Mensual",
       "YEARLY": "Anual"
     },
     "subscriptionStatus": {
       "PENDING_PAYMENT": "Pendiente de pago",
+      "PAYMENT_RECEIVED": "Pago recibido",
       "INVOICE_PROCESSING": "Procesando factura",
       "ACTIVE": "Activa",
+      "EXPIRED": "Vencida",
+      "SUSPENDED": "Suspendida",
       "CANCELLED": "Cancelada"
     },
     "paymentStatus": {
@@ -1087,6 +1099,7 @@
     "pendingPayment": {
       "title": "Pago pendiente",
       "tierChangeTitle": "Pago pendiente para cambiar a {tier}",
+      "renewalTitle": "Pago pendiente de renovación",
       "amount": "Monto a transferir: {amount}",
       "rejected": "Tu comprobante fue rechazado: {reason}",
       "bank": "Banco",

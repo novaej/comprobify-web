@@ -21,9 +21,7 @@ Unlike the rest of the production-promotion flow, this screen works **in both sa
 - `getCurrentTenant()` — current `subscriptionTier`/`documentCount`/`documentQuota`
 - `getMySubscriptions()` — full subscription history, newest first, each with nested `payments`
 - `listTiers()` — public tier catalog, used to render the subscribe/change-tier pickers with live prices
-- `Tenant.pendingBankTransfer` (Prisma) — the cached bank-transfer details from whichever call last started a payment (see "Bank transfer caching" below)
-
-If the latest payment for the latest subscription is `VERIFIED`, the page clears `pendingBankTransfer` back to `Prisma.JsonNull` (best-effort, non-blocking) — it's no longer needed once the tenant's part is done.
+- `Tenant.pendingBankTransfer` (Prisma) — the cached bank-transfer details from whichever call last started a payment (see "Bank transfer caching" below) — kept indefinitely, never cleared
 
 ---
 
@@ -39,7 +37,7 @@ Tier name (resolved through the `pricing` i18n namespace, same labels as `/prici
 
 ### 3. Pending payment card
 
-Shown when the latest subscription's latest payment isn't yet `VERIFIED` (and the subscription isn't `CANCELLED`). Title and amount adapt to `payment.purpose` (`INITIAL` vs `TIER_CHANGE`, the latter naming the target tier). Shows `rejection_reason` when present, the cached bank-transfer details (or a "contact support" fallback if `pendingBankTransfer` is `null` — e.g. an admin-initiated subscription the tenant never saw the response for), and a file input + upload button (`billing.manage` only) that calls `submitPaymentProofAction`.
+Shown when the latest subscription's latest payment isn't yet `VERIFIED` (and the subscription isn't `CANCELLED`/`EXPIRED`). Title and amount adapt to `payment.purpose` (`INITIAL`, `TIER_CHANGE` naming the target tier, or `RENEWAL`). Shows `rejection_reason` when present, the cached bank-transfer details (or a "contact support" fallback if `pendingBankTransfer` is `null` — e.g. an admin-initiated subscription the tenant never saw the response for), and a file input + upload button (`billing.manage` only) that calls `submitPaymentProofAction`. A renewal's payment is opened by a backend cron job, not any call this screen makes, so it always relies on the cached bank details rather than a fresh response — see "Bank transfer caching."
 
 ### 4. Subscribe card
 
@@ -54,13 +52,25 @@ Shown when the latest subscription is `ACTIVE`, no payment is pending, and no do
 
 ### 6. Subscription history
 
-Every subscription (newest first) with its nested payments, each as a small status badge (`subscriptionStatus.*`/`paymentStatus.*` i18n). A `TIER_CHANGE` payment additionally shows "Cambio a {tier}".
+Every subscription (newest first) with its nested payments, each as a small status badge (`subscriptionStatus.*`/`paymentStatus.*` i18n — covers the full `PENDING_PAYMENT`/`PAYMENT_RECEIVED`/`INVOICE_PROCESSING`/`ACTIVE`/`EXPIRED`/`SUSPENDED`/`CANCELLED` set, not just the happy-path values). A `TIER_CHANGE` payment additionally shows "Cambio a {tier}"; a `RENEWAL` payment shows "Renovación".
+
+---
+
+## Renewals
+
+A renewal reuses the exact same proof/review/link-invoice pipeline as the initial subscription — `comprobify`'s scheduled job opens a new `payments` row (`purpose: 'RENEWAL'`, no `target_tier`) on the existing `ACTIVE` subscription about 7 days before `current_period_end`. The tenant finds out only via the `SUBSCRIPTION_RENEWAL_DUE` notification/email (see "Notifications" below) and an email with the bank transfer instructions — there is no Server Action call on this screen that starts a renewal payment, so it never gets its own fresh `bankTransfer` response (see "Bank transfer caching"). Uploading proof against the renewal's `payment.id` works through the identical `submitPaymentProofAction` flow as any other payment. If a renewal runs unpaid past the grace period, the subscription moves to `EXPIRED` and the tenant is auto-downgraded to FREE (`SUBSCRIPTION_EXPIRED` notification/email) — the Subscribe card reappears at that point since an `EXPIRED` subscription doesn't block starting a new one.
+
+---
+
+## Notifications
+
+Payment decisions and the renewal lifecycle fire real notifications instead of leaving the tenant to poll: `PAYMENT_VERIFIED`/`PAYMENT_REJECTED` on every `reviewPayment` decision (regardless of `purpose`), and `SUBSCRIPTION_RENEWAL_DUE`/`SUBSCRIPTION_EXPIRED` from the renewal job. All four are "live" types in `/settings/notifications` (see `docs/site/screens/notifications.md`) and route to this screen when clicked (`getNotificationHref()` in `src/lib/notification-link.ts`). Activation itself (the self-billed invoice authorizing) still fires no notification — `GET /v1/subscriptions/me` remains the only way to see that complete.
 
 ---
 
 ## Bank transfer caching
 
-`bankTransfer` (bank name, account type/number, holder, identification) is **only ever returned once**, in the JSON response of whichever call started the payment that needs it — `promoteTenant()`, `createSubscription()`, or `changeTier()`. There is no endpoint to re-fetch it later. All three corresponding Server Actions (`promoteTenantAction`, `createSubscriptionAction`, `changeTierAction`) write it onto `Tenant.pendingBankTransfer` (a Prisma `Json?` column) in the same call, so this page can keep showing it across visits until the payment is verified. See `CLAUDE.md` Common Mistake #34 for the Prisma `Json` write gotchas this required.
+`bankTransfer` (bank name, account type/number, holder, identification) is **only ever returned once**, in the JSON response of whichever call started a payment that needs it — `promoteTenant()`, `createSubscription()`, or `changeTier()`. There is no endpoint to re-fetch it, and a renewal payment never returns one at all (it's opened by a backend job, not a call from this app). All three corresponding Server Actions (`promoteTenantAction`, `createSubscriptionAction`, `changeTierAction`) write it onto `Tenant.pendingBankTransfer` (a Prisma `Json?` column) in the same call. Because the bank details are static, env-configured data on the API — identical for every tenant and every payment — this cache is kept **indefinitely**, not cleared after a payment verifies; clearing it would leave every later renewal (which can never repopulate it) with nothing to show. See `CLAUDE.md` Common Mistake #34 for the Prisma `Json` write gotchas this required.
 
 ---
 
@@ -74,10 +84,11 @@ No self-service path exists to **cancel** a subscription (admin-only `PATCH /v1/
 
 | File | Role |
 |---|---|
-| `src/app/[locale]/settings/billing/page.tsx` | Server Component — data fetching, `pendingBankTransfer` clear-on-verified logic |
+| `src/app/[locale]/settings/billing/page.tsx` | Server Component — data fetching; reads (never clears) `Tenant.pendingBankTransfer` |
 | `src/components/billing-manager.tsx` | Client Component — all sections above (`SubscribeCard`/`ChangeTierCard`/`PendingPaymentCard` are local to this file) |
 | `src/app/actions/billing.ts` | `submitPaymentProofAction`, `createSubscriptionAction`, `changeTierAction` |
 | `src/lib/api.ts` | `getMySubscriptions`, `submitPaymentProof`, `createSubscription`, `changeTier`, `promoteTenant` (tier/billingInterval), `ApiSubscriptionInfo`/`ApiPaymentInfo`/`ApiBankTransferInfo` types |
 | `src/lib/public-api.ts` | `listTiers()` — public tier catalog |
 | `src/lib/subscription-tiers.ts` | `PaidTier`/`BillingInterval` shared types |
 | `src/lib/rbac.ts` | `billing.read`/`billing.manage` permissions |
+| `src/lib/notification-link.ts` | Routes `PAYMENT_VERIFIED`/`PAYMENT_REJECTED`/`SUBSCRIPTION_RENEWAL_DUE`/`SUBSCRIPTION_EXPIRED` notifications here |

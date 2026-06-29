@@ -9,7 +9,15 @@ import { cn } from '@/lib/utils';
 import { Bell, BellOff, Clock } from 'lucide-react';
 
 // Types currently produced by the API.
-const LIVE_TYPES = ['DOCUMENT_AUTHORIZED', 'CERT_EXPIRING', 'CERT_EXPIRED'] as const;
+const LIVE_TYPES = [
+  'DOCUMENT_AUTHORIZED',
+  'CERT_EXPIRING',
+  'CERT_EXPIRED',
+  'PAYMENT_VERIFIED',
+  'PAYMENT_REJECTED',
+  'SUBSCRIPTION_RENEWAL_DUE',
+  'SUBSCRIPTION_EXPIRED',
+] as const;
 // Types reserved for future implementation.
 const RESERVED_TYPES = ['SRI_SUBMISSION_FAILED', 'EMAIL_DELIVERY_FAILED', 'QUOTA_WARNING'] as const;
 const ALL_TYPES = [...LIVE_TYPES, ...RESERVED_TYPES] as const;

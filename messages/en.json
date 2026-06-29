@@ -910,7 +910,11 @@
       "CERT_EXPIRED": "Certificate expired",
       "SRI_SUBMISSION_FAILED": "SRI submission failed",
       "EMAIL_DELIVERY_FAILED": "Email delivery failed",
-      "QUOTA_WARNING": "Quota warning"
+      "QUOTA_WARNING": "Quota warning",
+      "PAYMENT_VERIFIED": "Payment verified",
+      "PAYMENT_REJECTED": "Payment rejected",
+      "SUBSCRIPTION_RENEWAL_DUE": "Renewal due soon",
+      "SUBSCRIPTION_EXPIRED": "Subscription expired"
     }
   },
   "notificationPreferences": {
@@ -931,7 +935,11 @@
       "CERT_EXPIRED": "Created when an issuer's P12 certificate has already expired. Prevents issuing new documents until renewed.",
       "SRI_SUBMISSION_FAILED": "Will be created when SRI permanently rejects a submission after all retries are exhausted.",
       "EMAIL_DELIVERY_FAILED": "Will be created when Mailgun reports a permanent email delivery failure.",
-      "QUOTA_WARNING": "Will be created when your organization is approaching its monthly document quota."
+      "QUOTA_WARNING": "Will be created when your organization is approaching its monthly document quota.",
+      "PAYMENT_VERIFIED": "Created when your provider verifies a payment proof you uploaded — initial subscription, tier change, or renewal.",
+      "PAYMENT_REJECTED": "Created when your provider rejects a payment proof. Includes the rejection reason.",
+      "SUBSCRIPTION_RENEWAL_DUE": "Created about 7 days before your current billing period ends, with renewal details.",
+      "SUBSCRIPTION_EXPIRED": "Created if your subscription expires with no verified renewal — your plan automatically drops to Free."
     }
   },
   "webhooks": {
@@ -1067,14 +1075,18 @@
     "noProofYet": "No proof yet",
     "downgradeScheduled": "Your plan will move to {tier} on {date}.",
     "tierChangeTo": "Change to {tier}",
+    "renewal": "Renewal",
     "billingInterval": {
       "MONTHLY": "Monthly",
       "YEARLY": "Yearly"
     },
     "subscriptionStatus": {
       "PENDING_PAYMENT": "Pending payment",
+      "PAYMENT_RECEIVED": "Payment received",
       "INVOICE_PROCESSING": "Processing invoice",
       "ACTIVE": "Active",
+      "EXPIRED": "Expired",
+      "SUSPENDED": "Suspended",
       "CANCELLED": "Cancelled"
     },
     "paymentStatus": {
@@ -1087,6 +1099,7 @@
     "pendingPayment": {
       "title": "Pending payment",
       "tierChangeTitle": "Pending payment to switch to {tier}",
+      "renewalTitle": "Pending renewal payment",
       "amount": "Amount to transfer: {amount}",
       "rejected": "Your proof was rejected: {reason}",
       "bank": "Bank",

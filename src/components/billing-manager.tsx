@@ -17,8 +17,11 @@ const dateFormatter = new Intl.DateTimeFormat('es-EC', { dateStyle: 'long' });
 
 const SUBSCRIPTION_STATUS_STYLES: Record<string, string> = {
   PENDING_PAYMENT: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30',
+  PAYMENT_RECEIVED: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-500/30',
   INVOICE_PROCESSING: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-500/30',
   ACTIVE: 'bg-green-50 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-500/30',
+  EXPIRED: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/30',
+  SUSPENDED: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/30',
   CANCELLED: 'bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-500/15 dark:text-zinc-300 dark:border-zinc-500/30',
 };
 
@@ -57,10 +60,8 @@ export function BillingManager({
 
   const latestSubscription = subscriptions[0] ?? null;
   const latestPayment = latestSubscription?.payments[0] ?? null;
-  const needsAction =
-    !!latestPayment &&
-    latestPayment.status !== 'VERIFIED' &&
-    latestSubscription?.status !== 'CANCELLED';
+  const isSubscriptionOver = latestSubscription?.status === 'CANCELLED' || latestSubscription?.status === 'EXPIRED';
+  const needsAction = !!latestPayment && latestPayment.status !== 'VERIFIED' && !isSubscriptionOver;
   const pendingDowngradeTier = latestSubscription?.status === 'ACTIVE' ? latestSubscription.pending_tier : null;
   const canChangeTier =
     canManageBilling &&
@@ -69,7 +70,7 @@ export function BillingManager({
     !pendingDowngradeTier;
   // POST /v1/subscriptions blocks a new subscription while any prior one isn't
   // CANCELLED/EXPIRED — mirror that here rather than just "no subscriptions yet".
-  const canSubscribeNew = canManageBilling && !subscriptions.some((s) => s.status !== 'CANCELLED');
+  const canSubscribeNew = canManageBilling && subscriptions.every((s) => s.status === 'CANCELLED' || s.status === 'EXPIRED');
 
   return (
     <div className="space-y-4">
@@ -162,6 +163,12 @@ export function BillingManager({
                               })}
                             </>
                           )}
+                          {p.purpose === 'RENEWAL' && (
+                            <>
+                              {' · '}
+                              {t('renewal')}
+                            </>
+                          )}
                           {' · '}
                           {p.proof_filename ?? t('noProofYet')}
                         </span>
@@ -224,7 +231,11 @@ function PendingPaymentCard({
   return (
     <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm dark:border-amber-500/30 dark:bg-amber-500/10">
       <h2 className="text-sm font-semibold">
-        {isTierChange ? t('pendingPayment.tierChangeTitle', { tier: targetTierName }) : t('pendingPayment.title')}
+        {isTierChange
+          ? t('pendingPayment.tierChangeTitle', { tier: targetTierName })
+          : payment.purpose === 'RENEWAL'
+            ? t('pendingPayment.renewalTitle')
+            : t('pendingPayment.title')}
       </h2>
       <p className="mt-1 text-sm">
         {t('pendingPayment.amount', { amount: currencyFormatter.format(Number(payment.amount)) })}

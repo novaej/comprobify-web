@@ -6,7 +6,6 @@ import { listTiers, type ApiTierInfo } from '@/lib/public-api';
 import { PageHeader } from '@/components/page-header';
 import { BillingManager } from '@/components/billing-manager';
 import type { ApiBankTransferInfo } from '@/lib/api';
-import { Prisma } from '@prisma/client';
 
 export default async function BillingPage({
   params,
@@ -29,19 +28,13 @@ export default async function BillingPage({
     listTiers().catch(() => []),
   ]);
 
-  const latestSubscription = subscriptions[0] ?? null;
-  const latestPayment = latestSubscription?.payments[0] ?? null;
-  let pendingBankTransfer = tenantRow?.pendingBankTransfer as ApiBankTransferInfo | null;
-
-  // The bank transfer block is only relevant while a payment is awaiting review —
-  // once verified, clear the cached info so a future rejected/re-submitted
-  // payment on a *new* subscription doesn't show stale account details.
-  if (latestPayment?.status === 'VERIFIED' && pendingBankTransfer) {
-    pendingBankTransfer = null;
-    db.tenant
-      .update({ where: { id: ctx.tenant.id }, data: { pendingBankTransfer: Prisma.JsonNull } })
-      .catch(() => {});
-  }
+  // bankTransfer is static, env-configured config on the API — identical for every
+  // tenant and every payment (initial, tier-change, or renewal) — so once cached it's
+  // kept indefinitely rather than cleared after each payment verifies. A renewal
+  // payment in particular is opened by a backend cron job with no frontend call
+  // involved, so there is no fresher bankTransfer to ever cache for it — this stays
+  // the only source once the tenant's first payment captured it.
+  const pendingBankTransfer = tenantRow?.pendingBankTransfer as ApiBankTransferInfo | null;
 
   const currentTier = tiers.find((tier: ApiTierInfo) => tier.name === tenantInfo.subscriptionTier) ?? null;
 

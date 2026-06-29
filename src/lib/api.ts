@@ -750,14 +750,15 @@ export async function promoteTenant(
 
 // Verified against: ../comprobify/src/controllers/payment.controller.js → submitProof()
 // and ../comprobify/src/models/payment.model.js (omitProofFile strips the raw bytes;
-// purpose/target_tier added in migration 055 — SELECT * so they flow through as-is).
+// purpose/target_tier added in migration 055, 'RENEWAL' purpose added in migration 056
+// — SELECT * so they flow through as-is).
 export interface ApiPaymentInfo {
   id: number;
   subscription_id?: number;
   status: 'PENDING' | 'REPORTED' | 'VERIFIED' | 'REJECTED' | 'REFUNDED';
   amount: string; // numeric column → serialized as string by pg/JSON
   method: 'SPI_TRANSFER';
-  purpose?: 'INITIAL' | 'TIER_CHANGE';
+  purpose?: 'INITIAL' | 'TIER_CHANGE' | 'RENEWAL';
   target_tier?: 'STARTER' | 'GROWTH' | 'BUSINESS' | null;
   rejection_reason?: string | null;
   proof_filename?: string | null;
@@ -768,12 +769,16 @@ export interface ApiPaymentInfo {
 
 // Verified against: ../comprobify/src/controllers/subscription.controller.js → getMyStatus()
 // and ../comprobify/src/models/subscription.model.js (pending_tier added in migration 055).
+// Full status set per migration 052's chk_subscriptions_status — PAYMENT_RECEIVED (between
+// a verified payment and its self-billed invoice being linked) and EXPIRED (renewal grace
+// period elapsed unpaid, tenant auto-downgraded to FREE — migration 056) both occur in
+// practice; SUSPENDED is schema-allowed but not yet set by any service code.
 export interface ApiSubscriptionInfo {
   id: number;
   tenant_id: number;
   tier: 'STARTER' | 'GROWTH' | 'BUSINESS';
   billing_interval: 'MONTHLY' | 'YEARLY';
-  status: 'PENDING_PAYMENT' | 'INVOICE_PROCESSING' | 'ACTIVE' | 'CANCELLED';
+  status: 'PENDING_PAYMENT' | 'PAYMENT_RECEIVED' | 'INVOICE_PROCESSING' | 'ACTIVE' | 'EXPIRED' | 'SUSPENDED' | 'CANCELLED';
   pending_tier?: 'STARTER' | 'GROWTH' | 'BUSINESS' | null;
   invoice_document_id: number | null;
   current_period_start: string | null;
