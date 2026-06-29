@@ -547,6 +547,11 @@
       "confirming": "Activating...",
       "cancel": "Cancel",
       "emailRequired": "You must verify your email address before activating production.",
+      "plan": "Plan",
+      "planHint": "Choose the plan to activate when moving to production. You can change it before confirming.",
+      "planAlreadyActive": "You already have an active subscription to the {tier} plan. It will carry over when you activate production.",
+      "planAlreadyActiveLink": "Manage plan",
+      "planSummary": "{price}{interval} · {quota} documents/month",
       "sequentials": "Starting sequence numbers (production)",
       "sequentialsHint": "The next number Comprobify will use for each document type in production. If the last number issued outside the system was 99, enter 100. Leave at 1 if starting fresh.",
       "resend": "Resend verification email",
@@ -639,7 +644,14 @@
     "ALREADY_PRODUCTION": "Your account is already in production mode.",
     "WEBHOOK_ENDPOINT_LIMIT_REACHED": "You have reached the webhook endpoint limit for your plan.",
     "WEBHOOK_ENDPOINT_NOT_FOUND": "Webhook endpoint not found.",
-    "INVALID_FILE_UPLOAD": "The uploaded file is invalid. Check the format and maximum allowed size."
+    "INVALID_FILE_UPLOAD": "The uploaded file is invalid. Check the format and maximum allowed size.",
+    "SUBSCRIPTION_NOT_FOUND": "Subscription not found.",
+    "PAYMENT_NOT_FOUND": "Payment not found.",
+    "SUBSCRIPTION_ALREADY_IN_FLIGHT": "Your account already has a subscription in progress.",
+    "INVALID_TIER": "The selected plan is not valid.",
+    "NO_ACTIVE_SUBSCRIPTION": "You don't have an active subscription. Activate production with a paid plan first.",
+    "TIER_CHANGE_NO_OP": "You're already on that plan.",
+    "TIER_CHANGE_ALREADY_PENDING": "A plan change is already in progress for your subscription."
   },
   "clients": {
     "title": "Clients",
@@ -898,7 +910,11 @@
       "CERT_EXPIRED": "Certificate expired",
       "SRI_SUBMISSION_FAILED": "SRI submission failed",
       "EMAIL_DELIVERY_FAILED": "Email delivery failed",
-      "QUOTA_WARNING": "Quota warning"
+      "QUOTA_WARNING": "Quota warning",
+      "PAYMENT_VERIFIED": "Payment verified",
+      "PAYMENT_REJECTED": "Payment rejected",
+      "SUBSCRIPTION_RENEWAL_DUE": "Renewal due soon",
+      "SUBSCRIPTION_EXPIRED": "Subscription expired"
     }
   },
   "notificationPreferences": {
@@ -919,7 +935,11 @@
       "CERT_EXPIRED": "Created when an issuer's P12 certificate has already expired. Prevents issuing new documents until renewed.",
       "SRI_SUBMISSION_FAILED": "Will be created when SRI permanently rejects a submission after all retries are exhausted.",
       "EMAIL_DELIVERY_FAILED": "Will be created when Mailgun reports a permanent email delivery failure.",
-      "QUOTA_WARNING": "Will be created when your organization is approaching its monthly document quota."
+      "QUOTA_WARNING": "Will be created when your organization is approaching its monthly document quota.",
+      "PAYMENT_VERIFIED": "Created when your provider verifies a payment proof you uploaded — initial subscription, tier change, or renewal.",
+      "PAYMENT_REJECTED": "Created when your provider rejects a payment proof. Includes the rejection reason.",
+      "SUBSCRIPTION_RENEWAL_DUE": "Created about 7 days before your current billing period ends, with renewal details.",
+      "SUBSCRIPTION_EXPIRED": "Created if your subscription expires with no verified renewal — your plan automatically drops to Free."
     }
   },
   "webhooks": {
@@ -1003,46 +1023,119 @@
     "badge": {
       "popular": "Most popular"
     },
-    "plans": {
-      "sandbox": {
+    "interval": {
+      "monthly": "Monthly",
+      "yearly": "Yearly",
+      "yearlyDiscount": "2 months free"
+    },
+    "free": "Free",
+    "perMonth": "/mo",
+    "perYear": "/yr",
+    "yearlyEquivalent": "Equivalent to {price}/mo",
+    "tiers": {
+      "FREE": {
         "name": "Sandbox",
-        "price": "Free",
         "description": "For developers and teams exploring the platform.",
-        "features": [
-          "Unlimited test documents",
-          "Full API access",
-          "Web app included",
-          "Email support"
-        ],
         "cta": "Get started free"
       },
-      "starter": {
+      "STARTER": {
         "name": "Starter",
-        "price": "Coming soon",
         "description": "For businesses with moderate document volumes.",
-        "features": [
-          "500 documents/month",
-          "SRI production environment",
-          "API access",
-          "Web app included",
-          "Email support"
-        ],
-        "cta": "Contact us"
+        "cta": "Sign up"
       },
-      "pro": {
-        "name": "Professional",
-        "price": "Coming soon",
+      "GROWTH": {
+        "name": "Growth",
+        "description": "For growing businesses with more than one branch.",
+        "cta": "Sign up"
+      },
+      "BUSINESS": {
+        "name": "Business",
         "description": "For high-volume businesses with advanced needs.",
-        "features": [
-          "Unlimited documents",
-          "SRI production environment",
-          "API access",
-          "Web app included",
-          "Real-time webhooks",
-          "Priority support"
-        ],
-        "cta": "Contact us"
+        "cta": "Sign up"
       }
+    },
+    "features": {
+      "quota": "{count} documents/month",
+      "branches": "{count} branches",
+      "unlimitedBranches": "Unlimited branches",
+      "issuePoints": "{count} issue points per branch",
+      "unlimitedIssuePoints": "Unlimited issue points",
+      "webhooks": "{count} webhooks",
+      "docTypes": "Document types: {types}"
+    }
+  },
+  "billing": {
+    "title": "Billing",
+    "description": "Current plan, payment history, and transfer proof.",
+    "sandboxNotice": "Your account is in the sandbox environment. You can subscribe to a paid plan right now — it will activate once payment is verified, and take effect in production once you activate that environment.",
+    "currentPlan": "Current plan",
+    "usage": "{count} of {quota} production documents used",
+    "history": "Subscription history",
+    "noHistory": "You don't have any subscriptions yet.",
+    "noProofYet": "No proof yet",
+    "downgradeScheduled": "Your plan will move to {tier} on {date}.",
+    "tierChangeTo": "Change to {tier}",
+    "renewal": "Renewal",
+    "billingInterval": {
+      "MONTHLY": "Monthly",
+      "YEARLY": "Yearly"
+    },
+    "subscriptionStatus": {
+      "PENDING_PAYMENT": "Pending payment",
+      "PAYMENT_RECEIVED": "Payment received",
+      "INVOICE_PROCESSING": "Processing invoice",
+      "ACTIVE": "Active",
+      "EXPIRED": "Expired",
+      "SUSPENDED": "Suspended",
+      "CANCELLED": "Cancelled"
+    },
+    "paymentStatus": {
+      "PENDING": "Pending",
+      "REPORTED": "Reported",
+      "VERIFIED": "Verified",
+      "REJECTED": "Rejected",
+      "REFUNDED": "Refunded"
+    },
+    "pendingPayment": {
+      "title": "Pending payment",
+      "tierChangeTitle": "Pending payment to switch to {tier}",
+      "renewalTitle": "Pending renewal payment",
+      "amount": "Amount to transfer: {amount}",
+      "rejected": "Your proof was rejected: {reason}",
+      "bank": "Bank",
+      "accountType": "Account type",
+      "accountNumber": "Account number",
+      "accountHolder": "Account holder",
+      "identification": "Identification",
+      "contactSupport": "Contact support to get the bank transfer details.",
+      "upload": "Upload proof",
+      "uploading": "Uploading...",
+      "uploaded": "Proof uploaded. Your provider will review it shortly."
+    },
+    "changePlan": {
+      "title": "Change plan",
+      "hint": "Upgrading takes effect immediately (prorated for the time left in your billing period). Downgrading is scheduled for the end of your current period, at no extra cost.",
+      "placeholder": "Select a plan",
+      "button": "Change plan",
+      "confirmHint": "Confirm the plan change? If it's an upgrade, you'll need to transfer the prorated amount and upload proof. If it's a downgrade, it will apply automatically at the end of your current period.",
+      "confirm": "Confirm change",
+      "confirming": "Processing...",
+      "cancel": "Cancel",
+      "upgradeRequested": "Plan change requested. Check the transfer details below.",
+      "upgradeApplied": "Your plan was updated immediately.",
+      "downgradeScheduled": "The plan change was scheduled for the end of your current period."
+    },
+    "subscribe": {
+      "title": "Subscribe to a plan",
+      "hint": "You can subscribe now, even while still in the sandbox environment. The plan activates once payment is verified.",
+      "emailRequired": "You must verify your email address before subscribing to a plan.",
+      "placeholder": "Select a plan",
+      "button": "Subscribe",
+      "confirmHint": "Confirm the subscription? You'll need to transfer the chosen plan's amount and upload proof.",
+      "confirm": "Confirm subscription",
+      "confirming": "Processing...",
+      "cancel": "Cancel",
+      "requested": "Subscription requested. Check the transfer details below."
     }
   }
 }

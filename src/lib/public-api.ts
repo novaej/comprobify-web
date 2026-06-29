@@ -124,3 +124,24 @@ export async function resendVerificationEmail(
     body: JSON.stringify({ email, ...(verificationRedirectUrl && { verificationRedirectUrl }) }),
   });
 }
+
+// Verified against: ../comprobify/src/controllers/tiers.controller.js → list()
+export interface ApiTierInfo {
+  name: 'FREE' | 'STARTER' | 'GROWTH' | 'BUSINESS';
+  documentQuota: number;
+  maxBranches: number | null;
+  maxIssuePointsPerBranch: number | null;
+  maxWebhookEndpoints: number;
+  writeRateLimit: number;
+  readRateLimit: number;
+  allowedDocumentTypes: string[];
+  priceMonthlyUsd: number;
+  priceYearlyUsd: number;
+  overagePerDocumentUsd: number | null;
+}
+
+// Verified against: ../comprobify/src/routes/tiers.routes.js → GET /v1/tiers (public, no auth, no rate limit)
+export async function listTiers(): Promise<ApiTierInfo[]> {
+  const result = await publicRequest<{ ok: true; tiers: ApiTierInfo[] }>('/v1/tiers');
+  return result.tiers;
+}

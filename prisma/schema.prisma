@@ -32,7 +32,9 @@ model Tenant {
   tradeName    String?        @map("trade_name")
   environment  String         @default("sandbox")
   status       String         @default("ACTIVE")
-  tier         String?
+  intendedTier String?        @map("intended_tier")
+  intendedBillingInterval String? @map("intended_billing_interval")
+  pendingBankTransfer Json?  @map("pending_bank_transfer")
   contactEmail String?        @map("contact_email")
   createdAt    DateTime       @default(now()) @map("created_at")
   apiKeys      TenantApiKey[]

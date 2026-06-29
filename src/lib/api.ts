@@ -691,23 +691,198 @@ export async function getCurrentTenant(ctx: ApiCtx): Promise<ApiTenantInfo> {
 
 // ── Tenant promotion ──────────────────────────────────────────────────────────
 
+// The bank account a tenant wires their SPI transfer to. Static, env-configured
+// on the API (src/config/index.js) — same for every tenant, never retrievable
+// from any endpoint except this one-time promote response, so callers that need
+// it later (e.g. the billing page) must cache it themselves.
+export interface ApiBankTransferInfo {
+  bankName: string;
+  accountType: string;
+  accountNumber: string;
+  accountHolder: string;
+  identification: string;
+}
+
+// Verified against: ../comprobify/src/controllers/tenant.controller.js → promote()
+// and ../comprobify/src/services/subscription.service.js → createSubscription() (subscription/payment/bankTransfer shape).
 export interface PromoteTenantResult {
   ok: true;
   // The API returns { label, apiKey } per key — no id, no environment.
   // Callers must fetch GET /v1/keys with one of these tokens to obtain the
   // API-side key IDs needed for future revocation.
   apiKeys: Array<{ label: string; apiKey: string }>;
+  // Only present when `tier` was supplied in the request.
+  subscription?: {
+    id: number;
+    tier: 'STARTER' | 'GROWTH' | 'BUSINESS';
+    status: string;
+    billing_interval: 'MONTHLY' | 'YEARLY';
+  };
+  payment?: {
+    id: number;
+    status: string;
+    amount: string; // numeric column → serialized as string by pg/JSON
+  };
+  bankTransfer?: ApiBankTransferInfo;
 }
 
 export async function promoteTenant(
   ctx: ApiCtx,
   initialSequentials?: Array<{ issuerId: number; documentType: string; sequential: number }>,
+  tier?: 'STARTER' | 'GROWTH' | 'BUSINESS',
+  billingInterval?: 'MONTHLY' | 'YEARLY',
 ): Promise<PromoteTenantResult> {
   return request<PromoteTenantResult>(
     '/v1/tenants/promote',
     { apiKey: ctx.apiKey },
-    { method: 'POST', body: JSON.stringify({ initialSequentials: initialSequentials ?? [] }) },
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        initialSequentials: initialSequentials ?? [],
+        ...(tier && { tier }),
+        ...(tier && billingInterval && { billingInterval }),
+      }),
+    },
   );
+}
+
+// ── Subscriptions & payments ──────────────────────────────────────────────────
+
+// Verified against: ../comprobify/src/controllers/payment.controller.js → submitProof()
+// and ../comprobify/src/models/payment.model.js (omitProofFile strips the raw bytes;
+// purpose/target_tier added in migration 055, 'RENEWAL' purpose added in migration 056
+// — SELECT * so they flow through as-is).
+export interface ApiPaymentInfo {
+  id: number;
+  subscription_id?: number;
+  status: 'PENDING' | 'REPORTED' | 'VERIFIED' | 'REJECTED' | 'REFUNDED';
+  amount: string; // numeric column → serialized as string by pg/JSON
+  method: 'SPI_TRANSFER';
+  purpose?: 'INITIAL' | 'TIER_CHANGE' | 'RENEWAL';
+  target_tier?: 'STARTER' | 'GROWTH' | 'BUSINESS' | null;
+  rejection_reason?: string | null;
+  proof_filename?: string | null;
+  proof_mime_type?: string | null;
+  reported_at?: string | null;
+  verified_at?: string | null;
+}
+
+// Verified against: ../comprobify/src/controllers/subscription.controller.js → getMyStatus()
+// and ../comprobify/src/models/subscription.model.js (pending_tier added in migration 055).
+// Full status set per migration 052's chk_subscriptions_status — PAYMENT_RECEIVED (between
+// a verified payment and its self-billed invoice being linked) and EXPIRED (renewal grace
+// period elapsed unpaid, tenant auto-downgraded to FREE — migration 056) both occur in
+// practice; SUSPENDED is schema-allowed but not yet set by any service code.
+export interface ApiSubscriptionInfo {
+  id: number;
+  tenant_id: number;
+  tier: 'STARTER' | 'GROWTH' | 'BUSINESS';
+  billing_interval: 'MONTHLY' | 'YEARLY';
+  status: 'PENDING_PAYMENT' | 'PAYMENT_RECEIVED' | 'INVOICE_PROCESSING' | 'ACTIVE' | 'EXPIRED' | 'SUSPENDED' | 'CANCELLED';
+  pending_tier?: 'STARTER' | 'GROWTH' | 'BUSINESS' | null;
+  invoice_document_id: number | null;
+  current_period_start: string | null;
+  current_period_end: string | null;
+  created_at: string;
+  canceled_at: string | null;
+  payments: ApiPaymentInfo[];
+}
+
+// Verified against: ../comprobify/src/routes/subscriptions.routes.js → GET /v1/subscriptions/me
+export async function getMySubscriptions(ctx: ApiCtx): Promise<ApiSubscriptionInfo[]> {
+  const result = await request<{ ok: true; subscriptions: ApiSubscriptionInfo[] }>(
+    '/v1/subscriptions/me',
+    { apiKey: ctx.apiKey },
+  );
+  return result.subscriptions;
+}
+
+// Verified against: ../comprobify/src/controllers/subscription.controller.js → changeTier()
+// and ../comprobify/src/services/subscription.service.js → requestTierChange().
+// Response shape varies by outcome — see docs/site/endpoints/change-tier.md:
+//   upgrade (payment owed): subscription + payment + bankTransfer
+//   upgrade (prorates to $0, applied immediately): subscription + payment: null + amount: 0
+//   downgrade (scheduled, no payment owed): subscription (with pending_tier) + effectiveAt
+export interface ChangeTierResult {
+  ok: true;
+  subscription: {
+    id: number;
+    tier: 'STARTER' | 'GROWTH' | 'BUSINESS';
+    status?: string;
+    billing_interval?: 'MONTHLY' | 'YEARLY';
+    pending_tier?: 'STARTER' | 'GROWTH' | 'BUSINESS' | null;
+    current_period_start?: string | null;
+    current_period_end?: string | null;
+  };
+  payment?: ApiPaymentInfo | null;
+  bankTransfer?: ApiBankTransferInfo;
+  amount?: number;
+  effectiveAt?: string;
+}
+
+// Verified against: ../comprobify/src/routes/subscriptions.routes.js → POST /v1/subscriptions/change-tier
+export async function changeTier(
+  ctx: ApiCtx,
+  tier: 'STARTER' | 'GROWTH' | 'BUSINESS',
+): Promise<ChangeTierResult> {
+  return request<ChangeTierResult>(
+    '/v1/subscriptions/change-tier',
+    { apiKey: ctx.apiKey },
+    { method: 'POST', body: JSON.stringify({ tier }) },
+  );
+}
+
+// Verified against: ../comprobify/src/controllers/subscription.controller.js → createSubscription()
+// and ../comprobify/src/services/subscription.service.js → createSubscriptionForTenant()/createSubscription().
+// Unlike requesting a tier at promote(), this works while still in sandbox — see
+// docs/site/endpoints/create-subscription.md. Always returns all three fields (no
+// $0-immediate or scheduled-downgrade variant like changeTier — there's nothing to
+// prorate against yet).
+export interface CreateSubscriptionResult {
+  ok: true;
+  subscription: { id: number; tier: 'STARTER' | 'GROWTH' | 'BUSINESS'; status: string; billing_interval: 'MONTHLY' | 'YEARLY' };
+  payment: ApiPaymentInfo;
+  bankTransfer: ApiBankTransferInfo;
+}
+
+// Verified against: ../comprobify/src/routes/subscriptions.routes.js → POST /v1/subscriptions
+export async function createSubscription(
+  ctx: ApiCtx,
+  tier: 'STARTER' | 'GROWTH' | 'BUSINESS',
+  billingInterval?: 'MONTHLY' | 'YEARLY',
+): Promise<CreateSubscriptionResult> {
+  return request<CreateSubscriptionResult>(
+    '/v1/subscriptions',
+    { apiKey: ctx.apiKey },
+    { method: 'POST', body: JSON.stringify({ tier, ...(billingInterval && { billingInterval }) }) },
+  );
+}
+
+// Verified against: ../comprobify/src/routes/payments.routes.js → PATCH /v1/payments/:id/proof
+// (multipart, field name "proof" — PNG/JPEG/GIF/PDF, 2MB max, ownership-checked server-side).
+export async function submitPaymentProof(
+  ctx: ApiCtx,
+  paymentId: number,
+  file: { buffer: Buffer; mimeType: string; filename: string },
+): Promise<ApiPaymentInfo> {
+  const form = new FormData();
+  const buf = file.buffer.buffer.slice(
+    file.buffer.byteOffset,
+    file.buffer.byteOffset + file.buffer.byteLength,
+  ) as ArrayBuffer;
+  form.append('proof', new Blob([buf], { type: file.mimeType }), file.filename);
+
+  const res = await fetch(`${getApiUrl()}/v1/payments/${paymentId}/proof`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${ctx.apiKey}` },
+    body: form,
+  });
+  if (!res.ok) {
+    const problem: ProblemDetails = await res.json();
+    throw new ApiError(problem);
+  }
+  const data = await res.json() as { ok: true; payment: ApiPaymentInfo };
+  return data.payment;
 }
 
 // Verified against: src/routes/tenants.routes.js → PATCH /v1/tenants/language

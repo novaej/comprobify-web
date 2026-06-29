@@ -7,14 +7,20 @@ import { OnboardingTabs } from '@/components/onboarding-tabs';
 import { LogoLockupStacked } from '@/components/logo';
 import { LocaleSwitcher } from '@/components/locale-switcher';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { parseIntendedPlan } from '@/lib/subscription-tiers';
 
 export default async function OnboardingTenantPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ tier?: string; interval?: string }>;
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
+
+  const { tier, interval } = await searchParams;
+  const intendedPlan = parseIntendedPlan(tier, interval);
 
   const session = await auth();
   if (!session?.user?.id) {
@@ -59,7 +65,10 @@ export default async function OnboardingTenantPage({
           <p>{t('sriNotice')}</p>
         </div>
 
-        <OnboardingTabs />
+        <OnboardingTabs
+          intendedTier={intendedPlan?.tier}
+          intendedBillingInterval={intendedPlan?.interval}
+        />
       </div>
       </div>
     </div>

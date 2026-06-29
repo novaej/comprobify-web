@@ -4,13 +4,34 @@ import { useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { promoteTenantAction } from '@/app/actions/tenant';
 import { resendVerificationAction } from '@/app/actions/tenant';
 import { AlertTriangle, Info, MailCheck } from 'lucide-react';
+import { Link } from '@/i18n/navigation';
+import type { ApiTierInfo } from '@/lib/public-api';
+import type { PaidTier, BillingInterval } from '@/lib/subscription-tiers';
 
-export function ProductionPromotion({ documentTypes, emailVerified }: { documentTypes: string[]; emailVerified: boolean }) {
+const currencyFormatter = new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+
+export function ProductionPromotion({
+  documentTypes,
+  emailVerified,
+  tiers,
+  intendedTier,
+  intendedBillingInterval,
+  activeSubscriptionTier,
+}: {
+  documentTypes: string[];
+  emailVerified: boolean;
+  tiers: ApiTierInfo[];
+  intendedTier: string | null;
+  intendedBillingInterval: string | null;
+  activeSubscriptionTier: string | null;
+}) {
   const t = useTranslations('settings.promote');
   const tSetup = useTranslations('settings.setup');
+  const tPricing = useTranslations('pricing');
   const tError = useTranslations('apiError');
   const [isPending, startTransition] = useTransition();
   const [isResendPending, startResendTransition] = useTransition();
@@ -20,6 +41,13 @@ export function ProductionPromotion({ documentTypes, emailVerified }: { document
   const [sequentials, setSequentials] = useState<Record<string, number>>(
     () => Object.fromEntries(documentTypes.map((code) => [code, 1]))
   );
+  const [selectedTier, setSelectedTier] = useState<'FREE' | PaidTier>(
+    () => (intendedTier as PaidTier | null) ?? 'FREE',
+  );
+  const [selectedInterval, setSelectedInterval] = useState<BillingInterval>(
+    () => (intendedBillingInterval as BillingInterval | null) ?? 'MONTHLY',
+  );
+  const selectedTierInfo = tiers.find((tier) => tier.name === selectedTier);
 
   const error = errorCode
     ? (tError.has(errorCode as Parameters<typeof tError>[0])
@@ -34,7 +62,11 @@ export function ProductionPromotion({ documentTypes, emailVerified }: { document
       .filter(([, seq]) => seq >= 1)
       .map(([documentType, sequential]) => ({ documentType, sequential }));
     startTransition(async () => {
-      const result = await promoteTenantAction(initialSequentials);
+      const result = await promoteTenantAction(
+        initialSequentials,
+        activeSubscriptionTier || selectedTier === 'FREE' ? undefined : selectedTier,
+        activeSubscriptionTier || selectedTier === 'FREE' ? undefined : selectedInterval,
+      );
       if (result && 'error' in result) {
         setConfirming(false);
         setErrorCode(result.error);
@@ -56,6 +88,86 @@ export function ProductionPromotion({ documentTypes, emailVerified }: { document
   if (confirming) {
     return (
       <div className="space-y-4">
+        {/* Plan selection */}
+        <div className="rounded-md border p-4 space-y-3">
+          {activeSubscriptionTier ? (
+            <p className="text-sm">
+              {t('planAlreadyActive', {
+                tier: tPricing.has(`tiers.${activeSubscriptionTier}.name` as Parameters<typeof tPricing>[0])
+                  ? tPricing(`tiers.${activeSubscriptionTier}.name` as Parameters<typeof tPricing>[0])
+                  : activeSubscriptionTier,
+              })}{' '}
+              <Link href="/settings/billing" className="underline underline-offset-4">
+                {t('planAlreadyActiveLink')}
+              </Link>
+            </p>
+          ) : (
+            <>
+              <div>
+                <p className="text-sm font-medium">{t('plan')}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{t('planHint')}</p>
+              </div>
+              <Select<'FREE' | PaidTier>
+                value={selectedTier}
+                onValueChange={(value) => value && setSelectedTier(value)}
+              >
+                <SelectTrigger className="w-full" disabled={isPending}>
+                  <SelectValue>
+                    {(value: ('FREE' | PaidTier) | null) =>
+                      value ? tPricing(`tiers.${value}.name`) : value
+                    }
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {(['FREE', ...tiers.filter((tier) => tier.name !== 'FREE').map((tier) => tier.name)] as ('FREE' | PaidTier)[]).map(
+                    (name) => (
+                      <SelectItem key={name} value={name}>
+                        {tPricing(`tiers.${name}.name`)}
+                      </SelectItem>
+                    ),
+                  )}
+                </SelectContent>
+              </Select>
+              {selectedTier !== 'FREE' && (
+                <>
+                  <div className="flex gap-2">
+                    {(['MONTHLY', 'YEARLY'] as const).map((interval) => (
+                      <button
+                        key={interval}
+                        type="button"
+                        onClick={() => setSelectedInterval(interval)}
+                        disabled={isPending}
+                        className={`rounded-md border px-3 py-1.5 text-sm transition-colors ${
+                          selectedInterval === interval
+                            ? 'border-primary bg-primary/5 font-medium'
+                            : 'border-border text-muted-foreground'
+                        }`}
+                      >
+                        {tPricing(`interval.${interval.toLowerCase()}` as Parameters<typeof tPricing>[0])}
+                      </button>
+                    ))}
+                  </div>
+                  {selectedTierInfo && (
+                    <p className="text-sm">
+                      {t('planSummary', {
+                        price: currencyFormatter.format(
+                          selectedInterval === 'MONTHLY'
+                            ? selectedTierInfo.priceMonthlyUsd
+                            : selectedTierInfo.priceYearlyUsd,
+                        ),
+                        interval: tPricing(
+                          selectedInterval === 'MONTHLY' ? 'perMonth' : 'perYear',
+                        ),
+                        quota: selectedTierInfo.documentQuota,
+                      })}
+                    </p>
+                  )}
+                </>
+              )}
+            </>
+          )}
+        </div>
+
         {/* Production sequentials */}
         <div className="rounded-md border p-4 space-y-3">
           <div>

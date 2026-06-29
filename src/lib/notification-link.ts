@@ -9,6 +9,11 @@
  *     deep-link to — send the user to the documents hub instead.
  *   CERT_EXPIRING / CERT_EXPIRED — no document to link to; always the issuer
  *     list, where the certificate can be viewed/renewed.
+ *   PAYMENT_VERIFIED / PAYMENT_REJECTED / SUBSCRIPTION_RENEWAL_DUE /
+ *     SUBSCRIPTION_EXPIRED — all four are about the tenant's subscription/
+ *     payment state, which only ever lives on /settings/billing; none of
+ *     their metadata fields (paymentId/subscriptionId/tier/amount) have a
+ *     dedicated page of their own to deep-link to.
  *   Any other/future type — no mapping yet, so no link (falls back to the
  *     existing "mark read" action only).
  */
@@ -28,6 +33,11 @@ export function getNotificationHref(type: string, metadata: unknown): string | n
     case 'CERT_EXPIRING':
     case 'CERT_EXPIRED':
       return '/issuers';
+    case 'PAYMENT_VERIFIED':
+    case 'PAYMENT_REJECTED':
+    case 'SUBSCRIPTION_RENEWAL_DUE':
+    case 'SUBSCRIPTION_EXPIRED':
+      return '/settings/billing';
     default:
       return null;
   }

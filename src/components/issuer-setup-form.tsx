@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { bootstrapTenantAction } from '@/app/actions/onboarding';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import type { PaidTier, BillingInterval } from '@/lib/subscription-tiers';
 
 const DOC_TYPES = [
   { code: '01', defaultEnabled: true },
@@ -16,7 +17,13 @@ const DOC_TYPES = [
   { code: '07', defaultEnabled: false },
 ] as const;
 
-export function IssuerSetupForm() {
+export function IssuerSetupForm({
+  intendedTier,
+  intendedBillingInterval,
+}: {
+  intendedTier?: PaidTier;
+  intendedBillingInterval?: BillingInterval;
+}) {
   const t = useTranslations('settings.setup');
   const tError = useTranslations('apiError');
   const [isPending, startTransition] = useTransition();
@@ -58,6 +65,14 @@ export function IssuerSetupForm() {
 
   return (
     <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
+      {intendedTier && <input type="hidden" name="intendedTier" value={intendedTier} />}
+      {intendedTier && (
+        <input
+          type="hidden"
+          name="intendedBillingInterval"
+          value={intendedBillingInterval ?? 'MONTHLY'}
+        />
+      )}
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="ruc">{t('ruc')} *</Label>
