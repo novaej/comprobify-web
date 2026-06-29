@@ -5,8 +5,15 @@ import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { IssuerSetupForm } from '@/components/issuer-setup-form';
 import { LinkExistingAccountForm } from '@/components/link-existing-account-form';
+import type { PaidTier, BillingInterval } from '@/lib/subscription-tiers';
 
-export function OnboardingTabs() {
+export function OnboardingTabs({
+  intendedTier,
+  intendedBillingInterval,
+}: {
+  intendedTier?: PaidTier;
+  intendedBillingInterval?: BillingInterval;
+}) {
   const t = useTranslations('onboarding');
   const [tab, setTab] = useState<'create' | 'link'>('create');
 
@@ -39,7 +46,14 @@ export function OnboardingTabs() {
         </button>
       </div>
 
-      {tab === 'create' ? <IssuerSetupForm /> : <LinkExistingAccountForm />}
+      {tab === 'create' ? (
+        <IssuerSetupForm
+          intendedTier={intendedTier}
+          intendedBillingInterval={intendedBillingInterval}
+        />
+      ) : (
+        <LinkExistingAccountForm />
+      )}
     </div>
   );
 }

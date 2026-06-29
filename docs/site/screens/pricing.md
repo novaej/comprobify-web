@@ -1,43 +1,36 @@
 # Pricing Page
 
-**Route:** `/pricing` (marketing domain — `comprobify.com` / `staging.comprobify.com`)  
-**Auth:** Public — no session required.  
+**Route:** `/pricing` (marketing domain — `comprobify.com` / `staging.comprobify.com`)
+**Auth:** Public — no session required.
 **Layout:** `(marketing)/layout.tsx` — same public header/footer as the landing page.
 
 ---
 
 ## Content
 
-Three plan cards in a responsive grid (`md:grid-cols-3`):
+`pricing/page.tsx` is a Server Component that fetches the live tier catalog from `listTiers()` (`src/lib/public-api.ts` → public, unauthenticated `GET /v1/tiers`) and passes it to `pricing-plans.tsx` (Client Component), which renders:
 
-| Key | Name | Price | Highlighted |
-|-----|------|-------|-------------|
-| `sandbox` | Sandbox / Sandbox | Free / Gratis | No |
-| `starter` | Starter / Básico | Coming soon / Próximamente | Yes (primary border + ring) |
-| `pro` | Professional / Profesional | Coming soon / Próximamente | No |
+- A **Monthly / Yearly** toggle (local state). Yearly shows the discounted `priceYearlyUsd` (= `priceMonthlyUsd × 10`, i.e. 2 months free) plus an "equivalent to $X/mo" note.
+- Four cards in display order **FREE → STARTER → GROWTH → BUSINESS** (`GROWTH` is the highlighted/"Most popular" card). Each shows: tier name, price for the selected interval, a one-sentence marketing blurb (i18n, not part of the API payload), and feature bullets built directly from the API response — document quota, branch/issue-point limits (`null` → "unlimited"), allowed document types (mapped through `settings.setup`'s `docType01`/`docType04`/etc. labels), and webhook endpoint limit.
+- CTA per tier: **FREE** → `/register` (unchanged). **STARTER/GROWTH/BUSINESS** → `/register?tier=<NAME>&interval=<MONTHLY|YEARLY>` — this is how a chosen plan survives into registration (see "Subscription & billing" in `CLAUDE.md` for the full thread through onboarding to `/settings/billing`).
 
-Each card shows: plan name, price, description, feature list (checkmark icons), and a CTA button (→ `/register`).
-
-The "Most popular" badge appears above the highlighted plan name.
-
----
-
-## Plan features (from i18n)
-
-Features are stored as JSON arrays under `pricing.plans.<key>.features` and rendered with a check icon per item. The component reads them via `t.raw(...)` to get the raw array.
+Because the numbers come from the API at request time, this page can never drift from `comprobify`'s `subscription-tiers.js` the way the old hardcoded "Sandbox/Starter/Pro, Coming soon" placeholders did.
 
 ---
 
 ## i18n namespaces
-- `pricing` — all plan copy, title, subtitle, badge
+- `pricing` — title/subtitle, `interval.*`, `free`/`perMonth`/`perYear`/`yearlyEquivalent`, `tiers.<NAME>.{name,description,cta}` (marketing copy only — numbers are not duplicated here), `features.*` (quota/branches/issuePoints/webhooks/docTypes label templates)
 - `marketing` — shared nav and footer labels
+- `settings.setup` — reused for `docType01`/`docType04`/etc. labels in the feature list
 
 ---
 
 ## Files
 | File | Role |
 |------|------|
-| `src/app/[locale]/(marketing)/pricing/page.tsx` | Server Component — plan grid |
+| `src/app/[locale]/(marketing)/pricing/page.tsx` | Server Component — calls `listTiers()`, renders `<PricingPlans>` |
+| `src/components/pricing-plans.tsx` | Client Component — monthly/yearly toggle, tier cards, CTA links |
+| `src/lib/public-api.ts` | `ApiTierInfo` interface + `listTiers()` |
 | `src/app/[locale]/(marketing)/layout.tsx` | Marketing layout (header + footer) |
 | `messages/es.json` → `pricing`, `marketing` | Spanish copy |
 | `messages/en.json` → `pricing`, `marketing` | English copy |

@@ -6,7 +6,11 @@ import { promoteTenant, listTenantApiKeys, updateTenantLanguage } from '@/lib/ap
 import { resendVerificationEmail as publicResendVerificationEmail } from '@/lib/public-api';
 import { encrypt, lastFour } from '@/lib/crypto';
 import { revalidatePath } from 'next/cache';
+import { redirect } from '@/i18n/navigation';
+import { getLocale } from 'next-intl/server';
 import { ApiError } from '@/lib/errors';
+import type { PaidTier, BillingInterval } from '@/lib/subscription-tiers';
+import type { Prisma } from '@prisma/client';
 
 export type TenantResult = { error: string } | null;
 export type VerificationResult = { error: string } | { verified: true } | null;
@@ -30,6 +34,8 @@ export async function updateTenantAction(data: {
 
 export async function promoteTenantAction(
   initialSequentials: { documentType: string; sequential: number }[] = [],
+  tier?: PaidTier,
+  billingInterval?: BillingInterval,
 ): Promise<TenantResult> {
   await requirePermission('tenant.promote', { skipIssuer: true });
   const ctx = await requireContext({ skipIssuer: true });
@@ -49,7 +55,7 @@ export async function promoteTenantAction(
 
   let result: Awaited<ReturnType<typeof promoteTenant>>;
   try {
-    result = await promoteTenant({ apiKey: ctx.apiKey }, apiSequentials);
+    result = await promoteTenant({ apiKey: ctx.apiKey }, apiSequentials, tier, billingInterval);
   } catch (err) {
     if (err instanceof ApiError) return { error: err.code };
     throw err;
@@ -91,11 +97,26 @@ export async function promoteTenantAction(
 
     await tx.tenant.update({
       where: { id: ctx.tenant.id },
-      data: { environment: 'production' },
+      data: {
+        environment: 'production',
+        // The requested tier is now a real subscription via the API — the
+        // "intended" fields have served their purpose. bankTransfer is cached
+        // here because the promote response is the only place the API ever
+        // returns it (see api.ts's PromoteTenantResult).
+        intendedTier: null,
+        intendedBillingInterval: null,
+        pendingBankTransfer: result.bankTransfer
+          ? (result.bankTransfer as unknown as Prisma.InputJsonValue)
+          : undefined,
+      },
     });
   });
 
   revalidatePath('/', 'layout');
+  if (result.subscription) {
+    const locale = await getLocale();
+    redirect({ href: '/settings/billing', locale });
+  }
   return null;
 }
 

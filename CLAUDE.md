@@ -63,7 +63,7 @@ src/
       (marketing)/
         layout.tsx          Marketing layout — public header + footer; no Nav/auth
         page.tsx            Landing page — hero + feature cards; redirects authed users to /dashboard
-        pricing/page.tsx    Pricing page — plan comparison cards
+        pricing/page.tsx    Pricing page — real tier catalog from GET /v1/tiers, monthly/yearly toggle
       dashboard/page.tsx    Server Component — invoice list
       invoices/
         new/page.tsx        Server Component shell + Client form
@@ -74,6 +74,7 @@ src/
       api-keys/page.tsx     API key list/create/revoke
       users/page.tsx        User invite/role/remove management
       settings/page.tsx              Tenant settings — environment badge + promotion
+      settings/billing/page.tsx        Subscription/payment management — current plan, subscribe, change tier, upload proof
       settings/notifications/page.tsx  Notification preferences (Owner/Admin)
       settings/webhooks/page.tsx       Webhook endpoint management (Owner/Admin)
       complete-registration/page.tsx   Public — invited user sets password
@@ -96,14 +97,17 @@ src/
     status-badge.tsx        Document status pill
     sandbox-banner.tsx      Yellow banner when tenant.environment === 'sandbox'
     email-verification-notice.tsx  Yellow notice + resend button when email unverified
-    production-promotion.tsx       Card to promote sandbox tenant to production (Owner only)
+    production-promotion.tsx       Card to promote sandbox tenant to production (Owner only); tier picker pre-fills from Tenant.intendedTier or is skipped if a subscription is already ACTIVE
+    pricing-plans.tsx       Client Component — monthly/yearly toggle + tier cards on /pricing
+    billing-manager.tsx     Client Component — current plan, subscribe/change-tier cards, pending-payment proof upload, subscription history on /settings/billing
   lib/
     api.ts                  Typed Comprobify API client (server-only); functions take ApiCtx
     context.ts              requireContext() / requirePermission() / hasContextPermission()
     context-cookie.ts       Signed httpOnly cookie helpers (read/write/clear comprobify_ctx)
     crypto.ts               AES-256-GCM encrypt/decrypt for TenantApiKey at rest
     rbac.ts                 Role/Permission types + ROLE_PERMISSIONS map
-    public-api.ts           Unauthenticated API calls (registerTenant, verifyEmailToken, resendVerificationEmail)
+    public-api.ts           Unauthenticated API calls (registerTenant, verifyEmailToken, resendVerificationEmail, listTiers)
+    subscription-tiers.ts   PaidTier/BillingInterval types + parseIntendedPlan() validation shared across registration, onboarding, and promotion
     errors.ts               ApiError class + ProblemDetails type
   i18n/
     routing.ts              next-intl locale config (locales, defaultLocale)
@@ -164,6 +168,12 @@ messages/
 **`DocumentTable` is shared by two screens:** `/documents/[type]` and the dashboard's recent-documents preview both render `src/components/document-table.tsx` — there is no per-screen copy. Its `labels` prop is a single object with no optional fields beyond `emptyFiltered`/`actions`, so adding a column (e.g. the "Acciones" PDF/XML download buttons, gated on `doc.status === 'AUTHORIZED'`) requires updating **both** call sites' `labels={{ ... }}` construction in `documents/[type]/page.tsx` and `dashboard/page.tsx` — TypeScript will error on a missing required label key at either site, which is the intended guardrail against shipping a half-updated table.
 
 **Sandbox mode:** The `environment` column on the `tenants` table (`'sandbox'` | `'production'`) drives the yellow `SandboxBanner` and the environment badge in Settings. It starts as `'sandbox'` and is flipped to `'production'` once on promotion. There is no `COMPROBIFY_SANDBOX` env var — sandbox state is per-tenant, not global.
+
+**Subscription & billing:** `/pricing` is a Server Component that calls `listTiers()` (`src/lib/public-api.ts` → public `GET /v1/tiers`, no auth) instead of hardcoding plan copy — `pricing-plans.tsx` (Client Component) renders the monthly/yearly toggle and per-tier feature bullets from that response, so quota/price numbers can never drift from `comprobify`'s `subscription-tiers.js`. Picking a paid tier there links to `/register?tier=X&interval=Y`; since actual promotion can happen long after registration, the choice is **persisted on the `Tenant` row** (`intendedTier`/`intendedBillingInterval`, validated end-to-end by `parseIntendedPlan()` in `src/lib/subscription-tiers.ts`) rather than carried as a transient query param — threaded through `registerAction`'s redirect → `/onboarding/tenant?tier=...` → hidden fields in `IssuerSetupForm` → `bootstrapTenantAction`'s `tx.tenant.create()`. `ProductionPromotion`'s confirm step pre-fills a tier `Select` from that stored value (editable before confirming) and calls `promoteTenantAction(initialSequentials, tier?, billingInterval?)` → `promoteTenant()` (`POST /v1/tenants/promote`).
+
+A tenant can also start paying **before** promoting at all — `POST /v1/subscriptions` (`createSubscription()`/`createSubscriptionAction`) works in sandbox, since the manual proof/review pipeline doesn't depend on environment. When this happens, `promote()` on the API side detects the already-`ACTIVE` subscription and ignores any `tier`/`billingInterval` passed to it — `settings/page.tsx` mirrors this by fetching `getMySubscriptions()` and, if one is `ACTIVE`, passing `activeSubscriptionTier` into `ProductionPromotion`, which then skips the tier picker entirely and just links to `/settings/billing` instead (selecting a different tier there would be a silent no-op).
+
+`/settings/billing` (`billing-manager.tsx`) is the single home for the rest of the lifecycle, gated on `billing.read` (view) / `billing.manage` (mutate — proof upload, subscribe, change tier; `tenant.promote` stays separately Owner-only for the actual sandbox→production flip): a current-plan card (tier/quota usage from `getCurrentTenant()`), a `SubscribeCard` when no subscription is in flight, a `ChangeTierCard` when one is `ACTIVE` (upgrades apply immediately prorated; downgrades schedule for `current_period_end` via `pending_tier` — see `changeTier()` → `POST /v1/subscriptions/change-tier`), a pending-payment card with bank-transfer details + file upload when a payment needs proof, and a full subscription/payment history. **`bankTransfer` is only ever returned once**, from whichever call started the payment (`promoteTenant`/`createSubscription`/`changeTier`) — there is no endpoint to re-fetch it — so all three Server Actions cache it onto `Tenant.pendingBankTransfer` (a Json column), and `/settings/billing/page.tsx` clears it once the latest payment is `VERIFIED`.
 
 **Error handling:** The Comprobify API returns RFC 7807 Problem Details on all errors. `ApiError` in `src/lib/errors.ts` wraps these. In Server Actions, catch `ApiError` and pass `error.code` to the i18n `apiError` namespace for user-friendly messages.
 
@@ -275,6 +285,8 @@ This project runs Next.js **16** (not 13-15). Key differences from older version
 
 33. **Sending an array field (e.g. `documentTypes`, `initialSequentials`) as `JSON.stringify(...)` inside a `multipart/form-data` body and assuming the API will receive it as an array** — `createIssuer()`'s call to `POST /v1/issuers` does this because the same request may also carry a P12 file, which forces multipart encoding. `multipart/form-data` never auto-deserializes a JSON-looking string field back into an array — without a `customSanitizer` on the API side, `express-validator`'s `isArray()` sees the literal string `'["01","04"]'` and rejects it with `VALIDATION_FAILED`, even though the exact same payload shape is correct (and documented) for this endpoint. `../comprobify/src/validators/registration.validator.js` already had the fix (`customSanitizer` that `JSON.parse`s string values before `isArray()`) for the identical fields on `POST /v1/register`; `issuer.validator.js`'s `createBranch` validator just hadn't gotten the same treatment until it was added alongside the issuer create/edit/sequentials work. If a future multipart call needs a new array/object field, confirm the API validator has this sanitizer — don't assume it does just because a sibling endpoint handles the same field name correctly.
 
+34. **Writing a plain object literal or `null` into a Prisma `Json?` column without the right cast** — `Tenant.pendingBankTransfer` (caches the API's one-time `bankTransfer` response, see "Subscription & billing" above) tripped both directions. Setting it ( `data: { pendingBankTransfer: result.bankTransfer } }` ) fails `tsc` with "Index signature for type 'string' is missing" — a hand-written TS interface (`ApiBankTransferInfo`) doesn't structurally satisfy Prisma's `InputJsonObject`; cast through `as unknown as Prisma.InputJsonValue`. Clearing it back to SQL `NULL` (`data: { pendingBankTransfer: null }`) also fails to typecheck — a literal `null` is ambiguous between "store JSON null" and "store SQL NULL" for a `Json?` column, so Prisma requires the explicit `Prisma.JsonNull` sentinel instead. Both `Prisma`/`Prisma.JsonNull`/`Prisma.InputJsonValue` come from `import { Prisma } from '@prisma/client'` (or `import type` for the type-only case).
+
 ---
 
 ## Key Files
@@ -292,7 +304,8 @@ This project runs Next.js **16** (not 13-15). Key differences from older version
 | `src/lib/context-cookie.ts` | Signed `comprobify_ctx` cookie helpers |
 | `src/lib/crypto.ts` | AES-256-GCM `encrypt`/`decrypt`/`lastFour` for API keys at rest |
 | `src/lib/rbac.ts` | `Role`, `Permission` types + `ROLE_PERMISSIONS` map |
-| `src/lib/public-api.ts` | Unauthenticated API calls (`registerTenant`, `verifyEmailToken`, `resendVerificationEmail`) |
+| `src/lib/public-api.ts` | Unauthenticated API calls (`registerTenant`, `verifyEmailToken`, `resendVerificationEmail`, `listTiers` — public `GET /v1/tiers` catalog for the pricing page) |
+| `src/lib/subscription-tiers.ts` | `PaidTier`/`BillingInterval` types, `isPaidTier`/`isBillingInterval` guards, `parseIntendedPlan()` — shared validation for the tier/interval pair threaded from `/pricing` through registration/onboarding onto `Tenant.intendedTier` |
 | `src/lib/errors.ts` | `ApiError` + `ProblemDetails` types |
 | `src/lib/back-targets.ts` | `BACK_TARGETS` allowlist + `isBackTargetKey` guard for the `?from=` contextual back-navigation pattern |
 | `src/lib/event-description.ts` | `describeDocumentEvent()` — maps a raw document event into a specific title/detail/status-transition for the Invoice Detail events timeline; verified per-`eventType` against every backend `documentEventModel.create()` call site |
@@ -305,10 +318,11 @@ This project runs Next.js **16** (not 13-15). Key differences from older version
 | `src/components/status-badge.tsx` | Document status pill with i18n labels |
 | `src/components/sandbox-banner.tsx` | Yellow sandbox mode banner |
 | `src/components/email-verification-notice.tsx` | Yellow notice with resend button shown when email is unverified |
-| `src/components/production-promotion.tsx` | Card to promote sandbox issuer to production (gated on email verification) |
+| `src/components/production-promotion.tsx` | Card to promote sandbox issuer to production (gated on email verification); tier `Select` pre-fills from `Tenant.intendedTier` or is replaced by an info note + link to `/settings/billing` when a subscription is already `ACTIVE` |
 | `src/app/[locale]/(marketing)/layout.tsx` | Marketing layout — public header, nav links, footer; wraps landing + pricing |
 | `src/app/[locale]/(marketing)/page.tsx` | Landing page — hero, feature cards; auto-redirects authenticated users to dashboard |
-| `src/app/[locale]/(marketing)/pricing/page.tsx` | Pricing page — plan comparison cards (Sandbox / Starter / Pro) |
+| `src/app/[locale]/(marketing)/pricing/page.tsx` | Pricing page — Server Component fetching `listTiers()`; renders `pricing-plans.tsx` with the real FREE/STARTER/GROWTH/BUSINESS catalog |
+| `src/components/pricing-plans.tsx` | Client Component — monthly/yearly toggle, per-tier feature bullets built from `ApiTierInfo`; CTA links to `/register?tier=X&interval=Y` for paid tiers |
 | `src/app/[locale]/layout.tsx` | Locale layout with providers + nav |
 | `src/app/[locale]/verify-email/page.tsx` | Public email verification page — reads token from query string, updates Prisma by email (no session required) |
 | `src/app/actions/auth.ts` | `loginAction` (post-login routing), `registerAction`, `logoutAction` (clears cookie + signOut) |
@@ -316,7 +330,8 @@ This project runs Next.js **16** (not 13-15). Key differences from older version
 | `src/components/onboarding-tabs.tsx` | Client Component — switches between `IssuerSetupForm` and `LinkExistingAccountForm` on `/onboarding/tenant` |
 | `src/components/link-existing-account-form.tsx` | API-key paste form for linking an existing Comprobify API account |
 | `src/app/actions/context.ts` | `selectIssuerAction` (sets cookie), `clearContextAction` |
-| `src/app/actions/tenant.ts` | `promoteTenantAction` (Owner-only), `updateTenantAction`, `resendVerificationAction` |
+| `src/app/actions/tenant.ts` | `promoteTenantAction(initialSequentials, tier?, billingInterval?)` (Owner-only) — caches `bankTransfer` to `Tenant.pendingBankTransfer` and redirects to `/settings/billing` when a tier was requested; `updateTenantAction`, `resendVerificationAction` |
+| `src/app/actions/billing.ts` | `submitPaymentProofAction`, `changeTierAction`, `createSubscriptionAction` — all gated on `billing.manage`; the latter two cache `bankTransfer` the same way as `promoteTenantAction` |
 | `src/app/actions/issuers.ts` | `createBranchAction` (branch or issue point), `updateIssuerAction` (tradeName/branchAddress), `removeIssuerAction`/`activateIssuerAction` (soft-delete toggle), `getIssuerSequentialsAction`/`setIssuerSequentialAction`, `addDocumentTypeAction`, `removeDocumentTypeAction`, `updateIssuerLogoAction`, `renewIssuerCertificateAction` |
 | `src/components/issuer-manager.tsx` | Client Component — issuer cards on `/issuers`: Active/Inactive toggle (optimistic), "Editar" link, document type add/remove, cert expiry/fingerprint badge |
 | `src/components/create-issuer-dialog.tsx` | "Nuevo emisor" dialog on `/issuers` — branch vs. issue-point mode toggle, existing-branch picker, optional P12 upload |
@@ -342,6 +357,8 @@ This project runs Next.js **16** (not 13-15). Key differences from older version
 | `sentry.client.config.ts` | Sentry browser SDK init (session replays, env tag) |
 | `sentry.server.config.ts` | Sentry Node.js server SDK init |
 | `sentry.edge.config.ts` | Sentry edge runtime SDK init |
+| `src/app/[locale]/settings/billing/page.tsx` | Server Component — current plan, subscription/payment history, and the cached `pendingBankTransfer`; gated on `billing.read`; works in both sandbox and production |
+| `src/components/billing-manager.tsx` | Client Component — `SubscribeCard`/`ChangeTierCard`/`PendingPaymentCard` (file upload + bank details), subscription/payment history list |
 | `src/app/[locale]/settings/notifications/page.tsx` | Server Component — notification preference toggles (Owner/Admin) |
 | `src/app/[locale]/settings/webhooks/page.tsx` | Server Component — webhook endpoint management (Owner/Admin) |
 | `src/app/[locale]/complete-registration/page.tsx` | Public — invited user sets password; bounces already-authenticated users |

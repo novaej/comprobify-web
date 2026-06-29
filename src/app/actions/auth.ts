@@ -7,6 +7,7 @@ import { AuthError } from 'next-auth';
 import { getLocale } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
 import { writeCtxCookie, clearCtxCookie } from '@/lib/context-cookie';
+import type { PaidTier, BillingInterval } from '@/lib/subscription-tiers';
 import * as Sentry from '@sentry/nextjs';
 
 export type AuthResult = { error: string } | null;
@@ -126,7 +127,12 @@ export async function completeRegistrationAction(
   return postLoginRedirect(email, locale);
 }
 
-export async function registerAction(email: string, password: string): Promise<AuthResult> {
+export async function registerAction(
+  email: string,
+  password: string,
+  intendedTier?: PaidTier,
+  intendedBillingInterval?: BillingInterval,
+): Promise<AuthResult> {
   const existing = await db.user.findUnique({ where: { email } });
   if (existing) return { error: 'EMAIL_TAKEN' };
 
@@ -144,7 +150,10 @@ export async function registerAction(email: string, password: string): Promise<A
   }
 
   const locale = await getLocale();
-  redirect({ href: '/onboarding/tenant', locale });
+  const onboardingHref = intendedTier
+    ? `/onboarding/tenant?tier=${intendedTier}&interval=${intendedBillingInterval ?? 'MONTHLY'}`
+    : '/onboarding/tenant';
+  redirect({ href: onboardingHref, locale });
   return null;
 }
 

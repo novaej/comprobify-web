@@ -10,6 +10,7 @@ import { getLocale } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
 import { revalidatePath } from 'next/cache';
 import { ApiError } from '@/lib/errors';
+import { parseIntendedPlan } from '@/lib/subscription-tiers';
 import * as Sentry from '@sentry/nextjs';
 
 export type OnboardingResult = { error: string } | null;
@@ -31,6 +32,10 @@ export async function bootstrapTenantAction(formData: FormData): Promise<Onboard
   const issuePointCode = ((formData.get('issuePointCode') as string | null)?.trim() || '001').slice(0, 3);
   const requiredAccounting = formData.get('requiredAccounting') === 'on';
   const certPassword = (formData.get('certPassword') as string | null) ?? '';
+  const intendedPlan = parseIntendedPlan(
+    formData.get('intendedTier') as string | null,
+    formData.get('intendedBillingInterval') as string | null,
+  );
 
   if (!ruc || !businessName) return { error: 'REQUIRED_FIELDS' };
 
@@ -106,6 +111,8 @@ export async function bootstrapTenantAction(formData: FormData): Promise<Onboard
           tradeName,
           environment: 'sandbox',
           status: isEmailVerified ? 'ACTIVE' : 'PENDING',
+          intendedTier: intendedPlan?.tier,
+          intendedBillingInterval: intendedPlan?.interval,
         },
       });
 

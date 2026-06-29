@@ -6,11 +6,14 @@ import { LocaleSwitcher } from '@/components/locale-switcher';
 import { LogoLockupStacked } from '@/components/logo';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { ChevronLeft } from 'lucide-react';
+import { parseIntendedPlan } from '@/lib/subscription-tiers';
 
 export default async function RegisterPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ tier?: string; interval?: string }>;
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
@@ -19,6 +22,9 @@ export default async function RegisterPage({
   if (session) {
     redirect({ href: '/dashboard', locale });
   }
+
+  const { tier, interval } = await searchParams;
+  const intendedPlan = parseIntendedPlan(tier, interval);
 
   const t = await getTranslations('auth');
 
@@ -49,7 +55,10 @@ export default async function RegisterPage({
           </div>
 
           <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-            <RegisterForm />
+            <RegisterForm
+              intendedTier={intendedPlan?.tier}
+              intendedBillingInterval={intendedPlan?.interval}
+            />
           </div>
 
           <p className="mt-5 text-center text-sm text-muted-foreground">

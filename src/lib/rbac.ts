@@ -14,6 +14,7 @@ export type Permission =
   | 'users.read'
   | 'users.manage'
   | 'billing.read'
+  | 'billing.manage'
   | 'tenant.manage'
   | 'notifications.read'
   | 'notifications.manage'
@@ -26,7 +27,7 @@ const ALL: ReadonlySet<Permission> = new Set([
   'tenant.promote',
   'apikeys.read', 'apikeys.manage',
   'users.read', 'users.manage',
-  'billing.read',
+  'billing.read', 'billing.manage',
   'tenant.manage',
   'notifications.read',
   'notifications.manage',
@@ -41,7 +42,7 @@ export const ROLE_PERMISSIONS: Record<Role, ReadonlySet<Permission>> = {
     'issuers.read', 'issuers.manage',
     'apikeys.read', 'apikeys.manage',
     'users.read', 'users.manage',
-    'billing.read',
+    'billing.read', 'billing.manage',
     'notifications.read',
     'notifications.manage',
     'webhooks.manage',
@@ -50,6 +51,7 @@ export const ROLE_PERMISSIONS: Record<Role, ReadonlySet<Permission>> = {
     'documents.create', 'documents.read', 'documents.manage',
     'clients.manage', 'catalog.manage',
     'issuers.read',
+    'billing.read', 'billing.manage',
     'notifications.read',
   ]),
   Viewer: new Set([

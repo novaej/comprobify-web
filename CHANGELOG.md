@@ -8,6 +8,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Added
+- **Subscription and billing management on `/settings/billing`** — a new screen showing the tenant's current plan/quota usage, subscription/payment history, and the actions to act on it: subscribing to a paid tier (`POST /v1/subscriptions`, works even while still in sandbox), changing tier on an `ACTIVE` subscription (`POST /v1/subscriptions/change-tier` — upgrades apply immediately with a prorated charge, downgrades schedule for the end of the current billing period at no cost), and uploading SPI transfer proof (`PATCH /v1/payments/:id/proof`) with bank-transfer details shown alongside. Gated by two new permissions, `billing.read` (view) and `billing.manage` (act) — granted to Owner, Admin, and `BillingOperator` (which previously had neither despite the role name).
+- **Real pricing on `/pricing`** — replaced the hardcoded "Sandbox/Starter/Pro, Coming soon" placeholder cards with a Server Component that reads the live tier catalog from the new public `GET /v1/tiers` endpoint (`listTiers()`), so quota/price numbers can never drift from the API's `subscription-tiers.js`. Added a monthly/yearly toggle (yearly = 2 months free) and four tiers (FREE/STARTER/GROWTH/BUSINESS) with feature bullets built from the API response instead of static copy.
+- **Tier selection threaded from `/pricing` through registration into production promotion** — picking a paid plan on `/pricing` links to `/register?tier=X&interval=Y`; since actual promotion can happen long after registration, the choice is persisted on `Tenant.intendedTier`/`intendedBillingInterval` (threaded through `registerAction`'s redirect → `/onboarding/tenant` → hidden form fields → `bootstrapTenantAction`) rather than carried as a transient query param. The production-promotion confirm step on `/settings` pre-fills a tier picker from that stored value, editable before confirming, or — if a subscription was already started via `/settings/billing` while still in sandbox — replaces the picker with a note pointing there instead (selecting a tier at promotion would be a silent no-op once a subscription is already `ACTIVE`).
+
+### Changed
+- **`POST /v1/tenants/promote` now optionally requests a tier/billing interval** — `promoteTenantAction`/`promoteTenant()` accept and forward `tier`/`billingInterval`, and redirect to `/settings/billing` after promotion when the response includes a `subscription` (a tier was requested, or one was already active).
+
 ## [0.3.0] — 2026-06-27
 
 ### Added

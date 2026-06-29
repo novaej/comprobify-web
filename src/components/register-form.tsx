@@ -6,8 +6,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { registerAction } from '@/app/actions/auth';
+import type { PaidTier, BillingInterval } from '@/lib/subscription-tiers';
 
-export function RegisterForm() {
+export function RegisterForm({
+  intendedTier,
+  intendedBillingInterval,
+}: {
+  intendedTier?: PaidTier;
+  intendedBillingInterval?: BillingInterval;
+}) {
   const t = useTranslations('auth');
   const tError = useTranslations('authError');
   const [isPending, startTransition] = useTransition();
@@ -27,7 +34,7 @@ export function RegisterForm() {
 
     setError(null);
     startTransition(async () => {
-      const result = await registerAction(email, password);
+      const result = await registerAction(email, password, intendedTier, intendedBillingInterval);
       if (result?.error) {
         setError(
           tError.has(result.error as Parameters<typeof tError>[0])

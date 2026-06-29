@@ -547,6 +547,11 @@
       "confirming": "Activando...",
       "cancel": "Cancelar",
       "emailRequired": "Debes verificar tu correo electrónico antes de activar producción.",
+      "plan": "Plan",
+      "planHint": "Elige el plan que quieres activar al pasar a producción. Puedes cambiarlo antes de confirmar.",
+      "planAlreadyActive": "Ya tienes una suscripción activa al plan {tier}. Se mantendrá al activar producción.",
+      "planAlreadyActiveLink": "Gestionar plan",
+      "planSummary": "{price}{interval} · {quota} comprobantes/mes",
       "sequentials": "Secuenciales iniciales en producción",
       "sequentialsHint": "Número desde el que empezará cada tipo de comprobante en producción. Si el último emitido fuera del sistema fue el 99, ingresa 100. Si empiezas desde cero, deja todo en 1.",
       "resend": "Reenviar correo de verificación",
@@ -639,7 +644,14 @@
     "ALREADY_PRODUCTION": "Su cuenta ya está en modo producción.",
     "WEBHOOK_ENDPOINT_LIMIT_REACHED": "Ha alcanzado el límite de webhooks de su plan.",
     "WEBHOOK_ENDPOINT_NOT_FOUND": "El endpoint de webhook no fue encontrado.",
-    "INVALID_FILE_UPLOAD": "El archivo subido no es válido. Revise el formato y el tamaño máximo permitido."
+    "INVALID_FILE_UPLOAD": "El archivo subido no es válido. Revise el formato y el tamaño máximo permitido.",
+    "SUBSCRIPTION_NOT_FOUND": "No se encontró la suscripción.",
+    "PAYMENT_NOT_FOUND": "No se encontró el pago.",
+    "SUBSCRIPTION_ALREADY_IN_FLIGHT": "Ya existe una suscripción en proceso para su cuenta.",
+    "INVALID_TIER": "El plan seleccionado no es válido.",
+    "NO_ACTIVE_SUBSCRIPTION": "No tiene una suscripción activa. Active producción con un plan de pago primero.",
+    "TIER_CHANGE_NO_OP": "Ya está en ese plan.",
+    "TIER_CHANGE_ALREADY_PENDING": "Ya hay un cambio de plan en proceso para su suscripción."
   },
   "certBanner": {
     "dismiss": "Descartar alerta de certificado"
@@ -1003,46 +1015,114 @@
     "badge": {
       "popular": "Más popular"
     },
-    "plans": {
-      "sandbox": {
+    "interval": {
+      "monthly": "Mensual",
+      "yearly": "Anual",
+      "yearlyDiscount": "2 meses gratis"
+    },
+    "free": "Gratis",
+    "perMonth": "/mes",
+    "perYear": "/año",
+    "yearlyEquivalent": "Equivalente a {price}/mes",
+    "tiers": {
+      "FREE": {
         "name": "Sandbox",
-        "price": "Gratis",
         "description": "Para desarrolladores y equipos que quieren explorar la plataforma.",
-        "features": [
-          "Comprobantes de prueba ilimitados",
-          "Acceso completo a la API",
-          "Interfaz web incluida",
-          "Soporte por correo"
-        ],
         "cta": "Empezar gratis"
       },
-      "starter": {
+      "STARTER": {
         "name": "Básico",
-        "price": "Próximamente",
         "description": "Para empresas con volumen moderado de comprobantes.",
-        "features": [
-          "500 comprobantes/mes",
-          "Ambiente de producción SRI",
-          "Acceso a la API",
-          "Interfaz web incluida",
-          "Soporte por correo"
-        ],
-        "cta": "Contactar"
+        "cta": "Registrarme"
       },
-      "pro": {
-        "name": "Profesional",
-        "price": "Próximamente",
+      "GROWTH": {
+        "name": "Crecimiento",
+        "description": "Para empresas en expansión con más de una sucursal.",
+        "cta": "Registrarme"
+      },
+      "BUSINESS": {
+        "name": "Empresarial",
         "description": "Para empresas con alto volumen y necesidades avanzadas.",
-        "features": [
-          "Comprobantes ilimitados",
-          "Ambiente de producción SRI",
-          "Acceso a la API",
-          "Interfaz web incluida",
-          "Webhooks en tiempo real",
-          "Soporte prioritario"
-        ],
-        "cta": "Contactar"
+        "cta": "Registrarme"
       }
+    },
+    "features": {
+      "quota": "{count} comprobantes/mes",
+      "branches": "{count} sucursales",
+      "unlimitedBranches": "Sucursales ilimitadas",
+      "issuePoints": "{count} puntos de emisión por sucursal",
+      "unlimitedIssuePoints": "Puntos de emisión ilimitados",
+      "webhooks": "{count} webhooks",
+      "docTypes": "Comprobantes: {types}"
+    }
+  },
+  "billing": {
+    "title": "Facturación",
+    "description": "Plan actual, historial de pagos y comprobantes de transferencia.",
+    "sandboxNotice": "Tu cuenta está en el ambiente de pruebas. Puedes suscribirte a un plan de pago desde ya; se activará una vez verificado el pago, y tendrá efecto en producción cuando actives ese ambiente.",
+    "currentPlan": "Plan actual",
+    "usage": "{count} de {quota} comprobantes usados en producción",
+    "history": "Historial de suscripciones",
+    "noHistory": "Aún no tienes suscripciones.",
+    "noProofYet": "Sin comprobante",
+    "downgradeScheduled": "Tu plan bajará a {tier} el {date}.",
+    "tierChangeTo": "Cambio a {tier}",
+    "billingInterval": {
+      "MONTHLY": "Mensual",
+      "YEARLY": "Anual"
+    },
+    "subscriptionStatus": {
+      "PENDING_PAYMENT": "Pendiente de pago",
+      "INVOICE_PROCESSING": "Procesando factura",
+      "ACTIVE": "Activa",
+      "CANCELLED": "Cancelada"
+    },
+    "paymentStatus": {
+      "PENDING": "Pendiente",
+      "REPORTED": "Reportado",
+      "VERIFIED": "Verificado",
+      "REJECTED": "Rechazado",
+      "REFUNDED": "Reembolsado"
+    },
+    "pendingPayment": {
+      "title": "Pago pendiente",
+      "tierChangeTitle": "Pago pendiente para cambiar a {tier}",
+      "amount": "Monto a transferir: {amount}",
+      "rejected": "Tu comprobante fue rechazado: {reason}",
+      "bank": "Banco",
+      "accountType": "Tipo de cuenta",
+      "accountNumber": "Número de cuenta",
+      "accountHolder": "Titular",
+      "identification": "Identificación",
+      "contactSupport": "Contacta a soporte para obtener los datos de la transferencia bancaria.",
+      "upload": "Subir comprobante",
+      "uploading": "Subiendo...",
+      "uploaded": "Comprobante subido. Tu proveedor lo revisará en breve."
+    },
+    "changePlan": {
+      "title": "Cambiar de plan",
+      "hint": "Subir de plan se aplica de inmediato (con un cobro proporcional al tiempo restante de tu periodo). Bajar de plan se programa para el final de tu periodo actual, sin costo.",
+      "placeholder": "Selecciona un plan",
+      "button": "Cambiar plan",
+      "confirmHint": "¿Confirmas el cambio de plan? Si es una subida, deberás transferir el monto proporcional y subir el comprobante. Si es una bajada, se aplicará automáticamente al finalizar tu periodo actual.",
+      "confirm": "Confirmar cambio",
+      "confirming": "Procesando...",
+      "cancel": "Cancelar",
+      "upgradeRequested": "Solicitud de cambio de plan registrada. Revisa los datos de transferencia abajo.",
+      "upgradeApplied": "Tu plan fue actualizado de inmediato.",
+      "downgradeScheduled": "El cambio de plan quedó programado para el final de tu periodo actual."
+    },
+    "subscribe": {
+      "title": "Suscribirme a un plan",
+      "hint": "Puedes suscribirte ahora, incluso si todavía estás en el ambiente de pruebas. El plan se activará una vez verificado el pago.",
+      "emailRequired": "Debes verificar tu correo electrónico antes de suscribirte a un plan.",
+      "placeholder": "Selecciona un plan",
+      "button": "Suscribirme",
+      "confirmHint": "¿Confirmas la suscripción? Deberás transferir el monto del plan elegido y subir el comprobante.",
+      "confirm": "Confirmar suscripción",
+      "confirming": "Procesando...",
+      "cancel": "Cancelar",
+      "requested": "Suscripción registrada. Revisa los datos de transferencia abajo."
     }
   }
 }
