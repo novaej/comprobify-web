@@ -599,6 +599,7 @@
     "QUOTA_EXCEEDED": "Ha alcanzado el límite mensual de comprobantes. Actualice su plan.",
     "INTERNAL_ERROR": "Error interno del servidor. Contacte al soporte.",
     "VALIDATION_FAILED": "Revise los campos del formulario e intente de nuevo.",
+    "ONLY_OWNER_CAN_GRANT_OWNER": "Solo un Propietario puede asignar el rol de Propietario.",
     "SRI_SUBMISSION_FAILED": "El SRI devolvió un error. Revise los mensajes de detalle.",
     "DOCUMENT_NOT_FOUND": "El comprobante no existe.",
     "DOCUMENT_TYPE_NOT_ENABLED": "Ese tipo de comprobante no está habilitado para este emisor.",
@@ -979,7 +980,17 @@
     },
     "inviteSuccess": "Invitación enviada a {email}.",
     "roleSuccess": "Rol actualizado correctamente.",
-    "removeSuccess": "Usuario eliminado de la organización."
+    "removeSuccess": "Usuario eliminado de la organización.",
+    "resendInvite": "Reenviar invitación",
+    "resendInviteSuccess": "Correo de invitación reenviado.",
+    "manageAccess": "Acceso a emisores",
+    "accessSuccess": "Acceso a emisores actualizado.",
+    "accessDialog": {
+      "title": "Acceso a emisores",
+      "description": "Elige a qué emisores puede acceder este usuario. Si no seleccionas ninguno, tendrá acceso a todos los emisores.",
+      "empty": "No hay emisores disponibles.",
+      "save": "Guardar"
+    }
   },
   "marketing": {
     "nav": {
@@ -1136,6 +1147,55 @@
       "confirming": "Procesando...",
       "cancel": "Cancelar",
       "requested": "Suscripción registrada. Revisa los datos de transferencia abajo."
+    }
+  },
+  "email": {
+    "invite": {
+      "subject": "Te invitaron a unirte a {businessName} en Comprobify",
+      "greeting": "Te invitaron a unirte a {businessName} en Comprobify.",
+      "cta": "Haz clic en el siguiente enlace para completar tu registro:"
+    }
+  },
+  "admin": {
+    "nav": {
+      "title": "Panel de administración",
+      "tenants": "Tenants",
+      "payments": "Pagos",
+      "signOut": "Cerrar sesión"
+    },
+    "tenants": {
+      "title": "Tenants",
+      "description": "Gestiona el plan, estado y verificación de cada tenant.",
+      "empty": "No hay tenants registrados.",
+      "columns": {
+        "email": "Correo",
+        "tier": "Plan",
+        "status": "Estado",
+        "usage": "Uso",
+        "actions": "Acciones"
+      },
+      "usageValue": "{count} / {quota} documentos",
+      "verify": "Verificar",
+      "tierUpdated": "Plan actualizado.",
+      "statusUpdated": "Estado actualizado.",
+      "verified": "Tenant verificado."
+    },
+    "payments": {
+      "title": "Pagos pendientes",
+      "description": "Revisa los comprobantes de pago reportados por los tenants.",
+      "empty": "No hay pagos pendientes de revisión.",
+      "reportedAt": "Reportado el {date}",
+      "viewProof": "Ver comprobante",
+      "verify": "Verificar",
+      "reject": "Rechazar",
+      "verified": "Pago verificado.",
+      "rejected": "Pago rechazado.",
+      "rejectDialog": {
+        "title": "Rechazar pago",
+        "placeholder": "Explica por qué se rechaza el comprobante...",
+        "cancel": "Cancelar",
+        "confirm": "Rechazar pago"
+      }
     }
   }
 }

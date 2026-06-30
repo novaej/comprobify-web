@@ -271,6 +271,10 @@ All variables are required. Set them in each Vercel project under **Settings →
 | `APP_ENV` | No | Tags server-side errors with the deployment environment (`staging` or `production`). Used by `sentry.server.config.ts` and `sentry.edge.config.ts`. |
 | `NEXT_PUBLIC_APP_ENV` | No | Same as `APP_ENV` but exposed to the browser bundle. Used by `sentry.client.config.ts`. |
 | `SENTRY_AUTH_TOKEN` | No | Sentry auth token for source map uploads during build. Obtain from sentry.io → Settings → Auth Tokens. Without it, stack traces in Sentry show minified code instead of original TypeScript. |
+| `MAILGUN_API_KEY` | No | Mailgun API key for sending invite emails (`src/lib/mailgun.ts`). Without it, `inviteUserAction`/`resendInviteAction` silently skip sending and only log to Sentry. A separate Mailgun setup from the Comprobify API's own — this app sends its own transactional emails. |
+| `MAILGUN_DOMAIN` | No | Mailgun sending domain (e.g. `mg.your-domain.com`). Required alongside `MAILGUN_API_KEY`. |
+| `MAILGUN_FROM` | No | From address for invite emails (e.g. `Comprobify <no-reply@mg.your-domain.com>`). |
+| `COMPROBIFY_ADMIN_SECRET` | No* | Bearer secret for the Comprobify API's `/admin/*` routes, used by `src/lib/admin-api.ts` for the `/admin` super-admin panel (tenant management, payment-proof review). Must match the API's own `ADMIN_SECRET`. *Required only on the one deployment a super admin actually logs into — normal tenant flows never call `/admin/*`. |
 
 > **Staging:** point `COMPROBIFY_API_URL` at the staging Comprobify API. Use a separate `DATABASE_URL` from production — staging users and production users must be isolated.
 
@@ -282,7 +286,6 @@ All variables are required. Set them in each Vercel project under **Settings →
 |----------|----------------|
 | `COMPROBIFY_API_KEY` | API keys are now per-tenant, stored encrypted in the `TenantApiKey` table, resolved via `requireContext()` |
 | `COMPROBIFY_SANDBOX` | Sandbox/production state is per-tenant, stored in `Tenant.environment` |
-| `COMPROBIFY_ADMIN_SECRET` | Admin API removed — issuer setup uses `POST /v1/register` (self-service) |
 | `NEXTAUTH_SECRET` | Renamed to `AUTH_SECRET` (Auth.js v5 convention) |
 
 ---

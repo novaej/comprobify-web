@@ -43,6 +43,7 @@ export default async function UsersPage({
         }))}
         issuers={issuers}
         currentUserId={ctx.user.id}
+        currentUserRole={ctx.user.role}
         canManage={canManage}
       />
     </div>

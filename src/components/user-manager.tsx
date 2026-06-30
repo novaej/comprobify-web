@@ -3,10 +3,17 @@
 import { useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { inviteUserAction, updateUserRoleAction, removeUserAction } from '@/app/actions/users';
+import {
+  inviteUserAction,
+  updateUserRoleAction,
+  removeUserAction,
+  resendInviteAction,
+  setUserIssuerAccessAction,
+} from '@/app/actions/users';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { UserPlus } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { UserPlus, Settings2 } from 'lucide-react';
 import type { Role } from '@/lib/rbac';
 import { toastApiError } from '@/lib/api-error-toast';
 
@@ -32,11 +39,13 @@ export function UserManager({
   users,
   issuers,
   currentUserId,
+  currentUserRole,
   canManage,
 }: {
   users: UserRow[];
   issuers: IssuerRow[];
   currentUserId: number;
+  currentUserRole: Role;
   canManage: boolean;
 }) {
   const t = useTranslations('users');
@@ -45,6 +54,10 @@ export function UserManager({
   const [showInvite, setShowInvite] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<Role>('Viewer');
+  const [accessUserId, setAccessUserId] = useState<number | null>(null);
+  const [accessSelection, setAccessSelection] = useState<number[]>([]);
+
+  const assignableRoles = ROLES.filter((r) => r !== 'Owner' || currentUserRole === 'Owner');
 
   function handleInvite() {
     startTransition(async () => {
@@ -55,6 +68,17 @@ export function UserManager({
         toast.success(t('inviteSuccess', { email: inviteEmail }));
         setInviteEmail('');
         setShowInvite(false);
+      }
+    });
+  }
+
+  function handleResendInvite(userId: number) {
+    startTransition(async () => {
+      const result = await resendInviteAction(userId);
+      if (result?.error) {
+        toastApiError(result.error, tError);
+      } else {
+        toast.success(t('resendInviteSuccess'));
       }
     });
   }
@@ -82,6 +106,30 @@ export function UserManager({
     });
   }
 
+  function openAccessDialog(user: UserRow) {
+    setAccessUserId(user.id);
+    setAccessSelection(user.issuerIds);
+  }
+
+  function toggleAccess(issuerId: number) {
+    setAccessSelection((prev) =>
+      prev.includes(issuerId) ? prev.filter((id) => id !== issuerId) : [...prev, issuerId],
+    );
+  }
+
+  function handleSaveAccess() {
+    if (accessUserId === null) return;
+    startTransition(async () => {
+      const result = await setUserIssuerAccessAction(accessUserId, accessSelection);
+      if (result?.error) {
+        toastApiError(result.error, tError);
+      } else {
+        toast.success(t('accessSuccess'));
+        setAccessUserId(null);
+      }
+    });
+  }
+
   return (
     <div className="space-y-4">
       {canManage && (
@@ -103,7 +151,7 @@ export function UserManager({
                 disabled={isPending}
                 className="rounded-md border border-border bg-background px-3 py-2 text-sm"
               >
-                {ROLES.map((r) => (
+                {assignableRoles.map((r) => (
                   <option key={r} value={r}>{t(`role.${r}` as Parameters<typeof t>[0])}</option>
                 ))}
               </select>
@@ -135,53 +183,116 @@ export function UserManager({
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {users.map((user) => (
-                <tr key={user.id}>
-                  <td className="px-4 py-3 font-medium">{user.email}</td>
-                  <td className="px-4 py-3">
-                    {canManage && user.id !== currentUserId ? (
-                      <select
-                        value={user.role}
-                        onChange={(e) => handleRoleChange(user.id, e.target.value as Role)}
-                        disabled={isPending}
-                        className="rounded border border-border bg-background px-2 py-1 text-xs"
-                      >
-                        {ROLES.map((r) => (
-                          <option key={r} value={r}>{t(`role.${r}` as Parameters<typeof t>[0])}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <span className="text-muted-foreground">{t(`role.${user.role}` as Parameters<typeof t>[0])}</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                      user.inviteStatus === 'ACTIVE'
-                        ? 'bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400'
-                        : 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400'
-                    }`}>
-                      {t(`status.${user.inviteStatus}` as Parameters<typeof t>[0])}
-                    </span>
-                  </td>
-                  {canManage && (
-                    <td className="px-4 py-3 text-right">
-                      {user.id !== currentUserId && (
-                        <button
-                          onClick={() => handleRemove(user.id)}
+              {users.map((user) => {
+                const isOwnerOrAdmin = user.role === 'Owner' || user.role === 'Admin';
+                return (
+                  <tr key={user.id}>
+                    <td className="px-4 py-3 font-medium">{user.email}</td>
+                    <td className="px-4 py-3">
+                      {canManage && user.id !== currentUserId ? (
+                        <select
+                          value={user.role}
+                          onChange={(e) => handleRoleChange(user.id, e.target.value as Role)}
                           disabled={isPending}
-                          className="text-xs text-destructive hover:underline disabled:opacity-50"
+                          className="rounded border border-border bg-background px-2 py-1 text-xs"
                         >
-                          {t('remove')}
-                        </button>
+                          {(user.role === 'Owner' ? ROLES : assignableRoles).map((r) => (
+                            <option key={r} value={r}>{t(`role.${r}` as Parameters<typeof t>[0])}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className="text-muted-foreground">{t(`role.${user.role}` as Parameters<typeof t>[0])}</span>
                       )}
                     </td>
-                  )}
-                </tr>
-              ))}
+                    <td className="px-4 py-3">
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                        user.inviteStatus === 'ACTIVE'
+                          ? 'bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400'
+                          : 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400'
+                      }`}>
+                        {t(`status.${user.inviteStatus}` as Parameters<typeof t>[0])}
+                      </span>
+                    </td>
+                    {canManage && (
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-3">
+                          {user.inviteStatus === 'INVITED' && (
+                            <button
+                              onClick={() => handleResendInvite(user.id)}
+                              disabled={isPending}
+                              className="text-xs text-muted-foreground hover:underline disabled:opacity-50"
+                            >
+                              {t('resendInvite')}
+                            </button>
+                          )}
+                          {!isOwnerOrAdmin && (
+                            <button
+                              onClick={() => openAccessDialog(user)}
+                              disabled={isPending}
+                              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:underline disabled:opacity-50"
+                            >
+                              <Settings2 className="h-3 w-3" />
+                              {t('manageAccess')}
+                            </button>
+                          )}
+                          {user.id !== currentUserId && (
+                            <button
+                              onClick={() => handleRemove(user.id)}
+                              disabled={isPending}
+                              className="text-xs text-destructive hover:underline disabled:opacity-50"
+                            >
+                              {t('remove')}
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       </div>
+
+      <Dialog open={accessUserId !== null} onOpenChange={(v) => { if (!v) setAccessUserId(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('accessDialog.title')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">{t('accessDialog.description')}</p>
+            {issuers.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t('accessDialog.empty')}</p>
+            ) : (
+              <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                {issuers.map((issuer) => (
+                  <label key={issuer.id} className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm">
+                    <input
+                      type="checkbox"
+                      className="h-3.5 w-3.5 accent-primary"
+                      checked={accessSelection.includes(issuer.id)}
+                      onChange={() => toggleAccess(issuer.id)}
+                      disabled={isPending}
+                    />
+                    <span>
+                      {issuer.tradeName || issuer.businessName} ({issuer.branchCode}-{issuer.issuePointCode})
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button size="sm" variant="outline" onClick={() => setAccessUserId(null)} disabled={isPending}>
+              {t('cancel')}
+            </Button>
+            <Button size="sm" onClick={handleSaveAccess} disabled={isPending}>
+              {t('accessDialog.save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

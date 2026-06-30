@@ -599,6 +599,7 @@
     "QUOTA_EXCEEDED": "Monthly document quota reached. Please upgrade your plan.",
     "INTERNAL_ERROR": "Internal server error. Please contact support.",
     "VALIDATION_FAILED": "Please review the form fields and try again.",
+    "ONLY_OWNER_CAN_GRANT_OWNER": "Only an Owner can grant the Owner role.",
     "SRI_SUBMISSION_FAILED": "The SRI returned an error. Review the detail messages.",
     "DOCUMENT_NOT_FOUND": "Document not found.",
     "DOCUMENT_TYPE_NOT_ENABLED": "That document type is not enabled for this issuer.",
@@ -895,7 +896,17 @@
     },
     "inviteSuccess": "Invitation sent to {email}.",
     "roleSuccess": "Role updated successfully.",
-    "removeSuccess": "User removed from the organization."
+    "removeSuccess": "User removed from the organization.",
+    "resendInvite": "Resend invite",
+    "resendInviteSuccess": "Invitation email resent.",
+    "manageAccess": "Issuer access",
+    "accessSuccess": "Issuer access updated.",
+    "accessDialog": {
+      "title": "Issuer access",
+      "description": "Choose which issuers this user can access. Leave none selected to allow access to all issuers.",
+      "empty": "No issuers available.",
+      "save": "Save"
+    }
   },
   "certBanner": {
     "dismiss": "Dismiss certificate alert"
@@ -1136,6 +1147,55 @@
       "confirming": "Processing...",
       "cancel": "Cancel",
       "requested": "Subscription requested. Check the transfer details below."
+    }
+  },
+  "email": {
+    "invite": {
+      "subject": "You've been invited to join {businessName} on Comprobify",
+      "greeting": "You've been invited to join {businessName} on Comprobify.",
+      "cta": "Click the link below to complete your registration:"
+    }
+  },
+  "admin": {
+    "nav": {
+      "title": "Admin panel",
+      "tenants": "Tenants",
+      "payments": "Payments",
+      "signOut": "Sign out"
+    },
+    "tenants": {
+      "title": "Tenants",
+      "description": "Manage each tenant's plan, status, and verification.",
+      "empty": "No tenants registered.",
+      "columns": {
+        "email": "Email",
+        "tier": "Tier",
+        "status": "Status",
+        "usage": "Usage",
+        "actions": "Actions"
+      },
+      "usageValue": "{count} / {quota} documents",
+      "verify": "Verify",
+      "tierUpdated": "Tier updated.",
+      "statusUpdated": "Status updated.",
+      "verified": "Tenant verified."
+    },
+    "payments": {
+      "title": "Pending payments",
+      "description": "Review payment proofs reported by tenants.",
+      "empty": "No payments awaiting review.",
+      "reportedAt": "Reported on {date}",
+      "viewProof": "View proof",
+      "verify": "Verify",
+      "reject": "Reject",
+      "verified": "Payment verified.",
+      "rejected": "Payment rejected.",
+      "rejectDialog": {
+        "title": "Reject payment",
+        "placeholder": "Explain why the proof is being rejected...",
+        "cancel": "Cancel",
+        "confirm": "Reject payment"
+      }
     }
   }
 }
