@@ -47,9 +47,15 @@ async function postLoginRedirect(email: string, locale: string): Promise<null> {
     select: {
       tenantId: true,
       inviteStatus: true,
+      isSuperAdmin: true,
       tenant: { select: { _count: { select: { issuers: { where: { active: true } } } } } },
     },
   });
+
+  if (user?.isSuperAdmin) {
+    redirect({ href: '/admin', locale });
+    return null;
+  }
 
   // Shouldn't happen after a successful sign-in, but guard anyway.
   if (user?.inviteStatus !== 'ACTIVE') {

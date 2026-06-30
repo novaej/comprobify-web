@@ -1,6 +1,6 @@
 # ADR-003: Authentication — Single Env Var (MVP) → Multi-user → Multi-tenant
 
-**Status:** Phase 3 (multi-tenant) implemented (2026-05-15)
+**Status:** Phase 4 (super admin) implemented (2026-06-30)
 **Date:** 2026-04-22
 
 ## Context
@@ -43,7 +43,16 @@ Implemented 2026-05-15 as part of the multitenant rewrite. Key decisions:
 
 ## Consequences of Phase 3
 
-- `COMPROBIFY_ADMIN_SECRET` env var removed — admin API no longer used
 - `ENCRYPTION_KEY` and `CONTEXT_COOKIE_SECRET` are now required env vars
 - Every server-side API call goes through `requireContext()` to get `ApiCtx { apiKey, issuerId }`
 - The BFF pattern (ADR-002) is unchanged — only the source of `ApiCtx` changed
+
+## Phase 4 — super admin (current)
+
+Implemented 2026-06-30. The Comprobify API's `/admin/*` routes (tenant management, payment-proof review, etc.) were always live behind a static `ADMIN_SECRET` bearer token, but the frontend had no UI for them — Phase 3 removed `COMPROBIFY_ADMIN_SECRET` as unused, since onboarding moved to the self-service `POST /v1/register` flow. That env var is now reintroduced for a different purpose: a small `/admin` panel for operating the platform itself (verifying tenants, reviewing payment proofs), separate from any tenant.
+
+1. **`User.isSuperAdmin`** — a single boolean column, default `false`. A super-admin row always has `tenantId = null` and `role = null`; there is no self-service way to create one — it's provisioned manually (DB/seed), matching the "exactly one operator account" requirement.
+2. **Session carries `isSuperAdmin`** — `src/auth.ts`'s `authorize()`/`jwt`/`session` callbacks pass it through alongside `id`/`email`, same trimmed-JWT approach as Phase 3 (no extra DB round-trip per request).
+3. **`requireSuperAdmin()` in `src/lib/admin-context.ts`** — a guard deliberately separate from `requireContext()`, which assumes a tenant exists. Redirects to `/login` if the session user isn't a super admin.
+4. **`src/lib/admin-api.ts`** — a second server-only API client (mirrors `src/lib/api.ts`'s conventions) that calls `${COMPROBIFY_API_URL}/admin/...` with `Authorization: Bearer ${COMPROBIFY_ADMIN_SECRET}` instead of a per-tenant API key.
+5. **`postLoginRedirect()`** checks `isSuperAdmin` before any tenant-related branching and sends the user to `/admin` instead of `/onboarding/tenant`.

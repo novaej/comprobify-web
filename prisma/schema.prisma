@@ -16,6 +16,7 @@ model User {
   inviteStatus String    @default("ACTIVE") @map("invite_status")
   invitedAt    DateTime? @map("invited_at")
   acceptedAt   DateTime? @map("accepted_at")
+  isSuperAdmin Boolean   @default(false) @map("is_super_admin")
   createdAt    DateTime  @default(now()) @map("created_at")
   tenant       Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   issuerAccess UserIssuerAccess[]
