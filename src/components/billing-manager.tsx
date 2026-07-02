@@ -6,8 +6,8 @@ import { toast } from 'sonner';
 import { toastApiError } from '@/lib/api-error-toast';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { cn } from '@/lib/utils';
 import { submitPaymentProofAction, changeTierAction, createSubscriptionAction, cancelSubscriptionAction } from '@/app/actions/billing';
 import type { ApiTenantInfo, ApiSubscriptionInfo, ApiPaymentInfo, ApiBankTransferInfo } from '@/lib/api';
 import type { ApiTierInfo } from '@/lib/public-api';
@@ -362,6 +362,103 @@ function PendingPaymentCard({
   );
 }
 
+// Shared interval pill toggle used by both subscribe and change-plan cards
+function IntervalToggle({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: 'MONTHLY' | 'YEARLY';
+  onChange: (v: 'MONTHLY' | 'YEARLY') => void;
+  disabled?: boolean;
+}) {
+  const tPricing = useTranslations('pricing');
+  return (
+    <div className="inline-flex items-center gap-1 rounded-lg border border-border bg-muted p-1">
+      {(['MONTHLY', 'YEARLY'] as const).map((interval) => (
+        <button
+          key={interval}
+          type="button"
+          onClick={() => onChange(interval)}
+          disabled={disabled}
+          className={cn(
+            'flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-medium transition-colors',
+            value === interval ? 'bg-background shadow-sm' : 'text-muted-foreground',
+          )}
+        >
+          {tPricing(`interval.${interval.toLowerCase()}` as Parameters<typeof tPricing>[0])}
+          {interval === 'YEARLY' && (
+            <Badge variant="secondary" className="text-[10px]">
+              {tPricing('interval.yearlyDiscount')}
+            </Badge>
+          )}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// Compact plan card used by both subscribe and change-plan grids
+function PlanCard({
+  tier,
+  interval,
+  state,
+  onClick,
+}: {
+  tier: ApiTierInfo;
+  interval: 'MONTHLY' | 'YEARLY';
+  state: 'current' | 'selected' | 'default';
+  onClick?: () => void;
+}) {
+  const tPricing = useTranslations('pricing');
+  const t = useTranslations('billing');
+  const price = interval === 'YEARLY' ? tier.priceYearlyUsd : tier.priceMonthlyUsd;
+  const perLabel = tPricing(interval === 'YEARLY' ? 'perYear' : 'perMonth');
+  const isHighlighted = tier.name === 'GROWTH';
+
+  return (
+    <div
+      role={state !== 'current' ? 'button' : undefined}
+      tabIndex={state !== 'current' ? 0 : undefined}
+      onClick={state !== 'current' ? onClick : undefined}
+      onKeyDown={state !== 'current' ? (e) => e.key === 'Enter' && onClick?.() : undefined}
+      className={cn(
+        'rounded-lg border p-4 flex flex-col gap-3 transition-all',
+        state === 'current' && 'border-muted bg-muted/30 opacity-60 cursor-default',
+        state === 'selected' && 'border-primary ring-2 ring-primary/30 bg-primary/5 cursor-pointer',
+        state === 'default' && 'border-border cursor-pointer hover:border-primary/50',
+        isHighlighted && state === 'default' && 'border-primary/40',
+      )}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-sm font-semibold">
+          {tPricing(`tiers.${tier.name}.name` as Parameters<typeof tPricing>[0])}
+        </p>
+        {state === 'current' && (
+          <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+            {t('changePlan.currentPlan')}
+          </span>
+        )}
+        {isHighlighted && state !== 'current' && (
+          <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+            {tPricing('badge.popular')}
+          </span>
+        )}
+      </div>
+      <div>
+        <p className="text-xl font-bold">
+          {currencyFormatter.format(price)}
+          <span className="text-sm font-normal text-muted-foreground">{perLabel}</span>
+        </p>
+        <p className="text-xs text-muted-foreground">{t('ivaIncluded')}</p>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {tPricing('features.quota', { count: tier.documentQuota })}
+      </p>
+    </div>
+  );
+}
+
 function ChangeTierCard({
   tiers,
   currentSubscriptionTier,
@@ -384,16 +481,14 @@ function ChangeTierCard({
   const [selectedTier, setSelectedTier] = useState<PaidTier | null>(null);
   const [selectedInterval, setSelectedInterval] = useState<'MONTHLY' | 'YEARLY'>(currentBillingInterval);
 
-  // All paid tiers — current tier is included so users can do interval-only changes
   const options = tiers.filter((tier): tier is ApiTierInfo & { name: PaidTier } => tier.name !== 'FREE');
 
   const periodEndFormatted = currentPeriodEnd
     ? dateFormatter.format(new Date(currentPeriodEnd))
     : null;
 
-  // Scenario detection mirrors the API logic in requestTierChange()
-  const currentTierInfo = tiers.find((t) => t.name === currentSubscriptionTier);
-  const targetTierInfo = selectedTier ? tiers.find((t) => t.name === selectedTier) : null;
+  const currentTierInfo = tiers.find((ti) => ti.name === currentSubscriptionTier);
+  const targetTierInfo = selectedTier ? tiers.find((ti) => ti.name === selectedTier) : null;
   const intervalChanged = selectedInterval !== currentBillingInterval;
   const isTierUpgrade = !!targetTierInfo && !!currentTierInfo &&
     targetTierInfo.priceMonthlyUsd > currentTierInfo.priceMonthlyUsd;
@@ -407,6 +502,11 @@ function ChangeTierCard({
     if (intervalChanged) scenario = 'interval-change';
     else if (isTierUpgrade) scenario = 'upgrade';
     else if (isTierDowngrade) scenario = 'downgrade';
+  }
+
+  function selectTier(name: PaidTier) {
+    setSelectedTier(name);
+    setConfirming(false);
   }
 
   function handleChange() {
@@ -445,85 +545,46 @@ function ChangeTierCard({
     });
   }
 
-  const confirmHintKey = scenario === 'upgrade'
-    ? 'changePlan.confirmHintUpgrade'
-    : scenario === 'downgrade'
-      ? (periodEndFormatted ? 'changePlan.confirmHintDowngrade' : 'changePlan.confirmHintDowngradeNoDate')
-      : (periodEndFormatted ? 'changePlan.confirmHintIntervalChange' : 'changePlan.confirmHintIntervalChangeNoDate');
-
   return (
     <div className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-4">
       <div>
-        <div className="flex items-baseline justify-between gap-2">
-          <h2 className="text-sm font-semibold">{t('changePlan.title')}</h2>
-          <span className="text-xs text-muted-foreground">{t('ivaIncluded')}</span>
-        </div>
+        <h2 className="text-sm font-semibold">{t('changePlan.title')}</h2>
         <p className="mt-1 text-xs text-muted-foreground">{t('changePlan.hint')}</p>
 
-        {/* Billing interval toggle */}
-        <div className="mt-3 flex gap-2">
-          {(['MONTHLY', 'YEARLY'] as const).map((value) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => { setSelectedInterval(value); setConfirming(false); }}
-              disabled={isPending}
-              className={`rounded-md border px-3 py-1.5 text-sm transition-colors ${
-                selectedInterval === value
-                  ? 'border-primary bg-primary/5 font-medium'
-                  : 'border-border text-muted-foreground'
-              }`}
-            >
-              {tPricing(`interval.${value.toLowerCase()}` as Parameters<typeof tPricing>[0])}
-              {value === 'YEARLY' && (
-                <span className="ml-1.5 text-xs text-green-600 dark:text-green-400">
-                  {tPricing('interval.yearlyDiscount')}
-                </span>
-              )}
-            </button>
-          ))}
+        <div className="mt-4">
+          <IntervalToggle
+            value={selectedInterval}
+            onChange={(v) => { setSelectedInterval(v); setConfirming(false); }}
+            disabled={isPending}
+          />
         </div>
 
-        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
-          <Select<PaidTier>
-            value={selectedTier}
-            onValueChange={(value) => {
-              setSelectedTier(value);
-              setConfirming(false);
-            }}
-          >
-            <SelectTrigger className="w-full sm:w-64" disabled={isPending}>
-              <SelectValue>
-                {(value: PaidTier | null) => {
-                  const key = value ? (`tiers.${value}.name` as Parameters<typeof tPricing>[0]) : null;
-                  return key && tPricing.has(key) ? tPricing(key) : t('changePlan.placeholder');
-                }}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {options.map((tier) => {
-                const price = selectedInterval === 'YEARLY' ? tier.priceYearlyUsd : tier.priceMonthlyUsd;
-                const perLabel = tPricing(selectedInterval === 'YEARLY' ? 'perYear' : 'perMonth');
-                const isCurrent = tier.name === currentSubscriptionTier && selectedInterval === currentBillingInterval;
-                return (
-                  <SelectItem key={tier.name} value={tier.name}>
-                    {tPricing(`tiers.${tier.name}.name` as Parameters<typeof tPricing>[0])}
-                    {isCurrent ? ` (${t('changePlan.currentPlan')})` : ` — ${currencyFormatter.format(price)}${perLabel}`}
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {options.map((tier) => {
+            const isCurrent = tier.name === currentSubscriptionTier && selectedInterval === currentBillingInterval;
+            const isSelected = selectedTier === tier.name && !isCurrent;
+            return (
+              <PlanCard
+                key={tier.name}
+                tier={tier}
+                interval={selectedInterval}
+                state={isCurrent ? 'current' : isSelected ? 'selected' : 'default'}
+                onClick={() => selectTier(tier.name as PaidTier)}
+              />
+            );
+          })}
+        </div>
 
-          {selectedTier && !confirming && !isNoOp && (
+        {selectedTier && !isNoOp && !confirming && (
+          <div className="mt-3 flex justify-end">
             <Button size="sm" variant="outline" onClick={() => setConfirming(true)} disabled={isPending}>
               {t('changePlan.button')}
             </Button>
-          )}
-        </div>
+          </div>
+        )}
 
         {isNoOp && selectedTier && (
-          <p className="mt-2 text-xs text-muted-foreground">{t('changePlan.noOp')}</p>
+          <p className="mt-3 text-xs text-muted-foreground">{t('changePlan.noOp')}</p>
         )}
 
         {confirming && selectedTier && scenario && (
@@ -628,105 +689,66 @@ function SubscribeCard({ tiers, emailVerified }: { tiers: ApiTierInfo[]; emailVe
 
   if (options.length === 0) return null;
 
+  const selectedTierInfo = options.find((o) => o.name === selectedTier);
+
   return (
     <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-      <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-sm font-semibold">{t('subscribe.title')}</h2>
-        <span className="text-xs text-muted-foreground">{t('ivaIncluded')}</span>
-      </div>
+      <h2 className="text-sm font-semibold">{t('subscribe.title')}</h2>
       <p className="mt-1 text-xs text-muted-foreground">{t('subscribe.hint')}</p>
 
       {!emailVerified ? (
         <p className="mt-3 text-sm text-muted-foreground">{t('subscribe.emailRequired')}</p>
       ) : (
         <>
-          <div className="mt-3 flex gap-2">
-            {(['MONTHLY', 'YEARLY'] as const).map((value) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => { setBillingInterval(value); setConfirming(false); }}
-                disabled={isPending}
-                className={`rounded-md border px-3 py-1.5 text-sm transition-colors ${
-                  billingInterval === value
-                    ? 'border-primary bg-primary/5 font-medium'
-                    : 'border-border text-muted-foreground'
-                }`}
-              >
-                {tPricing(`interval.${value.toLowerCase()}` as Parameters<typeof tPricing>[0])}
-                {value === 'YEARLY' && (
-                  <span className="ml-1.5 text-xs text-green-600 dark:text-green-400">
-                    {tPricing('interval.yearlyDiscount')}
-                  </span>
-                )}
-              </button>
+          <div className="mt-4">
+            <IntervalToggle
+              value={billingInterval}
+              onChange={(v) => { setBillingInterval(v); setConfirming(false); }}
+              disabled={isPending}
+            />
+          </div>
+
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {options.map((tier) => (
+              <PlanCard
+                key={tier.name}
+                tier={tier}
+                interval={billingInterval}
+                state={selectedTier === tier.name ? 'selected' : 'default'}
+                onClick={() => { setSelectedTier(tier.name as PaidTier); setConfirming(false); }}
+              />
             ))}
           </div>
 
-          <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
-            <Select<PaidTier>
-              value={selectedTier}
-              onValueChange={(value) => {
-                setSelectedTier(value);
-                setConfirming(false);
-              }}
-            >
-              <SelectTrigger className="w-full sm:w-64" disabled={isPending}>
-                <SelectValue>
-                  {(value: PaidTier | null) => {
-                    const key = value ? (`tiers.${value}.name` as Parameters<typeof tPricing>[0]) : null;
-                    return key && tPricing.has(key) ? tPricing(key) : t('subscribe.placeholder');
-                  }}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {options.map((tier) => {
-                  const price = billingInterval === 'YEARLY' ? tier.priceYearlyUsd : tier.priceMonthlyUsd;
-                  const perLabel = tPricing(billingInterval === 'YEARLY' ? 'perYear' : 'perMonth');
-                  return (
-                    <SelectItem key={tier.name} value={tier.name}>
-                      {tPricing(`tiers.${tier.name}.name` as Parameters<typeof tPricing>[0])}
-                      {' — '}
-                      {currencyFormatter.format(price)}
-                      {perLabel}
-                    </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
-
-            {selectedTier && !confirming && (
+          {selectedTier && !confirming && (
+            <div className="mt-3 flex justify-end">
               <Button size="sm" variant="outline" onClick={() => setConfirming(true)} disabled={isPending}>
                 {t('subscribe.button')}
               </Button>
-            )}
-          </div>
+            </div>
+          )}
 
-          {confirming && selectedTier && (() => {
-            const tierInfo = options.find((o) => o.name === selectedTier);
-            const price = tierInfo ? (billingInterval === 'YEARLY' ? tierInfo.priceYearlyUsd : tierInfo.priceMonthlyUsd) : null;
-            const perLabel = tPricing(billingInterval === 'YEARLY' ? 'perYear' : 'perMonth');
-            return (
-              <div className="mt-3 rounded-md border border-border bg-muted/40 p-3 text-sm space-y-2">
-                {price != null && (
-                  <p className="font-medium">
-                    {currencyFormatter.format(price)}{perLabel}
-                    {' · '}
-                    <span className="text-xs font-normal text-muted-foreground">{t('ivaIncluded')}</span>
-                  </p>
+          {confirming && selectedTier && selectedTierInfo && (
+            <div className="mt-3 rounded-md border border-border bg-muted/40 p-3 text-sm space-y-2">
+              <p className="font-medium">
+                {currencyFormatter.format(
+                  billingInterval === 'YEARLY' ? selectedTierInfo.priceYearlyUsd : selectedTierInfo.priceMonthlyUsd,
                 )}
-                <p>{t('subscribe.confirmHint')}</p>
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={handleSubscribe} disabled={isPending}>
-                    {isPending ? t('subscribe.confirming') : t('subscribe.confirm')}
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => setConfirming(false)} disabled={isPending}>
-                    {t('subscribe.cancel')}
-                  </Button>
-                </div>
+                {tPricing(billingInterval === 'YEARLY' ? 'perYear' : 'perMonth')}
+                {' · '}
+                <span className="text-xs font-normal text-muted-foreground">{t('ivaIncluded')}</span>
+              </p>
+              <p>{t('subscribe.confirmHint')}</p>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={handleSubscribe} disabled={isPending}>
+                  {isPending ? t('subscribe.confirming') : t('subscribe.confirm')}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setConfirming(false)} disabled={isPending}>
+                  {t('subscribe.cancel')}
+                </Button>
               </div>
-            );
-          })()}
+            </div>
+          )}
         </>
       )}
     </div>
