@@ -790,11 +790,19 @@ export async function promoteTenant(
 // and ../comprobify/src/models/payment.model.js (omitProofFile strips the raw bytes;
 // purpose/target_tier added in migration 055, 'RENEWAL' purpose added in migration 056
 // — SELECT * so they flow through as-is).
+// Verified against: migration 065 (payments_iva) and ../comprobify/src/models/payment.model.js
+// amount = base imponible (before IVA) for payments created after migration 065.
+// total_amount = IVA-inclusive transfer amount (what the tenant actually wires).
+// Old payments (before 065) have iva_rate/iva_amount/total_amount = null; in that
+// case amount itself was the all-in total — use total_amount ?? amount for display.
 export interface ApiPaymentInfo {
   id: number;
   subscription_id?: number;
   status: 'PENDING' | 'REPORTED' | 'VERIFIED' | 'REJECTED' | 'REFUNDED';
-  amount: string; // numeric column → serialized as string by pg/JSON
+  amount: string;            // base imponible; numeric → string by pg/JSON
+  iva_rate?: number | null;
+  iva_amount?: string | null;
+  total_amount?: string | null;  // IVA-inclusive total; use this for display
   method: 'SPI_TRANSFER';
   purpose?: 'INITIAL' | 'TIER_CHANGE' | 'RENEWAL';
   target_tier?: 'STARTER' | 'GROWTH' | 'BUSINESS' | null;

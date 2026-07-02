@@ -92,9 +92,13 @@ export function PricingPlans({ tiers }: { tiers: ApiTierInfo[] }) {
                     </span>
                   )}
                 </p>
-                {!isFree && interval === 'YEARLY' && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {t('yearlyEquivalent', { price: currencyFormatter.format(Math.round(price / 12)) })}
+                {!isFree && (
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {interval === 'YEARLY'
+                      ? t('yearlyEquivalent', { price: currencyFormatter.format(Math.round(price / 12)) })
+                      : null}
+                    {interval === 'YEARLY' && ' · '}
+                    {t('ivaNote', { rate: Math.round((tier.ivaRate ?? 0.15) * 100) })}
                   </p>
                 )}
                 <p className="text-sm text-muted-foreground mt-2">{t(`tiers.${tier.name}.description`)}</p>

@@ -102,6 +102,8 @@ export function BillingManager({
           <p className="mt-1 text-sm text-muted-foreground">
             {currencyFormatter.format(currentTier.priceMonthlyUsd)}
             {tPricing('perMonth')}
+            {' · '}
+            <span className="text-xs">{t('ivaIncluded')}</span>
           </p>
         )}
         {!isSandbox && latestSubscription?.status === 'ACTIVE' && latestSubscription.current_period_start && latestSubscription.current_period_end && (
@@ -185,7 +187,12 @@ export function BillingManager({
                 return (
                   <div key={p.id} className="py-3 first:pt-0 last:pb-0 flex items-start justify-between gap-4">
                     <div className="min-w-0">
-                      <p className="text-sm font-medium">{currencyFormatter.format(Number(p.amount))}</p>
+                      <p className="text-sm font-medium">
+                        {currencyFormatter.format(Number(p.total_amount ?? p.amount))}
+                        {p.total_amount && (
+                          <span className="ml-1.5 text-xs font-normal text-muted-foreground">{t('ivaIncluded')}</span>
+                        )}
+                      </p>
                       <p className="mt-0.5 text-xs text-muted-foreground">{purposeLabel}</p>
                       {p.proof_filename && p.proof_mime_type && (
                         <button
@@ -287,8 +294,19 @@ function PendingPaymentCard({
             : t('pendingPayment.title')}
       </h2>
       <p className="mt-1 text-sm">
-        {t('pendingPayment.amount', { amount: currencyFormatter.format(Number(payment.amount)) })}
+        {t('pendingPayment.amount', {
+          amount: currencyFormatter.format(Number(payment.total_amount ?? payment.amount)),
+        })}
       </p>
+      {payment.total_amount && payment.iva_amount && payment.iva_rate != null && (
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          {t('pendingPayment.ivaBreakdown', {
+            base: currencyFormatter.format(Number(payment.amount)),
+            rate: Math.round(payment.iva_rate * 100),
+            iva: currencyFormatter.format(Number(payment.iva_amount)),
+          })}
+        </p>
+      )}
 
       {payment.rejection_reason && (
         <p className="mt-2 text-sm text-destructive">
@@ -429,6 +447,8 @@ function ChangeTierCard({
                     {' — '}
                     {currencyFormatter.format(tier.priceMonthlyUsd)}
                     {tPricing('perMonth')}
+                    {' · '}
+                    {t('ivaIncluded')}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -558,6 +578,8 @@ function SubscribeCard({ tiers, emailVerified }: { tiers: ApiTierInfo[]; emailVe
                     {' — '}
                     {currencyFormatter.format(tier.priceMonthlyUsd)}
                     {tPricing('perMonth')}
+                    {' · '}
+                    {t('ivaIncluded')}
                   </SelectItem>
                 ))}
               </SelectContent>

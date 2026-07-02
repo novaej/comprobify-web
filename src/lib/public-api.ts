@@ -141,6 +141,8 @@ export async function listAgreements(): Promise<ApiAgreementInfo[]> {
 }
 
 // Verified against: ../comprobify/src/controllers/tiers.controller.js → list()
+// Prices are IVA-inclusive all-in totals (what a tenant transfers).
+// The *Base fields are the base imponible; *Iva is the IVA portion.
 export interface ApiTierInfo {
   name: 'FREE' | 'STARTER' | 'GROWTH' | 'BUSINESS';
   documentQuota: number;
@@ -150,8 +152,13 @@ export interface ApiTierInfo {
   writeRateLimit: number;
   readRateLimit: number;
   allowedDocumentTypes: string[];
-  priceMonthlyUsd: number;
-  priceYearlyUsd: number;
+  ivaRate: number;
+  priceMonthlyUsdBase: number;
+  priceMonthlyUsdIva: number;
+  priceMonthlyUsd: number;        // IVA-inclusive total
+  priceYearlyUsdBase: number;
+  priceYearlyUsdIva: number;
+  priceYearlyUsd: number;         // IVA-inclusive total
   overagePerDocumentUsd: number | null;
 }
 

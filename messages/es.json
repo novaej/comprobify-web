@@ -1069,6 +1069,8 @@
     "perMonth": "/mes",
     "perYear": "/año",
     "yearlyEquivalent": "Equivalente a {price}/mes",
+    "ivaIncluded": "IVA incluido",
+    "ivaNote": "Precios incluyen IVA ({rate}%)",
     "tiers": {
       "FREE": {
         "name": "Sandbox",
@@ -1113,6 +1115,7 @@
     "noHistory": "Aún no tienes pagos registrados.",
     "noProofYet": "Sin comprobante",
     "billingPeriod": "Periodo: {start} – {end}",
+    "ivaIncluded": "IVA inc.",
     "downgradeScheduled": "Tu plan bajará a {tier} el {date}.",
     "cancellationScheduled": "Tu suscripción será cancelada el {date}. Hasta entonces tendrás acceso a tu plan actual.",
     "tierChangeTo": "Cambio a {tier}",
@@ -1144,6 +1147,7 @@
       "tierChangeTitle": "Pago pendiente para cambiar a {tier}",
       "renewalTitle": "Pago pendiente de renovación",
       "amount": "Monto a transferir: {amount}",
+      "ivaBreakdown": "Base imponible: {base} + IVA {rate}%: {iva}",
       "rejected": "Tu comprobante fue rechazado: {reason}",
       "bank": "Banco",
       "accountType": "Tipo de cuenta",

@@ -162,6 +162,10 @@ export function ProductionPromotion({
                         ),
                         quota: selectedTierInfo.documentQuota,
                       })}
+                      {' '}
+                      <span className="text-xs text-muted-foreground">
+                        ({tPricing('ivaIncluded')})
+                      </span>
                     </p>
                   )}
                 </>
