@@ -300,10 +300,8 @@ function PendingPaymentCard({
             ? t('pendingPayment.renewalTitle')
             : t('pendingPayment.title')}
       </h2>
-      <p className="mt-1 text-sm">
-        {t('pendingPayment.amount', {
-          amount: currencyFormatter.format(Number(payment.total_amount ?? payment.amount)),
-        })}
+      <p className="mt-2 text-2xl font-semibold tracking-tight">
+        {currencyFormatter.format(Number(payment.total_amount ?? payment.amount))}
       </p>
       {payment.total_amount && payment.iva_amount && payment.iva_rate != null && (
         <p className="mt-0.5 text-xs text-muted-foreground">

@@ -1148,7 +1148,7 @@
       "tierChangeTitle": "Pago pendiente para cambiar a {tier}",
       "renewalTitle": "Pago pendiente de renovación",
       "amount": "Monto a transferir: {amount}",
-      "ivaBreakdown": "Base imponible: {base} + IVA {rate}%: {iva}",
+      "ivaBreakdown": "Incluye IVA {rate}% ({iva}) sobre base imponible de {base}",
       "rejected": "Tu comprobante fue rechazado: {reason}",
       "bank": "Banco",
       "accountType": "Tipo de cuenta",

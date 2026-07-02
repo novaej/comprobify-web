@@ -1148,7 +1148,7 @@
       "tierChangeTitle": "Pending payment to switch to {tier}",
       "renewalTitle": "Pending renewal payment",
       "amount": "Amount to transfer: {amount}",
-      "ivaBreakdown": "Taxable base: {base} + VAT {rate}%: {iva}",
+      "ivaBreakdown": "Includes {rate}% VAT ({iva}) on taxable base {base}",
       "rejected": "Your proof was rejected: {reason}",
       "bank": "Bank",
       "accountType": "Account type",
