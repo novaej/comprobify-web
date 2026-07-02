@@ -302,16 +302,10 @@ function PendingPaymentCard({
       </h2>
       <p className="mt-2 text-2xl font-semibold tracking-tight">
         {currencyFormatter.format(Number(payment.total_amount ?? payment.amount))}
+        {payment.total_amount && (
+          <span className="ml-2 text-sm font-normal text-muted-foreground">{t('ivaIncluded')}</span>
+        )}
       </p>
-      {payment.total_amount && payment.iva_amount && payment.iva_rate != null && (
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          {t('pendingPayment.ivaBreakdown', {
-            base: currencyFormatter.format(Number(payment.amount)),
-            rate: Math.round(payment.iva_rate * 100),
-            iva: currencyFormatter.format(Number(payment.iva_amount)),
-          })}
-        </p>
-      )}
 
       {payment.rejection_reason && (
         <p className="mt-2 text-sm text-destructive">
