@@ -1179,6 +1179,14 @@
       "upgradeApplied": "Your plan was updated immediately.",
       "downgradeScheduled": "The plan change was scheduled for the end of your current period."
     },
+    "rejectionReason": {
+      "AMOUNT_MISMATCH": "The transferred amount does not match the requested amount.",
+      "TRANSFER_NOT_FOUND": "No matching transfer was found in the account.",
+      "WRONG_ACCOUNT": "The transfer was sent to the wrong account.",
+      "ILLEGIBLE_PROOF": "The uploaded proof is illegible or corrupted.",
+      "DUPLICATE_SUBMISSION": "This proof was already submitted and reviewed for another payment.",
+      "OTHER": "Please contact support for more details."
+    },
     "cancelPlan": {
       "title": "Cancel subscription",
       "hint": "You'll keep your current plan until {date}. After that you'll automatically move to the free plan.",

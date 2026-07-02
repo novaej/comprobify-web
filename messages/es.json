@@ -1179,6 +1179,14 @@
       "upgradeApplied": "Tu plan fue actualizado de inmediato.",
       "downgradeScheduled": "El cambio de plan quedó programado para el final de tu periodo actual."
     },
+    "rejectionReason": {
+      "AMOUNT_MISMATCH": "El monto transferido no coincide con el solicitado.",
+      "TRANSFER_NOT_FOUND": "No se encontró una transferencia coincidente en la cuenta.",
+      "WRONG_ACCOUNT": "La transferencia fue enviada a la cuenta incorrecta.",
+      "ILLEGIBLE_PROOF": "El comprobante subido es ilegible o está dañado.",
+      "DUPLICATE_SUBMISSION": "Este comprobante ya fue enviado y revisado para otro pago.",
+      "OTHER": "Contacta a soporte para más detalles."
+    },
     "cancelPlan": {
       "title": "Cancelar suscripción",
       "hint": "Conservarás tu plan actual hasta el {date}. Después pasarás al plan gratuito automáticamente.",

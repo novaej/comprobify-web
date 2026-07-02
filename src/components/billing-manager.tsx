@@ -307,9 +307,13 @@ function PendingPaymentCard({
         )}
       </p>
 
-      {payment.rejection_reason && (
+      {payment.rejection_reason_code && (
         <p className="mt-2 text-sm text-destructive">
-          {t('pendingPayment.rejected', { reason: payment.rejection_reason })}
+          {t('pendingPayment.rejected', {
+            reason: t.has(`rejectionReason.${payment.rejection_reason_code}` as Parameters<typeof t>[0])
+              ? t(`rejectionReason.${payment.rejection_reason_code}` as Parameters<typeof t>[0])
+              : t('rejectionReason.OTHER'),
+          })}
         </p>
       )}
 

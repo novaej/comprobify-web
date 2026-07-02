@@ -807,7 +807,7 @@ export interface ApiPaymentInfo {
   purpose?: 'INITIAL' | 'TIER_CHANGE' | 'RENEWAL';
   target_tier?: 'STARTER' | 'GROWTH' | 'BUSINESS' | null;
   target_billing_interval?: 'MONTHLY' | 'YEARLY' | null;
-  rejection_reason?: string | null;
+  rejection_reason_code?: 'AMOUNT_MISMATCH' | 'TRANSFER_NOT_FOUND' | 'WRONG_ACCOUNT' | 'ILLEGIBLE_PROOF' | 'DUPLICATE_SUBMISSION' | 'OTHER' | null;
   proof_filename?: string | null;
   proof_mime_type?: string | null;
   reported_at?: string | null;
