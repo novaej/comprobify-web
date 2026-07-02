@@ -429,7 +429,7 @@ function ChangeTierCard({
 
           <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
             <Select<PaidTier>
-              value={selectedTier ?? undefined}
+              value={selectedTier}
               onValueChange={(value) => {
                 setSelectedTier(value);
                 setConfirming(false);
@@ -561,7 +561,7 @@ function SubscribeCard({ tiers, emailVerified }: { tiers: ApiTierInfo[]; emailVe
         <>
           <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
             <Select<PaidTier>
-              value={selectedTier ?? undefined}
+              value={selectedTier}
               onValueChange={(value) => {
                 setSelectedTier(value);
                 setConfirming(false);
