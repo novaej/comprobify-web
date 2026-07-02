@@ -215,25 +215,25 @@ export function BillingManager({
         })()}
       </div>
       <Dialog open={!!proofPreview} onOpenChange={(open) => { if (!open) setProofPreview(null); }}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="truncate text-sm font-medium">
               {proofPreview?.filename}
             </DialogTitle>
           </DialogHeader>
           {proofPreview && (
-            <div className="mt-2 overflow-hidden rounded-md border border-border">
+            <div className="overflow-hidden rounded-md border border-border">
               {proofPreview.mimeType === 'application/pdf' ? (
                 <iframe
                   src={`/api/payments/${proofPreview.id}/proof`}
                   title={proofPreview.filename}
-                  className="h-[55vh] w-full"
+                  className="h-[50vh] w-full"
                 />
               ) : (
                 <img
                   src={`/api/payments/${proofPreview.id}/proof`}
                   alt={proofPreview.filename}
-                  className="max-h-[55vh] w-full object-contain"
+                  className="max-h-[50vh] w-full object-contain"
                 />
               )}
             </div>
@@ -421,7 +421,10 @@ function ChangeTierCard({
     <div className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-4">
       {options.length > 0 && (
         <div>
-          <h2 className="text-sm font-semibold">{t('changePlan.title')}</h2>
+          <div className="flex items-baseline justify-between gap-2">
+            <h2 className="text-sm font-semibold">{t('changePlan.title')}</h2>
+            <span className="text-xs text-muted-foreground">{t('ivaIncluded')}</span>
+          </div>
           <p className="mt-1 text-xs text-muted-foreground">{t('changePlan.hint')}</p>
 
           <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -447,8 +450,6 @@ function ChangeTierCard({
                     {' — '}
                     {currencyFormatter.format(tier.priceMonthlyUsd)}
                     {tPricing('perMonth')}
-                    {' · '}
-                    {t('ivaIncluded')}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -548,7 +549,10 @@ function SubscribeCard({ tiers, emailVerified }: { tiers: ApiTierInfo[]; emailVe
 
   return (
     <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-      <h2 className="text-sm font-semibold">{t('subscribe.title')}</h2>
+      <div className="flex items-baseline justify-between gap-2">
+        <h2 className="text-sm font-semibold">{t('subscribe.title')}</h2>
+        <span className="text-xs text-muted-foreground">{t('ivaIncluded')}</span>
+      </div>
       <p className="mt-1 text-xs text-muted-foreground">{t('subscribe.hint')}</p>
 
       {!emailVerified ? (
@@ -578,8 +582,6 @@ function SubscribeCard({ tiers, emailVerified }: { tiers: ApiTierInfo[]; emailVe
                     {' — '}
                     {currencyFormatter.format(tier.priceMonthlyUsd)}
                     {tPricing('perMonth')}
-                    {' · '}
-                    {t('ivaIncluded')}
                   </SelectItem>
                 ))}
               </SelectContent>
