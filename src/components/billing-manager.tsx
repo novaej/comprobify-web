@@ -176,9 +176,15 @@ export function BillingManager({
 
                 let purposeLabel: string;
                 if (p.purpose === 'TIER_CHANGE' && targetTierKey) {
-                  purposeLabel = t('tierChangeTo', {
-                    tier: tPricing.has(targetTierKey) ? tPricing(targetTierKey) : p.target_tier ?? '',
-                  });
+                  const targetTierName = tPricing.has(targetTierKey) ? tPricing(targetTierKey) : p.target_tier ?? '';
+                  if (p.target_billing_interval) {
+                    purposeLabel = t('tierChangeToWithInterval', {
+                      tier: targetTierName,
+                      interval: tPricing(`interval.${p.target_billing_interval.toLowerCase()}` as Parameters<typeof tPricing>[0]),
+                    });
+                  } else {
+                    purposeLabel = t('tierChangeTo', { tier: targetTierName });
+                  }
                 } else if (p.purpose === 'RENEWAL') {
                   purposeLabel = t('paymentPurposeRenewal', { tier: subTierName });
                 } else {
@@ -380,25 +386,48 @@ function ChangeTierCard({
   const [confirming, setConfirming] = useState(false);
   const [cancelConfirming, setCancelConfirming] = useState(false);
   const [selectedTier, setSelectedTier] = useState<PaidTier | null>(null);
-  const options = tiers.filter(
-    (tier): tier is ApiTierInfo & { name: PaidTier } =>
-      tier.name !== 'FREE' && tier.name !== currentSubscriptionTier,
-  );
+  const [selectedInterval, setSelectedInterval] = useState<'MONTHLY' | 'YEARLY'>(currentBillingInterval);
+
+  // All paid tiers — current tier is included so users can do interval-only changes
+  const options = tiers.filter((tier): tier is ApiTierInfo & { name: PaidTier } => tier.name !== 'FREE');
+
   const periodEndFormatted = currentPeriodEnd
     ? dateFormatter.format(new Date(currentPeriodEnd))
     : null;
 
+  // Scenario detection mirrors the API logic in requestTierChange()
+  const currentTierInfo = tiers.find((t) => t.name === currentSubscriptionTier);
+  const targetTierInfo = selectedTier ? tiers.find((t) => t.name === selectedTier) : null;
+  const intervalChanged = selectedInterval !== currentBillingInterval;
+  const isTierUpgrade = !!targetTierInfo && !!currentTierInfo &&
+    targetTierInfo.priceMonthlyUsd > currentTierInfo.priceMonthlyUsd;
+  const isTierDowngrade = !!targetTierInfo && !!currentTierInfo &&
+    targetTierInfo.priceMonthlyUsd < currentTierInfo.priceMonthlyUsd;
+  const isNoOp = selectedTier === currentSubscriptionTier && !intervalChanged;
+
+  type Scenario = 'upgrade' | 'downgrade' | 'interval-change';
+  let scenario: Scenario | null = null;
+  if (selectedTier && !isNoOp) {
+    if (intervalChanged) scenario = 'interval-change';
+    else if (isTierUpgrade) scenario = 'upgrade';
+    else if (isTierDowngrade) scenario = 'downgrade';
+  }
+
   function handleChange() {
-    if (!selectedTier) return;
+    if (!selectedTier || isNoOp) return;
     startTransition(async () => {
-      const result = await changeTierAction(selectedTier);
+      const result = await changeTierAction(
+        selectedTier,
+        intervalChanged ? selectedInterval : undefined,
+      );
       if ('error' in result) {
         toastApiError(result.error, tError);
         return;
       }
       setConfirming(false);
       setSelectedTier(null);
-      if (result.effectiveAt) {
+      setSelectedInterval(currentBillingInterval);
+      if (result.effectiveAt && !result.payment) {
         toast.success(t('changePlan.downgradeScheduled'));
       } else if (result.payment) {
         toast.success(t('changePlan.upgradeRequested'));
@@ -420,79 +449,122 @@ function ChangeTierCard({
     });
   }
 
+  const confirmHintKey = scenario === 'upgrade'
+    ? 'changePlan.confirmHintUpgrade'
+    : scenario === 'downgrade'
+      ? (periodEndFormatted ? 'changePlan.confirmHintDowngrade' : 'changePlan.confirmHintDowngradeNoDate')
+      : (periodEndFormatted ? 'changePlan.confirmHintIntervalChange' : 'changePlan.confirmHintIntervalChangeNoDate');
+
   return (
     <div className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-4">
-      {options.length > 0 && (
-        <div>
-          <div className="flex items-baseline justify-between gap-2">
-            <h2 className="text-sm font-semibold">{t('changePlan.title')}</h2>
-            <span className="text-xs text-muted-foreground">{t('ivaIncluded')}</span>
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">{t('changePlan.hint')}</p>
+      <div>
+        <div className="flex items-baseline justify-between gap-2">
+          <h2 className="text-sm font-semibold">{t('changePlan.title')}</h2>
+          <span className="text-xs text-muted-foreground">{t('ivaIncluded')}</span>
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">{t('changePlan.hint')}</p>
 
-          <p className="mt-1.5 text-xs text-muted-foreground">
-            {tPricing(`interval.${currentBillingInterval.toLowerCase()}` as Parameters<typeof tPricing>[0])}
-            {' · '}
-            {t('changePlan.intervalNote')}
-          </p>
-
-          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-            <Select<PaidTier>
-              value={selectedTier}
-              onValueChange={(value) => {
-                setSelectedTier(value);
-                setConfirming(false);
-              }}
+        {/* Billing interval toggle */}
+        <div className="mt-3 flex gap-2">
+          {(['MONTHLY', 'YEARLY'] as const).map((value) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => { setSelectedInterval(value); setConfirming(false); }}
+              disabled={isPending}
+              className={`rounded-md border px-3 py-1.5 text-sm transition-colors ${
+                selectedInterval === value
+                  ? 'border-primary bg-primary/5 font-medium'
+                  : 'border-border text-muted-foreground'
+              }`}
             >
-              <SelectTrigger className="w-full sm:w-56" disabled={isPending}>
-                <SelectValue>
-                  {(value: PaidTier | null) => {
-                    const key = value ? (`tiers.${value}.name` as Parameters<typeof tPricing>[0]) : null;
-                    return key && tPricing.has(key) ? tPricing(key) : t('changePlan.placeholder');
-                  }}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {options.map((tier) => {
-                  const price = currentBillingInterval === 'YEARLY' ? tier.priceYearlyUsd : tier.priceMonthlyUsd;
-                  const perLabel = tPricing(currentBillingInterval === 'YEARLY' ? 'perYear' : 'perMonth');
-                  return (
-                    <SelectItem key={tier.name} value={tier.name}>
-                      {tPricing(`tiers.${tier.name}.name` as Parameters<typeof tPricing>[0])}
-                      {' — '}
-                      {currencyFormatter.format(price)}
-                      {perLabel}
-                    </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
+              {tPricing(`interval.${value.toLowerCase()}` as Parameters<typeof tPricing>[0])}
+              {value === 'YEARLY' && (
+                <span className="ml-1.5 text-xs text-green-600 dark:text-green-400">
+                  {tPricing('interval.yearlyDiscount')}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
 
-            {selectedTier && !confirming && (
-              <Button size="sm" variant="outline" onClick={() => setConfirming(true)} disabled={isPending}>
-                {t('changePlan.button')}
-              </Button>
-            )}
-          </div>
+        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Select<PaidTier>
+            value={selectedTier}
+            onValueChange={(value) => {
+              setSelectedTier(value);
+              setConfirming(false);
+            }}
+          >
+            <SelectTrigger className="w-full sm:w-64" disabled={isPending}>
+              <SelectValue>
+                {(value: PaidTier | null) => {
+                  const key = value ? (`tiers.${value}.name` as Parameters<typeof tPricing>[0]) : null;
+                  return key && tPricing.has(key) ? tPricing(key) : t('changePlan.placeholder');
+                }}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {options.map((tier) => {
+                const price = selectedInterval === 'YEARLY' ? tier.priceYearlyUsd : tier.priceMonthlyUsd;
+                const perLabel = tPricing(selectedInterval === 'YEARLY' ? 'perYear' : 'perMonth');
+                const isCurrent = tier.name === currentSubscriptionTier && selectedInterval === currentBillingInterval;
+                return (
+                  <SelectItem key={tier.name} value={tier.name}>
+                    {tPricing(`tiers.${tier.name}.name` as Parameters<typeof tPricing>[0])}
+                    {isCurrent ? ` (${t('changePlan.currentPlan')})` : ` — ${currencyFormatter.format(price)}${perLabel}`}
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
 
-          {confirming && selectedTier && (
-            <div className="mt-3 rounded-md border border-border bg-muted/40 p-3 text-sm space-y-2">
-              <p>{t('changePlan.confirmHint')}</p>
-              <div className="flex gap-2">
-                <Button size="sm" onClick={handleChange} disabled={isPending}>
-                  {isPending ? t('changePlan.confirming') : t('changePlan.confirm')}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setConfirming(false)} disabled={isPending}>
-                  {t('changePlan.cancel')}
-                </Button>
-              </div>
-            </div>
+          {selectedTier && !confirming && !isNoOp && (
+            <Button size="sm" variant="outline" onClick={() => setConfirming(true)} disabled={isPending}>
+              {t('changePlan.button')}
+            </Button>
           )}
         </div>
-      )}
+
+        {isNoOp && selectedTier && (
+          <p className="mt-2 text-xs text-muted-foreground">{t('changePlan.noOp')}</p>
+        )}
+
+        {confirming && selectedTier && scenario && (
+          <div className="mt-3 rounded-md border border-border bg-muted/40 p-3 text-sm space-y-2">
+            <p>
+              {scenario === 'upgrade'
+                ? t('changePlan.confirmHintUpgrade')
+                : scenario === 'downgrade'
+                  ? (periodEndFormatted
+                      ? t('changePlan.confirmHintDowngrade', { date: periodEndFormatted })
+                      : t('changePlan.confirmHintDowngradeNoDate'))
+                  : (periodEndFormatted
+                      ? t('changePlan.confirmHintIntervalChange', { date: periodEndFormatted })
+                      : t('changePlan.confirmHintIntervalChangeNoDate'))}
+            </p>
+            {targetTierInfo && scenario !== 'upgrade' && (
+              <p className="font-medium">
+                {currencyFormatter.format(selectedInterval === 'YEARLY' ? targetTierInfo.priceYearlyUsd : targetTierInfo.priceMonthlyUsd)}
+                {tPricing(selectedInterval === 'YEARLY' ? 'perYear' : 'perMonth')}
+                {' · '}
+                <span className="text-xs font-normal text-muted-foreground">{t('ivaIncluded')}</span>
+              </p>
+            )}
+            <div className="flex gap-2">
+              <Button size="sm" onClick={handleChange} disabled={isPending}>
+                {isPending ? t('changePlan.confirming') : t('changePlan.confirm')}
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setConfirming(false)} disabled={isPending}>
+                {t('changePlan.cancel')}
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {!isSandbox && (
-        <div className={options.length > 0 ? 'border-t border-border pt-4' : ''}>
+        <div className="border-t border-border pt-4">
           <p className="text-xs text-muted-foreground">
             {periodEndFormatted
               ? t('cancelPlan.hint', { date: periodEndFormatted })

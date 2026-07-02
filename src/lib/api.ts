@@ -806,6 +806,7 @@ export interface ApiPaymentInfo {
   method: 'SPI_TRANSFER';
   purpose?: 'INITIAL' | 'TIER_CHANGE' | 'RENEWAL';
   target_tier?: 'STARTER' | 'GROWTH' | 'BUSINESS' | null;
+  target_billing_interval?: 'MONTHLY' | 'YEARLY' | null;
   rejection_reason?: string | null;
   proof_filename?: string | null;
   proof_mime_type?: string | null;
@@ -848,9 +849,10 @@ export async function getMySubscriptions(ctx: ApiCtx): Promise<ApiSubscriptionIn
 // Verified against: ../comprobify/src/controllers/subscription.controller.js → changeTier()
 // and ../comprobify/src/services/subscription.service.js → requestTierChange().
 // Response shape varies by outcome — see docs/site/endpoints/change-tier.md:
-//   upgrade (payment owed): subscription + payment + bankTransfer
-//   upgrade (prorates to $0, applied immediately): subscription + payment: null + amount: 0
-//   downgrade (scheduled, no payment owed): subscription (with pending_tier) + effectiveAt
+//   upgrade, same interval (payment owed): subscription + payment + bankTransfer
+//   upgrade, same interval (prorates to $0, applied immediately): subscription + payment: null + amount: 0
+//   downgrade, same interval (scheduled, no payment): subscription (with pending_tier) + effectiveAt
+//   any interval change (deferred, full price): subscription + payment + bankTransfer + effectiveAt
 export interface ChangeTierResult {
   ok: true;
   subscription: {
@@ -869,14 +871,16 @@ export interface ChangeTierResult {
 }
 
 // Verified against: ../comprobify/src/routes/subscriptions.routes.js → POST /v1/subscriptions/change-tier
+// billingInterval is optional — omit to keep the current subscription interval.
 export async function changeTier(
   ctx: ApiCtx,
   tier: 'STARTER' | 'GROWTH' | 'BUSINESS',
+  billingInterval?: 'MONTHLY' | 'YEARLY',
 ): Promise<ChangeTierResult> {
   return request<ChangeTierResult>(
     '/v1/subscriptions/change-tier',
     { apiKey: ctx.apiKey },
-    { method: 'POST', body: JSON.stringify({ tier }) },
+    { method: 'POST', body: JSON.stringify({ tier, ...(billingInterval && { billingInterval }) }) },
   );
 }
 

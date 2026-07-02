@@ -53,12 +53,12 @@ export async function submitPaymentProofAction(
   }
 }
 
-export async function changeTierAction(tier: PaidTier): Promise<ChangeTierActionResult> {
+export async function changeTierAction(tier: PaidTier, billingInterval?: BillingInterval): Promise<ChangeTierActionResult> {
   const ctx = await requirePermission('billing.manage', { skipIssuer: true });
 
   let result: ChangeTierResult;
   try {
-    result = await changeTier({ apiKey: ctx.apiKey }, tier);
+    result = await changeTier({ apiKey: ctx.apiKey }, tier, billingInterval);
   } catch (err) {
     if (err instanceof ApiError) return { error: err.code };
     throw err;
