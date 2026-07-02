@@ -3,7 +3,7 @@ import { ProductionPromotion } from '@/components/production-promotion';
 import { EmailVerificationNotice } from '@/components/email-verification-notice';
 import { PageHeader } from '@/components/page-header';
 import { requireContext } from '@/lib/context';
-import { listIssuerDocumentTypes, getMySubscriptions } from '@/lib/api';
+import { listIssuerDocumentTypes, getMySubscriptions, getAgreementStatus } from '@/lib/api';
 import { listTiers } from '@/lib/public-api';
 import { Link } from '@/i18n/navigation';
 import { db } from '@/lib/db';
@@ -49,11 +49,18 @@ export default async function SettingsPage({
   // A subscription may already be ACTIVE from POST /v1/subscriptions, started
   // while still in sandbox via /settings/billing — promote() ignores tier/
   // billingInterval entirely in that case, so don't offer the picker for it.
-  const activeSubscription = environment === 'sandbox'
-    ? await getMySubscriptions({ apiKey: ctx.apiKey })
-        .then((subs) => subs.find((s) => s.status === 'ACTIVE') ?? null)
-        .catch(() => null)
-    : null;
+  // agreementsAccepted: false only when agreements are published AND the tenant
+  // hasn't accepted them yet; pre-launch (no templates) always returns true.
+  const [activeSubscription, agreementsAccepted] = environment === 'sandbox'
+    ? await Promise.all([
+        getMySubscriptions({ apiKey: ctx.apiKey })
+          .then((subs) => subs.find((s) => s.status === 'ACTIVE') ?? null)
+          .catch(() => null),
+        getAgreementStatus({ apiKey: ctx.apiKey })
+          .then((s) => !s.needsAcceptance)
+          .catch(() => true),
+      ])
+    : [null, true];
 
   return (
     <div className="max-w-2xl">
@@ -88,6 +95,7 @@ export default async function SettingsPage({
                   intendedTier={intendedPlan?.intendedTier ?? null}
                   intendedBillingInterval={intendedPlan?.intendedBillingInterval ?? null}
                   activeSubscriptionTier={activeSubscription?.tier ?? null}
+                  agreementsAccepted={agreementsAccepted}
                 />
               </div>
             )}

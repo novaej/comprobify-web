@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { promoteTenantAction } from '@/app/actions/tenant';
 import { resendVerificationAction } from '@/app/actions/tenant';
-import { AlertTriangle, Info, MailCheck } from 'lucide-react';
+import { AlertTriangle, Info, MailCheck, FileWarning } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import type { ApiTierInfo } from '@/lib/public-api';
 import type { PaidTier, BillingInterval } from '@/lib/subscription-tiers';
@@ -21,6 +21,7 @@ export function ProductionPromotion({
   intendedTier,
   intendedBillingInterval,
   activeSubscriptionTier,
+  agreementsAccepted,
 }: {
   documentTypes: string[];
   emailVerified: boolean;
@@ -28,6 +29,7 @@ export function ProductionPromotion({
   intendedTier: string | null;
   intendedBillingInterval: string | null;
   activeSubscriptionTier: string | null;
+  agreementsAccepted: boolean;
 }) {
   const t = useTranslations('settings.promote');
   const tSetup = useTranslations('settings.setup');
@@ -231,6 +233,20 @@ export function ProductionPromotion({
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">{t('description')}</p>
+      {!agreementsAccepted && (
+        <div
+          role="alert"
+          className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300"
+        >
+          <FileWarning className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          <p>
+            {t('agreementRequired')}{' '}
+            <Link href="/agreements" className="underline underline-offset-4">
+              {t('agreementRequiredLink')}
+            </Link>
+          </p>
+        </div>
+      )}
       <div
         role="note"
         className="flex items-start gap-2.5 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300"
@@ -238,7 +254,7 @@ export function ProductionPromotion({
         <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
         <p>{t('sriNotice')}</p>
       </div>
-      <Button variant="outline" size="sm" onClick={() => setConfirming(true)} disabled={!emailVerified}>
+      <Button variant="outline" size="sm" onClick={() => setConfirming(true)} disabled={!emailVerified || !agreementsAccepted}>
         {t('button')}
       </Button>
       {!emailVerified && (

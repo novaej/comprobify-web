@@ -530,7 +530,8 @@
       "docType06": "Delivery note",
       "docType07": "Withholding receipt",
       "submit": "Activate test environment",
-      "submitting": "Setting up..."
+      "submitting": "Setting up...",
+      "agreementNotice": "By creating your account you will accept Comprobify's Terms of Service, Privacy Policy, and Data Processing Agreement. You will be able to review them in detail in the next step."
     },
     "environment": {
       "title": "Environment",
@@ -556,7 +557,9 @@
       "sequentialsHint": "The next number Comprobify will use for each document type in production. If the last number issued outside the system was 99, enter 100. Leave at 1 if starting fresh.",
       "resend": "Resend verification email",
       "resending": "Sending...",
-      "resendSent": "Verification email sent. Check your inbox."
+      "resendSent": "Verification email sent. Check your inbox.",
+      "agreementRequired": "You must review and accept the legal agreements before activating production.",
+      "agreementRequiredLink": "Review and accept agreements"
     },
     "account": {
       "title": "Account"
@@ -652,7 +655,30 @@
     "INVALID_TIER": "The selected plan is not valid.",
     "NO_ACTIVE_SUBSCRIPTION": "You don't have an active subscription. Activate production with a paid plan first.",
     "TIER_CHANGE_NO_OP": "You're already on that plan.",
-    "TIER_CHANGE_ALREADY_PENDING": "A plan change is already in progress for your subscription."
+    "TIER_CHANGE_ALREADY_PENDING": "A plan change is already in progress for your subscription.",
+    "CANCELLATION_ALREADY_PENDING": "A cancellation is already scheduled for this subscription.",
+    "REQUIRES_PRODUCTION": "This action is only available in the production environment.",
+    "AGREEMENT_NOT_FOUND": "The requested agreement document was not found.",
+    "VERSION_MISMATCH": "The terms have been updated. Reload the page and review them before continuing.",
+    "AGREEMENT_ACCEPTANCE_REQUIRED": "You must review and accept the legal agreements before activating production."
+  },
+  "agreements": {
+    "title": "Review and accept agreements",
+    "description": "Before continuing, please review and accept the following Comprobify legal documents.",
+    "viewDocument": "View document",
+    "statusPending": "Pending",
+    "statusAccepted": "Accepted",
+    "termsLabel": "I have read and accept the Terms of Service.",
+    "privacyLabel": "I have read and accept the Privacy Policy.",
+    "dpaLabel": "I have read and accept the Data Processing Agreement.",
+    "accept": "Accept all agreements",
+    "accepting": "Accepting...",
+    "versionLabel": "Version: {version}",
+    "documentTitles": {
+      "TERMS": "Terms of Service",
+      "PRIVACY": "Privacy Policy",
+      "DPA": "Data Processing Agreement"
+    }
   },
   "clients": {
     "title": "Clients",
@@ -1079,14 +1105,20 @@
     "title": "Billing",
     "description": "Current plan, payment history, and transfer proof.",
     "sandboxNotice": "Your account is in the sandbox environment. You can subscribe to a paid plan right now — it will activate once payment is verified, and take effect in production once you activate that environment.",
+    "sandboxNoticeActive": "Your account is in the sandbox environment with an active plan. Your subscription will take effect in production once you activate that environment.",
+    "viewProof": "View proof",
     "currentPlan": "Current plan",
     "usage": "{count} of {quota} production documents used",
-    "history": "Subscription history",
-    "noHistory": "You don't have any subscriptions yet.",
+    "history": "Payment history",
+    "noHistory": "You don't have any payments yet.",
     "noProofYet": "No proof yet",
+    "billingPeriod": "Period: {start} – {end}",
     "downgradeScheduled": "Your plan will move to {tier} on {date}.",
+    "cancellationScheduled": "Your subscription will be cancelled on {date}. You'll keep access to your current plan until then.",
     "tierChangeTo": "Change to {tier}",
     "renewal": "Renewal",
+    "paymentPurposeInitial": "Subscription — {tier}",
+    "paymentPurposeRenewal": "Renewal — {tier}",
     "billingInterval": {
       "MONTHLY": "Monthly",
       "YEARLY": "Yearly"
@@ -1135,6 +1167,18 @@
       "upgradeRequested": "Plan change requested. Check the transfer details below.",
       "upgradeApplied": "Your plan was updated immediately.",
       "downgradeScheduled": "The plan change was scheduled for the end of your current period."
+    },
+    "cancelPlan": {
+      "title": "Cancel subscription",
+      "hint": "You'll keep your current plan until {date}. After that you'll automatically move to the free plan.",
+      "hintNoDate": "You'll keep your current plan until the end of the current period. After that you'll automatically move to the free plan.",
+      "button": "Cancel subscription",
+      "confirmHint": "Confirm cancellation? You'll keep access to your current plan until {date}, then move to the free plan at no additional charge.",
+      "confirmHintNoDate": "Confirm cancellation? You'll keep access to your current plan until the end of the period, then move to the free plan at no additional charge.",
+      "confirm": "Confirm cancellation",
+      "confirming": "Processing...",
+      "keep": "Keep plan",
+      "scheduled": "Cancellation scheduled. Your plan will remain active until the end of the current billing period."
     },
     "subscribe": {
       "title": "Subscribe to a plan",

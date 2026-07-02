@@ -7,7 +7,8 @@ import { toastApiError } from '@/lib/api-error-toast';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { submitPaymentProofAction, changeTierAction, createSubscriptionAction } from '@/app/actions/billing';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { submitPaymentProofAction, changeTierAction, createSubscriptionAction, cancelSubscriptionAction } from '@/app/actions/billing';
 import type { ApiTenantInfo, ApiSubscriptionInfo, ApiPaymentInfo, ApiBankTransferInfo } from '@/lib/api';
 import type { ApiTierInfo } from '@/lib/public-api';
 import type { PaidTier, BillingInterval } from '@/lib/subscription-tiers';
@@ -54,6 +55,7 @@ export function BillingManager({
 }) {
   const t = useTranslations('billing');
   const tPricing = useTranslations('pricing');
+  const [proofPreview, setProofPreview] = useState<{ id: number; filename: string; mimeType: string } | null>(null);
 
   const tierKey = `tiers.${tenantInfo.subscriptionTier}.name` as Parameters<typeof tPricing>[0];
   const tierName = tPricing.has(tierKey) ? tPricing(tierKey) : tenantInfo.subscriptionTier;
@@ -62,12 +64,17 @@ export function BillingManager({
   const latestPayment = latestSubscription?.payments[0] ?? null;
   const isSubscriptionOver = latestSubscription?.status === 'CANCELLED' || latestSubscription?.status === 'EXPIRED';
   const needsAction = !!latestPayment && latestPayment.status !== 'VERIFIED' && !isSubscriptionOver;
-  const pendingDowngradeTier = latestSubscription?.status === 'ACTIVE' ? latestSubscription.pending_tier : null;
+  // pending_tier = 'FREE' means cancellation scheduled; a paid tier means downgrade scheduled.
+  const pendingCancellation = latestSubscription?.status === 'ACTIVE' && latestSubscription.pending_tier === 'FREE';
+  const pendingDowngradeTier = latestSubscription?.status === 'ACTIVE' && latestSubscription.pending_tier !== 'FREE'
+    ? latestSubscription.pending_tier
+    : null;
+  const anyPendingTierChange = pendingCancellation || !!pendingDowngradeTier;
   const canChangeTier =
     canManageBilling &&
     latestSubscription?.status === 'ACTIVE' &&
     !needsAction &&
-    !pendingDowngradeTier;
+    !anyPendingTierChange;
   // POST /v1/subscriptions blocks a new subscription while any prior one isn't
   // CANCELLED/EXPIRED — mirror that here rather than just "no subscriptions yet".
   const canSubscribeNew = canManageBilling && subscriptions.every((s) => s.status === 'CANCELLED' || s.status === 'EXPIRED');
@@ -79,20 +86,30 @@ export function BillingManager({
           role="note"
           className="flex items-start gap-2.5 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300"
         >
-          <p>{t('sandboxNotice')}</p>
+          <p>{latestSubscription?.status === 'ACTIVE' ? t('sandboxNoticeActive') : t('sandboxNotice')}</p>
         </div>
       )}
 
       <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
         <h2 className="text-sm font-semibold">{t('currentPlan')}</h2>
         <p className="mt-1.5 text-lg font-semibold">{tierName}</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {t('usage', { count: Number(tenantInfo.documentCount), quota: tenantInfo.documentQuota })}
-        </p>
+        {!isSandbox && (
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t('usage', { count: Number(tenantInfo.documentCount), quota: tenantInfo.documentQuota })}
+          </p>
+        )}
         {currentTier && currentTier.priceMonthlyUsd > 0 && (
           <p className="mt-1 text-sm text-muted-foreground">
             {currencyFormatter.format(currentTier.priceMonthlyUsd)}
             {tPricing('perMonth')}
+          </p>
+        )}
+        {!isSandbox && latestSubscription?.status === 'ACTIVE' && latestSubscription.current_period_start && latestSubscription.current_period_end && (
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t('billingPeriod', {
+              start: dateFormatter.format(new Date(latestSubscription.current_period_start)),
+              end: dateFormatter.format(new Date(latestSubscription.current_period_end)),
+            })}
           </p>
         )}
         {pendingDowngradeTier && latestSubscription?.current_period_end && (
@@ -101,6 +118,13 @@ export function BillingManager({
               tier: tPricing.has(`tiers.${pendingDowngradeTier}.name` as Parameters<typeof tPricing>[0])
                 ? tPricing(`tiers.${pendingDowngradeTier}.name` as Parameters<typeof tPricing>[0])
                 : pendingDowngradeTier,
+              date: dateFormatter.format(new Date(latestSubscription.current_period_end)),
+            })}
+          </p>
+        )}
+        {pendingCancellation && latestSubscription?.current_period_end && (
+          <p className="mt-2 text-sm text-amber-700 dark:text-amber-400">
+            {t('cancellationScheduled', {
               date: dateFormatter.format(new Date(latestSubscription.current_period_end)),
             })}
           </p>
@@ -118,72 +142,97 @@ export function BillingManager({
       {canSubscribeNew && <SubscribeCard tiers={tiers} emailVerified={emailVerified} />}
 
       {canChangeTier && latestSubscription && (
-        <ChangeTierCard tiers={tiers} currentSubscriptionTier={latestSubscription.tier} />
+        <ChangeTierCard
+          tiers={tiers}
+          currentSubscriptionTier={latestSubscription.tier}
+          currentPeriodEnd={latestSubscription.current_period_end}
+          isSandbox={isSandbox}
+        />
       )}
 
       <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
         <h2 className="text-sm font-semibold mb-3">{t('history')}</h2>
-        {subscriptions.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t('noHistory')}</p>
-        ) : (
-          <div className="divide-y divide-border">
-            {subscriptions.map((sub) => {
-              const subTierKey = `tiers.${sub.tier}.name` as Parameters<typeof tPricing>[0];
-              const subStatusKey = `subscriptionStatus.${sub.status}` as Parameters<typeof t>[0];
-              const intervalKey = `billingInterval.${sub.billing_interval}` as Parameters<typeof t>[0];
-              return (
-                <div key={sub.id} className="py-3 first:pt-0 last:pb-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-medium">
-                      {tPricing.has(subTierKey) ? tPricing(subTierKey) : sub.tier}
-                      {' · '}
-                      {t.has(intervalKey) ? t(intervalKey) : sub.billing_interval}
-                    </span>
-                    <Badge variant="outline" className={SUBSCRIPTION_STATUS_STYLES[sub.status] ?? ''}>
-                      {t.has(subStatusKey) ? t(subStatusKey) : sub.status}
+        {(() => {
+          // Flatten all payments across subscriptions, oldest subscription last so newest
+          // payments (from the most recent subscription) appear at the top.
+          const rows = subscriptions.flatMap((sub) =>
+            sub.payments.map((p) => ({ payment: p, sub }))
+          );
+          if (rows.length === 0) {
+            return <p className="text-sm text-muted-foreground">{t('noHistory')}</p>;
+          }
+          return (
+            <div className="divide-y divide-border">
+              {rows.map(({ payment: p, sub }) => {
+                const paymentStatusKey = `paymentStatus.${p.status}` as Parameters<typeof t>[0];
+                const subTierKey = `tiers.${sub.tier}.name` as Parameters<typeof tPricing>[0];
+                const subTierName = tPricing.has(subTierKey) ? tPricing(subTierKey) : sub.tier;
+                const targetTierKey = p.target_tier
+                  ? (`tiers.${p.target_tier}.name` as Parameters<typeof tPricing>[0])
+                  : null;
+
+                let purposeLabel: string;
+                if (p.purpose === 'TIER_CHANGE' && targetTierKey) {
+                  purposeLabel = t('tierChangeTo', {
+                    tier: tPricing.has(targetTierKey) ? tPricing(targetTierKey) : p.target_tier ?? '',
+                  });
+                } else if (p.purpose === 'RENEWAL') {
+                  purposeLabel = t('paymentPurposeRenewal', { tier: subTierName });
+                } else {
+                  purposeLabel = t('paymentPurposeInitial', { tier: subTierName });
+                }
+
+                return (
+                  <div key={p.id} className="py-3 first:pt-0 last:pb-0 flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">{currencyFormatter.format(Number(p.amount))}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">{purposeLabel}</p>
+                      {p.proof_filename && p.proof_mime_type && (
+                        <button
+                          type="button"
+                          onClick={() => setProofPreview({ id: p.id, filename: p.proof_filename!, mimeType: p.proof_mime_type! })}
+                          className="mt-1 text-xs text-primary underline underline-offset-2 hover:text-primary/80"
+                        >
+                          {t('viewProof')}
+                        </button>
+                      )}
+                    </div>
+                    <Badge variant="outline" className={`shrink-0 ${PAYMENT_STATUS_STYLES[p.status] ?? ''}`}>
+                      {t.has(paymentStatusKey) ? t(paymentStatusKey) : p.status}
                     </Badge>
                   </div>
-                  {sub.payments.map((p) => {
-                    const paymentStatusKey = `paymentStatus.${p.status}` as Parameters<typeof t>[0];
-                    const targetTierKey = p.target_tier
-                      ? (`tiers.${p.target_tier}.name` as Parameters<typeof tPricing>[0])
-                      : null;
-                    return (
-                      <div
-                        key={p.id}
-                        className="mt-2 flex items-center justify-between gap-2 text-xs text-muted-foreground"
-                      >
-                        <span>
-                          {currencyFormatter.format(Number(p.amount))}
-                          {p.purpose === 'TIER_CHANGE' && targetTierKey && (
-                            <>
-                              {' · '}
-                              {t('tierChangeTo', {
-                                tier: tPricing.has(targetTierKey) ? tPricing(targetTierKey) : p.target_tier ?? '',
-                              })}
-                            </>
-                          )}
-                          {p.purpose === 'RENEWAL' && (
-                            <>
-                              {' · '}
-                              {t('renewal')}
-                            </>
-                          )}
-                          {' · '}
-                          {p.proof_filename ?? t('noProofYet')}
-                        </span>
-                        <Badge variant="outline" className={PAYMENT_STATUS_STYLES[p.status] ?? ''}>
-                          {t.has(paymentStatusKey) ? t(paymentStatusKey) : p.status}
-                        </Badge>
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })}
-          </div>
-        )}
+                );
+              })}
+            </div>
+          );
+        })()}
       </div>
+      <Dialog open={!!proofPreview} onOpenChange={(open) => { if (!open) setProofPreview(null); }}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle className="truncate text-sm font-medium">
+              {proofPreview?.filename}
+            </DialogTitle>
+          </DialogHeader>
+          {proofPreview && (
+            <div className="mt-2 overflow-hidden rounded-md border border-border">
+              {proofPreview.mimeType === 'application/pdf' ? (
+                <iframe
+                  src={`/api/payments/${proofPreview.id}/proof`}
+                  title={proofPreview.filename}
+                  className="h-[55vh] w-full"
+                />
+              ) : (
+                <img
+                  src={`/api/payments/${proofPreview.id}/proof`}
+                  alt={proofPreview.filename}
+                  className="max-h-[55vh] w-full object-contain"
+                />
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -295,20 +344,28 @@ function PendingPaymentCard({
 function ChangeTierCard({
   tiers,
   currentSubscriptionTier,
+  currentPeriodEnd,
+  isSandbox,
 }: {
   tiers: ApiTierInfo[];
   currentSubscriptionTier: PaidTier;
+  currentPeriodEnd: string | null;
+  isSandbox: boolean;
 }) {
   const t = useTranslations('billing');
   const tPricing = useTranslations('pricing');
   const tError = useTranslations('apiError');
   const [isPending, startTransition] = useTransition();
   const [confirming, setConfirming] = useState(false);
+  const [cancelConfirming, setCancelConfirming] = useState(false);
   const [selectedTier, setSelectedTier] = useState<PaidTier | null>(null);
   const options = tiers.filter(
     (tier): tier is ApiTierInfo & { name: PaidTier } =>
       tier.name !== 'FREE' && tier.name !== currentSubscriptionTier,
   );
+  const periodEndFormatted = currentPeriodEnd
+    ? dateFormatter.format(new Date(currentPeriodEnd))
+    : null;
 
   function handleChange() {
     if (!selectedTier) return;
@@ -330,59 +387,113 @@ function ChangeTierCard({
     });
   }
 
-  if (options.length === 0) return null;
+  function handleCancel() {
+    startTransition(async () => {
+      const result = await cancelSubscriptionAction();
+      if ('error' in result) {
+        toastApiError(result.error, tError);
+        return;
+      }
+      setCancelConfirming(false);
+      toast.success(t('cancelPlan.scheduled'));
+    });
+  }
 
   return (
-    <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-      <h2 className="text-sm font-semibold">{t('changePlan.title')}</h2>
-      <p className="mt-1 text-xs text-muted-foreground">{t('changePlan.hint')}</p>
+    <div className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-4">
+      {options.length > 0 && (
+        <div>
+          <h2 className="text-sm font-semibold">{t('changePlan.title')}</h2>
+          <p className="mt-1 text-xs text-muted-foreground">{t('changePlan.hint')}</p>
 
-      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-        <Select<PaidTier>
-          value={selectedTier ?? undefined}
-          onValueChange={(value) => {
-            setSelectedTier(value);
-            setConfirming(false);
-          }}
-        >
-          <SelectTrigger className="w-full sm:w-56" disabled={isPending}>
-            <SelectValue>
-              {(value: PaidTier | null) => {
-                const key = value ? (`tiers.${value}.name` as Parameters<typeof tPricing>[0]) : null;
-                return key && tPricing.has(key) ? tPricing(key) : t('changePlan.placeholder');
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Select<PaidTier>
+              value={selectedTier ?? undefined}
+              onValueChange={(value) => {
+                setSelectedTier(value);
+                setConfirming(false);
               }}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {options.map((tier) => (
-              <SelectItem key={tier.name} value={tier.name}>
-                {tPricing(`tiers.${tier.name}.name` as Parameters<typeof tPricing>[0])}
-                {' — '}
-                {currencyFormatter.format(tier.priceMonthlyUsd)}
-                {tPricing('perMonth')}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+            >
+              <SelectTrigger className="w-full sm:w-56" disabled={isPending}>
+                <SelectValue>
+                  {(value: PaidTier | null) => {
+                    const key = value ? (`tiers.${value}.name` as Parameters<typeof tPricing>[0]) : null;
+                    return key && tPricing.has(key) ? tPricing(key) : t('changePlan.placeholder');
+                  }}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {options.map((tier) => (
+                  <SelectItem key={tier.name} value={tier.name}>
+                    {tPricing(`tiers.${tier.name}.name` as Parameters<typeof tPricing>[0])}
+                    {' — '}
+                    {currencyFormatter.format(tier.priceMonthlyUsd)}
+                    {tPricing('perMonth')}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-        {selectedTier && !confirming && (
-          <Button size="sm" variant="outline" onClick={() => setConfirming(true)} disabled={isPending}>
-            {t('changePlan.button')}
-          </Button>
-        )}
-      </div>
-
-      {confirming && selectedTier && (
-        <div className="mt-3 rounded-md border border-border bg-muted/40 p-3 text-sm space-y-2">
-          <p>{t('changePlan.confirmHint')}</p>
-          <div className="flex gap-2">
-            <Button size="sm" onClick={handleChange} disabled={isPending}>
-              {isPending ? t('changePlan.confirming') : t('changePlan.confirm')}
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => setConfirming(false)} disabled={isPending}>
-              {t('changePlan.cancel')}
-            </Button>
+            {selectedTier && !confirming && (
+              <Button size="sm" variant="outline" onClick={() => setConfirming(true)} disabled={isPending}>
+                {t('changePlan.button')}
+              </Button>
+            )}
           </div>
+
+          {confirming && selectedTier && (
+            <div className="mt-3 rounded-md border border-border bg-muted/40 p-3 text-sm space-y-2">
+              <p>{t('changePlan.confirmHint')}</p>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={handleChange} disabled={isPending}>
+                  {isPending ? t('changePlan.confirming') : t('changePlan.confirm')}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setConfirming(false)} disabled={isPending}>
+                  {t('changePlan.cancel')}
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {!isSandbox && (
+        <div className={options.length > 0 ? 'border-t border-border pt-4' : ''}>
+          <p className="text-xs text-muted-foreground">
+            {periodEndFormatted
+              ? t('cancelPlan.hint', { date: periodEndFormatted })
+              : t('cancelPlan.hintNoDate')}
+          </p>
+
+          {!cancelConfirming && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="mt-2 border-destructive/40 text-destructive hover:bg-destructive/5"
+              onClick={() => setCancelConfirming(true)}
+              disabled={isPending}
+            >
+              {t('cancelPlan.button')}
+            </Button>
+          )}
+
+          {cancelConfirming && (
+            <div className="mt-3 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm space-y-2">
+              <p>
+                {periodEndFormatted
+                  ? t('cancelPlan.confirmHint', { date: periodEndFormatted })
+                  : t('cancelPlan.confirmHintNoDate')}
+              </p>
+              <div className="flex gap-2">
+                <Button size="sm" variant="destructive" onClick={handleCancel} disabled={isPending}>
+                  {isPending ? t('cancelPlan.confirming') : t('cancelPlan.confirm')}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setCancelConfirming(false)} disabled={isPending}>
+                  {t('cancelPlan.keep')}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

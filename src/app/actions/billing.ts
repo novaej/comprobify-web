@@ -6,9 +6,11 @@ import {
   submitPaymentProof,
   changeTier,
   createSubscription,
+  cancelSubscription,
   type ApiPaymentInfo,
   type ChangeTierResult,
   type CreateSubscriptionResult,
+  type CancelSubscriptionResult,
 } from '@/lib/api';
 import { ApiError } from '@/lib/errors';
 import { revalidatePath } from 'next/cache';
@@ -18,6 +20,7 @@ import type { PaidTier, BillingInterval } from '@/lib/subscription-tiers';
 export type BillingResult = { error: string } | { payment: ApiPaymentInfo };
 export type ChangeTierActionResult = { error: string } | ChangeTierResult;
 export type CreateSubscriptionActionResult = { error: string } | CreateSubscriptionResult;
+export type CancelSubscriptionActionResult = { error: string } | CancelSubscriptionResult;
 
 const PROOF_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'application/pdf']);
 const MAX_PROOF_BYTES = 2 * 1024 * 1024;
@@ -72,6 +75,18 @@ export async function changeTierAction(tier: PaidTier): Promise<ChangeTierAction
 
   revalidatePath('/settings/billing');
   return result;
+}
+
+export async function cancelSubscriptionAction(): Promise<CancelSubscriptionActionResult> {
+  const ctx = await requirePermission('billing.manage', { skipIssuer: true });
+  try {
+    const result = await cancelSubscription({ apiKey: ctx.apiKey });
+    revalidatePath('/settings/billing');
+    return result;
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.code };
+    throw err;
+  }
 }
 
 export async function createSubscriptionAction(

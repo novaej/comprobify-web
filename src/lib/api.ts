@@ -678,6 +678,8 @@ export interface ApiTenantInfo {
   documentCount: string;   // bigint → serialized as string by pg/JSON
   documentQuota: number;   // regular int column
   sandbox: boolean;
+  agreementAcceptedAt: string | null;
+  agreementVersion: string | null;
 }
 
 // Verified against: ../comprobify/src/routes/tenants.routes.js → GET /v1/tenants/me
@@ -687,6 +689,42 @@ export async function getCurrentTenant(ctx: ApiCtx): Promise<ApiTenantInfo> {
     { apiKey: ctx.apiKey },
   );
   return result.tenant;
+}
+
+// ── Tenant agreements ─────────────────────────────────────────────────────────
+
+// Verified against: ../comprobify/src/controllers/tenant.controller.js → getAgreementStatus()
+// and ../comprobify/src/services/tenant-agreement.service.js → getStatus()
+export interface ApiOutdatedAgreement {
+  documentType: 'TERMS' | 'PRIVACY' | 'DPA';
+  currentVersion: string;
+  acceptedVersion: string | null;
+  status: 'PENDING' | 'NOT_GENERATED';
+  url: string;
+  acceptUrl: string;
+}
+
+export interface ApiAgreementStatus {
+  needsAcceptance: boolean;
+  outdated: ApiOutdatedAgreement[];
+}
+
+// Verified against: ../comprobify/src/routes/tenants.routes.js → GET /v1/tenants/agreements
+export async function getAgreementStatus(ctx: ApiCtx): Promise<ApiAgreementStatus> {
+  const result = await request<{ ok: true; agreements: ApiAgreementStatus }>(
+    '/v1/tenants/agreements',
+    { apiKey: ctx.apiKey },
+  );
+  return result.agreements;
+}
+
+// Verified against: ../comprobify/src/routes/tenants.routes.js → POST /v1/tenants/agreements
+export async function acceptAgreements(ctx: ApiCtx, termsVersion: string): Promise<void> {
+  await request<{ ok: true }>(
+    '/v1/tenants/agreements',
+    { apiKey: ctx.apiKey },
+    { method: 'POST', body: JSON.stringify({ termsVersion }) },
+  );
 }
 
 // ── Tenant promotion ──────────────────────────────────────────────────────────
@@ -779,7 +817,9 @@ export interface ApiSubscriptionInfo {
   tier: 'STARTER' | 'GROWTH' | 'BUSINESS';
   billing_interval: 'MONTHLY' | 'YEARLY';
   status: 'PENDING_PAYMENT' | 'PAYMENT_RECEIVED' | 'INVOICE_PROCESSING' | 'ACTIVE' | 'EXPIRED' | 'SUSPENDED' | 'CANCELLED';
-  pending_tier?: 'STARTER' | 'GROWTH' | 'BUSINESS' | null;
+  // 'FREE' means a cancellation is scheduled (applyScheduledTierChanges drops the tenant
+  // to FREE and closes the subscription at period end) — added in API commit 161803a.
+  pending_tier?: 'FREE' | 'STARTER' | 'GROWTH' | 'BUSINESS' | null;
   invoice_document_id: number | null;
   current_period_start: string | null;
   current_period_end: string | null;
@@ -829,6 +869,24 @@ export async function changeTier(
     '/v1/subscriptions/change-tier',
     { apiKey: ctx.apiKey },
     { method: 'POST', body: JSON.stringify({ tier }) },
+  );
+}
+
+// Verified against: ../comprobify/src/controllers/subscription.controller.js → cancelSubscription()
+// and ../comprobify/src/services/subscription.service.js → scheduleCancellation().
+// Sets pending_tier = 'FREE' on the active subscription. The tenant keeps their current
+// tier until current_period_end; applyScheduledTierChanges() then drops them to FREE.
+export interface CancelSubscriptionResult {
+  ok: true;
+  subscription: Pick<ApiSubscriptionInfo, 'id' | 'tier' | 'billing_interval' | 'status' | 'pending_tier' | 'current_period_end'>;
+  effectiveAt: string;
+}
+
+export async function cancelSubscription(ctx: ApiCtx): Promise<CancelSubscriptionResult> {
+  return request<CancelSubscriptionResult>(
+    '/v1/subscriptions',
+    { apiKey: ctx.apiKey },
+    { method: 'DELETE' },
   );
 }
 

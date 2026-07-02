@@ -53,12 +53,14 @@ export async function registerTenant(
   fields: IssuerRegistrationFields,
   p12Buffer: Buffer,
   p12Password: string,
+  termsVersion: string,
   verificationRedirectUrl?: string,
   logoBuffer?: Buffer,
   logoType?: string,
 ): Promise<RegisterTenantResult> {
   const form = new FormData();
   form.append('email', email);
+  form.append('termsVersion', termsVersion);
   form.append('ruc', fields.ruc);
   form.append('businessName', fields.businessName);
   if (fields.tradeName) form.append('tradeName', fields.tradeName);
@@ -123,6 +125,19 @@ export async function resendVerificationEmail(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, ...(verificationRedirectUrl && { verificationRedirectUrl }) }),
   });
+}
+
+// Verified against: ../comprobify/src/controllers/agreement.controller.js → list()
+// and ../comprobify/src/routes/agreements.routes.js → GET /v1/agreements (public, no auth)
+export interface ApiAgreementInfo {
+  documentType: 'TERMS' | 'PRIVACY' | 'DPA';
+  version: string;
+  url: string;
+}
+
+export async function listAgreements(): Promise<ApiAgreementInfo[]> {
+  const result = await publicRequest<{ ok: true; documents: ApiAgreementInfo[] }>('/v1/agreements');
+  return result.documents;
 }
 
 // Verified against: ../comprobify/src/controllers/tiers.controller.js → list()
