@@ -147,6 +147,7 @@ export function BillingManager({
         <ChangeTierCard
           tiers={tiers}
           currentSubscriptionTier={latestSubscription.tier}
+          currentBillingInterval={latestSubscription.billing_interval}
           currentPeriodEnd={latestSubscription.current_period_end}
           isSandbox={isSandbox}
         />
@@ -362,11 +363,13 @@ function PendingPaymentCard({
 function ChangeTierCard({
   tiers,
   currentSubscriptionTier,
+  currentBillingInterval,
   currentPeriodEnd,
   isSandbox,
 }: {
   tiers: ApiTierInfo[];
   currentSubscriptionTier: PaidTier;
+  currentBillingInterval: 'MONTHLY' | 'YEARLY';
   currentPeriodEnd: string | null;
   isSandbox: boolean;
 }) {
@@ -427,6 +430,12 @@ function ChangeTierCard({
           </div>
           <p className="mt-1 text-xs text-muted-foreground">{t('changePlan.hint')}</p>
 
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            {tPricing(`interval.${currentBillingInterval.toLowerCase()}` as Parameters<typeof tPricing>[0])}
+            {' · '}
+            {t('changePlan.intervalNote')}
+          </p>
+
           <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
             <Select<PaidTier>
               value={selectedTier}
@@ -444,14 +453,18 @@ function ChangeTierCard({
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {options.map((tier) => (
-                  <SelectItem key={tier.name} value={tier.name}>
-                    {tPricing(`tiers.${tier.name}.name` as Parameters<typeof tPricing>[0])}
-                    {' — '}
-                    {currencyFormatter.format(tier.priceMonthlyUsd)}
-                    {tPricing('perMonth')}
-                  </SelectItem>
-                ))}
+                {options.map((tier) => {
+                  const price = currentBillingInterval === 'YEARLY' ? tier.priceYearlyUsd : tier.priceMonthlyUsd;
+                  const perLabel = tPricing(currentBillingInterval === 'YEARLY' ? 'perYear' : 'perMonth');
+                  return (
+                    <SelectItem key={tier.name} value={tier.name}>
+                      {tPricing(`tiers.${tier.name}.name` as Parameters<typeof tPricing>[0])}
+                      {' — '}
+                      {currencyFormatter.format(price)}
+                      {perLabel}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
 
@@ -559,7 +572,30 @@ function SubscribeCard({ tiers, emailVerified }: { tiers: ApiTierInfo[]; emailVe
         <p className="mt-3 text-sm text-muted-foreground">{t('subscribe.emailRequired')}</p>
       ) : (
         <>
-          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="mt-3 flex gap-2">
+            {(['MONTHLY', 'YEARLY'] as const).map((value) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => { setBillingInterval(value); setConfirming(false); }}
+                disabled={isPending}
+                className={`rounded-md border px-3 py-1.5 text-sm transition-colors ${
+                  billingInterval === value
+                    ? 'border-primary bg-primary/5 font-medium'
+                    : 'border-border text-muted-foreground'
+                }`}
+              >
+                {tPricing(`interval.${value.toLowerCase()}` as Parameters<typeof tPricing>[0])}
+                {value === 'YEARLY' && (
+                  <span className="ml-1.5 text-xs text-green-600 dark:text-green-400">
+                    {tPricing('interval.yearlyDiscount')}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
             <Select<PaidTier>
               value={selectedTier}
               onValueChange={(value) => {
@@ -567,7 +603,7 @@ function SubscribeCard({ tiers, emailVerified }: { tiers: ApiTierInfo[]; emailVe
                 setConfirming(false);
               }}
             >
-              <SelectTrigger className="w-full sm:w-56" disabled={isPending}>
+              <SelectTrigger className="w-full sm:w-64" disabled={isPending}>
                 <SelectValue>
                   {(value: PaidTier | null) => {
                     const key = value ? (`tiers.${value}.name` as Parameters<typeof tPricing>[0]) : null;
@@ -576,34 +612,20 @@ function SubscribeCard({ tiers, emailVerified }: { tiers: ApiTierInfo[]; emailVe
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {options.map((tier) => (
-                  <SelectItem key={tier.name} value={tier.name}>
-                    {tPricing(`tiers.${tier.name}.name` as Parameters<typeof tPricing>[0])}
-                    {' — '}
-                    {currencyFormatter.format(tier.priceMonthlyUsd)}
-                    {tPricing('perMonth')}
-                  </SelectItem>
-                ))}
+                {options.map((tier) => {
+                  const price = billingInterval === 'YEARLY' ? tier.priceYearlyUsd : tier.priceMonthlyUsd;
+                  const perLabel = tPricing(billingInterval === 'YEARLY' ? 'perYear' : 'perMonth');
+                  return (
+                    <SelectItem key={tier.name} value={tier.name}>
+                      {tPricing(`tiers.${tier.name}.name` as Parameters<typeof tPricing>[0])}
+                      {' — '}
+                      {currencyFormatter.format(price)}
+                      {perLabel}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
-
-            <div className="flex gap-2">
-              {(['MONTHLY', 'YEARLY'] as const).map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setBillingInterval(value)}
-                  disabled={isPending}
-                  className={`rounded-md border px-3 py-1.5 text-sm transition-colors ${
-                    billingInterval === value
-                      ? 'border-primary bg-primary/5 font-medium'
-                      : 'border-border text-muted-foreground'
-                  }`}
-                >
-                  {tPricing(`interval.${value.toLowerCase()}` as Parameters<typeof tPricing>[0])}
-                </button>
-              ))}
-            </div>
 
             {selectedTier && !confirming && (
               <Button size="sm" variant="outline" onClick={() => setConfirming(true)} disabled={isPending}>
@@ -612,19 +634,31 @@ function SubscribeCard({ tiers, emailVerified }: { tiers: ApiTierInfo[]; emailVe
             )}
           </div>
 
-          {confirming && selectedTier && (
-            <div className="mt-3 rounded-md border border-border bg-muted/40 p-3 text-sm space-y-2">
-              <p>{t('subscribe.confirmHint')}</p>
-              <div className="flex gap-2">
-                <Button size="sm" onClick={handleSubscribe} disabled={isPending}>
-                  {isPending ? t('subscribe.confirming') : t('subscribe.confirm')}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setConfirming(false)} disabled={isPending}>
-                  {t('subscribe.cancel')}
-                </Button>
+          {confirming && selectedTier && (() => {
+            const tierInfo = options.find((o) => o.name === selectedTier);
+            const price = tierInfo ? (billingInterval === 'YEARLY' ? tierInfo.priceYearlyUsd : tierInfo.priceMonthlyUsd) : null;
+            const perLabel = tPricing(billingInterval === 'YEARLY' ? 'perYear' : 'perMonth');
+            return (
+              <div className="mt-3 rounded-md border border-border bg-muted/40 p-3 text-sm space-y-2">
+                {price != null && (
+                  <p className="font-medium">
+                    {currencyFormatter.format(price)}{perLabel}
+                    {' · '}
+                    <span className="text-xs font-normal text-muted-foreground">{t('ivaIncluded')}</span>
+                  </p>
+                )}
+                <p>{t('subscribe.confirmHint')}</p>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={handleSubscribe} disabled={isPending}>
+                    {isPending ? t('subscribe.confirming') : t('subscribe.confirm')}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setConfirming(false)} disabled={isPending}>
+                    {t('subscribe.cancel')}
+                  </Button>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </>
       )}
     </div>

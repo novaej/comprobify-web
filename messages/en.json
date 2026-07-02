@@ -1162,6 +1162,7 @@
     "changePlan": {
       "title": "Change plan",
       "hint": "Upgrading takes effect immediately (prorated for the time left in your billing period). Downgrading is scheduled for the end of your current period, at no extra cost.",
+      "intervalNote": "Your billing interval stays the same",
       "placeholder": "Select a plan",
       "button": "Change plan",
       "confirmHint": "Confirm the plan change? If it's an upgrade, you'll need to transfer the prorated amount and upload proof. If it's a downgrade, it will apply automatically at the end of your current period.",

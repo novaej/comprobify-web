@@ -1162,6 +1162,7 @@
     "changePlan": {
       "title": "Cambiar de plan",
       "hint": "Subir de plan se aplica de inmediato (con un cobro proporcional al tiempo restante de tu periodo). Bajar de plan se programa para el final de tu periodo actual, sin costo.",
+      "intervalNote": "El intervalo de facturación se mantiene igual",
       "placeholder": "Selecciona un plan",
       "button": "Cambiar plan",
       "confirmHint": "¿Confirmas el cambio de plan? Si es una subida, deberás transferir el monto proporcional y subir el comprobante. Si es una bajada, se aplicará automáticamente al finalizar tu periodo actual.",
