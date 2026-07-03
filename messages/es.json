@@ -650,6 +650,7 @@
     "WEBHOOK_ENDPOINT_LIMIT_REACHED": "Ha alcanzado el límite de webhooks de su plan.",
     "WEBHOOK_ENDPOINT_NOT_FOUND": "El endpoint de webhook no fue encontrado.",
     "INVALID_FILE_UPLOAD": "El archivo subido no es válido. Revise el formato y el tamaño máximo permitido.",
+    "PROOF_FILE_LIMIT_REACHED": "Este pago ya tiene el máximo de archivos permitidos (10). Elimine uno antes de subir más.",
     "SUBSCRIPTION_NOT_FOUND": "No se encontró la suscripción.",
     "PAYMENT_NOT_FOUND": "No se encontró el pago.",
     "SUBSCRIPTION_ALREADY_IN_FLIGHT": "Ya existe una suscripción en proceso para su cuenta.",
@@ -1159,7 +1160,12 @@
       "contactSupport": "Contacta a soporte para obtener los datos de la transferencia bancaria.",
       "upload": "Subir comprobante",
       "uploading": "Subiendo...",
-      "uploaded": "Comprobante subido. Tu proveedor lo revisará en breve."
+      "uploaded": "Comprobante subido. Tu proveedor lo revisará en breve.",
+      "proofs": "Archivos subidos",
+      "noProofs": "Aún no has subido ningún comprobante.",
+      "download": "Descargar",
+      "deleteProof": "Eliminar archivo",
+      "proofDeleted": "Archivo eliminado."
     },
     "changePlan": {
       "title": "Cambiar de plan",

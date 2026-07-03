@@ -808,10 +808,18 @@ export interface ApiPaymentInfo {
   target_tier?: 'STARTER' | 'GROWTH' | 'BUSINESS' | null;
   target_billing_interval?: 'MONTHLY' | 'YEARLY' | null;
   rejection_reason_code?: 'AMOUNT_MISMATCH' | 'TRANSFER_NOT_FOUND' | 'WRONG_ACCOUNT' | 'ILLEGIBLE_PROOF' | 'DUPLICATE_SUBMISSION' | 'OTHER' | null;
-  proof_filename?: string | null;
-  proof_mime_type?: string | null;
   reported_at?: string | null;
   verified_at?: string | null;
+}
+
+// Verified against: ../comprobify/src/services/subscription.service.js → formatPaymentProof()
+// id is BIGSERIAL → string per pg/JSON serialisation (Common Mistake #16).
+export interface ApiPaymentProof {
+  id: string;
+  filename: string;
+  mimeType: string;
+  active: boolean;
+  createdAt: string;
 }
 
 // Verified against: ../comprobify/src/controllers/subscription.controller.js → getMyStatus()
@@ -929,18 +937,22 @@ export async function createSubscription(
 }
 
 // Verified against: ../comprobify/src/routes/payments.routes.js → PATCH /v1/payments/:id/proof
-// (multipart, field name "proof" — PNG/JPEG/GIF/PDF, 2MB max, ownership-checked server-side).
+// Field name "proof" repeated per file — multer.array('proof', 5); up to 5 per request,
+// cumulative cap of 10 active per payment (PROOF_FILE_LIMIT_REACHED if exceeded).
+// Returns only the proofs uploaded in this request; call listPaymentProofs for the full set.
 export async function submitPaymentProof(
   ctx: ApiCtx,
   paymentId: number,
-  file: { buffer: Buffer; mimeType: string; filename: string },
-): Promise<ApiPaymentInfo> {
+  files: Array<{ buffer: Buffer; mimeType: string; filename: string }>,
+): Promise<{ payment: ApiPaymentInfo; proofs: ApiPaymentProof[] }> {
   const form = new FormData();
-  const buf = file.buffer.buffer.slice(
-    file.buffer.byteOffset,
-    file.buffer.byteOffset + file.buffer.byteLength,
-  ) as ArrayBuffer;
-  form.append('proof', new Blob([buf], { type: file.mimeType }), file.filename);
+  for (const file of files) {
+    const buf = file.buffer.buffer.slice(
+      file.buffer.byteOffset,
+      file.buffer.byteOffset + file.buffer.byteLength,
+    ) as ArrayBuffer;
+    form.append('proof', new Blob([buf], { type: file.mimeType }), file.filename);
+  }
 
   const res = await fetch(`${getApiUrl()}/v1/payments/${paymentId}/proof`, {
     method: 'PATCH',
@@ -951,8 +963,31 @@ export async function submitPaymentProof(
     const problem: ProblemDetails = await res.json();
     throw new ApiError(problem);
   }
-  const data = await res.json() as { ok: true; payment: ApiPaymentInfo };
-  return data.payment;
+  const data = await res.json() as { ok: true; payment: ApiPaymentInfo; proofs: ApiPaymentProof[] };
+  return { payment: data.payment, proofs: data.proofs };
+}
+
+// Verified against: ../comprobify/src/controllers/payment.controller.js → listProofs()
+// Returns only active (non-deleted) proofs; call after upload/delete to refresh the list.
+export async function listPaymentProofs(ctx: ApiCtx, paymentId: number): Promise<ApiPaymentProof[]> {
+  const result = await request<{ ok: true; proofs: ApiPaymentProof[] }>(
+    `/v1/payments/${paymentId}/proofs`,
+    { apiKey: ctx.apiKey },
+  );
+  return result.proofs;
+}
+
+// Verified against: ../comprobify/src/controllers/payment.controller.js → deleteProof()
+// Soft-delete — admin can still see the file; blocked once payment is VERIFIED.
+export async function deletePaymentProof(ctx: ApiCtx, paymentId: number, proofId: string): Promise<void> {
+  const res = await fetch(`${getApiUrl()}/v1/payments/${paymentId}/proofs/${proofId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${ctx.apiKey}` },
+  });
+  if (!res.ok) {
+    const problem: ProblemDetails = await res.json();
+    throw new ApiError(problem);
+  }
 }
 
 // Verified against: src/routes/tenants.routes.js → PATCH /v1/tenants/language

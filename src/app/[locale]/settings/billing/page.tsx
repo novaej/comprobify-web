@@ -1,11 +1,11 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { requirePermission } from '@/lib/context';
 import { db } from '@/lib/db';
-import { getCurrentTenant, getMySubscriptions } from '@/lib/api';
+import { getCurrentTenant, getMySubscriptions, listPaymentProofs } from '@/lib/api';
 import { listTiers, type ApiTierInfo } from '@/lib/public-api';
 import { PageHeader } from '@/components/page-header';
 import { BillingManager } from '@/components/billing-manager';
-import type { ApiBankTransferInfo } from '@/lib/api';
+import type { ApiBankTransferInfo, ApiPaymentProof } from '@/lib/api';
 
 export default async function BillingPage({
   params,
@@ -28,6 +28,15 @@ export default async function BillingPage({
     listTiers().catch(() => []),
   ]);
 
+  // Fetch proofs for the payment that needs action (pending, reported, or rejected),
+  // so PendingPaymentCard can render the uploaded-files list on first render.
+  const latestPayment = subscriptions[0]?.payments[0] ?? null;
+  const isSubscriptionOver = subscriptions[0]?.status === 'CANCELLED' || subscriptions[0]?.status === 'EXPIRED';
+  const needsAction = !!latestPayment && latestPayment.status !== 'VERIFIED' && !isSubscriptionOver;
+  const initialProofs: ApiPaymentProof[] = needsAction
+    ? await listPaymentProofs({ apiKey: ctx.apiKey }, latestPayment!.id).catch(() => [])
+    : [];
+
   // bankTransfer is static, env-configured config on the API — identical for every
   // tenant and every payment (initial, tier-change, or renewal) — so once cached it's
   // kept indefinitely rather than cleared after each payment verifies. A renewal
@@ -47,6 +56,7 @@ export default async function BillingPage({
         tiers={tiers}
         subscriptions={subscriptions}
         pendingBankTransfer={pendingBankTransfer}
+        initialProofs={initialProofs}
         canManageBilling={ctx.permissions.has('billing.manage')}
         isSandbox={ctx.tenant.environment === 'sandbox'}
         emailVerified={ctx.user.emailVerified}

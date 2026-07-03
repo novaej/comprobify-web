@@ -6,10 +6,17 @@ import { toast } from 'sonner';
 import { toastApiError } from '@/lib/api-error-toast';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import { submitPaymentProofAction, changeTierAction, createSubscriptionAction, cancelSubscriptionAction } from '@/app/actions/billing';
-import type { ApiTenantInfo, ApiSubscriptionInfo, ApiPaymentInfo, ApiBankTransferInfo } from '@/lib/api';
+import { FileIcon, DownloadIcon, Trash2Icon } from 'lucide-react';
+import {
+  submitPaymentProofAction,
+  listPaymentProofsAction,
+  deletePaymentProofAction,
+  changeTierAction,
+  createSubscriptionAction,
+  cancelSubscriptionAction,
+} from '@/app/actions/billing';
+import type { ApiTenantInfo, ApiSubscriptionInfo, ApiPaymentInfo, ApiBankTransferInfo, ApiPaymentProof } from '@/lib/api';
 import type { ApiTierInfo } from '@/lib/public-api';
 import type { PaidTier, BillingInterval } from '@/lib/subscription-tiers';
 
@@ -40,6 +47,7 @@ export function BillingManager({
   tiers,
   subscriptions,
   pendingBankTransfer,
+  initialProofs,
   canManageBilling,
   isSandbox,
   emailVerified,
@@ -49,13 +57,13 @@ export function BillingManager({
   tiers: ApiTierInfo[];
   subscriptions: ApiSubscriptionInfo[];
   pendingBankTransfer: ApiBankTransferInfo | null;
+  initialProofs: ApiPaymentProof[];
   canManageBilling: boolean;
   isSandbox: boolean;
   emailVerified: boolean;
 }) {
   const t = useTranslations('billing');
   const tPricing = useTranslations('pricing');
-  const [proofPreview, setProofPreview] = useState<{ id: number; filename: string; mimeType: string } | null>(null);
 
   const tierKey = `tiers.${tenantInfo.subscriptionTier}.name` as Parameters<typeof tPricing>[0];
   const tierName = tPricing.has(tierKey) ? tPricing(tierKey) : tenantInfo.subscriptionTier;
@@ -137,6 +145,7 @@ export function BillingManager({
         <PendingPaymentCard
           payment={latestPayment}
           bankTransfer={pendingBankTransfer}
+          initialProofs={initialProofs}
           canManageBilling={canManageBilling}
         />
       )}
@@ -201,15 +210,6 @@ export function BillingManager({
                         )}
                       </p>
                       <p className="mt-0.5 text-xs text-muted-foreground">{purposeLabel}</p>
-                      {p.proof_filename && p.proof_mime_type && (
-                        <button
-                          type="button"
-                          onClick={() => setProofPreview({ id: p.id, filename: p.proof_filename!, mimeType: p.proof_mime_type! })}
-                          className="mt-1 text-xs text-primary underline underline-offset-2 hover:text-primary/80"
-                        >
-                          {t('viewProof')}
-                        </button>
-                      )}
                     </div>
                     <Badge variant="outline" className={`shrink-0 ${PAYMENT_STATUS_STYLES[p.status] ?? ''}`}>
                       {t.has(paymentStatusKey) ? t(paymentStatusKey) : p.status}
@@ -221,32 +221,6 @@ export function BillingManager({
           );
         })()}
       </div>
-      <Dialog open={!!proofPreview} onOpenChange={(open) => { if (!open) setProofPreview(null); }}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="truncate text-sm font-medium">
-              {proofPreview?.filename}
-            </DialogTitle>
-          </DialogHeader>
-          {proofPreview && (
-            <div className="overflow-hidden rounded-md border border-border">
-              {proofPreview.mimeType === 'application/pdf' ? (
-                <iframe
-                  src={`/api/payments/${proofPreview.id}/proof`}
-                  title={proofPreview.filename}
-                  className="h-[50vh] w-full"
-                />
-              ) : (
-                <img
-                  src={`/api/payments/${proofPreview.id}/proof`}
-                  alt={proofPreview.filename}
-                  className="max-h-[50vh] w-full object-contain"
-                />
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
@@ -254,17 +228,21 @@ export function BillingManager({
 function PendingPaymentCard({
   payment,
   bankTransfer,
+  initialProofs,
   canManageBilling,
 }: {
   payment: ApiPaymentInfo;
   bankTransfer: ApiBankTransferInfo | null;
+  initialProofs: ApiPaymentProof[];
   canManageBilling: boolean;
 }) {
   const t = useTranslations('billing');
   const tPricing = useTranslations('pricing');
   const tError = useTranslations('apiError');
   const [isPending, startTransition] = useTransition();
-  const [hasFile, setHasFile] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [hasFiles, setHasFiles] = useState(false);
+  const [proofs, setProofs] = useState<ApiPaymentProof[]>(initialProofs);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isTierChange = payment.purpose === 'TIER_CHANGE';
@@ -275,19 +253,36 @@ function PendingPaymentCard({
     targetTierKey && tPricing.has(targetTierKey) ? tPricing(targetTierKey) : payment.target_tier ?? '';
 
   function handleUpload() {
-    const file = fileInputRef.current?.files?.[0];
-    if (!file) return;
+    const files = fileInputRef.current?.files;
+    if (!files || files.length === 0) return;
     const formData = new FormData();
-    formData.set('proof', file);
+    for (const file of Array.from(files)) formData.append('proof', file);
     startTransition(async () => {
       const result = await submitPaymentProofAction(payment.id, formData);
       if ('error' in result) {
         toastApiError(result.error, tError);
       } else {
         toast.success(t('pendingPayment.uploaded'));
-        setHasFile(false);
+        setHasFiles(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
+        // Refresh full proof list after upload (result.proofs only has the new ones)
+        const refreshed = await listPaymentProofsAction(payment.id);
+        if (!('error' in refreshed)) setProofs(refreshed.proofs);
       }
+    });
+  }
+
+  function handleDelete(proofId: string) {
+    setDeletingId(proofId);
+    startTransition(async () => {
+      const result = await deletePaymentProofAction(payment.id, proofId);
+      if ('error' in result) {
+        toastApiError(result.error, tError);
+      } else {
+        setProofs((prev) => prev.filter((p) => p.id !== proofId));
+        toast.success(t('pendingPayment.proofDeleted'));
+      }
+      setDeletingId(null);
     });
   }
 
@@ -343,17 +338,58 @@ function PendingPaymentCard({
         <p className="mt-3 text-sm text-muted-foreground">{t('pendingPayment.contactSupport')}</p>
       )}
 
+      {/* Uploaded proof files */}
+      <div className="mt-4">
+        <p className="text-xs font-medium text-muted-foreground mb-2">{t('pendingPayment.proofs')}</p>
+        {proofs.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{t('pendingPayment.noProofs')}</p>
+        ) : (
+          <ul className="space-y-1.5">
+            {proofs.map((proof) => (
+              <li
+                key={proof.id}
+                className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm"
+              >
+                <FileIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                <span className="flex-1 truncate text-xs">{proof.filename}</span>
+                <a
+                  href={`/api/payments/${payment.id}/proofs/${proof.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="shrink-0 text-primary hover:text-primary/80"
+                  title={t('pendingPayment.download')}
+                >
+                  <DownloadIcon className="h-3.5 w-3.5" />
+                </a>
+                {canManageBilling && (
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(proof.id)}
+                    disabled={isPending && deletingId === proof.id}
+                    className="shrink-0 text-muted-foreground hover:text-destructive disabled:opacity-50"
+                    title={t('pendingPayment.deleteProof')}
+                  >
+                    <Trash2Icon className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
       {canManageBilling && (
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
           <input
             ref={fileInputRef}
             type="file"
             accept="image/png,image/jpeg,image/gif,application/pdf"
+            multiple
             disabled={isPending}
-            onChange={(e) => setHasFile(!!e.target.files?.[0])}
+            onChange={(e) => setHasFiles(!!e.target.files?.length)}
             className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-primary"
           />
-          <Button size="sm" onClick={handleUpload} disabled={isPending || !hasFile}>
+          <Button size="sm" onClick={handleUpload} disabled={isPending || !hasFiles}>
             {isPending ? t('pendingPayment.uploading') : t('pendingPayment.upload')}
           </Button>
         </div>

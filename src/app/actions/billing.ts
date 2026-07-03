@@ -4,10 +4,13 @@ import { db } from '@/lib/db';
 import { requirePermission } from '@/lib/context';
 import {
   submitPaymentProof,
+  listPaymentProofs,
+  deletePaymentProof,
   changeTier,
   createSubscription,
   cancelSubscription,
   type ApiPaymentInfo,
+  type ApiPaymentProof,
   type ChangeTierResult,
   type CreateSubscriptionResult,
   type CancelSubscriptionResult,
@@ -17,7 +20,8 @@ import { revalidatePath } from 'next/cache';
 import type { Prisma } from '@prisma/client';
 import type { PaidTier, BillingInterval } from '@/lib/subscription-tiers';
 
-export type BillingResult = { error: string } | { payment: ApiPaymentInfo };
+export type BillingResult = { error: string } | { payment: ApiPaymentInfo; proofs: ApiPaymentProof[] };
+export type ProofListResult = { error: string } | { proofs: ApiPaymentProof[] };
 export type ChangeTierActionResult = { error: string } | ChangeTierResult;
 export type CreateSubscriptionActionResult = { error: string } | CreateSubscriptionResult;
 export type CancelSubscriptionActionResult = { error: string } | CancelSubscriptionResult;
@@ -31,22 +35,55 @@ export async function submitPaymentProofAction(
 ): Promise<BillingResult> {
   const ctx = await requirePermission('billing.manage', { skipIssuer: true });
 
-  const proofFile = formData.get('proof') as File | null;
-  if (!proofFile || proofFile.size === 0) return { error: 'INVALID_FILE_UPLOAD' };
-  if (proofFile.size > MAX_PROOF_BYTES || !PROOF_MIME_TYPES.has(proofFile.type)) {
+  const proofEntries = formData.getAll('proof') as File[];
+  if (proofEntries.length === 0 || proofEntries.every((f) => f.size === 0)) {
     return { error: 'INVALID_FILE_UPLOAD' };
   }
+  const files = proofEntries.filter((f) => f.size > 0);
+  for (const file of files) {
+    if (file.size > MAX_PROOF_BYTES || !PROOF_MIME_TYPES.has(file.type)) {
+      return { error: 'INVALID_FILE_UPLOAD' };
+    }
+  }
 
-  const buffer = Buffer.from(await proofFile.arrayBuffer());
+  const mapped = await Promise.all(
+    files.map(async (f) => ({
+      buffer: Buffer.from(await f.arrayBuffer()),
+      mimeType: f.type,
+      filename: f.name,
+    })),
+  );
 
   try {
-    const payment = await submitPaymentProof({ apiKey: ctx.apiKey }, paymentId, {
-      buffer,
-      mimeType: proofFile.type,
-      filename: proofFile.name,
-    });
+    const result = await submitPaymentProof({ apiKey: ctx.apiKey }, paymentId, mapped);
     revalidatePath('/settings/billing');
-    return { payment };
+    return result;
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.code };
+    throw err;
+  }
+}
+
+export async function listPaymentProofsAction(paymentId: number): Promise<ProofListResult> {
+  const ctx = await requirePermission('billing.read', { skipIssuer: true });
+  try {
+    const proofs = await listPaymentProofs({ apiKey: ctx.apiKey }, paymentId);
+    return { proofs };
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.code };
+    throw err;
+  }
+}
+
+export async function deletePaymentProofAction(
+  paymentId: number,
+  proofId: string,
+): Promise<{ error: string } | { ok: true }> {
+  const ctx = await requirePermission('billing.manage', { skipIssuer: true });
+  try {
+    await deletePaymentProof({ apiKey: ctx.apiKey }, paymentId, proofId);
+    revalidatePath('/settings/billing');
+    return { ok: true };
   } catch (err) {
     if (err instanceof ApiError) return { error: err.code };
     throw err;

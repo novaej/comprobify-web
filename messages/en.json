@@ -650,6 +650,7 @@
     "WEBHOOK_ENDPOINT_LIMIT_REACHED": "You have reached the webhook endpoint limit for your plan.",
     "WEBHOOK_ENDPOINT_NOT_FOUND": "Webhook endpoint not found.",
     "INVALID_FILE_UPLOAD": "The uploaded file is invalid. Check the format and maximum allowed size.",
+    "PROOF_FILE_LIMIT_REACHED": "This payment already has the maximum number of files (10). Delete one before uploading more.",
     "SUBSCRIPTION_NOT_FOUND": "Subscription not found.",
     "PAYMENT_NOT_FOUND": "Payment not found.",
     "SUBSCRIPTION_ALREADY_IN_FLIGHT": "Your account already has a subscription in progress.",
@@ -1159,7 +1160,12 @@
       "contactSupport": "Contact support to get the bank transfer details.",
       "upload": "Upload proof",
       "uploading": "Uploading...",
-      "uploaded": "Proof uploaded. Your provider will review it shortly."
+      "uploaded": "Proof uploaded. Your provider will review it shortly.",
+      "proofs": "Uploaded files",
+      "noProofs": "No proof files uploaded yet.",
+      "download": "Download",
+      "deleteProof": "Delete file",
+      "proofDeleted": "File deleted."
     },
     "changePlan": {
       "title": "Change plan",
