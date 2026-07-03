@@ -668,6 +668,7 @@
     "title": "Review and accept agreements",
     "description": "Before continuing, please review and accept the following Comprobify legal documents.",
     "viewDocument": "View document",
+    "openInTab": "Open in tab",
     "statusPending": "Pending",
     "statusAccepted": "Accepted",
     "termsLabel": "I have read and accept the Terms of Service.",

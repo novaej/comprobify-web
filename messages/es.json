@@ -668,6 +668,7 @@
     "title": "Revisa y acepta los acuerdos",
     "description": "Antes de continuar, revisa y acepta los siguientes documentos legales de Comprobify.",
     "viewDocument": "Ver documento",
+    "openInTab": "Abrir en pestaña",
     "statusPending": "Pendiente",
     "statusAccepted": "Aceptado",
     "termsLabel": "He leído y acepto los Términos de Servicio.",

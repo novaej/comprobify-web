@@ -4,8 +4,9 @@ import { useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { acceptAgreementsAction } from '@/app/actions/agreements';
-import { ExternalLink, CheckCircle2, Clock } from 'lucide-react';
+import { ExternalLink, CheckCircle2, Clock, FileTextIcon } from 'lucide-react';
 import type { ApiOutdatedAgreement } from '@/lib/api';
 
 const CHECKBOX_KEY: Record<string, 'termsLabel' | 'privacyLabel' | 'dpaLabel'> = {
@@ -23,6 +24,7 @@ export function AgreementAcceptance({ outdated }: { outdated: ApiOutdatedAgreeme
     () => Object.fromEntries(outdated.map((d) => [d.documentType, false]))
   );
   const [error, setError] = useState<string | null>(null);
+  const [viewingType, setViewingType] = useState<string | null>(null);
 
   const allChecked = outdated.every((d) => checked[d.documentType]);
 
@@ -80,15 +82,14 @@ export function AgreementAcceptance({ outdated }: { outdated: ApiOutdatedAgreeme
               </span>
             </div>
 
-            <a
-              href={`/api/tenant/agreements/${doc.documentType}`}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              type="button"
+              onClick={() => setViewingType(doc.documentType)}
               className="inline-flex items-center gap-1.5 text-xs text-primary underline underline-offset-4 hover:text-primary/80"
             >
-              <ExternalLink className="h-3 w-3" aria-hidden />
+              <FileTextIcon className="h-3 w-3" aria-hidden />
               {t('viewDocument')}
-            </a>
+            </button>
 
             {labelKey && (
               <div className="flex items-start gap-2.5">
@@ -117,6 +118,37 @@ export function AgreementAcceptance({ outdated }: { outdated: ApiOutdatedAgreeme
       <Button onClick={handleAccept} disabled={!allChecked || isPending}>
         {isPending ? t('accepting') : t('accept')}
       </Button>
+
+      <Dialog open={viewingType !== null} onOpenChange={(open) => { if (!open) setViewingType(null); }}>
+        <DialogContent className="flex flex-col sm:max-w-3xl h-[85vh] p-0 gap-0">
+          <DialogHeader className="flex-row items-center justify-between gap-4 border-b border-border px-6 py-4 shrink-0">
+            <DialogTitle className="text-sm font-semibold">
+              {viewingType
+                ? t(`documentTitles.${viewingType}` as Parameters<typeof t>[0])
+                : ''}
+            </DialogTitle>
+            {viewingType && (
+              <a
+                href={`/api/tenant/agreements/${viewingType}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <ExternalLink className="h-3 w-3" />
+                {t('openInTab')}
+              </a>
+            )}
+          </DialogHeader>
+          {viewingType && (
+            <iframe
+              key={viewingType}
+              src={`/api/tenant/agreements/${viewingType}`}
+              title={t(`documentTitles.${viewingType}` as Parameters<typeof t>[0])}
+              className="flex-1 w-full border-0"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
