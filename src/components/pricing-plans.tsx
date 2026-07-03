@@ -85,7 +85,7 @@ export function PricingPlans({ tiers }: { tiers: ApiTierInfo[] }) {
               <div>
                 <h2 className="text-lg font-semibold">{t(`tiers.${tier.name}.name`)}</h2>
                 <p className="text-3xl font-bold mt-1">
-                  {isFree ? t('free') : currencyFormatter.format(price)}
+                  {isFree ? '$0' : currencyFormatter.format(price)}
                   {!isFree && (
                     <span className="text-sm font-normal text-muted-foreground">
                       {interval === 'MONTHLY' ? t('perMonth') : t('perYear')}

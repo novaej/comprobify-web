@@ -35,6 +35,7 @@
   },
   "auth": {
     "backToHome": "Volver al inicio",
+    "backToPricing": "Volver a precios",
     "fields": {
       "email": "Correo electrónico",
       "password": "Contraseña",
@@ -1073,7 +1074,7 @@
     "ivaNote": "Precios incluyen IVA ({rate}%)",
     "tiers": {
       "FREE": {
-        "name": "Sandbox",
+        "name": "Gratis",
         "description": "Para desarrolladores y equipos que quieren explorar la plataforma.",
         "cta": "Empezar gratis"
       },

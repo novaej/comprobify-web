@@ -35,6 +35,7 @@
   },
   "auth": {
     "backToHome": "Back to home",
+    "backToPricing": "Back to pricing",
     "fields": {
       "email": "Email address",
       "password": "Password",
@@ -1073,7 +1074,7 @@
     "ivaNote": "Prices include VAT ({rate}%)",
     "tiers": {
       "FREE": {
-        "name": "Sandbox",
+        "name": "Free",
         "description": "For developers and teams exploring the platform.",
         "cta": "Get started free"
       },
