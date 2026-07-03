@@ -121,8 +121,8 @@ export function AgreementAcceptance({ outdated }: { outdated: ApiOutdatedAgreeme
 
       <Dialog open={viewingType !== null} onOpenChange={(open) => { if (!open) setViewingType(null); }}>
         <DialogContent className="flex flex-col sm:max-w-3xl h-[85vh] p-0 gap-0">
-          <DialogHeader className="flex-row items-center justify-between gap-4 border-b border-border px-6 py-4 shrink-0">
-            <DialogTitle className="text-sm font-semibold">
+          <DialogHeader className="flex-row items-center gap-4 border-b border-border pl-6 pr-12 py-4 shrink-0">
+            <DialogTitle className="flex-1 text-sm font-semibold">
               {viewingType
                 ? t(`documentTitles.${viewingType}` as Parameters<typeof t>[0])
                 : ''}
