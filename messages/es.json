@@ -77,6 +77,10 @@
     "badge": "SRI Pruebas",
     "productionBadge": "SRI Producción"
   },
+  "suspended": {
+    "banner": "Tu cuenta está suspendida. No puedes crear ni enviar comprobantes hasta que se resuelva.",
+    "bannerLink": "Ver facturación"
+  },
   "status": {
     "SIGNED": "Firmado",
     "RECEIVED": "Recibido por SRI",

@@ -6,6 +6,7 @@ import { QueryProvider } from '@/providers/query-provider';
 import { Nav } from '@/components/nav';
 import { Toaster } from '@/components/ui/sonner';
 import { SandboxBanner } from '@/components/sandbox-banner';
+import { SuspendedBanner } from '@/components/suspended-banner';
 import { CertExpiryBanner } from '@/components/cert-expiry-banner';
 import { NotificationSync } from '@/components/notification-sync';
 import { auth } from '@/auth';
@@ -26,6 +27,7 @@ interface CertAlertProps {
 interface LayoutProps {
   hasIssuer: boolean;
   environment: 'sandbox' | 'production';
+  isSuspended: boolean;
   tenantName: string | null;
   currentIssuer: { id: number; apiIssuerId: number; name: string; branchCode: string; issuePointCode: string } | null;
   issuers: Array<{ id: number; apiIssuerId: number; name: string; branchCode: string; issuePointCode: string }>;
@@ -48,6 +50,7 @@ async function getLayoutProps(userId: string): Promise<LayoutProps | null> {
           businessName: true,
           tradeName: true,
           environment: true,
+          status: true,
           issuers: {
             where: { active: true },
             orderBy: [{ isDefault: 'desc' as const }, { createdAt: 'asc' as const }],
@@ -134,6 +137,7 @@ async function getLayoutProps(userId: string): Promise<LayoutProps | null> {
   return {
     hasIssuer: allIssuers.length > 0,
     environment: user.tenant.environment as 'sandbox' | 'production',
+    isSuspended: user.tenant.status === 'SUSPENDED',
     tenantName: user.tenant.tradeName ?? user.tenant.businessName,
     currentIssuer,
     issuers: allIssuers,
@@ -186,6 +190,7 @@ export default async function LocaleLayout({
             />
             <NotificationSync />
             <main className="flex-1 overflow-y-auto p-4 md:p-8">
+              <SuspendedBanner isSuspended={layoutProps.isSuspended} />
               <SandboxBanner environment={layoutProps.environment} />
               {layoutProps.certAlert && (
                 <CertExpiryBanner

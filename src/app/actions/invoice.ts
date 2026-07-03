@@ -5,6 +5,7 @@ import { redirect } from '@/i18n/navigation';
 import { createDocument, rebuildDocument, sendToSri, checkAuthorization, type CreateInvoicePayload } from '@/lib/api';
 import { ApiError } from '@/lib/errors';
 import { requireContext } from '@/lib/context';
+import { syncSuspensionStatus } from '@/lib/suspension-sync';
 import type { BackTargetKey } from '@/lib/back-targets';
 
 function invoiceHref(accessKey: string, from?: BackTargetKey): string {
@@ -113,7 +114,10 @@ export async function createInvoiceAction(
     const { document } = await createDocument(apiCtx, payload);
     accessKey = document.accessKey;
   } catch (err) {
-    if (err instanceof ApiError) return { error: err.code };
+    if (err instanceof ApiError) {
+      await syncSuspensionStatus(ctx.tenant.id, err);
+      return { error: err.code };
+    }
     throw err;
   }
 
@@ -137,7 +141,10 @@ export async function rebuildInvoiceAction(
   try {
     await rebuildDocument(apiCtx, accessKey, payload);
   } catch (err) {
-    if (err instanceof ApiError) return { error: err.code };
+    if (err instanceof ApiError) {
+      await syncSuspensionStatus(ctx.tenant.id, err);
+      return { error: err.code };
+    }
     throw err;
   }
 

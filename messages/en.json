@@ -77,6 +77,10 @@
     "badge": "SRI Pruebas",
     "productionBadge": "SRI Producción"
   },
+  "suspended": {
+    "banner": "Your account is suspended. You cannot create or send documents until this is resolved.",
+    "bannerLink": "View billing"
+  },
   "status": {
     "SIGNED": "Signed",
     "RECEIVED": "Received by SRI",
