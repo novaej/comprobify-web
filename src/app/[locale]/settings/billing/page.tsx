@@ -3,6 +3,7 @@ import { requirePermission } from '@/lib/context';
 import { db } from '@/lib/db';
 import { getCurrentTenant, getMySubscriptions, listPaymentProofs } from '@/lib/api';
 import { listTiers, type ApiTierInfo } from '@/lib/public-api';
+import { isPaidTier, isBillingInterval } from '@/lib/subscription-tiers';
 import { PageHeader } from '@/components/page-header';
 import { BillingManager } from '@/components/billing-manager';
 import type { ApiBankTransferInfo, ApiPaymentProof } from '@/lib/api';
@@ -24,7 +25,7 @@ export default async function BillingPage({
   const [tenantInfo, subscriptions, tenantRow, tiers] = await Promise.all([
     getCurrentTenant({ apiKey: ctx.apiKey }),
     getMySubscriptions({ apiKey: ctx.apiKey }),
-    db.tenant.findUnique({ where: { id: ctx.tenant.id }, select: { pendingBankTransfer: true } }),
+    db.tenant.findUnique({ where: { id: ctx.tenant.id }, select: { pendingBankTransfer: true, intendedTier: true, intendedBillingInterval: true } }),
     listTiers().catch(() => []),
   ]);
 
@@ -44,6 +45,8 @@ export default async function BillingPage({
   // involved, so there is no fresher bankTransfer to ever cache for it — this stays
   // the only source once the tenant's first payment captured it.
   const pendingBankTransfer = tenantRow?.pendingBankTransfer as ApiBankTransferInfo | null;
+  const intendedTier = isPaidTier(tenantRow?.intendedTier) ? tenantRow.intendedTier : undefined;
+  const intendedBillingInterval = isBillingInterval(tenantRow?.intendedBillingInterval) ? tenantRow.intendedBillingInterval : undefined;
 
   const currentTier = tiers.find((tier: ApiTierInfo) => tier.name === tenantInfo.subscriptionTier) ?? null;
 
@@ -60,6 +63,8 @@ export default async function BillingPage({
         canManageBilling={ctx.permissions.has('billing.manage')}
         isSandbox={ctx.tenant.environment === 'sandbox'}
         emailVerified={ctx.user.emailVerified}
+        intendedTier={intendedTier}
+        intendedBillingInterval={intendedBillingInterval}
       />
     </div>
   );

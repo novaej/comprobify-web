@@ -34,7 +34,10 @@ export default async function AgreementsPage({
         <p className="mt-1 text-sm text-muted-foreground">{t('description')}</p>
       </div>
 
-      <AgreementAcceptance outdated={status.outdated} />
+      <AgreementAcceptance outdated={[...status.outdated].sort((a, b) => {
+        const ORDER: Record<string, number> = { TERMS: 0, PRIVACY: 1, DPA: 2 };
+        return (ORDER[a.documentType] ?? 99) - (ORDER[b.documentType] ?? 99);
+      })} />
     </div>
   );
 }

@@ -7,7 +7,7 @@ import { toastApiError } from '@/lib/api-error-toast';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { FileIcon, DownloadIcon, Trash2Icon } from 'lucide-react';
+import { FileIcon, DownloadIcon, Trash2Icon, Info } from 'lucide-react';
 import {
   submitPaymentProofAction,
   listPaymentProofsAction,
@@ -51,6 +51,8 @@ export function BillingManager({
   canManageBilling,
   isSandbox,
   emailVerified,
+  intendedTier,
+  intendedBillingInterval,
 }: {
   tenantInfo: ApiTenantInfo;
   currentTier: ApiTierInfo | null;
@@ -61,6 +63,8 @@ export function BillingManager({
   canManageBilling: boolean;
   isSandbox: boolean;
   emailVerified: boolean;
+  intendedTier?: PaidTier;
+  intendedBillingInterval?: BillingInterval;
 }) {
   const t = useTranslations('billing');
   const tPricing = useTranslations('pricing');
@@ -150,7 +154,14 @@ export function BillingManager({
         />
       )}
 
-      {canSubscribeNew && <SubscribeCard tiers={tiers} emailVerified={emailVerified} />}
+      {canSubscribeNew && (
+        <SubscribeCard
+          tiers={tiers}
+          emailVerified={emailVerified}
+          intendedTier={intendedTier}
+          intendedBillingInterval={intendedBillingInterval}
+        />
+      )}
 
       {canChangeTier && latestSubscription && (
         <ChangeTierCard
@@ -699,14 +710,24 @@ function ChangeTierCard({
   );
 }
 
-function SubscribeCard({ tiers, emailVerified }: { tiers: ApiTierInfo[]; emailVerified: boolean }) {
+function SubscribeCard({
+  tiers,
+  emailVerified,
+  intendedTier,
+  intendedBillingInterval,
+}: {
+  tiers: ApiTierInfo[];
+  emailVerified: boolean;
+  intendedTier?: PaidTier;
+  intendedBillingInterval?: BillingInterval;
+}) {
   const t = useTranslations('billing');
   const tPricing = useTranslations('pricing');
   const tError = useTranslations('apiError');
   const [isPending, startTransition] = useTransition();
   const [confirming, setConfirming] = useState(false);
-  const [selectedTier, setSelectedTier] = useState<PaidTier | null>(null);
-  const [billingInterval, setBillingInterval] = useState<BillingInterval>('MONTHLY');
+  const [selectedTier, setSelectedTier] = useState<PaidTier | null>(intendedTier ?? null);
+  const [billingInterval, setBillingInterval] = useState<BillingInterval>(intendedBillingInterval ?? 'MONTHLY');
   const options = tiers.filter((tier): tier is ApiTierInfo & { name: PaidTier } => tier.name !== 'FREE');
 
   function handleSubscribe() {
@@ -731,6 +752,19 @@ function SubscribeCard({ tiers, emailVerified }: { tiers: ApiTierInfo[]; emailVe
     <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
       <h2 className="text-sm font-semibold">{t('subscribe.title')}</h2>
       <p className="mt-1 text-xs text-muted-foreground">{t('subscribe.hint')}</p>
+
+      {intendedTier && (
+        <div className="mt-3 flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300">
+          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+          <span>
+            {t('subscribe.intendedHint', {
+              tier: tPricing.has(`tiers.${intendedTier}.name` as Parameters<typeof tPricing>[0])
+                ? tPricing(`tiers.${intendedTier}.name` as Parameters<typeof tPricing>[0])
+                : intendedTier,
+            })}
+          </span>
+        </div>
+      )}
 
       {!emailVerified ? (
         <p className="mt-3 text-sm text-muted-foreground">{t('subscribe.emailRequired')}</p>

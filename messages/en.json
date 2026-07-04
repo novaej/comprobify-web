@@ -673,6 +673,7 @@
     "description": "Before continuing, please review and accept the following Comprobify legal documents.",
     "viewDocument": "View document",
     "openInTab": "Open in tab",
+    "print": "Print / PDF",
     "statusPending": "Pending",
     "statusAccepted": "Accepted",
     "termsLabel": "I have read and accept the Terms of Service.",
@@ -1213,7 +1214,7 @@
     },
     "subscribe": {
       "title": "Subscribe to a plan",
-      "hint": "You can subscribe now, even while still in the sandbox environment. The plan activates once payment is verified.",
+      "hint": "You can subscribe now, even while still in the sandbox environment. The plan activates once payment is verified, and will be fully available once you switch to production mode.",
       "emailRequired": "You must verify your email address before subscribing to a plan.",
       "placeholder": "Select a plan",
       "button": "Subscribe",
@@ -1221,7 +1222,8 @@
       "confirm": "Confirm subscription",
       "confirming": "Processing...",
       "cancel": "Cancel",
-      "requested": "Subscription requested. Check the transfer details below."
+      "requested": "Subscription requested. Check the transfer details below.",
+      "intendedHint": "You selected the {tier} plan during registration. Choose a plan and billing period below to complete your subscription."
     }
   },
   "email": {

@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { acceptAgreementsAction } from '@/app/actions/agreements';
-import { ExternalLink, CheckCircle2, Clock, FileTextIcon } from 'lucide-react';
+import { ExternalLink, CheckCircle2, Clock, FileTextIcon, Printer } from 'lucide-react';
 import type { ApiOutdatedAgreement } from '@/lib/api';
 
 const CHECKBOX_KEY: Record<string, 'termsLabel' | 'privacyLabel' | 'dpaLabel'> = {
@@ -25,6 +25,7 @@ export function AgreementAcceptance({ outdated }: { outdated: ApiOutdatedAgreeme
   );
   const [error, setError] = useState<string | null>(null);
   const [viewingType, setViewingType] = useState<string | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const allChecked = outdated.every((d) => checked[d.documentType]);
 
@@ -128,19 +129,30 @@ export function AgreementAcceptance({ outdated }: { outdated: ApiOutdatedAgreeme
                 : ''}
             </DialogTitle>
             {viewingType && (
-              <a
-                href={`/api/tenant/agreements/${viewingType}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-              >
-                <ExternalLink className="h-3 w-3" />
-                {t('openInTab')}
-              </a>
+              <div className="flex shrink-0 items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => iframeRef.current?.contentWindow?.print()}
+                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  <Printer className="h-3 w-3" />
+                  {t('print')}
+                </button>
+                <a
+                  href={`/api/tenant/agreements/${viewingType}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  {t('openInTab')}
+                </a>
+              </div>
             )}
           </DialogHeader>
           {viewingType && (
             <iframe
+              ref={iframeRef}
               key={viewingType}
               src={`/api/tenant/agreements/${viewingType}`}
               title={t(`documentTitles.${viewingType}` as Parameters<typeof t>[0])}

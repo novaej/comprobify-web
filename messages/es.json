@@ -673,6 +673,7 @@
     "description": "Antes de continuar, revisa y acepta los siguientes documentos legales de Comprobify.",
     "viewDocument": "Ver documento",
     "openInTab": "Abrir en pestaña",
+    "print": "Imprimir / PDF",
     "statusPending": "Pendiente",
     "statusAccepted": "Aceptado",
     "termsLabel": "He leído y acepto los Términos de Servicio.",
@@ -1213,7 +1214,7 @@
     },
     "subscribe": {
       "title": "Suscribirme a un plan",
-      "hint": "Puedes suscribirte ahora, incluso si todavía estás en el ambiente de pruebas. El plan se activará una vez verificado el pago.",
+      "hint": "Puedes suscribirte ahora, incluso si todavía estás en el ambiente de pruebas. El plan se activará una vez verificado el pago y se podrá usar plenamente al iniciar el modo de producción.",
       "emailRequired": "Debes verificar tu correo electrónico antes de suscribirte a un plan.",
       "placeholder": "Selecciona un plan",
       "button": "Suscribirme",
@@ -1221,7 +1222,8 @@
       "confirm": "Confirmar suscripción",
       "confirming": "Procesando...",
       "cancel": "Cancelar",
-      "requested": "Suscripción registrada. Revisa los datos de transferencia abajo."
+      "requested": "Suscripción registrada. Revisa los datos de transferencia abajo.",
+      "intendedHint": "Seleccionaste el plan {tier} al registrarte. Elige el plan y el período de facturación para continuar con la suscripción."
     }
   },
   "email": {
