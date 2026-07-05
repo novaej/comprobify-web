@@ -719,11 +719,20 @@ export async function getAgreementStatus(ctx: ApiCtx): Promise<ApiAgreementStatu
 }
 
 // Verified against: ../comprobify/src/routes/tenants.routes.js → POST /v1/tenants/agreements
-export async function acceptAgreements(ctx: ApiCtx, termsVersion: string): Promise<void> {
+// clientHeaders.userAgent: forwarded from the incoming browser request so the API records
+// the real browser UA rather than the Node fetch default. The BFF pattern means the actual
+// outbound request originates from our server, not the browser, so we have to pass it explicitly.
+export async function acceptAgreements(
+  ctx: ApiCtx,
+  termsVersion: string,
+  clientHeaders?: { userAgent?: string },
+): Promise<void> {
+  const extraHeaders: Record<string, string> = {};
+  if (clientHeaders?.userAgent) extraHeaders['User-Agent'] = clientHeaders.userAgent;
   await request<{ ok: true }>(
     '/v1/tenants/agreements',
     { apiKey: ctx.apiKey },
-    { method: 'POST', body: JSON.stringify({ termsVersion }) },
+    { method: 'POST', body: JSON.stringify({ termsVersion }), headers: extraHeaders },
   );
 }
 
