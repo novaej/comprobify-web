@@ -1114,8 +1114,6 @@
   "billing": {
     "title": "Facturación",
     "description": "Plan actual, historial de pagos y comprobantes de transferencia.",
-    "sandboxNotice": "Tu cuenta está en el ambiente de pruebas. Puedes suscribirte a un plan de pago desde ya; se activará una vez verificado el pago, y tendrá efecto en producción cuando actives ese ambiente.",
-    "sandboxNoticeActive": "Tu cuenta está en el ambiente de pruebas con un plan activo. Tu suscripción tomará efecto en producción cuando actives ese ambiente.",
     "viewProof": "Ver comprobante",
     "currentPlan": "Plan actual",
     "usage": "{count} de {quota} comprobantes usados en producción",

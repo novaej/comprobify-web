@@ -94,15 +94,6 @@ export function BillingManager({
 
   return (
     <div className="space-y-4">
-      {isSandbox && (
-        <div
-          role="note"
-          className="flex items-start gap-2.5 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300"
-        >
-          <p>{latestSubscription?.status === 'ACTIVE' ? t('sandboxNoticeActive') : t('sandboxNotice')}</p>
-        </div>
-      )}
-
       <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
         <h2 className="text-sm font-semibold">{t('currentPlan')}</h2>
         <p className="mt-1.5 text-lg font-semibold">{tierName}</p>

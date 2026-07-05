@@ -1114,8 +1114,6 @@
   "billing": {
     "title": "Billing",
     "description": "Current plan, payment history, and transfer proof.",
-    "sandboxNotice": "Your account is in the sandbox environment. You can subscribe to a paid plan right now — it will activate once payment is verified, and take effect in production once you activate that environment.",
-    "sandboxNoticeActive": "Your account is in the sandbox environment with an active plan. Your subscription will take effect in production once you activate that environment.",
     "viewProof": "View proof",
     "currentPlan": "Current plan",
     "usage": "{count} of {quota} production documents used",
