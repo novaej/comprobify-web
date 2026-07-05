@@ -146,6 +146,7 @@ export default async function NewCreditNotePage({
         rebuildFrom={rebuildFrom}
         backHref={backHref}
         from={backTargetKey}
+        issuer={ctx.issuer}
       />
     </div>
   );

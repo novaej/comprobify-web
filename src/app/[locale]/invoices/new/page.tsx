@@ -113,7 +113,7 @@ export default async function NewInvoicePage({
         backHref={backHref}
         backLabel={backLabel}
       />
-      <InvoiceForm catalogs={catalogs} rebuildFrom={rebuildFrom} backHref={backHref} from={backTargetKey} />
+      <InvoiceForm catalogs={catalogs} rebuildFrom={rebuildFrom} backHref={backHref} from={backTargetKey} issuer={ctx.issuer} />
     </div>
   );
 }

@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
-import { Trash2, Plus, Search, Send, FolderOpen, Save, ClipboardSignature, Hammer } from 'lucide-react';
+import { Trash2, Plus, Search, Send, FolderOpen, Save, ClipboardSignature, Hammer, Building2 } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -255,15 +255,23 @@ interface RebuildSource {
   issueDate: string;
 }
 
+interface IssuerInfo {
+  businessName: string;
+  tradeName: string | null;
+  branchCode: string;
+  issuePointCode: string;
+}
+
 interface Props {
   catalogs: InvoiceCatalogs;
   defaultValues?: Partial<InvoiceFormValues>;
   rebuildFrom?: RebuildSource;
   backHref: string;
   from?: BackTargetKey;
+  issuer: IssuerInfo;
 }
 
-export function InvoiceForm({ catalogs, defaultValues, rebuildFrom, backHref, from }: Props) {
+export function InvoiceForm({ catalogs, defaultValues, rebuildFrom, backHref, from, issuer }: Props) {
   const t = useTranslations('invoiceForm');
   const tError = useTranslations('apiError');
   const tCommon = useTranslations('common');
@@ -449,18 +457,26 @@ export function InvoiceForm({ catalogs, defaultValues, rebuildFrom, backHref, fr
     <>
     <form onSubmit={onSubmit} className="space-y-6">
 
-      {/* Templates */}
-      <div className="flex flex-wrap justify-end gap-2">
-        {catalogs.templates.length > 0 && (
-          <Button type="button" variant="outline" size="sm" onClick={() => setTemplatesOpen(true)}>
-            <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
-            {t('templates.load')}
+      {/* Issuer + Templates */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 rounded-md border border-border bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground">
+          <Building2 className="h-3.5 w-3.5 shrink-0" />
+          <span className="font-medium text-foreground">{issuer.tradeName ?? issuer.businessName}</span>
+          <span className="text-muted-foreground/50">·</span>
+          <span>{issuer.branchCode}-{issuer.issuePointCode}</span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {catalogs.templates.length > 0 && (
+            <Button type="button" variant="outline" size="sm" onClick={() => setTemplatesOpen(true)}>
+              <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
+              {t('templates.load')}
+            </Button>
+          )}
+          <Button type="button" variant="outline" size="sm" onClick={openSaveDialog}>
+            <Save className="mr-1.5 h-3.5 w-3.5" />
+            {t('templates.save')}
           </Button>
-        )}
-        <Button type="button" variant="outline" size="sm" onClick={openSaveDialog}>
-          <Save className="mr-1.5 h-3.5 w-3.5" />
-          {t('templates.save')}
-        </Button>
+        </div>
       </div>
 
       {/* Invoice header */}
