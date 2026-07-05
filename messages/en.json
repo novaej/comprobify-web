@@ -1119,6 +1119,15 @@
     "viewProof": "View proof",
     "currentPlan": "Current plan",
     "usage": "{count} of {quota} production documents used",
+    "planDetails": "Plan details",
+    "planLimits": {
+      "quota": "Documents per period",
+      "branches": "Branches",
+      "issuePoints": "Issue points per branch",
+      "webhooks": "Webhooks",
+      "allowedDocTypes": "Document types",
+      "unlimited": "Unlimited"
+    },
     "history": "Payment history",
     "noHistory": "You don't have any payments yet.",
     "noProofYet": "No proof yet",

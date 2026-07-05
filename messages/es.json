@@ -1119,6 +1119,15 @@
     "viewProof": "Ver comprobante",
     "currentPlan": "Plan actual",
     "usage": "{count} de {quota} comprobantes usados en producción",
+    "planDetails": "Detalles del plan",
+    "planLimits": {
+      "quota": "Comprobantes por período",
+      "branches": "Sucursales",
+      "issuePoints": "Puntos de emisión por sucursal",
+      "webhooks": "Webhooks",
+      "allowedDocTypes": "Tipos de comprobantes",
+      "unlimited": "Ilimitados"
+    },
     "history": "Historial de pagos",
     "noHistory": "Aún no tienes pagos registrados.",
     "noProofYet": "Sin comprobante",

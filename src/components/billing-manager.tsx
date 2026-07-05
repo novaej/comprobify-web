@@ -68,6 +68,7 @@ export function BillingManager({
 }) {
   const t = useTranslations('billing');
   const tPricing = useTranslations('pricing');
+  const tIssuers = useTranslations('issuers');
 
   const tierKey = `tiers.${tenantInfo.subscriptionTier}.name` as Parameters<typeof tPricing>[0];
   const tierName = tPricing.has(tierKey) ? tPricing(tierKey) : tenantInfo.subscriptionTier;
@@ -142,6 +143,49 @@ export function BillingManager({
               date: dateFormatter.format(new Date(latestSubscription.current_period_end)),
             })}
           </p>
+        )}
+
+        {currentTier && (
+          <div className="mt-4 border-t border-border pt-4">
+            <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {t('planDetails')}
+            </p>
+            <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {[
+                { label: t('planLimits.quota'), value: String(currentTier.documentQuota) },
+                {
+                  label: t('planLimits.branches'),
+                  value: currentTier.maxBranches === null ? t('planLimits.unlimited') : String(currentTier.maxBranches),
+                },
+                {
+                  label: t('planLimits.issuePoints'),
+                  value: currentTier.maxIssuePointsPerBranch === null ? t('planLimits.unlimited') : String(currentTier.maxIssuePointsPerBranch),
+                },
+                { label: t('planLimits.webhooks'), value: String(currentTier.maxWebhookEndpoints) },
+              ].map(({ label, value }) => (
+                <div key={label} className="flex items-center justify-between rounded-md bg-muted/40 px-3 py-2">
+                  <dt className="text-xs text-muted-foreground">{label}</dt>
+                  <dd className="text-xs font-medium">{value}</dd>
+                </div>
+              ))}
+            </dl>
+            <div className="mt-2">
+              <p className="mb-1.5 text-xs text-muted-foreground">{t('planLimits.allowedDocTypes')}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {currentTier.allowedDocumentTypes.map((code) => (
+                  <span
+                    key={code}
+                    className="rounded-md border border-border bg-muted px-2 py-0.5 text-xs font-medium"
+                  >
+                    {tIssuers.has(`docType.${code}` as Parameters<typeof tIssuers>[0])
+                      ? tIssuers(`docType.${code}` as Parameters<typeof tIssuers>[0])
+                      : code}
+                    {' '}({code})
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
         )}
       </div>
 
