@@ -53,12 +53,14 @@ export async function registerTenant(
   fields: IssuerRegistrationFields,
   p12Buffer: Buffer,
   p12Password: string,
+  termsVersion: string,
   verificationRedirectUrl?: string,
   logoBuffer?: Buffer,
   logoType?: string,
 ): Promise<RegisterTenantResult> {
   const form = new FormData();
   form.append('email', email);
+  form.append('termsVersion', termsVersion);
   form.append('ruc', fields.ruc);
   form.append('businessName', fields.businessName);
   if (fields.tradeName) form.append('tradeName', fields.tradeName);
@@ -125,7 +127,22 @@ export async function resendVerificationEmail(
   });
 }
 
+// Verified against: ../comprobify/src/controllers/agreement.controller.js → list()
+// and ../comprobify/src/routes/agreements.routes.js → GET /v1/agreements (public, no auth)
+export interface ApiAgreementInfo {
+  documentType: 'TERMS' | 'PRIVACY' | 'DPA';
+  version: string;
+  url: string;
+}
+
+export async function listAgreements(): Promise<ApiAgreementInfo[]> {
+  const result = await publicRequest<{ ok: true; documents: ApiAgreementInfo[] }>('/v1/agreements');
+  return result.documents;
+}
+
 // Verified against: ../comprobify/src/controllers/tiers.controller.js → list()
+// Prices are IVA-inclusive all-in totals (what a tenant transfers).
+// The *Base fields are the base imponible; *Iva is the IVA portion.
 export interface ApiTierInfo {
   name: 'FREE' | 'STARTER' | 'GROWTH' | 'BUSINESS';
   documentQuota: number;
@@ -135,8 +152,13 @@ export interface ApiTierInfo {
   writeRateLimit: number;
   readRateLimit: number;
   allowedDocumentTypes: string[];
-  priceMonthlyUsd: number;
-  priceYearlyUsd: number;
+  ivaRate: number;
+  priceMonthlyUsdBase: number;
+  priceMonthlyUsdIva: number;
+  priceMonthlyUsd: number;        // IVA-inclusive total
+  priceYearlyUsdBase: number;
+  priceYearlyUsdIva: number;
+  priceYearlyUsd: number;         // IVA-inclusive total
   overagePerDocumentUsd: number | null;
 }
 

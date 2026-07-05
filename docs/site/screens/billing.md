@@ -37,22 +37,25 @@ Tier name (resolved through the `pricing` i18n namespace, same labels as `/prici
 
 ### 3. Pending payment card
 
-Shown when the latest subscription's latest payment isn't yet `VERIFIED` (and the subscription isn't `CANCELLED`/`EXPIRED`). Title and amount adapt to `payment.purpose` (`INITIAL`, `TIER_CHANGE` naming the target tier, or `RENEWAL`). Shows `rejection_reason` when present, the cached bank-transfer details (or a "contact support" fallback if `pendingBankTransfer` is `null` — e.g. an admin-initiated subscription the tenant never saw the response for), and a file input + upload button (`billing.manage` only) that calls `submitPaymentProofAction`. A renewal's payment is opened by a backend cron job, not any call this screen makes, so it always relies on the cached bank details rather than a fresh response — see "Bank transfer caching."
+Shown when the latest subscription's latest payment isn't yet `VERIFIED` (and the subscription isn't `CANCELLED`/`EXPIRED`). Title and amount adapt to `payment.purpose` (`INITIAL`, `TIER_CHANGE` naming the target tier + interval when it also changed, or `RENEWAL`). Amount is displayed as the IVA-inclusive total (`payment.total_amount`) with an "IVA incluido" label, falling back to `payment.amount` when `total_amount` is absent (same-interval downgrade carries no payment at all). When a payment is `REJECTED`, shows `payment.rejection_reason_code` mapped to a localized message — codes: `AMOUNT_MISMATCH`, `TRANSFER_NOT_FOUND`, `WRONG_ACCOUNT`, `ILLEGIBLE_PROOF`, `DUPLICATE_SUBMISSION`, `OTHER`. Shows the cached bank-transfer details (or a "contact support" fallback if `pendingBankTransfer` is `null` — e.g. an admin-initiated subscription the tenant never saw the response for), and a file input + upload button (`billing.manage` only) that calls `submitPaymentProofAction`. A renewal's payment is opened by a backend cron job, not any call this screen makes, so it always relies on the cached bank details rather than a fresh response — see "Bank transfer caching."
 
 ### 4. Subscribe card
 
-Shown when there is no subscription in flight (none yet, or the only ones are `CANCELLED`) and `billing.manage` is held. A tier `Select` (STARTER/GROWTH/BUSINESS) + monthly/yearly toggle + confirm step, calling `createSubscriptionAction(tier, billingInterval)`. Disabled with a hint if `ctx.user.emailVerified` is `false` (the API requires a verified email — same gate as promotion).
+Shown when there is no subscription in flight (none yet, or the only ones are `CANCELLED`) and `billing.manage` is held. Renders a **monthly/yearly interval toggle** (pill toggle matching `/pricing`) + a **card grid** of the three paid tiers (STARTER/GROWTH/BUSINESS) each showing name, price for the selected interval, IVA note, and document quota — the same visual language as the pricing page. Selecting a card highlights it; confirming calls `createSubscriptionAction(tier, billingInterval)`. Disabled with a hint if `ctx.user.emailVerified` is `false` (the API requires a verified email — same gate as promotion).
 
 ### 5. Change tier card
 
-Shown when the latest subscription is `ACTIVE`, no payment is pending, and no downgrade is already scheduled. A tier `Select` (the other two paid tiers, excluding the current one) + confirm step, calling `changeTierAction(tier)`. The result varies:
-- **Upgrade, payment owed** — toast + the pending-payment card appears with bank details on the next render.
-- **Upgrade, prorates to $0** (almost no time left in the period) — applied immediately, no payment step.
-- **Downgrade** — scheduled for `current_period_end`, no payment owed; surfaces as the "plan bajará" notice on the current-plan card.
+Shown when the latest subscription is `ACTIVE`, no payment is pending, and no downgrade is already scheduled. Renders the same **interval toggle + card grid** as Subscribe, but includes all three paid tiers (not filtered) and marks the current plan as locked/greyed when the current billing interval is selected — so switching interval while staying on the same tier is a valid selection. The API's three-scenario behavior is surfaced as contextual hints in the confirm step:
+
+- **Same-interval upgrade** (higher-priced tier, interval unchanged) — payment required, prorated for the fraction of the current period remaining. Calls `changeTierAction(tier)` (no interval). If the prorated amount rounds to $0, applies immediately with no payment.
+- **Same-interval downgrade** (lower-priced tier, interval unchanged) — scheduled for `current_period_end`, no payment owed. Calls `changeTierAction(tier)` (no interval).
+- **Interval change** (different interval, regardless of tier direction) — deferred to `current_period_end`, billed at the new tier+interval's full price. Calls `changeTierAction(tier, newInterval)`. The subscription's `billing_interval` does not flip until the period ends.
+
+Selecting the same tier at the same interval is treated as a no-op and the confirm button is disabled with a hint.
 
 ### 6. Subscription history
 
-Every subscription (newest first) with its nested payments, each as a small status badge (`subscriptionStatus.*`/`paymentStatus.*` i18n — covers the full `PENDING_PAYMENT`/`PAYMENT_RECEIVED`/`INVOICE_PROCESSING`/`ACTIVE`/`EXPIRED`/`SUSPENDED`/`CANCELLED` set, not just the happy-path values). A `TIER_CHANGE` payment additionally shows "Cambio a {tier}"; a `RENEWAL` payment shows "Renovación".
+Every subscription (newest first) with its nested payments, each as a small status badge (`subscriptionStatus.*`/`paymentStatus.*` i18n — covers the full `PENDING_PAYMENT`/`PAYMENT_RECEIVED`/`INVOICE_PROCESSING`/`ACTIVE`/`EXPIRED`/`SUSPENDED`/`CANCELLED` set, not just the happy-path values). A `TIER_CHANGE` payment additionally shows "Cambio a {tier}", or "Cambio a {tier} ({interval})" when `target_billing_interval` is present (an interval change); a `RENEWAL` payment shows "Renovación".
 
 ---
 

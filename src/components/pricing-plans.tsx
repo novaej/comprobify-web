@@ -85,16 +85,20 @@ export function PricingPlans({ tiers }: { tiers: ApiTierInfo[] }) {
               <div>
                 <h2 className="text-lg font-semibold">{t(`tiers.${tier.name}.name`)}</h2>
                 <p className="text-3xl font-bold mt-1">
-                  {isFree ? t('free') : currencyFormatter.format(price)}
+                  {isFree ? '$0' : currencyFormatter.format(price)}
                   {!isFree && (
                     <span className="text-sm font-normal text-muted-foreground">
                       {interval === 'MONTHLY' ? t('perMonth') : t('perYear')}
                     </span>
                   )}
                 </p>
-                {!isFree && interval === 'YEARLY' && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {t('yearlyEquivalent', { price: currencyFormatter.format(Math.round(price / 12)) })}
+                {!isFree && (
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {interval === 'YEARLY'
+                      ? t('yearlyEquivalent', { price: currencyFormatter.format(Math.round(price / 12)) })
+                      : null}
+                    {interval === 'YEARLY' && ' · '}
+                    {t('ivaNote', { rate: Math.round((tier.ivaRate ?? 0.15) * 100) })}
                   </p>
                 )}
                 <p className="text-sm text-muted-foreground mt-2">{t(`tiers.${tier.name}.description`)}</p>

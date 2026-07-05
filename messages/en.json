@@ -35,6 +35,7 @@
   },
   "auth": {
     "backToHome": "Back to home",
+    "backToPricing": "Back to pricing",
     "fields": {
       "email": "Email address",
       "password": "Password",
@@ -75,6 +76,10 @@
     "banner": "You are in sandbox mode — documents are sent to the SRI test environment.",
     "badge": "SRI Pruebas",
     "productionBadge": "SRI Producción"
+  },
+  "suspended": {
+    "banner": "Your account is suspended. You cannot create or send documents until this is resolved.",
+    "bannerLink": "View billing"
   },
   "status": {
     "SIGNED": "Signed",
@@ -530,7 +535,8 @@
       "docType06": "Delivery note",
       "docType07": "Withholding receipt",
       "submit": "Activate test environment",
-      "submitting": "Setting up..."
+      "submitting": "Setting up...",
+      "agreementNotice": "By creating your account you will accept Comprobify's Terms of Service, Privacy Policy, and Data Processing Agreement. You will be able to review them in detail in the next step."
     },
     "environment": {
       "title": "Environment",
@@ -556,7 +562,9 @@
       "sequentialsHint": "The next number Comprobify will use for each document type in production. If the last number issued outside the system was 99, enter 100. Leave at 1 if starting fresh.",
       "resend": "Resend verification email",
       "resending": "Sending...",
-      "resendSent": "Verification email sent. Check your inbox."
+      "resendSent": "Verification email sent. Check your inbox.",
+      "agreementRequired": "You must review and accept the legal agreements before activating production.",
+      "agreementRequiredLink": "Review and accept agreements"
     },
     "account": {
       "title": "Account"
@@ -646,13 +654,39 @@
     "WEBHOOK_ENDPOINT_LIMIT_REACHED": "You have reached the webhook endpoint limit for your plan.",
     "WEBHOOK_ENDPOINT_NOT_FOUND": "Webhook endpoint not found.",
     "INVALID_FILE_UPLOAD": "The uploaded file is invalid. Check the format and maximum allowed size.",
+    "PROOF_FILE_LIMIT_REACHED": "This payment already has the maximum number of files (10). Delete one before uploading more.",
     "SUBSCRIPTION_NOT_FOUND": "Subscription not found.",
     "PAYMENT_NOT_FOUND": "Payment not found.",
     "SUBSCRIPTION_ALREADY_IN_FLIGHT": "Your account already has a subscription in progress.",
     "INVALID_TIER": "The selected plan is not valid.",
     "NO_ACTIVE_SUBSCRIPTION": "You don't have an active subscription. Activate production with a paid plan first.",
     "TIER_CHANGE_NO_OP": "You're already on that plan.",
-    "TIER_CHANGE_ALREADY_PENDING": "A plan change is already in progress for your subscription."
+    "TIER_CHANGE_ALREADY_PENDING": "A plan change is already in progress for your subscription.",
+    "CANCELLATION_ALREADY_PENDING": "A cancellation is already scheduled for this subscription.",
+    "REQUIRES_PRODUCTION": "This action is only available in the production environment.",
+    "AGREEMENT_NOT_FOUND": "The requested agreement document was not found.",
+    "VERSION_MISMATCH": "The terms have been updated. Reload the page and review them before continuing.",
+    "AGREEMENT_ACCEPTANCE_REQUIRED": "You must review and accept the legal agreements before activating production."
+  },
+  "agreements": {
+    "title": "Review and accept agreements",
+    "description": "Before continuing, please review and accept the following Comprobify legal documents.",
+    "viewDocument": "View document",
+    "openInTab": "Open in tab",
+    "print": "Print / PDF",
+    "statusPending": "Pending",
+    "statusAccepted": "Accepted",
+    "termsLabel": "I have read and accept the Terms of Service.",
+    "privacyLabel": "I have read and accept the Privacy Policy.",
+    "dpaLabel": "I have read and accept the Data Processing Agreement.",
+    "accept": "Accept all agreements",
+    "accepting": "Accepting...",
+    "versionLabel": "Version: {version}",
+    "documentTitles": {
+      "TERMS": "Terms of Service",
+      "PRIVACY": "Privacy Policy",
+      "DPA": "Data Processing Agreement"
+    }
   },
   "clients": {
     "title": "Clients",
@@ -1043,9 +1077,11 @@
     "perMonth": "/mo",
     "perYear": "/yr",
     "yearlyEquivalent": "Equivalent to {price}/mo",
+    "ivaIncluded": "VAT included",
+    "ivaNote": "Prices include VAT ({rate}%)",
     "tiers": {
       "FREE": {
-        "name": "Sandbox",
+        "name": "Free",
         "description": "For developers and teams exploring the platform.",
         "cta": "Get started free"
       },
@@ -1078,15 +1114,30 @@
   "billing": {
     "title": "Billing",
     "description": "Current plan, payment history, and transfer proof.",
-    "sandboxNotice": "Your account is in the sandbox environment. You can subscribe to a paid plan right now — it will activate once payment is verified, and take effect in production once you activate that environment.",
+    "viewProof": "View proof",
     "currentPlan": "Current plan",
     "usage": "{count} of {quota} production documents used",
-    "history": "Subscription history",
-    "noHistory": "You don't have any subscriptions yet.",
+    "planDetails": "Plan details",
+    "planLimits": {
+      "quota": "Documents per period",
+      "branches": "Branches",
+      "issuePoints": "Issue points per branch",
+      "webhooks": "Webhooks",
+      "allowedDocTypes": "Document types",
+      "unlimited": "Unlimited"
+    },
+    "history": "Payment history",
+    "noHistory": "You don't have any payments yet.",
     "noProofYet": "No proof yet",
+    "billingPeriod": "Period: {start} – {end}",
+    "ivaIncluded": "VAT incl.",
     "downgradeScheduled": "Your plan will move to {tier} on {date}.",
+    "cancellationScheduled": "Your subscription will be cancelled on {date}. You'll keep access to your current plan until then.",
     "tierChangeTo": "Change to {tier}",
+      "tierChangeToWithInterval": "Change to {tier} ({interval})",
     "renewal": "Renewal",
+    "paymentPurposeInitial": "Subscription — {tier}",
+    "paymentPurposeRenewal": "Renewal — {tier}",
     "billingInterval": {
       "MONTHLY": "Monthly",
       "YEARLY": "Yearly"
@@ -1112,6 +1163,7 @@
       "tierChangeTitle": "Pending payment to switch to {tier}",
       "renewalTitle": "Pending renewal payment",
       "amount": "Amount to transfer: {amount}",
+      "ivaBreakdown": "Includes {rate}% VAT ({iva}) on taxable base {base}",
       "rejected": "Your proof was rejected: {reason}",
       "bank": "Bank",
       "accountType": "Account type",
@@ -1121,14 +1173,26 @@
       "contactSupport": "Contact support to get the bank transfer details.",
       "upload": "Upload proof",
       "uploading": "Uploading...",
-      "uploaded": "Proof uploaded. Your provider will review it shortly."
+      "uploadHint": "PNG, JPG, GIF or PDF · max 2 MB per file · up to 5 files",
+      "uploaded": "Proof uploaded. Your provider will review it shortly.",
+      "proofs": "Uploaded files",
+      "noProofs": "No proof files uploaded yet.",
+      "download": "Download",
+      "deleteProof": "Delete file",
+      "proofDeleted": "File deleted."
     },
     "changePlan": {
       "title": "Change plan",
-      "hint": "Upgrading takes effect immediately (prorated for the time left in your billing period). Downgrading is scheduled for the end of your current period, at no extra cost.",
+      "hint": "Upgrading takes effect immediately (prorated for the time left in your period). Downgrading or changing billing frequency is scheduled for the end of your current period.",
       "placeholder": "Select a plan",
+      "currentPlan": "current plan",
+      "noOp": "You're already on this plan with this billing frequency.",
       "button": "Change plan",
-      "confirmHint": "Confirm the plan change? If it's an upgrade, you'll need to transfer the prorated amount and upload proof. If it's a downgrade, it will apply automatically at the end of your current period.",
+      "confirmHintUpgrade": "The change applies immediately. A prorated charge for the time remaining in your period will be generated. You'll need to upload a transfer proof.",
+      "confirmHintDowngrade": "No additional charge. Your current plan stays active until {date}, then the new plan applies automatically.",
+      "confirmHintDowngradeNoDate": "No additional charge. Your current plan stays active until the end of your period, then the new plan applies automatically.",
+      "confirmHintIntervalChange": "The change takes effect at the end of your current period ({date}). You'll be charged the full price of the new plan — no proration.",
+      "confirmHintIntervalChangeNoDate": "The change takes effect at the end of your current period. You'll be charged the full price of the new plan — no proration.",
       "confirm": "Confirm change",
       "confirming": "Processing...",
       "cancel": "Cancel",
@@ -1136,9 +1200,29 @@
       "upgradeApplied": "Your plan was updated immediately.",
       "downgradeScheduled": "The plan change was scheduled for the end of your current period."
     },
+    "rejectionReason": {
+      "AMOUNT_MISMATCH": "The transferred amount does not match the requested amount.",
+      "TRANSFER_NOT_FOUND": "No matching transfer was found in the account.",
+      "WRONG_ACCOUNT": "The transfer was sent to the wrong account.",
+      "ILLEGIBLE_PROOF": "The uploaded proof is illegible or corrupted.",
+      "DUPLICATE_SUBMISSION": "This proof was already submitted and reviewed for another payment.",
+      "OTHER": "Please contact support for more details."
+    },
+    "cancelPlan": {
+      "title": "Cancel subscription",
+      "hint": "You'll keep your current plan until {date}. After that you'll automatically move to the free plan.",
+      "hintNoDate": "You'll keep your current plan until the end of the current period. After that you'll automatically move to the free plan.",
+      "button": "Cancel subscription",
+      "confirmHint": "Confirm cancellation? You'll keep access to your current plan until {date}, then move to the free plan at no additional charge.",
+      "confirmHintNoDate": "Confirm cancellation? You'll keep access to your current plan until the end of the period, then move to the free plan at no additional charge.",
+      "confirm": "Confirm cancellation",
+      "confirming": "Processing...",
+      "keep": "Keep plan",
+      "scheduled": "Cancellation scheduled. Your plan will remain active until the end of the current billing period."
+    },
     "subscribe": {
       "title": "Subscribe to a plan",
-      "hint": "You can subscribe now, even while still in the sandbox environment. The plan activates once payment is verified.",
+      "hint": "You can subscribe now, even while still in the sandbox environment. The plan activates once payment is verified, and will be fully available once you switch to production mode.",
       "emailRequired": "You must verify your email address before subscribing to a plan.",
       "placeholder": "Select a plan",
       "button": "Subscribe",
@@ -1146,7 +1230,8 @@
       "confirm": "Confirm subscription",
       "confirming": "Processing...",
       "cancel": "Cancel",
-      "requested": "Subscription requested. Check the transfer details below."
+      "requested": "Subscription requested. Check the transfer details below.",
+      "intendedHint": "You selected the {tier} plan during registration. Choose a plan and billing period below to complete your subscription."
     }
   },
   "email": {

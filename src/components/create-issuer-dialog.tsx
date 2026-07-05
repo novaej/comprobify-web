@@ -24,7 +24,6 @@ import {
 import { Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const ALL_DOC_TYPES = ['01', '04', '05', '06', '07'];
 
 interface ExistingIssuer {
   id: number;
@@ -33,7 +32,7 @@ interface ExistingIssuer {
   tradeName: string | null;
 }
 
-export function CreateIssuerDialog({ issuers }: { issuers: ExistingIssuer[] }) {
+export function CreateIssuerDialog({ issuers, allowedDocumentTypes }: { issuers: ExistingIssuer[]; allowedDocumentTypes: string[] }) {
   const t = useTranslations('issuers');
   const tCreate = useTranslations('issuers.create');
   const tError = useTranslations('apiError');
@@ -45,7 +44,9 @@ export function CreateIssuerDialog({ issuers }: { issuers: ExistingIssuer[] }) {
   const [sourceLocalIssuerId, setSourceLocalIssuerId] = useState<string | null>(null);
   const [issuePointCode, setIssuePointCode] = useState('');
   const [branchAddress, setBranchAddress] = useState('');
-  const [selectedTypes, setSelectedTypes] = useState<string[]>(['01']);
+  const [selectedTypes, setSelectedTypes] = useState<string[]>(() =>
+    allowedDocumentTypes.includes('01') ? ['01'] : [],
+  );
   const [certPassword, setCertPassword] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -64,7 +65,7 @@ export function CreateIssuerDialog({ issuers }: { issuers: ExistingIssuer[] }) {
     setSourceLocalIssuerId(null);
     setIssuePointCode('');
     setBranchAddress('');
-    setSelectedTypes(['01']);
+    setSelectedTypes(allowedDocumentTypes.includes('01') ? ['01'] : []);
     setCertPassword('');
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
@@ -219,7 +220,7 @@ export function CreateIssuerDialog({ issuers }: { issuers: ExistingIssuer[] }) {
                 {tCreate('documentTypesLabel')}
               </label>
               <div className="grid grid-cols-2 gap-1.5">
-                {ALL_DOC_TYPES.map((code) => (
+                {allowedDocumentTypes.map((code) => (
                   <label
                     key={code}
                     className={cn(

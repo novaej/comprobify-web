@@ -5,7 +5,7 @@ import { useForm, useFieldArray, useWatch, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useTranslations } from 'next-intl';
-import { Trash2, Plus, Search, Send, ClipboardSignature, Hammer, Loader2 } from 'lucide-react';
+import { Trash2, Plus, Search, Send, ClipboardSignature, Hammer, Loader2, Building2 } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -208,6 +208,13 @@ interface RebuildSource {
   issueDate: string;
 }
 
+interface IssuerInfo {
+  businessName: string;
+  tradeName: string | null;
+  branchCode: string;
+  issuePointCode: string;
+}
+
 interface Props {
   catalogs: CreditNoteCatalogs;
   defaultValues?: Partial<CreditNoteFormValues>;
@@ -217,6 +224,7 @@ interface Props {
   rebuildFrom?: RebuildSource;
   backHref: string;
   from?: BackTargetKey;
+  issuer: IssuerInfo;
 }
 
 export function CreditNoteForm({
@@ -228,6 +236,7 @@ export function CreditNoteForm({
   rebuildFrom,
   backHref,
   from,
+  issuer,
 }: Props) {
   const t = useTranslations('creditNoteForm');
   const tError = useTranslations('apiError');
@@ -358,6 +367,14 @@ export function CreditNoteForm({
   return (
     <>
     <form onSubmit={onSubmit} className="space-y-6">
+
+      {/* Issuer chip */}
+      <div className="flex items-center gap-1.5 rounded-md border border-border bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground w-fit">
+        <Building2 className="h-3.5 w-3.5 shrink-0" />
+        <span className="font-medium text-foreground">{issuer.tradeName ?? issuer.businessName}</span>
+        <span className="text-muted-foreground/50">·</span>
+        <span>{issuer.branchCode}-{issuer.issuePointCode}</span>
+      </div>
 
       {/* Header */}
       <Card>

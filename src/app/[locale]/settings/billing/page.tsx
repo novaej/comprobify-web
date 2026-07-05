@@ -1,11 +1,12 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { requirePermission } from '@/lib/context';
 import { db } from '@/lib/db';
-import { getCurrentTenant, getMySubscriptions } from '@/lib/api';
+import { getCurrentTenant, getMySubscriptions, listPaymentProofs } from '@/lib/api';
 import { listTiers, type ApiTierInfo } from '@/lib/public-api';
+import { isPaidTier, isBillingInterval } from '@/lib/subscription-tiers';
 import { PageHeader } from '@/components/page-header';
 import { BillingManager } from '@/components/billing-manager';
-import type { ApiBankTransferInfo } from '@/lib/api';
+import type { ApiBankTransferInfo, ApiPaymentProof } from '@/lib/api';
 
 export default async function BillingPage({
   params,
@@ -24,9 +25,20 @@ export default async function BillingPage({
   const [tenantInfo, subscriptions, tenantRow, tiers] = await Promise.all([
     getCurrentTenant({ apiKey: ctx.apiKey }),
     getMySubscriptions({ apiKey: ctx.apiKey }),
-    db.tenant.findUnique({ where: { id: ctx.tenant.id }, select: { pendingBankTransfer: true } }),
+    db.tenant.findUnique({ where: { id: ctx.tenant.id }, select: { pendingBankTransfer: true, intendedTier: true, intendedBillingInterval: true } }),
     listTiers().catch(() => []),
   ]);
+
+  // Fetch proofs for every payment upfront so they appear in both the
+  // PendingPaymentCard and the read-only payment history rows.
+  const allPayments = subscriptions.flatMap((sub) => sub.payments);
+  const proofsEntries = await Promise.all(
+    allPayments.map(async (p) => [
+      String(p.id),
+      await listPaymentProofs({ apiKey: ctx.apiKey }, p.id).catch(() => [] as ApiPaymentProof[]),
+    ] as const),
+  );
+  const proofsByPaymentId: Record<string, ApiPaymentProof[]> = Object.fromEntries(proofsEntries);
 
   // bankTransfer is static, env-configured config on the API — identical for every
   // tenant and every payment (initial, tier-change, or renewal) — so once cached it's
@@ -35,6 +47,8 @@ export default async function BillingPage({
   // involved, so there is no fresher bankTransfer to ever cache for it — this stays
   // the only source once the tenant's first payment captured it.
   const pendingBankTransfer = tenantRow?.pendingBankTransfer as ApiBankTransferInfo | null;
+  const intendedTier = isPaidTier(tenantRow?.intendedTier) ? tenantRow.intendedTier : undefined;
+  const intendedBillingInterval = isBillingInterval(tenantRow?.intendedBillingInterval) ? tenantRow.intendedBillingInterval : undefined;
 
   const currentTier = tiers.find((tier: ApiTierInfo) => tier.name === tenantInfo.subscriptionTier) ?? null;
 
@@ -47,9 +61,12 @@ export default async function BillingPage({
         tiers={tiers}
         subscriptions={subscriptions}
         pendingBankTransfer={pendingBankTransfer}
+        proofsByPaymentId={proofsByPaymentId}
         canManageBilling={ctx.permissions.has('billing.manage')}
         isSandbox={ctx.tenant.environment === 'sandbox'}
         emailVerified={ctx.user.emailVerified}
+        intendedTier={intendedTier}
+        intendedBillingInterval={intendedBillingInterval}
       />
     </div>
   );

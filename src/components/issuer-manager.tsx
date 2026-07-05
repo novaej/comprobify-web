@@ -39,9 +39,11 @@ const ALL_DOC_TYPES = ['01', '04', '05', '06', '07'];
 export function IssuerManager({
   issuers: initialIssuers,
   canManage,
+  allowedDocumentTypes,
 }: {
   issuers: IssuerWithTypes[];
   canManage: boolean;
+  allowedDocumentTypes: string[];
 }) {
   const t = useTranslations('issuers');
   const tError = useTranslations('apiError');
@@ -99,7 +101,9 @@ export function IssuerManager({
   return (
     <div className="space-y-4">
       {issuers.map((issuer) => {
-        const missing = ALL_DOC_TYPES.filter((c) => !issuer.documentTypes.includes(c));
+        const missing = ALL_DOC_TYPES.filter(
+          (c) => allowedDocumentTypes.includes(c) && !issuer.documentTypes.includes(c)
+        );
         return (
           <div
             key={issuer.id}

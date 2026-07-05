@@ -8,6 +8,7 @@ import { LogoLockupStacked } from '@/components/logo';
 import { LocaleSwitcher } from '@/components/locale-switcher';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { parseIntendedPlan } from '@/lib/subscription-tiers';
+import { listAgreements } from '@/lib/public-api';
 
 export default async function OnboardingTenantPage({
   params,
@@ -21,6 +22,12 @@ export default async function OnboardingTenantPage({
 
   const { tier, interval } = await searchParams;
   const intendedPlan = parseIntendedPlan(tier, interval);
+
+  // Fetch the current TERMS version so the registration call can include it.
+  // If no agreements are published yet, fall back to 'pre-launch' — the API's
+  // validateTermsVersion() is a no-op when no documents exist.
+  const agreements = await listAgreements().catch(() => []);
+  const termsVersion = agreements.find((d) => d.documentType === 'TERMS')?.version ?? 'pre-launch';
 
   const session = await auth();
   if (!session?.user?.id) {
@@ -68,6 +75,7 @@ export default async function OnboardingTenantPage({
         <OnboardingTabs
           intendedTier={intendedPlan?.tier}
           intendedBillingInterval={intendedPlan?.interval}
+          termsVersion={termsVersion}
         />
       </div>
       </div>

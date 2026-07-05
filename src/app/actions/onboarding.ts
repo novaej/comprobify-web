@@ -32,6 +32,8 @@ export async function bootstrapTenantAction(formData: FormData): Promise<Onboard
   const issuePointCode = ((formData.get('issuePointCode') as string | null)?.trim() || '001').slice(0, 3);
   const requiredAccounting = formData.get('requiredAccounting') === 'on';
   const certPassword = (formData.get('certPassword') as string | null) ?? '';
+  // termsVersion is populated server-side from listAgreements() and carried as a hidden field.
+  const termsVersion = (formData.get('termsVersion') as string | null)?.trim() || 'pre-launch';
   const intendedPlan = parseIntendedPlan(
     formData.get('intendedTier') as string | null,
     formData.get('intendedBillingInterval') as string | null,
@@ -82,6 +84,7 @@ export async function bootstrapTenantAction(formData: FormData): Promise<Onboard
       },
       p12Buffer,
       certPassword,
+      termsVersion,
       verificationRedirectUrl,
       logoBuffer,
       logoFile?.type,
@@ -159,7 +162,11 @@ export async function bootstrapTenantAction(formData: FormData): Promise<Onboard
   await writeCtxCookie({ issuerId: newIssuerId, v: 1 });
 
   revalidatePath('/', 'layout');
-  redirect({ href: isEmailVerified ? '/dashboard' : '/settings', locale });
+  // Always redirect to /agreements so the tenant can review and formally accept
+  // their personalized legal documents (generated fire-and-forget during registration).
+  // The /agreements page lazily triggers document generation on first load, so timing
+  // with the async registration task is not a concern.
+  redirect({ href: '/agreements', locale });
   return null;
 }
 
@@ -278,6 +285,9 @@ export async function linkExistingTenantAction(formData: FormData): Promise<Onbo
 
   revalidatePath('/', 'layout');
   const locale = await getLocale();
-  redirect({ href: '/dashboard', locale });
+  // Redirect to /agreements so the tenant can review and accept legal documents.
+  // getStatus() lazily generates per-tenant documents for any published template version,
+  // so it's safe even when this tenant was never through POST /v1/register.
+  redirect({ href: '/agreements', locale });
   return null;
 }

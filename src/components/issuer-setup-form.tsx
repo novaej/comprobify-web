@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { bootstrapTenantAction } from '@/app/actions/onboarding';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, FileText } from 'lucide-react';
 import type { PaidTier, BillingInterval } from '@/lib/subscription-tiers';
 
 const DOC_TYPES = [
@@ -20,9 +20,11 @@ const DOC_TYPES = [
 export function IssuerSetupForm({
   intendedTier,
   intendedBillingInterval,
+  termsVersion,
 }: {
   intendedTier?: PaidTier;
   intendedBillingInterval?: BillingInterval;
+  termsVersion: string;
 }) {
   const t = useTranslations('settings.setup');
   const tError = useTranslations('apiError');
@@ -65,6 +67,7 @@ export function IssuerSetupForm({
 
   return (
     <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
+      <input type="hidden" name="termsVersion" value={termsVersion} />
       {intendedTier && <input type="hidden" name="intendedTier" value={intendedTier} />}
       {intendedTier && (
         <input
@@ -212,6 +215,11 @@ export function IssuerSetupForm({
           </div>
         </div>
       )}
+
+      <div className="flex items-start gap-2.5 rounded-md border border-border bg-muted/40 px-4 py-3 text-xs text-muted-foreground">
+        <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+        <p>{t('agreementNotice')}</p>
+      </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 

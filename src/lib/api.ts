@@ -678,6 +678,8 @@ export interface ApiTenantInfo {
   documentCount: string;   // bigint → serialized as string by pg/JSON
   documentQuota: number;   // regular int column
   sandbox: boolean;
+  agreementAcceptedAt: string | null;
+  agreementVersion: string | null;
 }
 
 // Verified against: ../comprobify/src/routes/tenants.routes.js → GET /v1/tenants/me
@@ -687,6 +689,51 @@ export async function getCurrentTenant(ctx: ApiCtx): Promise<ApiTenantInfo> {
     { apiKey: ctx.apiKey },
   );
   return result.tenant;
+}
+
+// ── Tenant agreements ─────────────────────────────────────────────────────────
+
+// Verified against: ../comprobify/src/controllers/tenant.controller.js → getAgreementStatus()
+// and ../comprobify/src/services/tenant-agreement.service.js → getStatus()
+export interface ApiOutdatedAgreement {
+  documentType: 'TERMS' | 'PRIVACY' | 'DPA';
+  currentVersion: string;
+  acceptedVersion: string | null;
+  status: 'PENDING' | 'NOT_GENERATED';
+  url: string;
+  acceptUrl: string;
+}
+
+export interface ApiAgreementStatus {
+  needsAcceptance: boolean;
+  outdated: ApiOutdatedAgreement[];
+}
+
+// Verified against: ../comprobify/src/routes/tenants.routes.js → GET /v1/tenants/agreements
+export async function getAgreementStatus(ctx: ApiCtx): Promise<ApiAgreementStatus> {
+  const result = await request<{ ok: true; agreements: ApiAgreementStatus }>(
+    '/v1/tenants/agreements',
+    { apiKey: ctx.apiKey },
+  );
+  return result.agreements;
+}
+
+// Verified against: ../comprobify/src/routes/tenants.routes.js → POST /v1/tenants/agreements
+// clientHeaders.userAgent: forwarded from the incoming browser request so the API records
+// the real browser UA rather than the Node fetch default. The BFF pattern means the actual
+// outbound request originates from our server, not the browser, so we have to pass it explicitly.
+export async function acceptAgreements(
+  ctx: ApiCtx,
+  termsVersion: string,
+  clientHeaders?: { userAgent?: string },
+): Promise<void> {
+  const extraHeaders: Record<string, string> = {};
+  if (clientHeaders?.userAgent) extraHeaders['User-Agent'] = clientHeaders.userAgent;
+  await request<{ ok: true }>(
+    '/v1/tenants/agreements',
+    { apiKey: ctx.apiKey },
+    { method: 'POST', body: JSON.stringify({ termsVersion }), headers: extraHeaders },
+  );
 }
 
 // ── Tenant promotion ──────────────────────────────────────────────────────────
@@ -752,19 +799,36 @@ export async function promoteTenant(
 // and ../comprobify/src/models/payment.model.js (omitProofFile strips the raw bytes;
 // purpose/target_tier added in migration 055, 'RENEWAL' purpose added in migration 056
 // — SELECT * so they flow through as-is).
+// Verified against: migration 065 (payments_iva) and ../comprobify/src/models/payment.model.js
+// amount = base imponible (before IVA) for payments created after migration 065.
+// total_amount = IVA-inclusive transfer amount (what the tenant actually wires).
+// Old payments (before 065) have iva_rate/iva_amount/total_amount = null; in that
+// case amount itself was the all-in total — use total_amount ?? amount for display.
 export interface ApiPaymentInfo {
   id: number;
   subscription_id?: number;
   status: 'PENDING' | 'REPORTED' | 'VERIFIED' | 'REJECTED' | 'REFUNDED';
-  amount: string; // numeric column → serialized as string by pg/JSON
+  amount: string;            // base imponible; numeric → string by pg/JSON
+  iva_rate?: number | null;
+  iva_amount?: string | null;
+  total_amount?: string | null;  // IVA-inclusive total; use this for display
   method: 'SPI_TRANSFER';
   purpose?: 'INITIAL' | 'TIER_CHANGE' | 'RENEWAL';
   target_tier?: 'STARTER' | 'GROWTH' | 'BUSINESS' | null;
-  rejection_reason?: string | null;
-  proof_filename?: string | null;
-  proof_mime_type?: string | null;
+  target_billing_interval?: 'MONTHLY' | 'YEARLY' | null;
+  rejection_reason_code?: 'AMOUNT_MISMATCH' | 'TRANSFER_NOT_FOUND' | 'WRONG_ACCOUNT' | 'ILLEGIBLE_PROOF' | 'DUPLICATE_SUBMISSION' | 'OTHER' | null;
   reported_at?: string | null;
   verified_at?: string | null;
+}
+
+// Verified against: ../comprobify/src/services/subscription.service.js → formatPaymentProof()
+// id is BIGSERIAL → string per pg/JSON serialisation (Common Mistake #16).
+export interface ApiPaymentProof {
+  id: string;
+  filename: string;
+  mimeType: string;
+  active: boolean;
+  createdAt: string;
 }
 
 // Verified against: ../comprobify/src/controllers/subscription.controller.js → getMyStatus()
@@ -779,7 +843,9 @@ export interface ApiSubscriptionInfo {
   tier: 'STARTER' | 'GROWTH' | 'BUSINESS';
   billing_interval: 'MONTHLY' | 'YEARLY';
   status: 'PENDING_PAYMENT' | 'PAYMENT_RECEIVED' | 'INVOICE_PROCESSING' | 'ACTIVE' | 'EXPIRED' | 'SUSPENDED' | 'CANCELLED';
-  pending_tier?: 'STARTER' | 'GROWTH' | 'BUSINESS' | null;
+  // 'FREE' means a cancellation is scheduled (applyScheduledTierChanges drops the tenant
+  // to FREE and closes the subscription at period end) — added in API commit 161803a.
+  pending_tier?: 'FREE' | 'STARTER' | 'GROWTH' | 'BUSINESS' | null;
   invoice_document_id: number | null;
   current_period_start: string | null;
   current_period_end: string | null;
@@ -800,9 +866,10 @@ export async function getMySubscriptions(ctx: ApiCtx): Promise<ApiSubscriptionIn
 // Verified against: ../comprobify/src/controllers/subscription.controller.js → changeTier()
 // and ../comprobify/src/services/subscription.service.js → requestTierChange().
 // Response shape varies by outcome — see docs/site/endpoints/change-tier.md:
-//   upgrade (payment owed): subscription + payment + bankTransfer
-//   upgrade (prorates to $0, applied immediately): subscription + payment: null + amount: 0
-//   downgrade (scheduled, no payment owed): subscription (with pending_tier) + effectiveAt
+//   upgrade, same interval (payment owed): subscription + payment + bankTransfer
+//   upgrade, same interval (prorates to $0, applied immediately): subscription + payment: null + amount: 0
+//   downgrade, same interval (scheduled, no payment): subscription (with pending_tier) + effectiveAt
+//   any interval change (deferred, full price): subscription + payment + bankTransfer + effectiveAt
 export interface ChangeTierResult {
   ok: true;
   subscription: {
@@ -821,14 +888,34 @@ export interface ChangeTierResult {
 }
 
 // Verified against: ../comprobify/src/routes/subscriptions.routes.js → POST /v1/subscriptions/change-tier
+// billingInterval is optional — omit to keep the current subscription interval.
 export async function changeTier(
   ctx: ApiCtx,
   tier: 'STARTER' | 'GROWTH' | 'BUSINESS',
+  billingInterval?: 'MONTHLY' | 'YEARLY',
 ): Promise<ChangeTierResult> {
   return request<ChangeTierResult>(
     '/v1/subscriptions/change-tier',
     { apiKey: ctx.apiKey },
-    { method: 'POST', body: JSON.stringify({ tier }) },
+    { method: 'POST', body: JSON.stringify({ tier, ...(billingInterval && { billingInterval }) }) },
+  );
+}
+
+// Verified against: ../comprobify/src/controllers/subscription.controller.js → cancelSubscription()
+// and ../comprobify/src/services/subscription.service.js → scheduleCancellation().
+// Sets pending_tier = 'FREE' on the active subscription. The tenant keeps their current
+// tier until current_period_end; applyScheduledTierChanges() then drops them to FREE.
+export interface CancelSubscriptionResult {
+  ok: true;
+  subscription: Pick<ApiSubscriptionInfo, 'id' | 'tier' | 'billing_interval' | 'status' | 'pending_tier' | 'current_period_end'>;
+  effectiveAt: string;
+}
+
+export async function cancelSubscription(ctx: ApiCtx): Promise<CancelSubscriptionResult> {
+  return request<CancelSubscriptionResult>(
+    '/v1/subscriptions',
+    { apiKey: ctx.apiKey },
+    { method: 'DELETE' },
   );
 }
 
@@ -859,18 +946,22 @@ export async function createSubscription(
 }
 
 // Verified against: ../comprobify/src/routes/payments.routes.js → PATCH /v1/payments/:id/proof
-// (multipart, field name "proof" — PNG/JPEG/GIF/PDF, 2MB max, ownership-checked server-side).
+// Field name "proof" repeated per file — multer.array('proof', 5); up to 5 per request,
+// cumulative cap of 10 active per payment (PROOF_FILE_LIMIT_REACHED if exceeded).
+// Returns only the proofs uploaded in this request; call listPaymentProofs for the full set.
 export async function submitPaymentProof(
   ctx: ApiCtx,
   paymentId: number,
-  file: { buffer: Buffer; mimeType: string; filename: string },
-): Promise<ApiPaymentInfo> {
+  files: Array<{ buffer: Buffer; mimeType: string; filename: string }>,
+): Promise<{ payment: ApiPaymentInfo; proofs: ApiPaymentProof[] }> {
   const form = new FormData();
-  const buf = file.buffer.buffer.slice(
-    file.buffer.byteOffset,
-    file.buffer.byteOffset + file.buffer.byteLength,
-  ) as ArrayBuffer;
-  form.append('proof', new Blob([buf], { type: file.mimeType }), file.filename);
+  for (const file of files) {
+    const buf = file.buffer.buffer.slice(
+      file.buffer.byteOffset,
+      file.buffer.byteOffset + file.buffer.byteLength,
+    ) as ArrayBuffer;
+    form.append('proof', new Blob([buf], { type: file.mimeType }), file.filename);
+  }
 
   const res = await fetch(`${getApiUrl()}/v1/payments/${paymentId}/proof`, {
     method: 'PATCH',
@@ -881,8 +972,31 @@ export async function submitPaymentProof(
     const problem: ProblemDetails = await res.json();
     throw new ApiError(problem);
   }
-  const data = await res.json() as { ok: true; payment: ApiPaymentInfo };
-  return data.payment;
+  const data = await res.json() as { ok: true; payment: ApiPaymentInfo; proofs: ApiPaymentProof[] };
+  return { payment: data.payment, proofs: data.proofs };
+}
+
+// Verified against: ../comprobify/src/controllers/payment.controller.js → listProofs()
+// Returns only active (non-deleted) proofs; call after upload/delete to refresh the list.
+export async function listPaymentProofs(ctx: ApiCtx, paymentId: number): Promise<ApiPaymentProof[]> {
+  const result = await request<{ ok: true; proofs: ApiPaymentProof[] }>(
+    `/v1/payments/${paymentId}/proofs`,
+    { apiKey: ctx.apiKey },
+  );
+  return result.proofs;
+}
+
+// Verified against: ../comprobify/src/controllers/payment.controller.js → deleteProof()
+// Soft-delete — admin can still see the file; blocked once payment is VERIFIED.
+export async function deletePaymentProof(ctx: ApiCtx, paymentId: number, proofId: string): Promise<void> {
+  const res = await fetch(`${getApiUrl()}/v1/payments/${paymentId}/proofs/${proofId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${ctx.apiKey}` },
+  });
+  if (!res.ok) {
+    const problem: ProblemDetails = await res.json();
+    throw new ApiError(problem);
+  }
 }
 
 // Verified against: src/routes/tenants.routes.js → PATCH /v1/tenants/language

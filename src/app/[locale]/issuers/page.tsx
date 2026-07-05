@@ -1,7 +1,8 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { requirePermission } from '@/lib/context';
 import { db } from '@/lib/db';
-import { listIssuerDocumentTypes, listTenantIssuers } from '@/lib/api';
+import { listIssuerDocumentTypes, listTenantIssuers, getCurrentTenant } from '@/lib/api';
+import { listTiers } from '@/lib/public-api';
 import { PageHeader } from '@/components/page-header';
 import { IssuerManager } from '@/components/issuer-manager';
 import { CreateIssuerDialog } from '@/components/create-issuer-dialog';
@@ -26,14 +27,19 @@ export default async function IssuersPage({
   });
   const activeIssuers = issuers.filter((i) => i.active);
 
-  const [documentTypesPerIssuer, apiIssuers] = await Promise.all([
+  const [documentTypesPerIssuer, apiIssuers, tenantInfo, tiers] = await Promise.all([
     Promise.all(
       issuers.map((issuer) =>
         listIssuerDocumentTypes({ apiKey: ctx.apiKey }, issuer.apiIssuerId).catch(() => [] as string[])
       )
     ),
     listTenantIssuers({ apiKey: ctx.apiKey }).catch(() => []),
+    getCurrentTenant({ apiKey: ctx.apiKey }),
+    listTiers().catch(() => []),
   ]);
+
+  const currentTier = tiers.find((t) => t.name === tenantInfo.subscriptionTier);
+  const allowedDocumentTypes = currentTier?.allowedDocumentTypes ?? ['01'];
 
   const issuersWithTypes = issuers.map((issuer, i) => {
     const apiIssuer = apiIssuers.find((a) => a.id === String(issuer.apiIssuerId));
@@ -52,9 +58,9 @@ export default async function IssuersPage({
       <PageHeader
         title={t('title')}
         description={t('description')}
-        action={canManage ? <CreateIssuerDialog issuers={activeIssuers} /> : undefined}
+        action={canManage ? <CreateIssuerDialog issuers={activeIssuers} allowedDocumentTypes={allowedDocumentTypes} /> : undefined}
       />
-      <IssuerManager issuers={issuersWithTypes} canManage={canManage} />
+      <IssuerManager issuers={issuersWithTypes} canManage={canManage} allowedDocumentTypes={allowedDocumentTypes} />
     </div>
   );
 }

@@ -32,11 +32,11 @@ export default async function RegisterPage({
     <div className="min-h-screen bg-muted/40 flex flex-col">
       <div className="flex items-center justify-between gap-2 px-6 py-5">
         <Link
-          href="/"
+          href={intendedPlan ? '/pricing' : '/'}
           className="flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <ChevronLeft className="h-4 w-4" />
-          {t('backToHome')}
+          {intendedPlan ? t('backToPricing') : t('backToHome')}
         </Link>
         <div className="flex items-center gap-2">
           <ThemeToggle className="text-muted-foreground hover:bg-accent hover:text-accent-foreground" />
