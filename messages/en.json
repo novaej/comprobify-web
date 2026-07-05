@@ -1173,6 +1173,7 @@
       "contactSupport": "Contact support to get the bank transfer details.",
       "upload": "Upload proof",
       "uploading": "Uploading...",
+      "uploadHint": "PNG, JPG, GIF or PDF · max 2 MB per file · up to 5 files",
       "uploaded": "Proof uploaded. Your provider will review it shortly.",
       "proofs": "Uploaded files",
       "noProofs": "No proof files uploaded yet.",

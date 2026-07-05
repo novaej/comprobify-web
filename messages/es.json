@@ -1173,6 +1173,7 @@
       "contactSupport": "Contacta a soporte para obtener los datos de la transferencia bancaria.",
       "upload": "Subir comprobante",
       "uploading": "Subiendo...",
+      "uploadHint": "PNG, JPG, GIF o PDF · máx. 2 MB por archivo · hasta 5 archivos",
       "uploaded": "Comprobante subido. Tu proveedor lo revisará en breve.",
       "proofs": "Archivos subidos",
       "noProofs": "Aún no has subido ningún comprobante.",

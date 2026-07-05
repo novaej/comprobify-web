@@ -455,19 +455,22 @@ function PendingPaymentCard({
       </div>
 
       {canManageBilling && (
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/png,image/jpeg,image/gif,application/pdf"
-            multiple
-            disabled={isPending}
-            onChange={(e) => setHasFiles(!!e.target.files?.length)}
-            className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-primary"
-          />
-          <Button size="sm" onClick={handleUpload} disabled={isPending || !hasFiles}>
-            {isPending ? t('pendingPayment.uploading') : t('pendingPayment.upload')}
-          </Button>
+        <div className="mt-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/gif,application/pdf"
+              multiple
+              disabled={isPending}
+              onChange={(e) => setHasFiles(!!e.target.files?.length)}
+              className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-primary"
+            />
+            <Button size="sm" onClick={handleUpload} disabled={isPending || !hasFiles}>
+              {isPending ? t('pendingPayment.uploading') : t('pendingPayment.upload')}
+            </Button>
+          </div>
+          <p className="mt-1.5 text-xs text-muted-foreground">{t('pendingPayment.uploadHint')}</p>
         </div>
       )}
     </div>
