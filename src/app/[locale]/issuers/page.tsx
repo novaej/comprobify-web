@@ -58,7 +58,7 @@ export default async function IssuersPage({
       <PageHeader
         title={t('title')}
         description={t('description')}
-        action={canManage ? <CreateIssuerDialog issuers={activeIssuers} /> : undefined}
+        action={canManage ? <CreateIssuerDialog issuers={activeIssuers} allowedDocumentTypes={allowedDocumentTypes} /> : undefined}
       />
       <IssuerManager issuers={issuersWithTypes} canManage={canManage} allowedDocumentTypes={allowedDocumentTypes} />
     </div>
