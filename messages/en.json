@@ -451,6 +451,9 @@
         "submit": "Send"
       }
     },
+    "sriRejection": {
+      "title": "SRI rejection reason"
+    },
     "polling": {
       "waiting": "Waiting for SRI response...",
       "timeout": "SRI is taking longer than expected. Check manually when ready."
