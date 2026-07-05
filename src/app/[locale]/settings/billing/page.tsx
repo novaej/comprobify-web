@@ -29,14 +29,16 @@ export default async function BillingPage({
     listTiers().catch(() => []),
   ]);
 
-  // Fetch proofs for the payment that needs action (pending, reported, or rejected),
-  // so PendingPaymentCard can render the uploaded-files list on first render.
-  const latestPayment = subscriptions[0]?.payments[0] ?? null;
-  const isSubscriptionOver = subscriptions[0]?.status === 'CANCELLED' || subscriptions[0]?.status === 'EXPIRED';
-  const needsAction = !!latestPayment && latestPayment.status !== 'VERIFIED' && !isSubscriptionOver;
-  const initialProofs: ApiPaymentProof[] = needsAction
-    ? await listPaymentProofs({ apiKey: ctx.apiKey }, latestPayment!.id).catch(() => [])
-    : [];
+  // Fetch proofs for every payment upfront so they appear in both the
+  // PendingPaymentCard and the read-only payment history rows.
+  const allPayments = subscriptions.flatMap((sub) => sub.payments);
+  const proofsEntries = await Promise.all(
+    allPayments.map(async (p) => [
+      String(p.id),
+      await listPaymentProofs({ apiKey: ctx.apiKey }, p.id).catch(() => [] as ApiPaymentProof[]),
+    ] as const),
+  );
+  const proofsByPaymentId: Record<string, ApiPaymentProof[]> = Object.fromEntries(proofsEntries);
 
   // bankTransfer is static, env-configured config on the API — identical for every
   // tenant and every payment (initial, tier-change, or renewal) — so once cached it's
@@ -59,7 +61,7 @@ export default async function BillingPage({
         tiers={tiers}
         subscriptions={subscriptions}
         pendingBankTransfer={pendingBankTransfer}
-        initialProofs={initialProofs}
+        proofsByPaymentId={proofsByPaymentId}
         canManageBilling={ctx.permissions.has('billing.manage')}
         isSandbox={ctx.tenant.environment === 'sandbox'}
         emailVerified={ctx.user.emailVerified}

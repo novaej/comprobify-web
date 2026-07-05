@@ -5,10 +5,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireContext } from '@/lib/context';
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string; proofId: string }> }
 ) {
   const { id, proofId } = await params;
+  const inline = req.nextUrl.searchParams.get('inline') === '1';
 
   const apiUrl = process.env.COMPROBIFY_API_URL;
   if (!apiUrl) return new NextResponse('API not configured', { status: 500 });
@@ -29,7 +30,7 @@ export async function GET(
   if (!res.ok) return new NextResponse(null, { status: res.status });
 
   const contentType = res.headers.get('Content-Type') ?? 'application/octet-stream';
-  const contentDisposition = res.headers.get('Content-Disposition') ?? 'inline';
+  const contentDisposition = inline ? 'inline' : (res.headers.get('Content-Disposition') ?? 'inline');
   const buffer = await res.arrayBuffer();
   return new NextResponse(buffer, {
     status: 200,

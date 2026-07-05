@@ -9,6 +9,12 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { FileIcon, DownloadIcon, Trash2Icon, Info } from 'lucide-react';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
   submitPaymentProofAction,
   listPaymentProofsAction,
   deletePaymentProofAction,
@@ -47,7 +53,7 @@ export function BillingManager({
   tiers,
   subscriptions,
   pendingBankTransfer,
-  initialProofs,
+  proofsByPaymentId,
   canManageBilling,
   isSandbox,
   emailVerified,
@@ -59,7 +65,7 @@ export function BillingManager({
   tiers: ApiTierInfo[];
   subscriptions: ApiSubscriptionInfo[];
   pendingBankTransfer: ApiBankTransferInfo | null;
-  initialProofs: ApiPaymentProof[];
+  proofsByPaymentId: Record<string, ApiPaymentProof[]>;
   canManageBilling: boolean;
   isSandbox: boolean;
   emailVerified: boolean;
@@ -69,6 +75,7 @@ export function BillingManager({
   const t = useTranslations('billing');
   const tPricing = useTranslations('pricing');
   const tIssuers = useTranslations('issuers');
+  const [viewingHistoryProof, setViewingHistoryProof] = useState<{ paymentId: number; proof: ApiPaymentProof } | null>(null);
 
   const tierKey = `tiers.${tenantInfo.subscriptionTier}.name` as Parameters<typeof tPricing>[0];
   const tierName = tPricing.has(tierKey) ? tPricing(tierKey) : tenantInfo.subscriptionTier;
@@ -94,6 +101,11 @@ export function BillingManager({
 
   return (
     <div className="space-y-4">
+      <ProofPreviewDialog
+        proof={viewingHistoryProof?.proof ?? null}
+        paymentId={viewingHistoryProof?.paymentId ?? 0}
+        onClose={() => setViewingHistoryProof(null)}
+      />
       <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
         <h2 className="text-sm font-semibold">{t('currentPlan')}</h2>
         <p className="mt-1.5 text-lg font-semibold">{tierName}</p>
@@ -184,7 +196,7 @@ export function BillingManager({
         <PendingPaymentCard
           payment={latestPayment}
           bankTransfer={pendingBankTransfer}
-          initialProofs={initialProofs}
+          initialProofs={proofsByPaymentId[String(latestPayment.id)] ?? []}
           canManageBilling={canManageBilling}
         />
       )}
@@ -246,20 +258,38 @@ export function BillingManager({
                   purposeLabel = t('paymentPurposeInitial', { tier: subTierName });
                 }
 
+                const historyProofs = proofsByPaymentId[String(p.id)] ?? [];
                 return (
-                  <div key={p.id} className="py-3 first:pt-0 last:pb-0 flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium">
-                        {currencyFormatter.format(Number(p.total_amount ?? p.amount))}
-                        {p.total_amount && (
-                          <span className="ml-1.5 text-xs font-normal text-muted-foreground">{t('ivaIncluded')}</span>
-                        )}
-                      </p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">{purposeLabel}</p>
+                  <div key={p.id} className="py-3 first:pt-0 last:pb-0 space-y-1.5">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium">
+                          {currencyFormatter.format(Number(p.total_amount ?? p.amount))}
+                          {p.total_amount && (
+                            <span className="ml-1.5 text-xs font-normal text-muted-foreground">{t('ivaIncluded')}</span>
+                          )}
+                        </p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">{purposeLabel}</p>
+                      </div>
+                      <Badge variant="outline" className={`shrink-0 ${PAYMENT_STATUS_STYLES[p.status] ?? ''}`}>
+                        {t.has(paymentStatusKey) ? t(paymentStatusKey) : p.status}
+                      </Badge>
                     </div>
-                    <Badge variant="outline" className={`shrink-0 ${PAYMENT_STATUS_STYLES[p.status] ?? ''}`}>
-                      {t.has(paymentStatusKey) ? t(paymentStatusKey) : p.status}
-                    </Badge>
+                    {historyProofs.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {historyProofs.map((proof) => (
+                          <button
+                            key={proof.id}
+                            type="button"
+                            onClick={() => setViewingHistoryProof({ paymentId: p.id, proof })}
+                            className="inline-flex items-center gap-1 rounded border border-border bg-muted px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground"
+                          >
+                            <FileIcon className="h-3 w-3 shrink-0" />
+                            {proof.filename}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -441,6 +471,64 @@ function PendingPaymentCard({
         </div>
       )}
     </div>
+  );
+}
+
+function ProofPreviewDialog({
+  proof,
+  paymentId,
+  onClose,
+}: {
+  proof: ApiPaymentProof | null;
+  paymentId: string | number;
+  onClose: () => void;
+}) {
+  const t = useTranslations('billing');
+  if (!proof) return null;
+  const src = `/api/payments/${paymentId}/proofs/${proof.id}?inline=1`;
+  const downloadHref = `/api/payments/${paymentId}/proofs/${proof.id}`;
+  const isImage = proof.mimeType.startsWith('image/');
+  const isPdf = proof.mimeType === 'application/pdf';
+
+  return (
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <div className="flex items-start justify-between gap-3 pr-6">
+            <DialogTitle className="truncate">{proof.filename}</DialogTitle>
+            <a
+              href={downloadHref}
+              download
+              className="shrink-0 inline-flex items-center gap-1.5 text-xs text-primary hover:text-primary/80"
+            >
+              <DownloadIcon className="h-3.5 w-3.5" />
+              {t('pendingPayment.download')}
+            </a>
+          </div>
+        </DialogHeader>
+        <div className="overflow-auto rounded-md bg-muted/30">
+          {isImage && (
+            <img src={src} alt={proof.filename} className="max-w-full mx-auto" />
+          )}
+          {isPdf && (
+            <iframe
+              src={src}
+              title={proof.filename}
+              className="h-[60vh] w-full rounded-md border-0"
+            />
+          )}
+          {!isImage && !isPdf && (
+            <div className="flex flex-col items-center gap-3 py-10 text-sm text-muted-foreground">
+              <FileIcon className="h-8 w-8" />
+              <p>{proof.filename}</p>
+              <a href={downloadHref} download className="text-primary hover:underline">
+                {t('pendingPayment.download')}
+              </a>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
