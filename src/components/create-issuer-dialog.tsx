@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus } from 'lucide-react';
+import { Plus, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 
@@ -119,6 +119,11 @@ export function CreateIssuerDialog({ issuers, allowedDocumentTypes }: { issuers:
           </DialogHeader>
 
           <div className="space-y-4">
+            <div className="flex gap-2.5 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>{tCreate('sriHint')}</span>
+            </div>
+
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 {tCreate('modeLabel')}

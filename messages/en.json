@@ -826,6 +826,7 @@
     "create": {
       "button": "New issuer",
       "title": "New issuer",
+      "sriHint": "Make sure the branch and issue point are created and active in the SRI portal before issuing documents with this issuer.",
       "modeLabel": "Type",
       "modeBranch": "New branch",
       "modeIssuePoint": "New issue point",
