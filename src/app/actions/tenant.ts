@@ -33,7 +33,7 @@ export async function updateTenantAction(data: {
 }
 
 export async function promoteTenantAction(
-  initialSequentials: { documentType: string; sequential: number }[] = [],
+  initialSequentials: { issuerId: number; documentType: string; sequential: number }[] = [],
   tier?: PaidTier,
   billingInterval?: BillingInterval,
 ): Promise<TenantResult> {
@@ -43,19 +43,9 @@ export async function promoteTenantAction(
   if (!ctx.user.emailVerified) return { error: 'EMAIL_NOT_VERIFIED' };
   if (ctx.tenant.environment === 'production') return { error: 'ALREADY_PRODUCTION' };
 
-  // Map sequentials to include apiIssuerId — use first/default issuer
-  const issuers = await db.issuer.findMany({ where: { tenantId: ctx.tenant.id, active: true } });
-  const apiSequentials = issuers.flatMap((issuer) =>
-    initialSequentials.map((s) => ({
-      issuerId: issuer.apiIssuerId,
-      documentType: s.documentType,
-      sequential: s.sequential,
-    }))
-  );
-
   let result: Awaited<ReturnType<typeof promoteTenant>>;
   try {
-    result = await promoteTenant({ apiKey: ctx.apiKey }, apiSequentials, tier, billingInterval);
+    result = await promoteTenant({ apiKey: ctx.apiKey }, initialSequentials, tier, billingInterval);
   } catch (err) {
     if (err instanceof ApiError) return { error: err.code };
     throw err;
