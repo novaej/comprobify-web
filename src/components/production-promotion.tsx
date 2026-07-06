@@ -14,8 +14,17 @@ import type { PaidTier, BillingInterval } from '@/lib/subscription-tiers';
 
 const currencyFormatter = new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
+export type IssuerForPromotion = {
+  id: number;
+  apiIssuerId: number;
+  name: string;
+  branchCode: string;
+  issuePointCode: string;
+  documentTypes: string[];
+};
+
 export function ProductionPromotion({
-  documentTypes,
+  issuers,
   emailVerified,
   tiers,
   intendedTier,
@@ -23,7 +32,7 @@ export function ProductionPromotion({
   activeSubscriptionTier,
   agreementsAccepted,
 }: {
-  documentTypes: string[];
+  issuers: IssuerForPromotion[];
   emailVerified: boolean;
   tiers: ApiTierInfo[];
   intendedTier: string | null;
@@ -40,9 +49,17 @@ export function ProductionPromotion({
   const [confirming, setConfirming] = useState(false);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [resendSent, setResendSent] = useState(false);
-  const [sequentials, setSequentials] = useState<Record<string, number>>(
-    () => Object.fromEntries(documentTypes.map((code) => [code, 1]))
+
+  // Sequentials keyed by apiIssuerId → documentType → number
+  const [sequentials, setSequentials] = useState<Record<number, Record<string, number>>>(
+    () => Object.fromEntries(
+      issuers.map((issuer) => [
+        issuer.apiIssuerId,
+        Object.fromEntries(issuer.documentTypes.map((code) => [code, 1])),
+      ])
+    )
   );
+
   const [selectedTier, setSelectedTier] = useState<'FREE' | PaidTier>(
     () => (intendedTier as PaidTier | null) ?? 'FREE',
   );
@@ -57,18 +74,34 @@ export function ProductionPromotion({
         : errorCode)
     : null;
 
+  function handleSequentialChange(apiIssuerId: number, code: string, raw: string) {
+    setSequentials((prev) => ({
+      ...prev,
+      [apiIssuerId]: {
+        ...(prev[apiIssuerId] ?? {}),
+        [code]: Math.max(1, parseInt(raw) || 1),
+      },
+    }));
+  }
+
   function handlePromote() {
     setErrorCode(null);
     setResendSent(false);
-    const initialSequentials = Object.entries(sequentials)
-      .filter(([, seq]) => seq >= 1)
-      .map(([documentType, sequential]) => ({ documentType, sequential }));
+    const initialSequentials = issuers.flatMap((issuer) =>
+      issuer.documentTypes.map((code) => ({
+        issuerId: issuer.apiIssuerId,
+        documentType: code,
+        sequential: sequentials[issuer.apiIssuerId]?.[code] ?? 1,
+      }))
+    );
     startTransition(async () => {
-      const result = await promoteTenantAction(
-        initialSequentials,
-        activeSubscriptionTier || selectedTier === 'FREE' ? undefined : selectedTier,
-        activeSubscriptionTier || selectedTier === 'FREE' ? undefined : selectedInterval,
-      );
+      const tier = activeSubscriptionTier
+        ? (activeSubscriptionTier as PaidTier)
+        : selectedTier === 'FREE' ? undefined : selectedTier;
+      const interval = activeSubscriptionTier
+        ? undefined
+        : selectedTier === 'FREE' ? undefined : selectedInterval;
+      const result = await promoteTenantAction(initialSequentials, tier, interval);
       if (result && 'error' in result) {
         setConfirming(false);
         setErrorCode(result.error);
@@ -90,7 +123,7 @@ export function ProductionPromotion({
   if (confirming) {
     return (
       <div className="space-y-4">
-        {/* Plan selection */}
+        {/* Plan section */}
         <div className="rounded-md border p-4 space-y-3">
           {activeSubscriptionTier ? (
             <p className="text-sm">
@@ -174,32 +207,41 @@ export function ProductionPromotion({
           )}
         </div>
 
-        {/* Production sequentials */}
+        {/* Production sequentials — grouped per issuer */}
         <div className="rounded-md border p-4 space-y-3">
           <div>
             <p className="text-sm font-medium">{t('sequentials')}</p>
             <p className="text-xs text-muted-foreground mt-0.5">{t('sequentialsHint')}</p>
           </div>
-          <div className="divide-y divide-border rounded-md border">
-            {documentTypes.map((code) => (
-              <div key={code} className="flex items-center gap-3 px-3 py-2.5">
-                <span className="flex-1 text-sm">
-                  {tSetup(`docType${code}` as Parameters<typeof tSetup>[0])}
-                  <span className="ml-1.5 text-xs text-muted-foreground">({code})</span>
-                </span>
-                <Input
-                  type="number"
-                  min={1}
-                  value={sequentials[code] ?? 1}
-                  onChange={(e) =>
-                    setSequentials((prev) => ({
-                      ...prev,
-                      [code]: Math.max(1, parseInt(e.target.value) || 1),
-                    }))
-                  }
-                  className="w-24 text-right"
-                  disabled={isPending}
-                />
+          <div className="space-y-3">
+            {issuers.map((issuer) => (
+              <div key={issuer.apiIssuerId}>
+                {issuers.length > 1 && (
+                  <p className="text-xs font-medium text-muted-foreground mb-1.5 px-0.5">
+                    {issuer.name}
+                    <span className="font-normal ml-1.5">
+                      ({issuer.branchCode}-{issuer.issuePointCode})
+                    </span>
+                  </p>
+                )}
+                <div className="divide-y divide-border rounded-md border">
+                  {issuer.documentTypes.map((code) => (
+                    <div key={code} className="flex items-center gap-3 px-3 py-2.5">
+                      <span className="flex-1 text-sm">
+                        {tSetup(`docType${code}` as Parameters<typeof tSetup>[0])}
+                        <span className="ml-1.5 text-xs text-muted-foreground">({code})</span>
+                      </span>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={sequentials[issuer.apiIssuerId]?.[code] ?? 1}
+                        onChange={(e) => handleSequentialChange(issuer.apiIssuerId, code, e.target.value)}
+                        className="w-24 text-right"
+                        disabled={isPending}
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
             ))}
           </div>
@@ -237,6 +279,18 @@ export function ProductionPromotion({
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">{t('description')}</p>
+      {activeSubscriptionTier && (
+        <p className="text-sm">
+          {t('planAlreadyActive', {
+            tier: tPricing.has(`tiers.${activeSubscriptionTier}.name` as Parameters<typeof tPricing>[0])
+              ? tPricing(`tiers.${activeSubscriptionTier}.name` as Parameters<typeof tPricing>[0])
+              : activeSubscriptionTier,
+          })}{' '}
+          <Link href="/settings/billing" className="underline underline-offset-4">
+            {t('planAlreadyActiveLink')}
+          </Link>
+        </p>
+      )}
       {!agreementsAccepted && (
         <div
           role="alert"

@@ -28,14 +28,23 @@ export default async function SettingsPage({
   const canManageNotifications = ctx.permissions.has('notifications.manage');
   const canReadBilling = ctx.permissions.has('billing.read');
 
-  const defaultIssuer = await db.issuer.findFirst({
+  const activeIssuers = await db.issuer.findMany({
     where: { tenantId, active: true },
     orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
   });
-  const hasIssuer = !!defaultIssuer;
+  const hasIssuer = activeIssuers.length > 0;
 
-  const documentTypes = defaultIssuer
-    ? await listIssuerDocumentTypes({ apiKey: ctx.apiKey }, defaultIssuer.apiIssuerId).catch(() => ['01'])
+  const issuersForPromotion = environment === 'sandbox'
+    ? await Promise.all(
+        activeIssuers.map(async (issuer) => ({
+          id: issuer.id,
+          apiIssuerId: issuer.apiIssuerId,
+          name: issuer.tradeName || issuer.businessName,
+          branchCode: issuer.branchCode,
+          issuePointCode: issuer.issuePointCode,
+          documentTypes: await listIssuerDocumentTypes({ apiKey: ctx.apiKey }, issuer.apiIssuerId).catch(() => ['01']),
+        }))
+      )
     : [];
 
   const intendedPlan = environment === 'sandbox'
@@ -54,7 +63,7 @@ export default async function SettingsPage({
   const [activeSubscription, agreementsAccepted] = environment === 'sandbox'
     ? await Promise.all([
         getMySubscriptions({ apiKey: ctx.apiKey })
-          .then((subs) => subs.find((s) => s.status === 'ACTIVE') ?? null)
+          .then((subs) => subs.find((s) => s.status !== 'CANCELLED' && s.status !== 'EXPIRED') ?? null)
           .catch(() => null),
         getAgreementStatus({ apiKey: ctx.apiKey })
           .then((s) => !s.needsAcceptance)
@@ -89,7 +98,7 @@ export default async function SettingsPage({
             {environment === 'sandbox' && (
               <div className="mt-5 pt-5 border-t border-border">
                 <ProductionPromotion
-                  documentTypes={documentTypes}
+                  issuers={issuersForPromotion}
                   emailVerified={emailVerified}
                   tiers={tiers}
                   intendedTier={intendedPlan?.intendedTier ?? null}
