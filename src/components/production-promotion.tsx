@@ -95,12 +95,8 @@ export function ProductionPromotion({
       }))
     );
     startTransition(async () => {
-      const tier = activeSubscriptionTier
-        ? (activeSubscriptionTier as PaidTier)
-        : selectedTier === 'FREE' ? undefined : selectedTier;
-      const interval = activeSubscriptionTier
-        ? undefined
-        : selectedTier === 'FREE' ? undefined : selectedInterval;
+      const tier = activeSubscriptionTier || selectedTier === 'FREE' ? undefined : selectedTier;
+      const interval = activeSubscriptionTier || selectedTier === 'FREE' ? undefined : selectedInterval;
       const result = await promoteTenantAction(initialSequentials, tier, interval);
       if (result && 'error' in result) {
         setConfirming(false);
