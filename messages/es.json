@@ -451,6 +451,9 @@
         "submit": "Enviar"
       }
     },
+    "sriRejection": {
+      "title": "Motivo del rechazo del SRI"
+    },
     "polling": {
       "waiting": "Esperando respuesta del SRI...",
       "timeout": "El SRI tardó más de lo esperado. Verifica manualmente cuando estés listo."
@@ -907,6 +910,7 @@
     "create": {
       "button": "Nuevo emisor",
       "title": "Nuevo emisor",
+      "sriHint": "Asegúrate de que el establecimiento y el punto de emisión estén creados y activos en el portal del SRI antes de emitir comprobantes con este emisor.",
       "modeLabel": "Tipo",
       "modeBranch": "Nueva sucursal",
       "modeIssuePoint": "Nuevo punto de emisión",

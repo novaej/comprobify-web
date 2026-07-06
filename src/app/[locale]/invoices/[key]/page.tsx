@@ -1,7 +1,7 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { ChevronLeft, ArrowRight } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
-import { getDocument, getDocumentEvents } from '@/lib/api';
+import { getDocument, getDocumentEvents, getSriResponses } from '@/lib/api';
 import { requireContext } from '@/lib/context';
 import { ApiError } from '@/lib/errors';
 import { notFound } from 'next/navigation';
@@ -45,10 +45,12 @@ export default async function InvoiceDetailPage({
 
   let document;
   let events;
+  let sriResponses;
   try {
-    [document, events] = await Promise.all([
+    [document, events, sriResponses] = await Promise.all([
       getDocument(apiCtx, key),
       getDocumentEvents(apiCtx, key),
+      getSriResponses(apiCtx, key),
     ]);
   } catch (err) {
     // key is the only param this call validates, so VALIDATION_FAILED here
@@ -58,6 +60,10 @@ export default async function InvoiceDetailPage({
     }
     throw err;
   }
+
+  const rejectionMessages = (document.status === 'RETURNED' || document.status === 'NOT_AUTHORIZED')
+    ? sriResponses.flatMap((r) => r.messages ?? []).filter((m) => m.message)
+    : [];
 
   return (
     <div className="space-y-5">
@@ -135,6 +141,30 @@ export default async function InvoiceDetailPage({
               </div>
             )}
           </dl>
+        </div>
+      )}
+
+      {/* SRI rejection reasons */}
+      {rejectionMessages.length > 0 && (
+        <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-5 shadow-sm">
+          <h2 className="mb-3 text-sm font-semibold text-destructive">
+            {t('sriRejection.title')}
+          </h2>
+          <ul className="space-y-2">
+            {rejectionMessages.map((m, i) => (
+              <li key={i} className="text-sm">
+                <span className="font-medium text-destructive/80">
+                  {m.identifier ? `[${m.identifier}] ` : ''}
+                </span>
+                <span>{m.message}</span>
+                {m.additionalInfo && (
+                  <span className="ml-1 text-xs text-muted-foreground">
+                    — {m.additionalInfo}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

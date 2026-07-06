@@ -93,6 +93,23 @@ export interface DocumentEvent {
   createdAt: string;
 }
 
+// Verified against: ../comprobify/src/services/sri.service.js → parseMessages()
+export interface SriResponseMessage {
+  identifier: string | null;
+  message: string | null;
+  additionalInfo: string | null;
+  type: string | null;
+}
+
+// Verified against: ../comprobify/src/controllers/documents.controller.js → getSriResponses()
+// and ../comprobify/src/services/document-query.service.js → getSriResponses()
+export interface SriResponse {
+  operationType: string; // 'RECEPTION' | 'AUTHORIZATION'
+  status: string;
+  messages: SriResponseMessage[] | null;
+  createdAt: string;
+}
+
 // Verified against: ../comprobify/src/models/document.model.js → findByIssuerId()
 // The API returns only { total, page, limit } — no totalPages field. Derive it
 // client-side (see DocumentPagination's getTotalPages) rather than re-adding it here.
@@ -409,6 +426,17 @@ export async function getDocumentEvents(
     ctx,
   );
   return result.events;
+}
+
+export async function getSriResponses(
+  ctx: ApiCtx,
+  accessKey: string
+): Promise<SriResponse[]> {
+  const result = await request<{ ok: true; sriResponses: SriResponse[] }>(
+    `/v1/documents/${accessKey}/sri-responses`,
+    ctx,
+  );
+  return result.sriResponses;
 }
 
 // Verified against: ../comprobify/src/controllers/documents.controller.js → getCreditNotes()
