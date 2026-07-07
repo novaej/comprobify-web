@@ -10,6 +10,19 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [0.4.4] — 2026-07-07
+
+### Added
+- **SPI reference number required on payment proof uploads** — tenants must now supply their bank's SPI transfer reference when uploading payment proof so the operator can cross-check it against the bank statement during review. The reference number field is shown in the pending-payment card above the file picker and blocks submission until filled. The payment ID is now also displayed as a labeled field at the top of the bank transfer details block (and referenced in an instructional note) so users know to include it in the transfer description.
+
+### Changed
+- **`docs/deployment.md`** — clarified that `DATABASE_URL` uses an independent Neon account, not the Vercel Storage integration.
+
+### Fixed
+- **`CLAUDE.md`** — documented Common Mistake #35: using `<Link>` for cross-domain navigation between the marketing and app hosts causes RSC prefetch CORS failures; always use a plain `<a>` tag for those links.
+
+---
+
 ## [0.4.3] — 2026-07-07
 
 ### Fixed
