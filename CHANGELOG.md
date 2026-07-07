@@ -10,6 +10,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [0.4.3] — 2026-07-07
+
+### Fixed
+- **CORS errors on all cross-domain links** — any `<Link>` pointing from the marketing domain to the app domain (or vice versa) triggered Next.js's RSC prefetch across origins, which the browser blocked. Replaced all cross-domain links with plain `<a>` tags using locale-prefixed paths (`/{locale}/register`, `/{locale}/login`, `/{locale}`) so the browser does a full-page navigation instead. Affected: pricing plan CTAs, login/register back-to-home and logo links.
+- **`/icon.svg` caused an infinite redirect loop** — the middleware matcher didn't exclude static asset paths, so `/icon.svg` was matched, `'icon.svg'` was extracted as the locale, and the unauthenticated redirect produced `/icon.svg/login` → loop until `ERR_TOO_MANY_REDIRECTS`. Middleware matcher now excludes any path with a file extension.
+- **`signOut()` crashed dashboard loads for users with an orphaned session** — `signOut()` can only modify cookies inside Server Actions or Route Handlers, not Server Components; calling it from `requireContext()` threw on every page load. Removed the call — the redirect loop is already broken by the login page guard that verifies the user row exists before bouncing to `/dashboard`.
+
+---
+
 ## [0.4.2] — 2026-07-07
 
 ### Fixed
