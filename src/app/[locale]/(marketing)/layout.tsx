@@ -46,20 +46,18 @@ export default async function MarketingLayout({
           <div className="flex items-center gap-2">
             <LocaleSwitcher />
             <ThemeToggle className="text-muted-foreground hover:bg-accent hover:text-accent-foreground" />
-            <Link
-              href="/login"
-              locale={locale}
+            <a
+              href={`/${locale}/login`}
               className={buttonVariants({ variant: 'ghost', size: 'sm' })}
             >
               {t('nav.login')}
-            </Link>
-            <Link
-              href="/register"
-              locale={locale}
+            </a>
+            <a
+              href={`/${locale}/register`}
               className={buttonVariants({ size: 'sm' })}
             >
               {t('nav.register')}
-            </Link>
+            </a>
           </div>
         </div>
       </header>
@@ -86,20 +84,18 @@ export default async function MarketingLayout({
           >
             {t('footer.docs')}
           </a>
-          <Link
-            href="/login"
-            locale={locale}
+          <a
+            href={`/${locale}/login`}
             className="hover:text-foreground transition-colors"
           >
             {t('footer.login')}
-          </Link>
-          <Link
-            href="/register"
-            locale={locale}
+          </a>
+          <a
+            href={`/${locale}/register`}
             className="hover:text-foreground transition-colors"
           >
             {t('footer.register')}
-          </Link>
+          </a>
         </div>
       </footer>
     </div>
