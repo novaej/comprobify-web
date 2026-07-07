@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Check } from 'lucide-react';
-import { Link } from '@/i18n/navigation';
 import { buttonVariants } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -131,7 +130,10 @@ export function PricingPlans({ tiers }: { tiers: ApiTierInfo[] }) {
                 </li>
               </ul>
 
-              <Link
+              {/* Plain <a> to force full-page navigation — Next.js <Link> intercepts
+                  clicks and issues a cross-origin RSC fetch (staging.comprobify.com →
+                  app-staging.comprobify.com) that the browser blocks with a CORS error. */}
+              <a
                 href={isFree ? '/register' : `/register?tier=${tier.name}&interval=${interval}`}
                 className={cn(
                   buttonVariants({
@@ -142,7 +144,7 @@ export function PricingPlans({ tiers }: { tiers: ApiTierInfo[] }) {
                 )}
               >
                 {t(`tiers.${tier.name}.cta`)}
-              </Link>
+              </a>
             </div>
           );
         })}

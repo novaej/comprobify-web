@@ -1,5 +1,6 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { auth } from '@/auth';
+import { db } from '@/lib/db';
 import { LoginForm } from '@/components/login-form';
 import { Link, redirect } from '@/i18n/navigation';
 import { LocaleSwitcher } from '@/components/locale-switcher';
@@ -17,7 +18,10 @@ export default async function LoginPage({
 
   const session = await auth();
   if (session) {
-    redirect({ href: '/dashboard', locale });
+    const user = await db.user.findUnique({ where: { id: Number(session.user.id) }, select: { id: true } });
+    if (user) redirect({ href: '/dashboard', locale });
+    // Session JWT is valid but the user row is gone — fall through to show the login form
+    // instead of bouncing back to /dashboard (which would redirect here again in a loop).
   }
 
   const t = await getTranslations('auth');
