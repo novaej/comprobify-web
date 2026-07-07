@@ -10,6 +10,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [0.4.2] — 2026-07-07
+
+### Fixed
+- **CORS errors on all marketing page links to `/login` and `/register`** — every `<Link>` in the marketing layout (header + footer) and landing page that pointed to an app route triggered Next.js's RSC prefetch across domains (`staging.comprobify.com` → `app-staging.comprobify.com`), which the browser blocked. Replaced all 7 cross-domain links with plain `<a href="/{locale}/login|register">` tags so the browser does a full-page navigation instead. `/pricing` and `/` links are unaffected.
+
+---
+
 ## [0.4.1] — 2026-07-06
 
 ### Fixed
