@@ -31,13 +31,13 @@ export default async function RegisterPage({
   return (
     <div className="min-h-screen bg-muted/40 flex flex-col">
       <div className="flex items-center justify-between gap-2 px-6 py-5">
-        <Link
-          href={intendedPlan ? '/pricing' : '/'}
+        <a
+          href={intendedPlan ? `/${locale}/pricing` : `/${locale}`}
           className="flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <ChevronLeft className="h-4 w-4" />
           {intendedPlan ? t('backToPricing') : t('backToHome')}
-        </Link>
+        </a>
         <div className="flex items-center gap-2">
           <ThemeToggle className="text-muted-foreground hover:bg-accent hover:text-accent-foreground" />
           <LocaleSwitcher />
@@ -47,10 +47,10 @@ export default async function RegisterPage({
       <div className="flex flex-1 items-center justify-center p-4">
         <div className="w-full max-w-sm">
           <div className="mb-7 text-center">
-            <Link href="/" className="inline-block">
+            <a href={`/${locale}`} className="inline-block">
               <LogoLockupStacked variant="light" className="mx-auto w-48 mb-4 dark:hidden" />
               <LogoLockupStacked variant="dark" className="mx-auto w-48 mb-4 hidden dark:block" />
-            </Link>
+            </a>
             <p className="mt-1 text-sm text-muted-foreground">{t('register.subtitle')}</p>
           </div>
 
