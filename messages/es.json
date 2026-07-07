@@ -293,14 +293,14 @@
       "autoSync": "El monto se calcula automáticamente del total de la factura."
     },
     "paymentMethods": {
-      "01": "Sin utilización del sistema financiero",
       "15": "Compensación de deudas",
       "16": "Tarjeta de débito",
       "17": "Dinero electrónico Ecuador",
       "18": "Tarjeta prepago",
       "19": "Tarjeta de crédito",
       "20": "Otros con utilización del sistema financiero",
-      "21": "Endoso de títulos"
+      "21": "Endoso de títulos",
+      "01": "Sin utilización del sistema financiero"
     },
     "additionalInfo": {
       "title": "Campos adicionales",
@@ -637,7 +637,7 @@
     "PRODUCTION_KEY_REQUIRES_PROMOTION": "Debe activar el modo producción antes de crear claves de producción.",
     "BRANCH_LIMIT_REACHED": "Ha alcanzado el límite de establecimientos de su plan.",
     "ISSUE_POINT_LIMIT_REACHED": "Ha alcanzado el límite de puntos de emisión para este establecimiento.",
-    "INVALID_TIER": "El nivel de plan especificado no es válido.",
+    "INVALID_TIER": "El plan seleccionado no es válido.",
     "INVALID_TENANT_STATUS": "El estado de la cuenta no es válido para esta operación.",
     "RUC_MISMATCH": "El RUC no coincide con el del emisor de origen.",
     "LAST_ISSUER_CANNOT_BE_REMOVED": "No se puede eliminar el único punto de emisión activo.",
@@ -661,7 +661,6 @@
     "SUBSCRIPTION_NOT_FOUND": "No se encontró la suscripción.",
     "PAYMENT_NOT_FOUND": "No se encontró el pago.",
     "SUBSCRIPTION_ALREADY_IN_FLIGHT": "Ya existe una suscripción en proceso para su cuenta.",
-    "INVALID_TIER": "El plan seleccionado no es válido.",
     "NO_ACTIVE_SUBSCRIPTION": "No tiene una suscripción activa. Active producción con un plan de pago primero.",
     "TIER_CHANGE_NO_OP": "Ya está en ese plan.",
     "TIER_CHANGE_ALREADY_PENDING": "Ya hay un cambio de plan en proceso para su suscripción.",
@@ -1138,7 +1137,7 @@
     "downgradeScheduled": "Tu plan bajará a {tier} el {date}.",
     "cancellationScheduled": "Tu suscripción será cancelada el {date}. Hasta entonces tendrás acceso a tu plan actual.",
     "tierChangeTo": "Cambio a {tier}",
-      "tierChangeToWithInterval": "Cambio a {tier} ({interval})",
+    "tierChangeToWithInterval": "Cambio a {tier} ({interval})",
     "renewal": "Renovación",
     "paymentPurposeInitial": "Suscripción — {tier}",
     "paymentPurposeRenewal": "Renovación — {tier}",
@@ -1183,7 +1182,12 @@
       "noProofs": "Aún no has subido ningún comprobante.",
       "download": "Descargar",
       "deleteProof": "Eliminar archivo",
-      "proofDeleted": "Archivo eliminado."
+      "proofDeleted": "Archivo eliminado.",
+      "transferNote": "Incluye el ID de pago #{id} en la descripción o nota de la transferencia para facilitar la verificación.",
+      "referenceNumber": "Número de referencia SPI",
+      "referenceNumberPlaceholder": "Ej. 20261234567890",
+      "referenceNumberHint": "El número de referencia que aparece en el comprobante de transferencia de tu banco.",
+      "paymentId": "ID de pago"
     },
     "changePlan": {
       "title": "Cambiar de plan",

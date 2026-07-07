@@ -318,6 +318,7 @@ function PendingPaymentCard({
   const [isPending, startTransition] = useTransition();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [hasFiles, setHasFiles] = useState(false);
+  const [referenceNumber, setReferenceNumber] = useState('');
   const [proofs, setProofs] = useState<ApiPaymentProof[]>(initialProofs);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -333,6 +334,7 @@ function PendingPaymentCard({
     if (!files || files.length === 0) return;
     const formData = new FormData();
     for (const file of Array.from(files)) formData.append('proof', file);
+    formData.append('referenceNumber', referenceNumber.trim());
     startTransition(async () => {
       const result = await submitPaymentProofAction(payment.id, formData);
       if ('error' in result) {
@@ -391,6 +393,10 @@ function PendingPaymentCard({
       {bankTransfer ? (
         <div className="mt-3 space-y-1 rounded-md border border-border bg-background p-3 text-sm">
           <p>
+            <span className="text-muted-foreground">{t('pendingPayment.paymentId')}:</span>{' '}
+            <span className="font-mono font-medium">#{payment.id}</span>
+          </p>
+          <p>
             <span className="text-muted-foreground">{t('pendingPayment.bank')}:</span> {bankTransfer.bankName}
           </p>
           <p>
@@ -408,6 +414,9 @@ function PendingPaymentCard({
           <p>
             <span className="text-muted-foreground">{t('pendingPayment.identification')}:</span>{' '}
             {bankTransfer.identification}
+          </p>
+          <p className="mt-2 border-t border-border pt-2 text-xs text-muted-foreground">
+            {t('pendingPayment.transferNote', { id: payment.id })}
           </p>
         </div>
       ) : (
@@ -455,7 +464,22 @@ function PendingPaymentCard({
       </div>
 
       {canManageBilling && (
-        <div className="mt-3">
+        <div className="mt-3 space-y-2">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              {t('pendingPayment.referenceNumber')}
+            </label>
+            <input
+              type="text"
+              value={referenceNumber}
+              onChange={(e) => setReferenceNumber(e.target.value)}
+              placeholder={t('pendingPayment.referenceNumberPlaceholder')}
+              maxLength={50}
+              disabled={isPending}
+              className="block w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+            />
+            <p className="mt-1 text-xs text-muted-foreground">{t('pendingPayment.referenceNumberHint')}</p>
+          </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <input
               ref={fileInputRef}
@@ -466,11 +490,11 @@ function PendingPaymentCard({
               onChange={(e) => setHasFiles(!!e.target.files?.length)}
               className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-primary"
             />
-            <Button size="sm" onClick={handleUpload} disabled={isPending || !hasFiles}>
+            <Button size="sm" onClick={handleUpload} disabled={isPending || !hasFiles || !referenceNumber.trim()}>
               {isPending ? t('pendingPayment.uploading') : t('pendingPayment.upload')}
             </Button>
           </div>
-          <p className="mt-1.5 text-xs text-muted-foreground">{t('pendingPayment.uploadHint')}</p>
+          <p className="text-xs text-muted-foreground">{t('pendingPayment.uploadHint')}</p>
         </div>
       )}
     </div>
