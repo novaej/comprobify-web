@@ -1186,7 +1186,8 @@
       "transferNote": "Incluye el ID de pago #{id} en la descripción o nota de la transferencia para facilitar la verificación.",
       "referenceNumber": "Número de referencia SPI",
       "referenceNumberPlaceholder": "Ej. 20261234567890",
-      "referenceNumberHint": "El número de referencia que aparece en el comprobante de transferencia de tu banco."
+      "referenceNumberHint": "El número de referencia que aparece en el comprobante de transferencia de tu banco.",
+      "paymentId": "ID de pago"
     },
     "changePlan": {
       "title": "Cambiar de plan",

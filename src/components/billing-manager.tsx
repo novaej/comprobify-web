@@ -393,6 +393,10 @@ function PendingPaymentCard({
       {bankTransfer ? (
         <div className="mt-3 space-y-1 rounded-md border border-border bg-background p-3 text-sm">
           <p>
+            <span className="text-muted-foreground">{t('pendingPayment.paymentId')}:</span>{' '}
+            <span className="font-mono font-medium">#{payment.id}</span>
+          </p>
+          <p>
             <span className="text-muted-foreground">{t('pendingPayment.bank')}:</span> {bankTransfer.bankName}
           </p>
           <p>
