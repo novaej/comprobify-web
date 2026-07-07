@@ -10,6 +10,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [0.4.1] — 2026-07-06
+
+### Fixed
+- **CORS error when clicking pricing CTA buttons on the marketing domain** — `<Link>` intercepted clicks and issued a cross-origin RSC prefetch from `staging.comprobify.com` to `app-staging.comprobify.com`, which the browser blocked. Replaced with a plain `<a>` tag so the browser does a full-page navigation that follows the proxy's 301 redirect normally.
+- **Infinite redirect loop when a valid session references a deleted user row** — if the DB was reset while a user was logged in, `requireContext()` redirected to `/login`, which saw a valid JWT and redirected back to `/dashboard`, looping indefinitely. `requireContext()` now calls `signOut()` before redirecting so the JWT is cleared; the login page also verifies the user row exists before bouncing to `/dashboard`.
+
+---
+
 ## [0.4.0] — 2026-07-06
 
 ### Added
