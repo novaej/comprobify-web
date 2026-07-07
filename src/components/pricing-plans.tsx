@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { Check } from 'lucide-react';
 import { buttonVariants } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +23,7 @@ const currencyFormatter = new Intl.NumberFormat('es-EC', { style: 'currency', cu
 export function PricingPlans({ tiers }: { tiers: ApiTierInfo[] }) {
   const t = useTranslations('pricing');
   const tDocTypes = useTranslations('settings.setup');
+  const locale = useLocale();
   const [interval, setInterval] = useState<'MONTHLY' | 'YEARLY'>('MONTHLY');
 
   const ordered = TIER_ORDER.map((name) => tiers.find((tier) => tier.name === name)).filter(
@@ -134,7 +135,7 @@ export function PricingPlans({ tiers }: { tiers: ApiTierInfo[] }) {
                   clicks and issues a cross-origin RSC fetch (staging.comprobify.com →
                   app-staging.comprobify.com) that the browser blocks with a CORS error. */}
               <a
-                href={isFree ? '/register' : `/register?tier=${tier.name}&interval=${interval}`}
+                href={isFree ? `/${locale}/register` : `/${locale}/register?tier=${tier.name}&interval=${interval}`}
                 className={cn(
                   buttonVariants({
                     variant: highlighted ? 'default' : 'outline',

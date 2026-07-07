@@ -1,5 +1,5 @@
 import 'server-only';
-import { auth, signOut } from '@/auth';
+import { auth } from '@/auth';
 import { db } from '@/lib/db';
 import { decrypt } from '@/lib/crypto';
 import { readCtxCookie, writeCtxCookie, clearCtxCookie } from '@/lib/context-cookie';
@@ -56,9 +56,6 @@ export async function requireContext(opts?: { skipIssuer?: boolean }): Promise<C
   });
 
   if (!user) {
-    // Session JWT is valid but the user row no longer exists (e.g. DB reset).
-    // Sign out first so the login page doesn't redirect back to /dashboard.
-    await signOut({ redirect: false });
     redirect({ href: '/login', locale });
     return null as never;
   }
