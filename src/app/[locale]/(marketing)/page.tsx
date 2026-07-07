@@ -1,6 +1,6 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { auth } from '@/auth';
-import { redirect, Link } from '@/i18n/navigation';
+import { redirect } from '@/i18n/navigation';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Code2, FileText, ArrowRight } from 'lucide-react';
@@ -33,20 +33,18 @@ export default async function LandingPage({
           {t('hero.subtitle')}
         </p>
         <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-          <Link
-            href="/register"
-            locale={locale}
+          <a
+            href={`/${locale}/register`}
             className={buttonVariants({ size: 'lg' })}
           >
             {t('hero.cta.register')}
-          </Link>
-          <Link
-            href="/login"
-            locale={locale}
+          </a>
+          <a
+            href={`/${locale}/login`}
             className={buttonVariants({ variant: 'outline', size: 'lg' })}
           >
             {t('hero.cta.login')}
-          </Link>
+          </a>
         </div>
       </section>
 
@@ -80,14 +78,13 @@ export default async function LandingPage({
             <p className="text-muted-foreground text-sm flex-1">
               {t('features.web.description')}
             </p>
-            <Link
-              href="/register"
-              locale={locale}
+            <a
+              href={`/${locale}/register`}
               className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'self-start')}
             >
               {t('features.web.cta')}
               <ArrowRight className="ml-1 w-4 h-4" />
-            </Link>
+            </a>
           </div>
         </div>
       </section>
