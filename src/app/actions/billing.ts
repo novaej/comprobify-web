@@ -36,6 +36,11 @@ export async function submitPaymentProofAction(
 ): Promise<BillingResult> {
   const ctx = await requirePermission('billing.manage', { skipIssuer: true });
 
+  const referenceNumber = (formData.get('referenceNumber') as string | null)?.trim() ?? '';
+  if (!referenceNumber || referenceNumber.length > 50) {
+    return { error: 'VALIDATION_FAILED' };
+  }
+
   const proofEntries = formData.getAll('proof') as File[];
   if (proofEntries.length === 0 || proofEntries.every((f) => f.size === 0)) {
     return { error: 'INVALID_FILE_UPLOAD' };
@@ -56,7 +61,7 @@ export async function submitPaymentProofAction(
   );
 
   try {
-    const result = await submitPaymentProof({ apiKey: ctx.apiKey }, paymentId, mapped);
+    const result = await submitPaymentProof({ apiKey: ctx.apiKey }, paymentId, mapped, referenceNumber);
     revalidatePath('/settings/billing');
     return result;
   } catch (err) {

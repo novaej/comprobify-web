@@ -293,14 +293,14 @@
       "autoSync": "Amount is automatically calculated from the invoice total."
     },
     "paymentMethods": {
-      "01": "Without financial system",
       "15": "Debt compensation",
       "16": "Debit card",
       "17": "Ecuador electronic money",
       "18": "Prepaid card",
       "19": "Credit card",
       "20": "Other with financial system",
-      "21": "Title endorsement"
+      "21": "Title endorsement",
+      "01": "Without financial system"
     },
     "additionalInfo": {
       "title": "Additional fields",
@@ -637,7 +637,7 @@
     "PRODUCTION_KEY_REQUIRES_PROMOTION": "You must activate production mode before creating production keys.",
     "BRANCH_LIMIT_REACHED": "You have reached the maximum number of branches for your plan.",
     "ISSUE_POINT_LIMIT_REACHED": "You have reached the maximum number of issue points for this branch.",
-    "INVALID_TIER": "The specified plan tier is not valid.",
+    "INVALID_TIER": "The selected plan is not valid.",
     "INVALID_TENANT_STATUS": "The account status is not valid for this operation.",
     "RUC_MISMATCH": "The RUC does not match the source issuer's RUC.",
     "LAST_ISSUER_CANNOT_BE_REMOVED": "Cannot remove the only active issue point.",
@@ -661,7 +661,6 @@
     "SUBSCRIPTION_NOT_FOUND": "Subscription not found.",
     "PAYMENT_NOT_FOUND": "Payment not found.",
     "SUBSCRIPTION_ALREADY_IN_FLIGHT": "Your account already has a subscription in progress.",
-    "INVALID_TIER": "The selected plan is not valid.",
     "NO_ACTIVE_SUBSCRIPTION": "You don't have an active subscription. Activate production with a paid plan first.",
     "TIER_CHANGE_NO_OP": "You're already on that plan.",
     "TIER_CHANGE_ALREADY_PENDING": "A plan change is already in progress for your subscription.",
@@ -1138,7 +1137,7 @@
     "downgradeScheduled": "Your plan will move to {tier} on {date}.",
     "cancellationScheduled": "Your subscription will be cancelled on {date}. You'll keep access to your current plan until then.",
     "tierChangeTo": "Change to {tier}",
-      "tierChangeToWithInterval": "Change to {tier} ({interval})",
+    "tierChangeToWithInterval": "Change to {tier} ({interval})",
     "renewal": "Renewal",
     "paymentPurposeInitial": "Subscription — {tier}",
     "paymentPurposeRenewal": "Renewal — {tier}",
@@ -1183,7 +1182,11 @@
       "noProofs": "No proof files uploaded yet.",
       "download": "Download",
       "deleteProof": "Delete file",
-      "proofDeleted": "File deleted."
+      "proofDeleted": "File deleted.",
+      "transferNote": "Include payment ID #{id} in the description or note of your transfer to help us verify it faster.",
+      "referenceNumber": "SPI transfer reference number",
+      "referenceNumberPlaceholder": "E.g. 20261234567890",
+      "referenceNumberHint": "The reference number shown on your bank’s transfer receipt."
     },
     "changePlan": {
       "title": "Change plan",

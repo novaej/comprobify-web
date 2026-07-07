@@ -855,6 +855,7 @@ export interface ApiPaymentProof {
   id: string;
   filename: string;
   mimeType: string;
+  referenceNumber: string;
   active: boolean;
   createdAt: string;
 }
@@ -981,6 +982,7 @@ export async function submitPaymentProof(
   ctx: ApiCtx,
   paymentId: number,
   files: Array<{ buffer: Buffer; mimeType: string; filename: string }>,
+  referenceNumber: string,
 ): Promise<{ payment: ApiPaymentInfo; proofs: ApiPaymentProof[] }> {
   const form = new FormData();
   for (const file of files) {
@@ -990,6 +992,7 @@ export async function submitPaymentProof(
     ) as ArrayBuffer;
     form.append('proof', new Blob([buf], { type: file.mimeType }), file.filename);
   }
+  form.append('referenceNumber', referenceNumber);
 
   const res = await fetch(`${getApiUrl()}/v1/payments/${paymentId}/proof`, {
     method: 'PATCH',
