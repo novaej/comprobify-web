@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useEffect, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { toastApiError } from '@/lib/api-error-toast';
@@ -15,7 +15,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { reviewPaymentAction } from '@/app/actions/admin';
-import type { AdminPayment } from '@/lib/admin-api';
+import { Eye, Download, ChevronLeft, ChevronRight } from 'lucide-react';
+import type { AdminPayment, AdminPaymentProof } from '@/lib/admin-api';
 
 const currencyFormatter = new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' });
 const dateFormatter = new Intl.DateTimeFormat('es-EC', { dateStyle: 'long', timeStyle: 'short' });
@@ -28,6 +29,7 @@ export function AdminPaymentManager({ payments: initialPayments }: { payments: A
   const [pendingId, setPendingId] = useState<number | null>(null);
   const [rejectTarget, setRejectTarget] = useState<AdminPayment | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [proofTarget, setProofTarget] = useState<AdminPayment | null>(null);
 
   function removeFromQueue(id: string) {
     setPayments((prev) => prev.filter((p) => p.id !== id));
@@ -99,16 +101,14 @@ export function AdminPaymentManager({ payments: initialPayments }: { payments: A
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  {payment.proof_filename && (
-                    <a
-                      href={`/api/admin/payments/${payment.id}/proof`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-primary underline-offset-4 hover:underline"
-                    >
-                      {t('viewProof')}
-                    </a>
-                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setProofTarget(payment)}
+                  >
+                    <Eye className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                    {t('viewProofs')}
+                  </Button>
                   <Button size="sm" disabled={rowPending} onClick={() => handleVerify(payment)}>
                     {t('verify')}
                   </Button>
@@ -155,6 +155,155 @@ export function AdminPaymentManager({ payments: initialPayments }: { payments: A
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {proofTarget && (
+        <ProofViewerDialog
+          payment={proofTarget}
+          onClose={() => setProofTarget(null)}
+        />
+      )}
     </>
+  );
+}
+
+function ProofViewerDialog({
+  payment,
+  onClose,
+}: {
+  payment: AdminPayment;
+  onClose: () => void;
+}) {
+  const t = useTranslations('admin.payments');
+  const [proofs, setProofs] = useState<AdminPaymentProof[] | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  // Fetch proof list when dialog mounts.
+  useEffect(() => {
+    fetch(`/api/admin/payments/${payment.id}/proofs`)
+      .then((r) => r.json())
+      .then((data: { proofs?: AdminPaymentProof[] }) => {
+        setProofs(data.proofs ?? []);
+      })
+      .catch(() => setLoadError(true));
+  }, [payment.id]);
+
+  const activeProof = proofs ? proofs[activeIndex] : null;
+  const proofUrl = activeProof
+    ? `/api/admin/payments/${payment.id}/proofs/${activeProof.id}?inline=1`
+    : null;
+  const downloadUrl = activeProof
+    ? `/api/admin/payments/${payment.id}/proofs/${activeProof.id}`
+    : null;
+
+  const isImage = activeProof?.mimeType.startsWith('image/') ?? false;
+  const isPdf = activeProof?.mimeType === 'application/pdf';
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="flex flex-col sm:max-w-3xl h-[90vh] p-0 gap-0">
+        <DialogHeader className="flex-row items-center gap-4 border-b border-border pl-6 pr-12 py-4 shrink-0">
+          <div className="flex-1 min-w-0">
+            <DialogTitle className="text-sm font-semibold truncate">
+              {t('proofDialog.title')}
+            </DialogTitle>
+            <p className="mt-0.5 text-xs text-muted-foreground truncate">
+              {payment.tenant?.email ?? `Tenant #${payment.tenant_id}`}
+              {' · '}
+              {currencyFormatter.format(Number(payment.amount))}
+            </p>
+          </div>
+          {proofs && proofs.length > 1 && (
+            <div className="flex shrink-0 items-center gap-1">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 w-7 p-0"
+                disabled={activeIndex === 0}
+                onClick={() => setActiveIndex((i) => i - 1)}
+              >
+                <ChevronLeft className="h-4 w-4" aria-hidden />
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                {activeIndex + 1} / {proofs.length}
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 w-7 p-0"
+                disabled={activeIndex === proofs.length - 1}
+                onClick={() => setActiveIndex((i) => i + 1)}
+              >
+                <ChevronRight className="h-4 w-4" aria-hidden />
+              </Button>
+            </div>
+          )}
+          {downloadUrl && (
+            <a
+              href={downloadUrl}
+              download={activeProof?.filename}
+              className="shrink-0"
+            >
+              <Button size="sm" variant="outline" className="h-7">
+                <Download className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                {t('proofDialog.download')}
+              </Button>
+            </a>
+          )}
+        </DialogHeader>
+
+        <div className="flex flex-1 flex-col items-center justify-center overflow-hidden bg-muted/30 p-4">
+          {loadError && (
+            <p className="text-sm text-destructive">{t('proofDialog.loadError')}</p>
+          )}
+          {proofs === null && !loadError && (
+            <p className="text-sm text-muted-foreground">{t('proofDialog.loading')}</p>
+          )}
+          {proofs !== null && proofs.length === 0 && (
+            <p className="text-sm text-muted-foreground">{t('proofDialog.noProofs')}</p>
+          )}
+          {proofUrl && isImage && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={proofUrl}
+              alt={activeProof?.filename}
+              className="max-h-full max-w-full rounded object-contain shadow-sm"
+            />
+          )}
+          {proofUrl && isPdf && (
+            <iframe
+              src={proofUrl}
+              title={activeProof?.filename}
+              className="h-full w-full rounded border-0"
+            />
+          )}
+          {proofUrl && !isImage && !isPdf && (
+            <div className="flex flex-col items-center gap-3 text-center">
+              <p className="text-sm text-muted-foreground">{t('proofDialog.unsupportedType')}</p>
+              <a href={downloadUrl!} download={activeProof?.filename}>
+                <Button variant="outline">
+                  <Download className="mr-1.5 h-4 w-4" aria-hidden />
+                  {t('proofDialog.download')}
+                </Button>
+              </a>
+            </div>
+          )}
+        </div>
+
+        {activeProof && (
+          <div className="shrink-0 border-t border-border px-6 py-2 text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
+            <span>{t('proofDialog.filename', { name: activeProof.filename })}</span>
+            {activeProof.referenceNumber && (
+              <span>{t('proofDialog.reference', { ref: activeProof.referenceNumber })}</span>
+            )}
+            {!activeProof.active && (
+              <Badge variant="outline" className="text-xs text-destructive border-destructive/30">
+                {t('proofDialog.deleted')}
+              </Badge>
+            )}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }

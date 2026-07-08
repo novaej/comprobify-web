@@ -1254,6 +1254,7 @@
       "title": "Admin panel",
       "tenants": "Tenants",
       "payments": "Payments",
+      "agreements": "Agreements",
       "signOut": "Sign out"
     },
     "tenants": {
@@ -1278,7 +1279,7 @@
       "description": "Review payment proofs reported by tenants.",
       "empty": "No payments awaiting review.",
       "reportedAt": "Reported on {date}",
-      "viewProof": "View proof",
+      "viewProofs": "View proofs",
       "verify": "Verify",
       "reject": "Reject",
       "verified": "Payment verified.",
@@ -1288,6 +1289,47 @@
         "placeholder": "Explain why the proof is being rejected...",
         "cancel": "Cancel",
         "confirm": "Reject payment"
+      },
+      "proofDialog": {
+        "title": "Payment proofs",
+        "loading": "Loading proofs...",
+        "loadError": "Could not load proofs.",
+        "noProofs": "No proofs attached.",
+        "download": "Download",
+        "unsupportedType": "This file type cannot be previewed.",
+        "filename": "File: {name}",
+        "reference": "SPI reference: {ref}",
+        "deleted": "Deleted by tenant"
+      }
+    },
+    "agreements": {
+      "title": "Legal agreements",
+      "description": "Manage published versions of legal documents (Terms, Privacy, DPA).",
+      "currentVersion": "v{version}",
+      "noVersionPublished": "No version published",
+      "newVersion": "New version",
+      "versionHistory": "{count, plural, one {# version} other {# versions}}",
+      "activated": "Version activated.",
+      "published": "Version published.",
+      "activate": "Activate",
+      "statusCurrent": "Active",
+      "statusInactive": "Inactive",
+      "columns": {
+        "version": "Version",
+        "publishedAt": "Published",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "publishDialog": {
+        "title": "New version — {type}",
+        "versionLabel": "Version identifier",
+        "versionPlaceholder": "e.g. 2025-07",
+        "contentLabel": "Markdown content",
+        "contentPlaceholder": "Paste or write the content in Markdown format...",
+        "loadingContent": "Loading current version...",
+        "cancel": "Cancel",
+        "publish": "Publish",
+        "publishing": "Publishing..."
       }
     }
   }

@@ -1254,6 +1254,7 @@
       "title": "Panel de administración",
       "tenants": "Tenants",
       "payments": "Pagos",
+      "agreements": "Contratos",
       "signOut": "Cerrar sesión"
     },
     "tenants": {
@@ -1278,7 +1279,7 @@
       "description": "Revisa los comprobantes de pago reportados por los tenants.",
       "empty": "No hay pagos pendientes de revisión.",
       "reportedAt": "Reportado el {date}",
-      "viewProof": "Ver comprobante",
+      "viewProofs": "Ver comprobantes",
       "verify": "Verificar",
       "reject": "Rechazar",
       "verified": "Pago verificado.",
@@ -1288,6 +1289,47 @@
         "placeholder": "Explica por qué se rechaza el comprobante...",
         "cancel": "Cancelar",
         "confirm": "Rechazar pago"
+      },
+      "proofDialog": {
+        "title": "Comprobantes de pago",
+        "loading": "Cargando comprobantes...",
+        "loadError": "No se pudieron cargar los comprobantes.",
+        "noProofs": "No hay comprobantes adjuntos.",
+        "download": "Descargar",
+        "unsupportedType": "Este tipo de archivo no se puede previsualizar.",
+        "filename": "Archivo: {name}",
+        "reference": "Referencia SPI: {ref}",
+        "deleted": "Eliminado por el tenant"
+      }
+    },
+    "agreements": {
+      "title": "Contratos legales",
+      "description": "Gestiona las versiones publicadas de los documentos legales (Términos, Privacidad, DPA).",
+      "currentVersion": "v{version}",
+      "noVersionPublished": "Sin versión publicada",
+      "newVersion": "Nueva versión",
+      "versionHistory": "{count, plural, one {# versión} other {# versiones}}",
+      "activated": "Versión activada.",
+      "published": "Versión publicada.",
+      "activate": "Activar",
+      "statusCurrent": "Activa",
+      "statusInactive": "Inactiva",
+      "columns": {
+        "version": "Versión",
+        "publishedAt": "Publicado",
+        "status": "Estado",
+        "actions": "Acciones"
+      },
+      "publishDialog": {
+        "title": "Nueva versión — {type}",
+        "versionLabel": "Identificador de versión",
+        "versionPlaceholder": "ej. 2025-07",
+        "contentLabel": "Contenido Markdown",
+        "contentPlaceholder": "Pega o escribe el contenido en formato Markdown...",
+        "loadingContent": "Cargando versión actual...",
+        "cancel": "Cancelar",
+        "publish": "Publicar",
+        "publishing": "Publicando..."
       }
     }
   }

@@ -40,6 +40,33 @@ export interface AdminPayment {
   tenant: { id: string; email: string } | null;
 }
 
+// Verified against: ../comprobify/src/services/subscription.service.js → formatPaymentProof()
+// id is BIGSERIAL → string per pg/JSON serialisation (Common Mistake #16).
+export interface AdminPaymentProof {
+  id: string;
+  filename: string;
+  mimeType: string;
+  referenceNumber: string;
+  active: boolean;
+  createdAt: string;
+}
+
+export type AgreementDocumentType = 'TERMS' | 'PRIVACY' | 'DPA';
+
+// Verified against: ../comprobify/src/controllers/admin.controller.js → listAgreementVersions()
+export interface AdminAgreementVersion {
+  id: number;
+  document_type: AgreementDocumentType;
+  version: string;
+  is_current: boolean;
+  created_at: string;
+}
+
+// Verified against: ../comprobify/src/controllers/admin.controller.js → getAgreementVersion()
+export interface AdminAgreementDetail extends AdminAgreementVersion {
+  contentMarkdown: string;
+}
+
 function getApiUrl(): string {
   const apiUrl = process.env.COMPROBIFY_API_URL;
   if (!apiUrl) throw new Error('COMPROBIFY_API_URL is not set');
@@ -69,6 +96,8 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   return res.json() as Promise<T>;
 }
+
+// ── Tenants ───────────────────────────────────────────────────────────────────
 
 // Verified against: ../comprobify/src/controllers/admin.controller.js → listTenants()
 export async function listTenants(): Promise<AdminTenant[]> {
@@ -105,6 +134,8 @@ export async function verifyTenant(id: number): Promise<AdminTenant> {
   return tenant;
 }
 
+// ── Payments ──────────────────────────────────────────────────────────────────
+
 // Verified against: ../comprobify/src/controllers/admin.controller.js → listPayments()
 export async function listPendingPayments(status: string = 'REPORTED'): Promise<AdminPayment[]> {
   const { payments } = await request<{ ok: true; payments: AdminPayment[] }>(
@@ -117,20 +148,30 @@ export async function listPendingPayments(status: string = 'REPORTED'): Promise<
 export async function reviewPayment(
   id: number,
   decision: 'VERIFIED' | 'REJECTED',
-  rejectionReason?: string,
+  rejectionReasonCode?: string,
 ): Promise<{ payment: AdminPayment; subscription: unknown }> {
   return request(`/admin/payments/${id}/review`, {
     method: 'PATCH',
-    body: JSON.stringify({ decision, rejectionReason }),
+    body: JSON.stringify({ decision, rejectionReasonCode }),
   });
 }
 
+// Verified against: ../comprobify/src/controllers/admin.controller.js → listPaymentProofs()
+// Returns all proofs (active and soft-deleted) for full audit visibility.
+export async function listAdminPaymentProofs(paymentId: number): Promise<AdminPaymentProof[]> {
+  const { proofs } = await request<{ ok: true; proofs: AdminPaymentProof[] }>(
+    `/admin/payments/${paymentId}/proofs`,
+  );
+  return proofs;
+}
+
 // Verified against: ../comprobify/src/controllers/admin.controller.js → getPaymentProof()
-// Streams the raw file — same pattern as the existing /api/documents/[key]/ride route.
-export async function getPaymentProof(
-  id: number,
+// Streams the raw file. Returns the raw Response so the proxy route can stream it.
+export async function getAdminPaymentProofFile(
+  paymentId: number,
+  proofId: number,
 ): Promise<{ buffer: ArrayBuffer; filename: string; mimeType: string }> {
-  const res = await fetch(`${getApiUrl()}/admin/payments/${id}/proof`, {
+  const res = await fetch(`${getApiUrl()}/admin/payments/${paymentId}/proofs/${proofId}`, {
     headers: { Authorization: `Bearer ${getAdminSecret()}` },
   });
 
@@ -141,8 +182,50 @@ export async function getPaymentProof(
 
   const disposition = res.headers.get('content-disposition') ?? '';
   const match = disposition.match(/filename="([^"]+)"/);
-  const filename = match ? match[1] : `proof-${id}`;
+  const filename = match ? match[1] : `proof-${paymentId}-${proofId}`;
   const mimeType = res.headers.get('content-type') ?? 'application/octet-stream';
 
   return { buffer: await res.arrayBuffer(), filename, mimeType };
+}
+
+// ── Agreements ────────────────────────────────────────────────────────────────
+
+// Verified against: ../comprobify/src/controllers/admin.controller.js → listAgreementVersions()
+export async function listAgreementVersions(type: AgreementDocumentType): Promise<AdminAgreementVersion[]> {
+  const { versions } = await request<{ ok: true; versions: AdminAgreementVersion[] }>(
+    `/admin/agreements/${type}/versions`,
+  );
+  return versions;
+}
+
+// Verified against: ../comprobify/src/controllers/admin.controller.js → getAgreementVersion()
+// Returns full content including contentMarkdown for the editor.
+export async function getAgreementVersion(id: number): Promise<AdminAgreementDetail> {
+  const { document } = await request<{ ok: true; document: AdminAgreementDetail }>(
+    `/admin/agreements/versions/${id}`,
+  );
+  return document;
+}
+
+// Verified against: ../comprobify/src/controllers/admin.controller.js → publishAgreement()
+// contentMarkdown is optional — if omitted the API reads from disk.
+export async function publishAgreement(
+  documentType: AgreementDocumentType,
+  version: string,
+  contentMarkdown: string,
+): Promise<AdminAgreementVersion> {
+  const { document } = await request<{ ok: true; document: AdminAgreementVersion }>(
+    '/admin/agreements',
+    { method: 'POST', body: JSON.stringify({ documentType, version, contentMarkdown }) },
+  );
+  return document;
+}
+
+// Verified against: ../comprobify/src/controllers/admin.controller.js → activateAgreement()
+export async function activateAgreement(id: number): Promise<AdminAgreementVersion> {
+  const { document } = await request<{ ok: true; document: AdminAgreementVersion }>(
+    `/admin/agreements/${id}/activate`,
+    { method: 'PATCH' },
+  );
+  return document;
 }
