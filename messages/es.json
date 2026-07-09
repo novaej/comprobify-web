@@ -1268,11 +1268,15 @@
         "email": "Correo",
         "tier": "Plan",
         "status": "Estado",
-        "usage": "Uso",
-        "actions": "Acciones"
+        "usage": "Uso"
       },
-      "usageValue": "{count} / {quota} documentos",
-      "verify": "Verificar",
+      "statuses": {
+        "PENDING_VERIFICATION": "Pendiente",
+        "ACTIVE": "Activo",
+        "SUSPENDED": "Suspendido"
+      },
+      "usageValue": "{count} / {quota} docs",
+      "verify": "Verificar tenant",
       "tierUpdated": "Plan actualizado.",
       "statusUpdated": "Estado actualizado.",
       "verified": "Tenant verificado."
