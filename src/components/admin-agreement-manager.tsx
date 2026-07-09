@@ -113,7 +113,13 @@ function TypeSection({
   }
 
   function handlePublished(newVersion: AdminAgreementVersion) {
-    setLocalVersions((prev) => [newVersion, ...prev.map((v) => ({ ...v, is_current: false }))]);
+    // Fallback for created_at in case the API response omits it on the publish endpoint.
+    const withDate: AdminAgreementVersion = {
+      ...newVersion,
+      created_at: newVersion.created_at ?? new Date().toISOString(),
+      is_current: true,
+    };
+    setLocalVersions((prev) => [withDate, ...prev.map((v) => ({ ...v, is_current: false }))]);
     // Draft was deleted server-side by the publish flow; clear local state too.
     setDraft(null);
     setEditorMode(null);
