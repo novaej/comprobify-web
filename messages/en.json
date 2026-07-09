@@ -1293,9 +1293,18 @@
       "rejected": "Payment rejected.",
       "rejectDialog": {
         "title": "Reject payment",
-        "placeholder": "Explain why the proof is being rejected...",
+        "reasonLabel": "Rejection reason",
+        "reasonPlaceholder": "Select a reason...",
         "cancel": "Cancel",
-        "confirm": "Reject payment"
+        "confirm": "Reject payment",
+        "reasons": {
+          "AMOUNT_MISMATCH": "Amount does not match the proof",
+          "TRANSFER_NOT_FOUND": "Transfer not found at the bank",
+          "WRONG_ACCOUNT": "Wrong destination account",
+          "ILLEGIBLE_PROOF": "Proof is illegible or low quality",
+          "DUPLICATE_SUBMISSION": "Proof was already submitted previously",
+          "OTHER": "Other reason"
+        }
       },
       "proofDialog": {
         "title": "Payment proofs",

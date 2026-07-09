@@ -1293,9 +1293,18 @@
       "rejected": "Pago rechazado.",
       "rejectDialog": {
         "title": "Rechazar pago",
-        "placeholder": "Explica por qué se rechaza el comprobante...",
+        "reasonLabel": "Motivo del rechazo",
+        "reasonPlaceholder": "Selecciona un motivo...",
         "cancel": "Cancelar",
-        "confirm": "Rechazar pago"
+        "confirm": "Rechazar pago",
+        "reasons": {
+          "AMOUNT_MISMATCH": "El monto no coincide con el comprobante",
+          "TRANSFER_NOT_FOUND": "Transferencia no encontrada en el banco",
+          "WRONG_ACCOUNT": "Cuenta de destino incorrecta",
+          "ILLEGIBLE_PROOF": "Comprobante ilegible o de baja calidad",
+          "DUPLICATE_SUBMISSION": "Comprobante ya fue enviado anteriormente",
+          "OTHER": "Otro motivo"
+        }
       },
       "proofDialog": {
         "title": "Comprobantes de pago",

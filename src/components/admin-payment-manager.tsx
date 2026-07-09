@@ -6,7 +6,8 @@ import { toast } from 'sonner';
 import { toastApiError } from '@/lib/api-error-toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -28,7 +29,7 @@ export function AdminPaymentManager({ payments: initialPayments }: { payments: A
   const [isPending, startTransition] = useTransition();
   const [pendingId, setPendingId] = useState<number | null>(null);
   const [rejectTarget, setRejectTarget] = useState<AdminPayment | null>(null);
-  const [rejectionReason, setRejectionReason] = useState('');
+  const [rejectionReasonCode, setRejectionReasonCode] = useState('');
   const [proofTarget, setProofTarget] = useState<AdminPayment | null>(null);
 
   function removeFromQueue(id: string) {
@@ -51,18 +52,18 @@ export function AdminPaymentManager({ payments: initialPayments }: { payments: A
   }
 
   function handleReject() {
-    if (!rejectTarget || !rejectionReason.trim()) return;
+    if (!rejectTarget || !rejectionReasonCode) return;
     const id = Number(rejectTarget.id);
     setPendingId(id);
     startTransition(async () => {
-      const result = await reviewPaymentAction(id, 'REJECTED', rejectionReason.trim());
+      const result = await reviewPaymentAction(id, 'REJECTED', rejectionReasonCode);
       if ('error' in result) {
         toastApiError(result.error, tError);
       } else {
         toast.success(t('rejected'));
         removeFromQueue(rejectTarget.id);
         setRejectTarget(null);
-        setRejectionReason('');
+        setRejectionReasonCode('');
       }
       setPendingId(null);
     });
@@ -118,7 +119,7 @@ export function AdminPaymentManager({ payments: initialPayments }: { payments: A
                     disabled={rowPending}
                     onClick={() => {
                       setRejectTarget(payment);
-                      setRejectionReason('');
+                      setRejectionReasonCode('');
                     }}
                   >
                     {t('reject')}
@@ -135,12 +136,23 @@ export function AdminPaymentManager({ payments: initialPayments }: { payments: A
           <DialogHeader>
             <DialogTitle>{t('rejectDialog.title')}</DialogTitle>
           </DialogHeader>
-          <Textarea
-            value={rejectionReason}
-            onChange={(e) => setRejectionReason(e.target.value)}
-            placeholder={t('rejectDialog.placeholder')}
-            rows={3}
-          />
+          <div className="space-y-2">
+            <Label>{t('rejectDialog.reasonLabel')}</Label>
+            <Select value={rejectionReasonCode} onValueChange={(v) => v && setRejectionReasonCode(v)}>
+              <SelectTrigger>
+                <SelectValue placeholder={t('rejectDialog.reasonPlaceholder')}>
+                  {(v: string) => v ? t(`rejectDialog.reasons.${v as 'AMOUNT_MISMATCH' | 'TRANSFER_NOT_FOUND' | 'WRONG_ACCOUNT' | 'ILLEGIBLE_PROOF' | 'DUPLICATE_SUBMISSION' | 'OTHER'}`) : t('rejectDialog.reasonPlaceholder')}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {(['AMOUNT_MISMATCH', 'TRANSFER_NOT_FOUND', 'WRONG_ACCOUNT', 'ILLEGIBLE_PROOF', 'DUPLICATE_SUBMISSION', 'OTHER'] as const).map((code) => (
+                  <SelectItem key={code} value={code}>
+                    {t(`rejectDialog.reasons.${code}`)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRejectTarget(null)} disabled={isPending}>
               {t('rejectDialog.cancel')}
@@ -148,7 +160,7 @@ export function AdminPaymentManager({ payments: initialPayments }: { payments: A
             <Button
               variant="destructive"
               onClick={handleReject}
-              disabled={isPending || !rejectionReason.trim()}
+              disabled={isPending || !rejectionReasonCode}
             >
               {t('rejectDialog.confirm')}
             </Button>
