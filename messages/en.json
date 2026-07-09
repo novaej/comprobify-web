@@ -1282,10 +1282,17 @@
       "verified": "Tenant verified."
     },
     "payments": {
-      "title": "Pending payments",
+      "title": "Payments",
       "description": "Review payment proofs reported by tenants.",
-      "empty": "No payments awaiting review.",
+      "empty": "No payments in this category.",
+      "statuses": {
+        "REPORTED": "Pending",
+        "VERIFIED": "Verified",
+        "REJECTED": "Rejected"
+      },
       "reportedAt": "Reported on {date}",
+      "verifiedAt": "Verified on {date}",
+      "rejectedAt": "Rejected on {date}",
       "viewProofs": "View proofs",
       "verify": "Verify",
       "reject": "Reject",

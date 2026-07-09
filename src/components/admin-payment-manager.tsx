@@ -25,9 +25,11 @@ const dateFormatter = new Intl.DateTimeFormat('es-EC', { dateStyle: 'long', time
 export function AdminPaymentManager({
   payments: initialPayments,
   tenantNames,
+  reviewable,
 }: {
   payments: AdminPayment[];
-  tenantNames: Map<string, string>;
+  tenantNames: Record<string, string>;
+  reviewable: boolean;
 }) {
   const t = useTranslations('admin.payments');
   const tError = useTranslations('apiError');
@@ -89,9 +91,9 @@ export function AdminPaymentManager({
             <div key={payment.id} className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
-                  {tenantNames.get(payment.tenant_id) && (
+                  {tenantNames[payment.tenant_id] && (
                     <p className="truncate text-xs font-medium text-muted-foreground">
-                      {tenantNames.get(payment.tenant_id)}
+                      {tenantNames[payment.tenant_id]}
                     </p>
                   )}
                   <p className="truncate text-sm font-medium">{payment.tenant?.email ?? `Tenant #${payment.tenant_id}`}</p>
@@ -107,9 +109,16 @@ export function AdminPaymentManager({
                       {t('reportedAt', { date: dateFormatter.format(new Date(payment.reported_at)) })}
                     </p>
                   )}
-                  <Badge variant="outline" className="mt-2">
-                    {payment.status}
-                  </Badge>
+                  {payment.verified_at && (
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {t('verifiedAt', { date: dateFormatter.format(new Date(payment.verified_at)) })}
+                    </p>
+                  )}
+                  {payment.rejection_reason && (
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {t(`rejectDialog.reasons.${payment.rejection_reason as 'AMOUNT_MISMATCH' | 'TRANSFER_NOT_FOUND' | 'WRONG_ACCOUNT' | 'ILLEGIBLE_PROOF' | 'DUPLICATE_SUBMISSION' | 'OTHER'}`)}
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
@@ -121,20 +130,24 @@ export function AdminPaymentManager({
                     <Eye className="mr-1.5 h-3.5 w-3.5" aria-hidden />
                     {t('viewProofs')}
                   </Button>
-                  <Button size="sm" disabled={rowPending} onClick={() => handleVerify(payment)}>
-                    {t('verify')}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={rowPending}
-                    onClick={() => {
-                      setRejectTarget(payment);
-                      setRejectionReasonCode('');
-                    }}
-                  >
-                    {t('reject')}
-                  </Button>
+                  {reviewable && (
+                    <>
+                      <Button size="sm" disabled={rowPending} onClick={() => handleVerify(payment)}>
+                        {t('verify')}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={rowPending}
+                        onClick={() => {
+                          setRejectTarget(payment);
+                          setRejectionReasonCode('');
+                        }}
+                      >
+                        {t('reject')}
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

@@ -1282,10 +1282,17 @@
       "verified": "Tenant verificado."
     },
     "payments": {
-      "title": "Pagos pendientes",
+      "title": "Pagos",
       "description": "Revisa los comprobantes de pago reportados por los tenants.",
-      "empty": "No hay pagos pendientes de revisión.",
+      "empty": "No hay pagos en esta categoría.",
+      "statuses": {
+        "REPORTED": "Pendientes",
+        "VERIFIED": "Verificados",
+        "REJECTED": "Rechazados"
+      },
       "reportedAt": "Reportado el {date}",
+      "verifiedAt": "Verificado el {date}",
+      "rejectedAt": "Rechazado el {date}",
       "viewProofs": "Ver comprobantes",
       "verify": "Verificar",
       "reject": "Rechazar",
