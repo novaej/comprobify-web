@@ -43,6 +43,7 @@ export function AdminPaymentManager({
   const [proofTarget, setProofTarget] = useState<AdminPayment | null>(null);
   const [linkTarget, setLinkTarget] = useState<AdminPayment | null>(null);
   const [linkAccessKey, setLinkAccessKey] = useState('');
+  const [previewAccessKey, setPreviewAccessKey] = useState<string | null>(null);
 
   function removeFromQueue(id: string) {
     setPayments((prev) => prev.filter((p) => p.id !== id));
@@ -183,14 +184,16 @@ export function AdminPaymentManager({
                       </Button>
                     </>
                   )}
-                  {/* Production: show the linked invoice as a link */}
+                  {/* Production: preview the linked invoice PDF in a modal */}
                   {payment.invoice_access_key && (
-                    <a href={`/invoices/${payment.invoice_access_key}`} target="_blank" rel="noreferrer">
-                      <Button size="sm" variant="outline">
-                        <ExternalLink className="mr-1.5 h-3.5 w-3.5" aria-hidden />
-                        {t('viewInvoice')}
-                      </Button>
-                    </a>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setPreviewAccessKey(payment.invoice_access_key)}
+                    >
+                      <ExternalLink className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                      {t('viewInvoice')}
+                    </Button>
                   )}
                   {/* Show Link Invoice when VERIFIED and not yet applied (no access key for prod, no period_start for sandbox) */}
                   {!reviewable && payment.status === 'VERIFIED' && !payment.invoice_access_key && !payment.period_start && (
@@ -278,6 +281,37 @@ export function AdminPaymentManager({
               {t('linkInvoiceDialog.confirm')}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!previewAccessKey} onOpenChange={(open) => !open && setPreviewAccessKey(null)}>
+        <DialogContent className="flex flex-col sm:max-w-3xl h-[90vh] p-0 gap-0">
+          <DialogHeader className="flex-row items-center justify-between border-b border-border pl-6 pr-12 py-4 shrink-0">
+            <DialogTitle className="text-sm font-semibold font-mono truncate">
+              {previewAccessKey}
+            </DialogTitle>
+            {previewAccessKey && (
+              <a
+                href={`/api/admin/documents/${previewAccessKey}/ride`}
+                download={`RIDE-${previewAccessKey}.pdf`}
+                className="shrink-0"
+              >
+                <Button size="sm" variant="outline" className="h-7">
+                  <Download className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                  {t('proofDialog.download')}
+                </Button>
+              </a>
+            )}
+          </DialogHeader>
+          <div className="flex flex-1 overflow-hidden">
+            {previewAccessKey && (
+              <iframe
+                src={`/api/admin/documents/${previewAccessKey}/ride`}
+                title={`RIDE-${previewAccessKey}`}
+                className="h-full w-full border-0"
+              />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 
