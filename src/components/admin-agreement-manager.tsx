@@ -414,7 +414,7 @@ function EditorDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="flex flex-col max-w-[92vw] w-[92vw] h-[90vh] p-0 gap-0">
+      <DialogContent className="flex flex-col sm:max-w-[95vw] sm:w-[95vw] h-[90vh] p-0 gap-0">
         <DialogHeader className="flex-row items-center justify-between border-b border-border px-6 py-4 shrink-0">
           <DialogTitle className="text-base">
             {t('editorDialog.title', { type: TYPE_LABELS[documentType] })}
