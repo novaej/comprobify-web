@@ -6,6 +6,7 @@ import {
   updateTenantStatus,
   verifyTenant,
   reviewPayment,
+  linkInvoice,
   publishAgreement,
   activateAgreement,
   type AdminTenant,
@@ -68,6 +69,21 @@ export async function reviewPaymentAction(
     const { payment } = await reviewPayment(id, decision, rejectionReasonCode);
     revalidatePath('/admin/payments');
     return { payment };
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.code };
+    throw err;
+  }
+}
+
+export async function linkInvoiceAction(
+  subscriptionId: number,
+  accessKey: string,
+): Promise<{ error: string } | { ok: true }> {
+  await requireSuperAdmin();
+  try {
+    await linkInvoice(subscriptionId, accessKey);
+    revalidatePath('/admin/payments');
+    return { ok: true };
   } catch (err) {
     if (err instanceof ApiError) return { error: err.code };
     throw err;

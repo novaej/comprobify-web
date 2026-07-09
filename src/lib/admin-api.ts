@@ -34,6 +34,8 @@ export interface AdminPayment {
   proof_filename: string | null;
   proof_mime_type: string | null;
   rejection_reason: string | null;
+  invoice_access_key: string | null;
+  period_start: string | null;
   tenant_id: string;
   tier: string;
   billing_interval: string;
@@ -186,6 +188,15 @@ export async function reviewPayment(
   return request(`/v1/admin/payments/${id}/review`, {
     method: 'PATCH',
     body: JSON.stringify({ decision, rejectionReasonCode }),
+  });
+}
+
+// Verified against: ../comprobify/src/controllers/admin.controller.js → linkInvoice()
+// Route: PATCH /v1/admin/subscriptions/:id/link-invoice
+export async function linkInvoice(subscriptionId: number, accessKey: string): Promise<{ ok: true }> {
+  return request(`/v1/admin/subscriptions/${subscriptionId}/link-invoice`, {
+    method: 'PATCH',
+    body: JSON.stringify({ accessKey }),
   });
 }
 

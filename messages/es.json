@@ -1298,6 +1298,18 @@
       "reject": "Rechazar",
       "verified": "Pago verificado.",
       "rejected": "Pago rechazado.",
+      "invoiceLinked": "Factura vinculada correctamente.",
+      "invoiceAccessKey": "Factura: {key}",
+      "viewInvoice": "Ver factura",
+      "linkInvoice": "Vincular factura",
+      "linkInvoiceDialog": {
+        "title": "Vincular factura al pago",
+        "description": "Ingresa la clave de acceso de la factura de autoconsumo emitida para este pago. Si la factura está autorizada, la suscripción se activará automáticamente.",
+        "label": "Clave de acceso",
+        "placeholder": "Clave de acceso de 49 dígitos",
+        "cancel": "Cancelar",
+        "confirm": "Vincular"
+      },
       "rejectDialog": {
         "title": "Rechazar pago",
         "reasonLabel": "Motivo del rechazo",

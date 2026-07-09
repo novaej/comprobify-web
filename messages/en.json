@@ -1298,6 +1298,18 @@
       "reject": "Reject",
       "verified": "Payment verified.",
       "rejected": "Payment rejected.",
+      "invoiceLinked": "Invoice linked successfully.",
+      "invoiceAccessKey": "Invoice: {key}",
+      "viewInvoice": "View invoice",
+      "linkInvoice": "Link invoice",
+      "linkInvoiceDialog": {
+        "title": "Link invoice to payment",
+        "description": "Enter the access key of the self-billed invoice issued for this payment. If the invoice is already authorized, the subscription will activate automatically.",
+        "label": "Access key",
+        "placeholder": "49-digit access key",
+        "cancel": "Cancel",
+        "confirm": "Link"
+      },
       "rejectDialog": {
         "title": "Reject payment",
         "reasonLabel": "Rejection reason",
