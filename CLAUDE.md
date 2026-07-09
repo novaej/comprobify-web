@@ -81,12 +81,22 @@ src/
       login/page.tsx        Public — Auth.js credentials login form
       register/page.tsx     Public — account registration (no tenant)
       verify-email/page.tsx Public — email token verification (session-independent)
+      admin/
+        layout.tsx          Super admin layout — sidebar identical to main Nav; gated by requireSuperAdmin()
+        error.tsx           Admin-scoped error boundary — "Volver al panel de administración"
+        tenants/page.tsx    Tenant list — tier/status/verification controls
+        payments/page.tsx   Payment proof review — verify or reject with inline proof viewer
+        agreements/page.tsx Agreement editor — publish new TERMS/PRIVACY/DPA versions (markdown)
     api/
-      documents/[key]/status/route.ts  Proxy for TanStack Query polling
-      webhooks/receive/route.ts        Webhook receiver — HMAC-verified, upserts Notification rows
+      documents/[key]/status/route.ts                Proxy for TanStack Query polling
+      webhooks/receive/route.ts                       Webhook receiver — HMAC-verified, upserts Notification rows
+      admin/payments/[id]/proofs/route.ts             Lists proofs for a payment (admin; proxies to /v1/admin/payments/:id/proofs)
+      admin/payments/[id]/proofs/[proofId]/route.ts  Streams proof file; ?inline=1 for in-browser render, omit for download
+      admin/agreements/versions/[id]/route.ts         Fetches agreement version content for the editor pre-fill
   components/
     ui/                     shadcn generated — do not edit manually
     nav.tsx                 Client Component sidebar (TenantBadge, IssuerSwitcher, UserMenu, NotificationBell)
+    admin-nav.tsx           Client Component sidebar for the admin panel — same structure/CSS as nav.tsx; has ThemeToggle in footer
     notification-bell.tsx   Bell icon with unread badge; refreshes on open + every 60 s
     notification-panel.tsx  Dropdown list with mark-read per item
     notification-sync.tsx   Invisible client component — fires catchUpNotificationsAction on mount
@@ -102,6 +112,8 @@ src/
     billing-manager.tsx     Client Component — current plan, subscribe/change-tier cards, pending-payment proof upload, subscription history on /settings/billing
   lib/
     api.ts                  Typed Comprobify API client (server-only); functions take ApiCtx
+    admin-api.ts            Typed admin API client (server-only); calls /v1/admin/* with COMPROBIFY_ADMIN_SECRET; no ApiCtx
+    admin-context.ts        requireSuperAdmin() — verifies session + isSuperAdmin flag; returns { user: { id, email } }
     context.ts              requireContext() / requirePermission() / hasContextPermission()
     context-cookie.ts       Signed httpOnly cookie helpers (read/write/clear comprobify_ctx)
     crypto.ts               AES-256-GCM encrypt/decrypt for TenantApiKey at rest
@@ -219,6 +231,8 @@ A tenant can also start paying **before** promoting at all — `POST /v1/subscri
 
 **Marketing site / domain routing:** The `(marketing)` route group under `src/app/[locale]/` holds all public-facing pages (landing `/` and pricing `/pricing`). These render a standalone header+footer layout with no Nav or auth. `src/proxy.ts` enforces domain separation: `MARKETING_HOSTS` (`comprobify.com`, `staging.comprobify.com`) only serve marketing routes and issue 301 redirects to `DOMAIN_PAIR[host]` for anything else; `APP_HOSTS` (`app.comprobify.com`, `app-staging.comprobify.com`) redirect marketing routes to the marketing host. Localhost and unknown hosts bypass hostname routing so local dev works without configuration. `pricing` is added to `PUBLIC_ROUTES` so unauthenticated users can reach it.
 
+**Super admin panel:** `/admin` is an internal operator area gated by `User.isSuperAdmin = true`. `requireSuperAdmin()` (`src/lib/admin-context.ts`) checks the session and that flag — any non-super-admin (including normal tenants) is redirected to `/dashboard`. Super admins have no `tenantId`, so `requireContext()` detects `isSuperAdmin` and redirects them to `/admin` rather than `/onboarding/tenant` (the normal no-tenant path). `src/lib/admin-api.ts` is the only call site for `/v1/admin/*` routes; it uses a static `COMPROBIFY_ADMIN_SECRET` Bearer token, never a tenant API key — there is no `ApiCtx` here. All API paths start with `/v1/admin/` (the Comprobify API mounts the admin router at `/v1` → `/admin`). The admin layout uses `AdminNav` (`src/components/admin-nav.tsx`), a sidebar component with the same structure, CSS classes, and mobile hamburger as the main `Nav`. The locale layout's unauthenticated/no-tenant branch renders `<>{children}</>` with no wrapper element — a wrapping `<main>` would break `h-full` height propagation to the admin sidebar (see Common Mistake #36). The admin error boundary (`src/app/[locale]/admin/error.tsx`) links back to `/admin/tenants`, not `/dashboard`, since super admins have no tenant to return to. A seed script (`prisma/seed.js`) creates `support@comprobify.com` as the super admin user — run with `npm run db:seed` after setting `ADMIN_SEED_PASSWORD` in `.env`.
+
 **Notification system:** Notifications arrive via webhook (`POST /api/webhooks/receive`), are upserted into the local `notifications` table, and surfaced in the sidebar bell. `<NotificationSync />` fires a catch-up on every authenticated page load. The bell auto-refreshes every 60 seconds. `notification.issuerId` stores the **API-side** issuer ID (BIGSERIAL → integer) — always compare against `Issuer.apiIssuerId`, never `Issuer.id`. Fan-out: Owner/Admin receive all notifications; other roles only receive issuer-scoped ones if they have a matching `UserIssuerAccess` row; tenant-level notifications (`issuerId = null`) go to all active users.
 
 **Webhook receiver HMAC:** The receiver route (`src/app/api/webhooks/receive/route.ts`) must call `request.text()` **before** any `JSON.parse()` to preserve the raw body for signature verification. Calling `request.json()` first consumes the stream and makes the raw body unavailable for HMAC comparison.
@@ -293,6 +307,10 @@ This project runs Next.js **16** (not 13-15). Key differences from older version
 
 35. **Using `<Link>` (from `@/i18n/navigation` or `next/link`) for cross-domain navigation between the marketing host and the app host** — Next.js intercepts `<Link>` clicks and issues an RSC prefetch to the href's origin before navigation. When that origin is a different domain (e.g. a link on `staging.comprobify.com` pointing to `app-staging.comprobify.com`), the browser blocks the cross-origin fetch and the link either silently fails or throws a CORS error in the console. This caused every CTA, login, and register link on the marketing site to break when first deployed to the two-domain staging setup. **Always use a plain `<a href="/{locale}/target">` for any link that crosses the marketing ↔ app domain boundary** — the browser then does a full-page navigation that follows the proxy's 301 redirect normally. Links that stay on the same domain (e.g. `/` → `/pricing` on the marketing host, or `/dashboard` → `/invoices` on the app host) are unaffected and can keep using `<Link>`.
 
+36. **Admin API paths omitting the `/v1/` prefix** — `src/lib/admin-api.ts` calls `/v1/admin/tenants`, `/v1/admin/payments`, etc. because `server.js` mounts all routes (including admin) under `/v1` in `routes/index.js`. Paths like `/admin/tenants` return Express's default HTML 404 because no route is registered there. Always check `server.js` → `routes/index.js` for the mount prefix before writing any path in `admin-api.ts`. A non-JSON 404 response now also throws `ADMIN_API_UNREACHABLE` (via the `Content-Type` guard in `request()`) instead of crashing on `JSON.parse()` of the HTML body.
+
+37. **Wrapping the locale layout's unauthenticated/no-tenant branch in a `<main>` element** — the locale layout falls into its `else` branch for users with no tenant (login page, register page, super admin). A `<main className="flex-1">` there looks harmless, but `flex-1` only works inside a flex container and the body is not one, so the `<main>` collapses to auto-height. Any nested layout that relies on `h-full` (e.g. the admin sidebar's `<div className="flex h-full md:flex-row">`) then resolves `h-full` against that collapsed height — the sidebar only grows as tall as its content instead of filling the viewport. The fix is `<>{children}</>` (no wrapper), so the admin layout's `h-full` div sits directly under `<body>` the same way the regular authenticated layout's div does.
+
 ---
 
 ## Key Files
@@ -306,6 +324,8 @@ This project runs Next.js **16** (not 13-15). Key differences from older version
 | `docs/adr/` | Architecture Decision Records |
 | `docs/deployment.md` | Branching strategy, Vercel setup, env vars, production checklist, release/versioning workflow (`npm version` on a branch + PR, then tag the merge commit — never tag `main` directly, since every commit there is a squash-merged PR) |
 | `src/lib/api.ts` | Typed Comprobify API client — all API calls go through here; functions take `ApiCtx` |
+| `src/lib/admin-api.ts` | Admin API client (server-only) — all `/v1/admin/*` calls; uses `COMPROBIFY_ADMIN_SECRET` Bearer token; no `ApiCtx` |
+| `src/lib/admin-context.ts` | `requireSuperAdmin()` — verifies session + `isSuperAdmin` flag; redirects non-admins to `/dashboard` |
 | `src/lib/context.ts` | `requireContext()`, `requirePermission()`, `hasContextPermission()` |
 | `src/lib/context-cookie.ts` | Signed `comprobify_ctx` cookie helpers |
 | `src/lib/crypto.ts` | AES-256-GCM `encrypt`/`decrypt`/`lastFour` for API keys at rest |
@@ -329,8 +349,18 @@ This project runs Next.js **16** (not 13-15). Key differences from older version
 | `src/app/[locale]/(marketing)/page.tsx` | Landing page — hero, feature cards; auto-redirects authenticated users to dashboard |
 | `src/app/[locale]/(marketing)/pricing/page.tsx` | Pricing page — Server Component fetching `listTiers()`; renders `pricing-plans.tsx` with the real FREE/STARTER/GROWTH/BUSINESS catalog |
 | `src/components/pricing-plans.tsx` | Client Component — monthly/yearly toggle, per-tier feature bullets built from `ApiTierInfo`; CTA links to `/register?tier=X&interval=Y` for paid tiers |
-| `src/app/[locale]/layout.tsx` | Locale layout with providers + nav |
+| `src/app/[locale]/layout.tsx` | Locale layout with providers + nav; unauthenticated/no-tenant branch renders `<>{children}</>` (no wrapper) so the admin sidebar's `h-full` reaches `<body>` |
 | `src/app/[locale]/verify-email/page.tsx` | Public email verification page — reads token from query string, updates Prisma by email (no session required) |
+| `src/app/[locale]/admin/layout.tsx` | Super admin layout — `flex h-full md:flex-row` + `AdminNav`; gated by `requireSuperAdmin()` |
+| `src/app/[locale]/admin/error.tsx` | Admin-scoped error boundary — "Volver al panel de administración" → `/admin/tenants` (not `/dashboard`) |
+| `src/app/[locale]/admin/tenants/page.tsx` | Tenant list — tier/status/verification controls; calls `listTenants()` from `admin-api.ts` |
+| `src/app/[locale]/admin/payments/page.tsx` | Payment proof review — verify/reject with inline proof viewer; calls `listPendingPayments()` |
+| `src/app/[locale]/admin/agreements/page.tsx` | Agreement editor — TERMS/PRIVACY/DPA with markdown editor and version history |
+| `src/app/actions/admin.ts` | `reviewPaymentAction`, `updateTenantTierAction`, `updateTenantStatusAction`, `verifyTenantAction`, `publishAgreementAction`, `activateAgreementAction` |
+| `src/components/admin-nav.tsx` | Super admin sidebar — same structure as `nav.tsx`; has `ThemeToggle` in footer; amber "Admin" badge in header |
+| `src/components/admin-payment-manager.tsx` | Client Component — payment list + `ProofViewerDialog` (fetches proofs, renders `<img>`/`<iframe>`, paginated) |
+| `src/components/admin-agreement-manager.tsx` | Client Component — three-panel (TERMS/PRIVACY/DPA) with `PublishDialog` (fetches current markdown, monospace textarea, version input) |
+| `prisma/seed.js` | Seeds `support@comprobify.com` as super admin; requires `ADMIN_SEED_PASSWORD` env var; run with `npm run db:seed` |
 | `src/app/actions/auth.ts` | `loginAction` (post-login routing), `registerAction`, `logoutAction` (clears cookie + signOut) |
 | `src/app/actions/onboarding.ts` | `bootstrapTenantAction` (create new tenant) and `linkExistingTenantAction` (link an existing API account) — both create Tenant + TenantApiKey + Issuer + set cookie in one transaction |
 | `src/components/onboarding-tabs.tsx` | Client Component — switches between `IssuerSetupForm` and `LinkExistingAccountForm` on `/onboarding/tenant` |

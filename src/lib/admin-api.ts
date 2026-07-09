@@ -114,13 +114,13 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 // Verified against: ../comprobify/src/controllers/admin.controller.js → listTenants()
 export async function listTenants(): Promise<AdminTenant[]> {
-  const { tenants } = await request<{ ok: true; tenants: AdminTenant[] }>('/admin/tenants');
+  const { tenants } = await request<{ ok: true; tenants: AdminTenant[] }>('/v1/admin/tenants');
   return tenants;
 }
 
 // Verified against: ../comprobify/src/controllers/admin.controller.js → updateTenantTier()
 export async function updateTenantTier(id: number, tier: string): Promise<AdminTenant> {
-  const { tenant } = await request<{ ok: true; tenant: AdminTenant }>(`/admin/tenants/${id}/tier`, {
+  const { tenant } = await request<{ ok: true; tenant: AdminTenant }>(`/v1/admin/tenants/${id}/tier`, {
     method: 'PATCH',
     body: JSON.stringify({ subscriptionTier: tier }),
   });
@@ -132,7 +132,7 @@ export async function updateTenantStatus(
   id: number,
   status: 'PENDING_VERIFICATION' | 'ACTIVE' | 'SUSPENDED',
 ): Promise<AdminTenant> {
-  const { tenant } = await request<{ ok: true; tenant: AdminTenant }>(`/admin/tenants/${id}/status`, {
+  const { tenant } = await request<{ ok: true; tenant: AdminTenant }>(`/v1/admin/tenants/${id}/status`, {
     method: 'PATCH',
     body: JSON.stringify({ status }),
   });
@@ -141,7 +141,7 @@ export async function updateTenantStatus(
 
 // Verified against: ../comprobify/src/controllers/admin.controller.js → verifyTenant()
 export async function verifyTenant(id: number): Promise<AdminTenant> {
-  const { tenant } = await request<{ ok: true; tenant: AdminTenant }>(`/admin/tenants/${id}/verify`, {
+  const { tenant } = await request<{ ok: true; tenant: AdminTenant }>(`/v1/admin/tenants/${id}/verify`, {
     method: 'POST',
   });
   return tenant;
@@ -152,7 +152,7 @@ export async function verifyTenant(id: number): Promise<AdminTenant> {
 // Verified against: ../comprobify/src/controllers/admin.controller.js → listPayments()
 export async function listPendingPayments(status: string = 'REPORTED'): Promise<AdminPayment[]> {
   const { payments } = await request<{ ok: true; payments: AdminPayment[] }>(
-    `/admin/payments?status=${encodeURIComponent(status)}`,
+    `/v1/admin/payments?status=${encodeURIComponent(status)}`,
   );
   return payments;
 }
@@ -163,7 +163,7 @@ export async function reviewPayment(
   decision: 'VERIFIED' | 'REJECTED',
   rejectionReasonCode?: string,
 ): Promise<{ payment: AdminPayment; subscription: unknown }> {
-  return request(`/admin/payments/${id}/review`, {
+  return request(`/v1/admin/payments/${id}/review`, {
     method: 'PATCH',
     body: JSON.stringify({ decision, rejectionReasonCode }),
   });
@@ -173,7 +173,7 @@ export async function reviewPayment(
 // Returns all proofs (active and soft-deleted) for full audit visibility.
 export async function listAdminPaymentProofs(paymentId: number): Promise<AdminPaymentProof[]> {
   const { proofs } = await request<{ ok: true; proofs: AdminPaymentProof[] }>(
-    `/admin/payments/${paymentId}/proofs`,
+    `/v1/admin/payments/${paymentId}/proofs`,
   );
   return proofs;
 }
@@ -184,7 +184,7 @@ export async function getAdminPaymentProofFile(
   paymentId: number,
   proofId: number,
 ): Promise<{ buffer: ArrayBuffer; filename: string; mimeType: string }> {
-  const res = await fetch(`${getApiUrl()}/admin/payments/${paymentId}/proofs/${proofId}`, {
+  const res = await fetch(`${getApiUrl()}/v1/admin/payments/${paymentId}/proofs/${proofId}`, {
     headers: { Authorization: `Bearer ${getAdminSecret()}` },
   });
 
@@ -206,7 +206,7 @@ export async function getAdminPaymentProofFile(
 // Verified against: ../comprobify/src/controllers/admin.controller.js → listAgreementVersions()
 export async function listAgreementVersions(type: AgreementDocumentType): Promise<AdminAgreementVersion[]> {
   const { versions } = await request<{ ok: true; versions: AdminAgreementVersion[] }>(
-    `/admin/agreements/${type}/versions`,
+    `/v1/admin/agreements/${type}/versions`,
   );
   return versions;
 }
@@ -215,7 +215,7 @@ export async function listAgreementVersions(type: AgreementDocumentType): Promis
 // Returns full content including contentMarkdown for the editor.
 export async function getAgreementVersion(id: number): Promise<AdminAgreementDetail> {
   const { document } = await request<{ ok: true; document: AdminAgreementDetail }>(
-    `/admin/agreements/versions/${id}`,
+    `/v1/admin/agreements/versions/${id}`,
   );
   return document;
 }
@@ -228,7 +228,7 @@ export async function publishAgreement(
   contentMarkdown: string,
 ): Promise<AdminAgreementVersion> {
   const { document } = await request<{ ok: true; document: AdminAgreementVersion }>(
-    '/admin/agreements',
+    '/v1/admin/agreements',
     { method: 'POST', body: JSON.stringify({ documentType, version, contentMarkdown }) },
   );
   return document;
@@ -237,7 +237,7 @@ export async function publishAgreement(
 // Verified against: ../comprobify/src/controllers/admin.controller.js → activateAgreement()
 export async function activateAgreement(id: number): Promise<AdminAgreementVersion> {
   const { document } = await request<{ ok: true; document: AdminAgreementVersion }>(
-    `/admin/agreements/${id}/activate`,
+    `/v1/admin/agreements/${id}/activate`,
     { method: 'PATCH' },
   );
   return document;

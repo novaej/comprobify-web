@@ -1254,6 +1254,7 @@
   "admin": {
     "nav": {
       "title": "Admin panel",
+      "adminBadge": "Admin",
       "tenants": "Tenants",
       "payments": "Payments",
       "agreements": "Agreements",

@@ -15,9 +15,9 @@ export default async function AdminLayout({
   const ctx = await requireSuperAdmin();
 
   return (
-    <div className="min-h-full">
+    <div className="flex h-full flex-col md:flex-row">
       <AdminNav userEmail={ctx.user.email} />
-      <main className="mx-auto max-w-6xl p-4 md:p-8">{children}</main>
+      <main className="flex-1 overflow-y-auto p-4 md:p-8">{children}</main>
     </div>
   );
 }
