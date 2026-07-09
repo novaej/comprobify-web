@@ -25,6 +25,9 @@ export interface AdminPayment {
   id: string;
   subscription_id: string;
   amount: string;
+  iva_rate: string;
+  iva_amount: string;
+  total_amount: string;
   method: string;
   purpose: string;
   target_tier: string | null;
@@ -34,10 +37,39 @@ export interface AdminPayment {
   proof_filename: string | null;
   proof_mime_type: string | null;
   rejection_reason: string | null;
+  invoice_access_key: string | null;
+  period_start: string | null;
   tenant_id: string;
   tier: string;
   billing_interval: string;
   tenant: { id: string; email: string } | null;
+}
+
+// Verified against: ../comprobify/src/services/subscription.service.js → formatPaymentProof()
+// id is BIGSERIAL → string per pg/JSON serialisation (Common Mistake #16).
+export interface AdminPaymentProof {
+  id: string;
+  filename: string;
+  mimeType: string;
+  referenceNumber: string;
+  active: boolean;
+  createdAt: string;
+}
+
+export type AgreementDocumentType = 'TERMS' | 'PRIVACY' | 'DPA';
+
+// Verified against: ../comprobify/src/controllers/admin.controller.js → listAgreementVersions()
+export interface AdminAgreementVersion {
+  id: number;
+  document_type: AgreementDocumentType;
+  version: string;
+  is_current: boolean;
+  created_at: string;
+}
+
+// Verified against: ../comprobify/src/controllers/admin.controller.js → getAgreementVersion()
+export interface AdminAgreementDetail extends AdminAgreementVersion {
+  contentMarkdown: string;
 }
 
 function getApiUrl(): string {
@@ -63,6 +95,19 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   });
 
   if (!res.ok) {
+    // Guard against proxy/gateway error pages that return HTML instead of JSON.
+    const contentType = res.headers.get('content-type') ?? '';
+    if (!contentType.includes('application/json')) {
+      const body = await res.text().catch(() => '');
+      throw new ApiError({
+        type: 'about:blank',
+        title: `Admin API error ${res.status}`,
+        detail: body.slice(0, 200),
+        status: res.status,
+        code: 'ADMIN_API_UNREACHABLE',
+        instance: '',
+      });
+    }
     const problem: ProblemDetails = await res.json();
     throw new ApiError(problem);
   }
@@ -70,15 +115,17 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+// ── Tenants ───────────────────────────────────────────────────────────────────
+
 // Verified against: ../comprobify/src/controllers/admin.controller.js → listTenants()
 export async function listTenants(): Promise<AdminTenant[]> {
-  const { tenants } = await request<{ ok: true; tenants: AdminTenant[] }>('/admin/tenants');
+  const { tenants } = await request<{ ok: true; tenants: AdminTenant[] }>('/v1/admin/tenants');
   return tenants;
 }
 
 // Verified against: ../comprobify/src/controllers/admin.controller.js → updateTenantTier()
 export async function updateTenantTier(id: number, tier: string): Promise<AdminTenant> {
-  const { tenant } = await request<{ ok: true; tenant: AdminTenant }>(`/admin/tenants/${id}/tier`, {
+  const { tenant } = await request<{ ok: true; tenant: AdminTenant }>(`/v1/admin/tenants/${id}/tier`, {
     method: 'PATCH',
     body: JSON.stringify({ subscriptionTier: tier }),
   });
@@ -90,7 +137,7 @@ export async function updateTenantStatus(
   id: number,
   status: 'PENDING_VERIFICATION' | 'ACTIVE' | 'SUSPENDED',
 ): Promise<AdminTenant> {
-  const { tenant } = await request<{ ok: true; tenant: AdminTenant }>(`/admin/tenants/${id}/status`, {
+  const { tenant } = await request<{ ok: true; tenant: AdminTenant }>(`/v1/admin/tenants/${id}/status`, {
     method: 'PATCH',
     body: JSON.stringify({ status }),
   });
@@ -99,16 +146,38 @@ export async function updateTenantStatus(
 
 // Verified against: ../comprobify/src/controllers/admin.controller.js → verifyTenant()
 export async function verifyTenant(id: number): Promise<AdminTenant> {
-  const { tenant } = await request<{ ok: true; tenant: AdminTenant }>(`/admin/tenants/${id}/verify`, {
+  const { tenant } = await request<{ ok: true; tenant: AdminTenant }>(`/v1/admin/tenants/${id}/verify`, {
     method: 'POST',
   });
   return tenant;
 }
 
+// ── Issuers ───────────────────────────────────────────────────────────────────
+
+// Verified against: ../comprobify/src/services/admin.service.js → formatIssuer()
+export interface AdminIssuer {
+  id: string;
+  tenantId: string;
+  ruc: string;
+  businessName: string;
+  tradeName: string | null;
+  branchCode: string;
+  issuePointCode: string;
+  active: boolean;
+}
+
+// Verified against: ../comprobify/src/controllers/admin.controller.js → listIssuers()
+export async function listAdminIssuers(): Promise<AdminIssuer[]> {
+  const { issuers } = await request<{ ok: true; issuers: AdminIssuer[] }>('/v1/admin/issuers');
+  return issuers;
+}
+
+// ── Payments ──────────────────────────────────────────────────────────────────
+
 // Verified against: ../comprobify/src/controllers/admin.controller.js → listPayments()
 export async function listPendingPayments(status: string = 'REPORTED'): Promise<AdminPayment[]> {
   const { payments } = await request<{ ok: true; payments: AdminPayment[] }>(
-    `/admin/payments?status=${encodeURIComponent(status)}`,
+    `/v1/admin/payments?status=${encodeURIComponent(status)}`,
   );
   return payments;
 }
@@ -117,20 +186,39 @@ export async function listPendingPayments(status: string = 'REPORTED'): Promise<
 export async function reviewPayment(
   id: number,
   decision: 'VERIFIED' | 'REJECTED',
-  rejectionReason?: string,
+  rejectionReasonCode?: string,
 ): Promise<{ payment: AdminPayment; subscription: unknown }> {
-  return request(`/admin/payments/${id}/review`, {
+  return request(`/v1/admin/payments/${id}/review`, {
     method: 'PATCH',
-    body: JSON.stringify({ decision, rejectionReason }),
+    body: JSON.stringify({ decision, rejectionReasonCode }),
   });
 }
 
+// Verified against: ../comprobify/src/controllers/admin.controller.js → linkInvoice()
+// Route: PATCH /v1/admin/subscriptions/:id/link-invoice
+export async function linkInvoice(subscriptionId: number, accessKey: string): Promise<{ ok: true }> {
+  return request(`/v1/admin/subscriptions/${subscriptionId}/link-invoice`, {
+    method: 'PATCH',
+    body: JSON.stringify({ accessKey }),
+  });
+}
+
+// Verified against: ../comprobify/src/controllers/admin.controller.js → listPaymentProofs()
+// Returns all proofs (active and soft-deleted) for full audit visibility.
+export async function listAdminPaymentProofs(paymentId: number): Promise<AdminPaymentProof[]> {
+  const { proofs } = await request<{ ok: true; proofs: AdminPaymentProof[] }>(
+    `/v1/admin/payments/${paymentId}/proofs`,
+  );
+  return proofs;
+}
+
 // Verified against: ../comprobify/src/controllers/admin.controller.js → getPaymentProof()
-// Streams the raw file — same pattern as the existing /api/documents/[key]/ride route.
-export async function getPaymentProof(
-  id: number,
+// Streams the raw file. Returns the raw Response so the proxy route can stream it.
+export async function getAdminPaymentProofFile(
+  paymentId: number,
+  proofId: number,
 ): Promise<{ buffer: ArrayBuffer; filename: string; mimeType: string }> {
-  const res = await fetch(`${getApiUrl()}/admin/payments/${id}/proof`, {
+  const res = await fetch(`${getApiUrl()}/v1/admin/payments/${paymentId}/proofs/${proofId}`, {
     headers: { Authorization: `Bearer ${getAdminSecret()}` },
   });
 
@@ -141,8 +229,50 @@ export async function getPaymentProof(
 
   const disposition = res.headers.get('content-disposition') ?? '';
   const match = disposition.match(/filename="([^"]+)"/);
-  const filename = match ? match[1] : `proof-${id}`;
+  const filename = match ? match[1] : `proof-${paymentId}-${proofId}`;
   const mimeType = res.headers.get('content-type') ?? 'application/octet-stream';
 
   return { buffer: await res.arrayBuffer(), filename, mimeType };
+}
+
+// ── Agreements ────────────────────────────────────────────────────────────────
+
+// Verified against: ../comprobify/src/controllers/admin.controller.js → listAgreementVersions()
+export async function listAgreementVersions(type: AgreementDocumentType): Promise<AdminAgreementVersion[]> {
+  const { versions } = await request<{ ok: true; versions: AdminAgreementVersion[] }>(
+    `/v1/admin/agreements/${type}/versions`,
+  );
+  return versions;
+}
+
+// Verified against: ../comprobify/src/controllers/admin.controller.js → getAgreementVersion()
+// Returns full content including contentMarkdown for the editor.
+export async function getAgreementVersion(id: number): Promise<AdminAgreementDetail> {
+  const { document } = await request<{ ok: true; document: AdminAgreementDetail }>(
+    `/v1/admin/agreements/versions/${id}`,
+  );
+  return document;
+}
+
+// Verified against: ../comprobify/src/controllers/admin.controller.js → publishAgreement()
+// contentMarkdown is optional — if omitted the API reads from disk.
+export async function publishAgreement(
+  documentType: AgreementDocumentType,
+  version: string,
+  contentMarkdown: string,
+): Promise<AdminAgreementVersion> {
+  const { document } = await request<{ ok: true; document: AdminAgreementVersion }>(
+    '/v1/admin/agreements',
+    { method: 'POST', body: JSON.stringify({ documentType, version, contentMarkdown }) },
+  );
+  return document;
+}
+
+// Verified against: ../comprobify/src/controllers/admin.controller.js → activateAgreement()
+export async function activateAgreement(id: number): Promise<AdminAgreementVersion> {
+  const { document } = await request<{ ok: true; document: AdminAgreementVersion }>(
+    `/v1/admin/agreements/${id}/activate`,
+    { method: 'PATCH' },
+  );
+  return document;
 }

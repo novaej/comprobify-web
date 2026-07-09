@@ -15,7 +15,8 @@
   },
   "errorBoundary": {
     "title": "Something went wrong",
-    "backToDashboard": "Back to dashboard"
+    "backToDashboard": "Back to dashboard",
+    "backToAdmin": "Back to admin panel"
   },
   "notFoundPage": {
     "title": "Page not found",
@@ -600,6 +601,7 @@
   },
   "apiError": {
     "UNKNOWN": "An unexpected error occurred.",
+    "ADMIN_API_UNREACHABLE": "Could not connect to the admin API. Check that the service is running and COMPROBIFY_ADMIN_SECRET is correct.",
     "APP_URL_NOT_CONFIGURED": "This feature isn't available in this environment.",
     "BAD_REQUEST": "The request is invalid. Please review the data entered.",
     "NOT_FOUND": "The requested resource does not exist.",
@@ -1252,8 +1254,10 @@
   "admin": {
     "nav": {
       "title": "Admin panel",
+      "adminBadge": "Admin",
       "tenants": "Tenants",
       "payments": "Payments",
+      "agreements": "Agreements",
       "signOut": "Sign out"
     },
     "tenants": {
@@ -1264,30 +1268,119 @@
         "email": "Email",
         "tier": "Tier",
         "status": "Status",
-        "usage": "Usage",
-        "actions": "Actions"
+        "usage": "Usage"
       },
-      "usageValue": "{count} / {quota} documents",
-      "verify": "Verify",
+      "statuses": {
+        "PENDING_VERIFICATION": "Pending",
+        "ACTIVE": "Active",
+        "SUSPENDED": "Suspended"
+      },
+      "usageValue": "{count} / {quota} docs",
+      "verify": "Verify tenant",
       "tierUpdated": "Tier updated.",
       "statusUpdated": "Status updated.",
       "verified": "Tenant verified."
     },
     "payments": {
-      "title": "Pending payments",
+      "title": "Payments",
       "description": "Review payment proofs reported by tenants.",
-      "empty": "No payments awaiting review.",
+      "empty": "No payments in this category.",
+      "statuses": {
+        "REPORTED": "Pending",
+        "VERIFIED": "Verified",
+        "REJECTED": "Rejected"
+      },
       "reportedAt": "Reported on {date}",
-      "viewProof": "View proof",
+      "verifiedAt": "Verified on {date}",
+      "rejectedAt": "Rejected on {date}",
+      "viewProofs": "View proofs",
       "verify": "Verify",
       "reject": "Reject",
       "verified": "Payment verified.",
       "rejected": "Payment rejected.",
+      "invoiceLinked": "Invoice linked successfully.",
+      "invoiceAccessKey": "Invoice: {key}",
+      "viewInvoice": "View invoice",
+      "linkInvoice": "Link invoice",
+      "linkInvoiceDialog": {
+        "title": "Link invoice to payment",
+        "description": "Enter the access key of the self-billed invoice issued for this payment. If the invoice is already authorized, the subscription will activate automatically.",
+        "label": "Access key",
+        "placeholder": "49-digit access key",
+        "cancel": "Cancel",
+        "confirm": "Link"
+      },
       "rejectDialog": {
         "title": "Reject payment",
-        "placeholder": "Explain why the proof is being rejected...",
+        "reasonLabel": "Rejection reason",
+        "reasonPlaceholder": "Select a reason...",
         "cancel": "Cancel",
-        "confirm": "Reject payment"
+        "confirm": "Reject payment",
+        "reasons": {
+          "AMOUNT_MISMATCH": "Amount does not match the proof",
+          "TRANSFER_NOT_FOUND": "Transfer not found at the bank",
+          "WRONG_ACCOUNT": "Wrong destination account",
+          "ILLEGIBLE_PROOF": "Proof is illegible or low quality",
+          "DUPLICATE_SUBMISSION": "Proof was already submitted previously",
+          "OTHER": "Other reason"
+        }
+      },
+      "proofDialog": {
+        "title": "Payment proofs",
+        "loading": "Loading proofs...",
+        "loadError": "Could not load proofs.",
+        "noProofs": "No proofs attached.",
+        "download": "Download",
+        "unsupportedType": "This file type cannot be previewed.",
+        "filename": "File: {name}",
+        "reference": "SPI reference: {ref}",
+        "deleted": "Deleted by tenant"
+      }
+    },
+    "agreements": {
+      "title": "Legal agreements",
+      "description": "Manage published versions of legal documents (Terms, Privacy, DPA).",
+      "currentVersion": "v{version}",
+      "noVersionPublished": "No version published",
+      "newVersion": "New version",
+      "versionHistory": "{count, plural, one {# version} other {# versions}}",
+      "activated": "Version activated.",
+      "published": "Version published.",
+      "activate": "Activate",
+      "view": "View",
+      "statusCurrent": "Active",
+      "statusInactive": "Inactive",
+      "draft": "Draft",
+      "draftSaved": "Draft saved.",
+      "draftSavedAt": "Saved on {date}",
+      "deleteDraft": "Delete draft",
+      "editDraft": "Edit draft",
+      "columns": {
+        "version": "Version",
+        "publishedAt": "Published",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "editorDialog": {
+        "title": "Editor — {type}",
+        "versionLabel": "Version",
+        "versionPlaceholder": "e.g. 2025-07",
+        "versionHint": "Only required to publish",
+        "editorLabel": "Markdown",
+        "previewLabel": "Preview",
+        "previewEmpty": "Write content to see the preview.",
+        "contentPlaceholder": "Write or paste Markdown content...",
+        "loadingContent": "Loading published version...",
+        "resetFromPublished": "Reset from published version",
+        "saveDraft": "Save draft",
+        "savingDraft": "Saving...",
+        "publish": "Publish",
+        "publishing": "Publishing...",
+        "cancel": "Cancel"
+      },
+      "viewDialog": {
+        "loading": "Loading...",
+        "publishedAt": "Published on {date}"
       }
     }
   }

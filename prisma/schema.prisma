@@ -187,6 +187,22 @@ model NotificationRead {
   @@map("notification_reads")
 }
 
+/// One in-progress draft per legal document type (TERMS / PRIVACY / DPA).
+/// Upserted on every "Guardar borrador" click; deleted when the draft is
+/// published or explicitly discarded. Global (no per-user scope) because
+/// only super admins can edit legal documents and there is no meaningful
+/// multi-author scenario here.
+model AgreementDraft {
+  id           Int      @id @default(autoincrement())
+  documentType String   @unique @map("document_type")
+  version      String   @default("")
+  content      String
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("agreement_drafts")
+}
+
 /// A webhook endpoint registered with the Comprobify API. The signing secret
 /// is stored encrypted (AES-256-GCM) the same way as TenantApiKey.encryptedKey.
 model WebhookEndpoint {

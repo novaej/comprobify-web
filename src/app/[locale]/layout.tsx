@@ -204,7 +204,7 @@ export default async function LocaleLayout({
             </main>
           </div>
         ) : (
-          <main className="flex-1">{children}</main>
+          <>{children}</>
         )}
         <Toaster />
       </QueryProvider>

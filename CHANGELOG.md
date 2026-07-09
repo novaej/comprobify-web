@@ -8,6 +8,17 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Added
+- **Super admin panel at `/admin`** — internal operator area gated by `User.isSuperAdmin = true`. `/admin/tenants` lists all tenants with controls to update tier, status, and trigger verification; `/admin/payments` lists `REPORTED` payments with an inline proof viewer (supports image and PDF rendering) and verify/reject actions; `/admin/agreements` provides a markdown editor to publish new TERMS/PRIVACY/DPA versions and activate previous ones. All mutations go through `src/app/actions/admin.ts`; all API calls use `src/lib/admin-api.ts` with `COMPROBIFY_ADMIN_SECRET`. Admin sidebar (`AdminNav`) uses the same structure as the regular `Nav` (sidebar, mobile hamburger, `ThemeToggle`).
+- **`prisma/seed.js`** — seeds `support@comprobify.com` as the super admin user; run with `npm run db:seed` after setting `ADMIN_SEED_PASSWORD` in `.env`.
+- **Admin-scoped error boundary** (`src/app/[locale]/admin/error.tsx`) — shows "Volver al panel de administración" → `/admin/tenants` instead of the generic "Volver al panel" → `/dashboard`, since super admins have no tenant.
+
+### Fixed
+- **Admin API path prefix** — all paths in `src/lib/admin-api.ts` were missing the `/v1/` prefix (the Comprobify API mounts the admin router at `/v1/admin/`, not `/admin/`). Every admin page returned Express's default HTML 404. Fixed by prefixing all paths with `/v1`.
+- **Admin API non-JSON error responses** — `request()` in `admin-api.ts` now checks `Content-Type` before calling `res.json()` on error responses; HTML error pages (e.g. from a gateway or a wrong path) now throw `ApiError` with code `ADMIN_API_UNREACHABLE` instead of crashing with `SyntaxError: Unexpected token '<'`.
+- **Super admin stray navigation** — `requireContext()` used to redirect users with no `tenantId` to `/onboarding/tenant` unconditionally; super admins (who have no tenant by design) were stuck in an onboarding loop or bounced to an unusable page. Now detects `isSuperAdmin` and redirects to `/admin` instead.
+- **Admin sidebar not filling full viewport height** — the locale layout's unauthenticated/no-tenant branch previously wrapped children in `<main className="flex-1">`, which has no effect outside a flex container and caused `h-full` in the admin layout to resolve against a collapsed height. Changed to `<>{children}</>` so the admin sidebar reaches `<body>` directly, matching how the regular authenticated layout works.
+
 ---
 
 ## [0.4.4] — 2026-07-07

@@ -61,7 +61,8 @@ export async function requireContext(opts?: { skipIssuer?: boolean }): Promise<C
   }
 
   if (!user.tenantId || !user.tenant) {
-    redirect({ href: '/onboarding/tenant', locale });
+    // Super admins have no tenant — send them to their own panel, not onboarding.
+    redirect({ href: user.isSuperAdmin ? '/admin' : '/onboarding/tenant', locale });
     return null as never;
   }
 

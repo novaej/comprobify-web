@@ -15,7 +15,8 @@
   },
   "errorBoundary": {
     "title": "Algo salió mal",
-    "backToDashboard": "Volver al panel"
+    "backToDashboard": "Volver al panel",
+    "backToAdmin": "Volver al panel de administración"
   },
   "notFoundPage": {
     "title": "Página no encontrada",
@@ -600,6 +601,7 @@
   },
   "apiError": {
     "UNKNOWN": "Ha ocurrido un error inesperado.",
+    "ADMIN_API_UNREACHABLE": "No se pudo conectar con la API de administración. Verifique que el servicio esté activo y que COMPROBIFY_ADMIN_SECRET sea correcto.",
     "APP_URL_NOT_CONFIGURED": "Esta función no está disponible en este entorno.",
     "BAD_REQUEST": "La solicitud no es válida. Revise los datos ingresados.",
     "NOT_FOUND": "El recurso solicitado no existe.",
@@ -1252,8 +1254,10 @@
   "admin": {
     "nav": {
       "title": "Panel de administración",
+      "adminBadge": "Admin",
       "tenants": "Tenants",
       "payments": "Pagos",
+      "agreements": "Contratos",
       "signOut": "Cerrar sesión"
     },
     "tenants": {
@@ -1264,30 +1268,119 @@
         "email": "Correo",
         "tier": "Plan",
         "status": "Estado",
-        "usage": "Uso",
-        "actions": "Acciones"
+        "usage": "Uso"
       },
-      "usageValue": "{count} / {quota} documentos",
-      "verify": "Verificar",
+      "statuses": {
+        "PENDING_VERIFICATION": "Pendiente",
+        "ACTIVE": "Activo",
+        "SUSPENDED": "Suspendido"
+      },
+      "usageValue": "{count} / {quota} docs",
+      "verify": "Verificar tenant",
       "tierUpdated": "Plan actualizado.",
       "statusUpdated": "Estado actualizado.",
       "verified": "Tenant verificado."
     },
     "payments": {
-      "title": "Pagos pendientes",
+      "title": "Pagos",
       "description": "Revisa los comprobantes de pago reportados por los tenants.",
-      "empty": "No hay pagos pendientes de revisión.",
+      "empty": "No hay pagos en esta categoría.",
+      "statuses": {
+        "REPORTED": "Pendientes",
+        "VERIFIED": "Verificados",
+        "REJECTED": "Rechazados"
+      },
       "reportedAt": "Reportado el {date}",
-      "viewProof": "Ver comprobante",
+      "verifiedAt": "Verificado el {date}",
+      "rejectedAt": "Rechazado el {date}",
+      "viewProofs": "Ver comprobantes",
       "verify": "Verificar",
       "reject": "Rechazar",
       "verified": "Pago verificado.",
       "rejected": "Pago rechazado.",
+      "invoiceLinked": "Factura vinculada correctamente.",
+      "invoiceAccessKey": "Factura: {key}",
+      "viewInvoice": "Ver factura",
+      "linkInvoice": "Vincular factura",
+      "linkInvoiceDialog": {
+        "title": "Vincular factura al pago",
+        "description": "Ingresa la clave de acceso de la factura de autoconsumo emitida para este pago. Si la factura está autorizada, la suscripción se activará automáticamente.",
+        "label": "Clave de acceso",
+        "placeholder": "Clave de acceso de 49 dígitos",
+        "cancel": "Cancelar",
+        "confirm": "Vincular"
+      },
       "rejectDialog": {
         "title": "Rechazar pago",
-        "placeholder": "Explica por qué se rechaza el comprobante...",
+        "reasonLabel": "Motivo del rechazo",
+        "reasonPlaceholder": "Selecciona un motivo...",
         "cancel": "Cancelar",
-        "confirm": "Rechazar pago"
+        "confirm": "Rechazar pago",
+        "reasons": {
+          "AMOUNT_MISMATCH": "El monto no coincide con el comprobante",
+          "TRANSFER_NOT_FOUND": "Transferencia no encontrada en el banco",
+          "WRONG_ACCOUNT": "Cuenta de destino incorrecta",
+          "ILLEGIBLE_PROOF": "Comprobante ilegible o de baja calidad",
+          "DUPLICATE_SUBMISSION": "Comprobante ya fue enviado anteriormente",
+          "OTHER": "Otro motivo"
+        }
+      },
+      "proofDialog": {
+        "title": "Comprobantes de pago",
+        "loading": "Cargando comprobantes...",
+        "loadError": "No se pudieron cargar los comprobantes.",
+        "noProofs": "No hay comprobantes adjuntos.",
+        "download": "Descargar",
+        "unsupportedType": "Este tipo de archivo no se puede previsualizar.",
+        "filename": "Archivo: {name}",
+        "reference": "Referencia SPI: {ref}",
+        "deleted": "Eliminado por el tenant"
+      }
+    },
+    "agreements": {
+      "title": "Contratos legales",
+      "description": "Gestiona las versiones publicadas de los documentos legales (Términos, Privacidad, DPA).",
+      "currentVersion": "v{version}",
+      "noVersionPublished": "Sin versión publicada",
+      "newVersion": "Nueva versión",
+      "versionHistory": "{count, plural, one {# versión} other {# versiones}}",
+      "activated": "Versión activada.",
+      "published": "Versión publicada.",
+      "activate": "Activar",
+      "view": "Ver",
+      "statusCurrent": "Activa",
+      "statusInactive": "Inactiva",
+      "draft": "Borrador",
+      "draftSaved": "Borrador guardado.",
+      "draftSavedAt": "Guardado el {date}",
+      "deleteDraft": "Eliminar borrador",
+      "editDraft": "Editar borrador",
+      "columns": {
+        "version": "Versión",
+        "publishedAt": "Publicado",
+        "status": "Estado",
+        "actions": "Acciones"
+      },
+      "editorDialog": {
+        "title": "Editor — {type}",
+        "versionLabel": "Versión",
+        "versionPlaceholder": "ej. 2025-07",
+        "versionHint": "Solo es necesario para publicar",
+        "editorLabel": "Markdown",
+        "previewLabel": "Vista previa",
+        "previewEmpty": "Escribe contenido para ver la vista previa.",
+        "contentPlaceholder": "Escribe o pega el contenido en Markdown...",
+        "loadingContent": "Cargando versión publicada...",
+        "resetFromPublished": "Restablecer desde versión publicada",
+        "saveDraft": "Guardar borrador",
+        "savingDraft": "Guardando...",
+        "publish": "Publicar",
+        "publishing": "Publicando...",
+        "cancel": "Cancelar"
+      },
+      "viewDialog": {
+        "loading": "Cargando...",
+        "publishedAt": "Publicado el {date}"
       }
     }
   }
