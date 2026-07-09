@@ -90,6 +90,19 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   });
 
   if (!res.ok) {
+    // Guard against proxy/gateway error pages that return HTML instead of JSON.
+    const contentType = res.headers.get('content-type') ?? '';
+    if (!contentType.includes('application/json')) {
+      const body = await res.text().catch(() => '');
+      throw new ApiError({
+        type: 'about:blank',
+        title: `Admin API error ${res.status}`,
+        detail: body.slice(0, 200),
+        status: res.status,
+        code: 'ADMIN_API_UNREACHABLE',
+        instance: '',
+      });
+    }
     const problem: ProblemDetails = await res.json();
     throw new ApiError(problem);
   }

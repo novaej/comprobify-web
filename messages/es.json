@@ -600,6 +600,7 @@
   },
   "apiError": {
     "UNKNOWN": "Ha ocurrido un error inesperado.",
+    "ADMIN_API_UNREACHABLE": "No se pudo conectar con la API de administración. Verifique que el servicio esté activo y que COMPROBIFY_ADMIN_SECRET sea correcto.",
     "APP_URL_NOT_CONFIGURED": "Esta función no está disponible en este entorno.",
     "BAD_REQUEST": "La solicitud no es válida. Revise los datos ingresados.",
     "NOT_FOUND": "El recurso solicitado no existe.",
