@@ -545,7 +545,7 @@
     "environment": {
       "title": "Ambiente",
       "sandbox": "Sandbox — SRI pruebas",
-      "production": "Producción — SRI real"
+      "production": "Producción — SRI productivo"
     },
     "promote": {
       "description": "Cuando estés listo para emitir facturas reales, puedes activar el ambiente de producción. Esta acción es irreversible.",
