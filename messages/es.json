@@ -15,7 +15,8 @@
   },
   "errorBoundary": {
     "title": "Algo salió mal",
-    "backToDashboard": "Volver al panel"
+    "backToDashboard": "Volver al panel",
+    "backToAdmin": "Volver al panel de administración"
   },
   "notFoundPage": {
     "title": "Página no encontrada",

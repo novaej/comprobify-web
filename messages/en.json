@@ -15,7 +15,8 @@
   },
   "errorBoundary": {
     "title": "Something went wrong",
-    "backToDashboard": "Back to dashboard"
+    "backToDashboard": "Back to dashboard",
+    "backToAdmin": "Back to admin panel"
   },
   "notFoundPage": {
     "title": "Page not found",
