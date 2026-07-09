@@ -1373,6 +1373,7 @@
         "loadingContent": "Cargando versión publicada...",
         "resetFromPublished": "Restablecer desde versión publicada",
         "saveDraft": "Guardar borrador",
+        "savingDraft": "Guardando...",
         "publish": "Publicar",
         "publishing": "Publicando...",
         "cancel": "Cancelar"

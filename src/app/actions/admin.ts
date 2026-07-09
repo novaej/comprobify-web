@@ -1,5 +1,6 @@
 'use server';
 
+import { db } from '@/lib/db';
 import { requireSuperAdmin } from '@/lib/admin-context';
 import {
   updateTenantTier,
@@ -114,6 +115,47 @@ export async function activateAgreementAction(id: number): Promise<AdminAgreemen
     const document = await activateAgreement(id);
     revalidatePath('/admin/agreements');
     return { document };
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.code };
+    throw err;
+  }
+}
+
+// ── Agreement drafts (stored in the app's own DB, not the Comprobify API) ────
+
+export interface AgreementDraftData {
+  documentType: string;
+  version: string;
+  content: string;
+  updatedAt: string;
+}
+
+export async function saveAgreementDraftAction(
+  documentType: string,
+  version: string,
+  content: string,
+): Promise<{ error: string } | { draft: AgreementDraftData }> {
+  await requireSuperAdmin();
+  try {
+    const draft = await db.agreementDraft.upsert({
+      where: { documentType },
+      create: { documentType, version, content },
+      update: { version, content },
+    });
+    return { draft: { documentType: draft.documentType, version: draft.version, content: draft.content, updatedAt: draft.updatedAt.toISOString() } };
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.code };
+    throw err;
+  }
+}
+
+export async function deleteAgreementDraftAction(
+  documentType: string,
+): Promise<{ error: string } | { ok: true }> {
+  await requireSuperAdmin();
+  try {
+    await db.agreementDraft.deleteMany({ where: { documentType } });
+    return { ok: true };
   } catch (err) {
     if (err instanceof ApiError) return { error: err.code };
     throw err;

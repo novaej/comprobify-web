@@ -18,7 +18,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { publishAgreementAction, activateAgreementAction } from '@/app/actions/admin';
+import {
+  publishAgreementAction,
+  activateAgreementAction,
+  saveAgreementDraftAction,
+  deleteAgreementDraftAction,
+  type AgreementDraftData,
+} from '@/app/actions/admin';
 import { FileText, Plus, RotateCcw, ChevronDown, ChevronUp, Eye, PenLine, X } from 'lucide-react';
 import type { AdminAgreementVersion, AdminAgreementDetail, AgreementDocumentType } from '@/lib/admin-api';
 
@@ -28,41 +34,10 @@ marked.setOptions({ breaks: true });
 
 function renderWithHighlights(markdown: string): string {
   const html = marked.parse(markdown) as string;
-  // Highlight {{placeholder}} tokens left unresolved in the stored template.
   return html.replace(
     /\{\{([\w.]+)\}\}/g,
     '<mark style="background:#fef3c7;color:#92400e;padding:0 2px;border-radius:3px;font-family:monospace;font-size:0.85em">{{$1}}</mark>',
   );
-}
-
-// ── Draft helpers (localStorage) ──────────────────────────────────────────────
-
-interface AgreementDraft {
-  version: string;
-  content: string;
-  savedAt: string;
-}
-
-function draftKey(type: AgreementDocumentType) {
-  return `comprobify_agreement_draft_${type}`;
-}
-
-function loadDraft(type: AgreementDocumentType): AgreementDraft | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = localStorage.getItem(draftKey(type));
-    return raw ? (JSON.parse(raw) as AgreementDraft) : null;
-  } catch {
-    return null;
-  }
-}
-
-function persistDraft(type: AgreementDocumentType, draft: AgreementDraft): void {
-  localStorage.setItem(draftKey(type), JSON.stringify(draft));
-}
-
-function removeDraft(type: AgreementDocumentType): void {
-  localStorage.removeItem(draftKey(type));
 }
 
 // ── Shared constants ──────────────────────────────────────────────────────────
@@ -82,16 +57,18 @@ export function AdminAgreementManager({
   termVersions,
   privacyVersions,
   dpaVersions,
+  drafts,
 }: {
   termVersions: AdminAgreementVersion[];
   privacyVersions: AdminAgreementVersion[];
   dpaVersions: AdminAgreementVersion[];
+  drafts: Record<string, AgreementDraftData>;
 }) {
   return (
     <div className="space-y-6">
-      <TypeSection documentType="TERMS" versions={termVersions} />
-      <TypeSection documentType="PRIVACY" versions={privacyVersions} />
-      <TypeSection documentType="DPA" versions={dpaVersions} />
+      <TypeSection documentType="TERMS" versions={termVersions} initialDraft={drafts['TERMS'] ?? null} />
+      <TypeSection documentType="PRIVACY" versions={privacyVersions} initialDraft={drafts['PRIVACY'] ?? null} />
+      <TypeSection documentType="DPA" versions={dpaVersions} initialDraft={drafts['DPA'] ?? null} />
     </div>
   );
 }
@@ -103,9 +80,11 @@ type EditorMode = 'new' | 'draft';
 function TypeSection({
   documentType,
   versions,
+  initialDraft,
 }: {
   documentType: AgreementDocumentType;
   versions: AdminAgreementVersion[];
+  initialDraft: AgreementDraftData | null;
 }) {
   const t = useTranslations('admin.agreements');
   const tError = useTranslations('apiError');
@@ -113,13 +92,9 @@ function TypeSection({
   const [pendingId, setPendingId] = useState<number | null>(null);
   const [localVersions, setLocalVersions] = useState(versions);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [draft, setDraft] = useState<AgreementDraft | null>(null);
+  const [draft, setDraft] = useState<AgreementDraftData | null>(initialDraft);
   const [editorMode, setEditorMode] = useState<EditorMode | null>(null);
   const [viewTarget, setViewTarget] = useState<AdminAgreementVersion | null>(null);
-
-  useEffect(() => {
-    setDraft(loadDraft(documentType));
-  }, [documentType]);
 
   const current = localVersions.find((v) => v.is_current);
 
@@ -139,17 +114,17 @@ function TypeSection({
 
   function handlePublished(newVersion: AdminAgreementVersion) {
     setLocalVersions((prev) => [newVersion, ...prev.map((v) => ({ ...v, is_current: false }))]);
-    handleDeleteDraft();
+    // Draft was deleted server-side by the publish flow; clear local state too.
+    setDraft(null);
     setEditorMode(null);
   }
 
   function handleDeleteDraft() {
-    removeDraft(documentType);
-    setDraft(null);
+    setDraft(null); // optimistic
+    deleteAgreementDraftAction(documentType).catch(() => {});
   }
 
-  function handleDraftSaved(saved: AgreementDraft) {
-    persistDraft(documentType, saved);
+  function handleDraftSaved(saved: AgreementDraftData) {
     setDraft(saved);
   }
 
@@ -195,7 +170,7 @@ function TypeSection({
               <span className="font-mono text-xs text-foreground">{draft.version}</span>
             )}
             <span className="text-xs text-muted-foreground">
-              {t('draftSavedAt', { date: shortDateFormatter.format(new Date(draft.savedAt)) })}
+              {t('draftSavedAt', { date: shortDateFormatter.format(new Date(draft.updatedAt)) })}
             </span>
           </div>
           <Button
@@ -338,13 +313,14 @@ function EditorDialog({
   documentType: AgreementDocumentType;
   mode: EditorMode;
   currentVersionId: number | null;
-  existingDraft: AgreementDraft | null;
+  existingDraft: AgreementDraftData | null;
   onPublished: (v: AdminAgreementVersion) => void;
-  onDraftSaved: (d: AgreementDraft) => void;
+  onDraftSaved: (d: AgreementDraftData) => void;
 }) {
   const t = useTranslations('admin.agreements');
   const tError = useTranslations('apiError');
-  const [isPending, startTransition] = useTransition();
+  const [isPublishing, startPublishTransition] = useTransition();
+  const [isSavingDraft, startSaveDraftTransition] = useTransition();
   const [version, setVersion] = useState('');
   const [content, setContent] = useState('');
   const [isLoadingContent, setIsLoadingContent] = useState(false);
@@ -389,23 +365,33 @@ function EditorDialog({
   }
 
   function handleSaveDraft() {
-    const saved: AgreementDraft = { version, content, savedAt: new Date().toISOString() };
-    onDraftSaved(saved);
-    toast.success(t('draftSaved'));
+    startSaveDraftTransition(async () => {
+      const result = await saveAgreementDraftAction(documentType, version, content);
+      if ('error' in result) {
+        toastApiError(result.error, tError);
+      } else {
+        onDraftSaved(result.draft);
+        toast.success(t('draftSaved'));
+      }
+    });
   }
 
   function handlePublish() {
     if (!version.trim() || !content.trim()) return;
-    startTransition(async () => {
+    startPublishTransition(async () => {
       const result = await publishAgreementAction(documentType, version.trim(), content);
       if ('error' in result) {
         toastApiError(result.error, tError);
       } else {
+        // Delete draft from DB now that it's published.
+        await deleteAgreementDraftAction(documentType);
         toast.success(t('published'));
         onPublished(result.document);
       }
     });
   }
+
+  const isPending = isPublishing || isSavingDraft;
 
   const preview = useMemo(
     () => (content ? renderWithHighlights(content) : ''),
@@ -508,13 +494,13 @@ function EditorDialog({
             onClick={handleSaveDraft}
             disabled={isPending || !content.trim()}
           >
-            {t('editorDialog.saveDraft')}
+            {isSavingDraft ? t('editorDialog.savingDraft') : t('editorDialog.saveDraft')}
           </Button>
           <Button
             onClick={handlePublish}
             disabled={isPending || !version.trim() || !content.trim()}
           >
-            {isPending ? t('editorDialog.publishing') : t('editorDialog.publish')}
+            {isPublishing ? t('editorDialog.publishing') : t('editorDialog.publish')}
           </Button>
         </DialogFooter>
       </DialogContent>

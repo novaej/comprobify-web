@@ -1373,6 +1373,7 @@
         "loadingContent": "Loading published version...",
         "resetFromPublished": "Reset from published version",
         "saveDraft": "Save draft",
+        "savingDraft": "Saving...",
         "publish": "Publish",
         "publishing": "Publishing...",
         "cancel": "Cancel"
