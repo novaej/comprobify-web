@@ -1347,24 +1347,39 @@
       "activated": "Version activated.",
       "published": "Version published.",
       "activate": "Activate",
+      "view": "View",
       "statusCurrent": "Active",
       "statusInactive": "Inactive",
+      "draft": "Draft",
+      "draftSaved": "Draft saved.",
+      "draftSavedAt": "Saved on {date}",
+      "deleteDraft": "Delete draft",
+      "editDraft": "Edit draft",
       "columns": {
         "version": "Version",
         "publishedAt": "Published",
         "status": "Status",
         "actions": "Actions"
       },
-      "publishDialog": {
-        "title": "New version — {type}",
-        "versionLabel": "Version identifier",
+      "editorDialog": {
+        "title": "Editor — {type}",
+        "versionLabel": "Version",
         "versionPlaceholder": "e.g. 2025-07",
-        "contentLabel": "Markdown content",
-        "contentPlaceholder": "Paste or write the content in Markdown format...",
-        "loadingContent": "Loading current version...",
-        "cancel": "Cancel",
+        "versionHint": "Only required to publish",
+        "editorLabel": "Markdown",
+        "previewLabel": "Preview",
+        "previewEmpty": "Write content to see the preview.",
+        "contentPlaceholder": "Write or paste Markdown content...",
+        "loadingContent": "Loading published version...",
+        "resetFromPublished": "Reset from published version",
+        "saveDraft": "Save draft",
         "publish": "Publish",
-        "publishing": "Publishing..."
+        "publishing": "Publishing...",
+        "cancel": "Cancel"
+      },
+      "viewDialog": {
+        "loading": "Loading...",
+        "publishedAt": "Published on {date}"
       }
     }
   }

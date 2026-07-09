@@ -1347,24 +1347,39 @@
       "activated": "Versión activada.",
       "published": "Versión publicada.",
       "activate": "Activar",
+      "view": "Ver",
       "statusCurrent": "Activa",
       "statusInactive": "Inactiva",
+      "draft": "Borrador",
+      "draftSaved": "Borrador guardado.",
+      "draftSavedAt": "Guardado el {date}",
+      "deleteDraft": "Eliminar borrador",
+      "editDraft": "Editar borrador",
       "columns": {
         "version": "Versión",
         "publishedAt": "Publicado",
         "status": "Estado",
         "actions": "Acciones"
       },
-      "publishDialog": {
-        "title": "Nueva versión — {type}",
-        "versionLabel": "Identificador de versión",
+      "editorDialog": {
+        "title": "Editor — {type}",
+        "versionLabel": "Versión",
         "versionPlaceholder": "ej. 2025-07",
-        "contentLabel": "Contenido Markdown",
-        "contentPlaceholder": "Pega o escribe el contenido en formato Markdown...",
-        "loadingContent": "Cargando versión actual...",
-        "cancel": "Cancelar",
+        "versionHint": "Solo es necesario para publicar",
+        "editorLabel": "Markdown",
+        "previewLabel": "Vista previa",
+        "previewEmpty": "Escribe contenido para ver la vista previa.",
+        "contentPlaceholder": "Escribe o pega el contenido en Markdown...",
+        "loadingContent": "Cargando versión publicada...",
+        "resetFromPublished": "Restablecer desde versión publicada",
+        "saveDraft": "Guardar borrador",
         "publish": "Publicar",
-        "publishing": "Publicando..."
+        "publishing": "Publicando...",
+        "cancel": "Cancelar"
+      },
+      "viewDialog": {
+        "loading": "Cargando...",
+        "publishedAt": "Publicado el {date}"
       }
     }
   }
