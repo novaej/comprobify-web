@@ -84,13 +84,22 @@ export function AdminPaymentManager({
   function handleLinkInvoice() {
     if (!linkTarget || !linkAccessKey.trim()) return;
     const subscriptionId = Number(linkTarget.subscription_id);
-    setPendingId(Number(linkTarget.id));
+    const accessKey = linkAccessKey.trim();
+    const targetId = linkTarget.id;
+    setPendingId(Number(targetId));
     startTransition(async () => {
-      const result = await linkInvoiceAction(subscriptionId, linkAccessKey.trim());
+      const result = await linkInvoiceAction(subscriptionId, accessKey);
       if ('error' in result) {
         toastApiError(result.error, tError);
       } else {
         toast.success(t('invoiceLinked'));
+        setPayments((prev) =>
+          prev.map((p) =>
+            p.id === targetId
+              ? { ...p, invoice_access_key: accessKey, period_start: new Date().toISOString() }
+              : p
+          )
+        );
         setLinkTarget(null);
         setLinkAccessKey('');
       }
