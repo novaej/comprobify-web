@@ -82,6 +82,10 @@ export function BillingManager({
 
   const latestSubscription = subscriptions[0] ?? null;
   const latestPayment = latestSubscription?.payments[0] ?? null;
+  const billingInterval = latestSubscription?.billing_interval ?? 'MONTHLY';
+  const activePrice = billingInterval === 'YEARLY'
+    ? (currentTier?.priceYearlyUsd ?? 0)
+    : (currentTier?.priceMonthlyUsd ?? 0);
   const isSubscriptionOver = latestSubscription?.status === 'CANCELLED' || latestSubscription?.status === 'EXPIRED';
   const needsAction = !!latestPayment && latestPayment.status !== 'VERIFIED' && !isSubscriptionOver;
   // pending_tier = 'FREE' means cancellation scheduled; a paid tier means downgrade scheduled.
@@ -114,10 +118,10 @@ export function BillingManager({
             {t('usage', { count: Number(tenantInfo.documentCount), quota: tenantInfo.documentQuota })}
           </p>
         )}
-        {currentTier && currentTier.priceMonthlyUsd > 0 && (
+        {currentTier && activePrice > 0 && (
           <p className="mt-1 text-sm text-muted-foreground">
-            {currencyFormatter.format(currentTier.priceMonthlyUsd)}
-            {tPricing('perMonth')}
+            {currencyFormatter.format(activePrice)}
+            {billingInterval === 'YEARLY' ? tPricing('perYear') : tPricing('perMonth')}
             {' · '}
             <span className="text-xs">{t('ivaIncluded')}</span>
           </p>
