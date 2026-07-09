@@ -25,6 +25,9 @@ export interface AdminPayment {
   id: string;
   subscription_id: string;
   amount: string;
+  iva_rate: string;
+  iva_amount: string;
+  total_amount: string;
   method: string;
   purpose: string;
   target_tier: string | null;

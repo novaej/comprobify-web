@@ -128,7 +128,7 @@ export function AdminPaymentManager({
                   )}
                   <p className="truncate text-sm font-medium">{payment.tenant?.email ?? `Tenant #${payment.tenant_id}`}</p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    {currencyFormatter.format(Number(payment.amount))}
+                    {currencyFormatter.format(Number(payment.total_amount))}
                     {' · '}
                     {payment.tier}
                     {' · '}
@@ -335,7 +335,7 @@ function ProofViewerDialog({
             <p className="mt-0.5 text-xs text-muted-foreground truncate">
               {payment.tenant?.email ?? `Tenant #${payment.tenant_id}`}
               {' · '}
-              {currencyFormatter.format(Number(payment.amount))}
+              {currencyFormatter.format(Number(payment.total_amount))}
             </p>
           </div>
           {proofs && proofs.length > 1 && (
