@@ -22,7 +22,13 @@ import type { AdminPayment, AdminPaymentProof } from '@/lib/admin-api';
 const currencyFormatter = new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' });
 const dateFormatter = new Intl.DateTimeFormat('es-EC', { dateStyle: 'long', timeStyle: 'short' });
 
-export function AdminPaymentManager({ payments: initialPayments }: { payments: AdminPayment[] }) {
+export function AdminPaymentManager({
+  payments: initialPayments,
+  tenantNames,
+}: {
+  payments: AdminPayment[];
+  tenantNames: Map<string, string>;
+}) {
   const t = useTranslations('admin.payments');
   const tError = useTranslations('apiError');
   const [payments, setPayments] = useState(initialPayments);
@@ -83,6 +89,11 @@ export function AdminPaymentManager({ payments: initialPayments }: { payments: A
             <div key={payment.id} className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
+                  {tenantNames.get(payment.tenant_id) && (
+                    <p className="truncate text-xs font-medium text-muted-foreground">
+                      {tenantNames.get(payment.tenant_id)}
+                    </p>
+                  )}
                   <p className="truncate text-sm font-medium">{payment.tenant?.email ?? `Tenant #${payment.tenant_id}`}</p>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {currencyFormatter.format(Number(payment.amount))}
@@ -144,7 +155,7 @@ export function AdminPaymentManager({ payments: initialPayments }: { payments: A
                   {(v: string) => v ? t(`rejectDialog.reasons.${v as 'AMOUNT_MISMATCH' | 'TRANSFER_NOT_FOUND' | 'WRONG_ACCOUNT' | 'ILLEGIBLE_PROOF' | 'DUPLICATE_SUBMISSION' | 'OTHER'}`) : t('rejectDialog.reasonPlaceholder')}
                 </SelectValue>
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="min-w-max">
                 {(['AMOUNT_MISMATCH', 'TRANSFER_NOT_FOUND', 'WRONG_ACCOUNT', 'ILLEGIBLE_PROOF', 'DUPLICATE_SUBMISSION', 'OTHER'] as const).map((code) => (
                   <SelectItem key={code} value={code}>
                     {t(`rejectDialog.reasons.${code}`)}

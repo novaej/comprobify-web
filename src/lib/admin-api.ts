@@ -147,6 +147,26 @@ export async function verifyTenant(id: number): Promise<AdminTenant> {
   return tenant;
 }
 
+// ── Issuers ───────────────────────────────────────────────────────────────────
+
+// Verified against: ../comprobify/src/services/admin.service.js → formatIssuer()
+export interface AdminIssuer {
+  id: string;
+  tenantId: string;
+  ruc: string;
+  businessName: string;
+  tradeName: string | null;
+  branchCode: string;
+  issuePointCode: string;
+  active: boolean;
+}
+
+// Verified against: ../comprobify/src/controllers/admin.controller.js → listIssuers()
+export async function listAdminIssuers(): Promise<AdminIssuer[]> {
+  const { issuers } = await request<{ ok: true; issuers: AdminIssuer[] }>('/v1/admin/issuers');
+  return issuers;
+}
+
 // ── Payments ──────────────────────────────────────────────────────────────────
 
 // Verified against: ../comprobify/src/controllers/admin.controller.js → listPayments()
