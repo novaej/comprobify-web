@@ -545,7 +545,7 @@
     "environment": {
       "title": "Ambiente",
       "sandbox": "Sandbox — SRI pruebas",
-      "production": "Producción — SRI real"
+      "production": "Producción — SRI productivo"
     },
     "promote": {
       "description": "Cuando estés listo para emitir facturas reales, puedes activar el ambiente de producción. Esta acción es irreversible.",
@@ -572,6 +572,11 @@
     },
     "account": {
       "title": "Cuenta"
+    },
+    "legalDocs": {
+      "title": "Documentos legales",
+      "description": "Consulta los acuerdos legales de Comprobify.",
+      "view": "Ver"
     },
     "verification": {
       "title": "Verifica tu correo electrónico",
@@ -694,6 +699,12 @@
   },
   "certBanner": {
     "dismiss": "Descartar alerta de certificado"
+  },
+  "agreementBanner": {
+    "title": "Documentos legales pendientes",
+    "message": "Hay uno o más acuerdos legales que requieren tu aceptación.",
+    "action": "Revisar y aceptar",
+    "dismiss": "Descartar"
   },
   "notifications": {
     "panelTitle": "Notificaciones",

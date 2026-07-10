@@ -114,14 +114,6 @@ export function BillingManager({
             {t('usage', { count: Number(tenantInfo.documentCount), quota: tenantInfo.documentQuota })}
           </p>
         )}
-        {currentTier && currentTier.priceMonthlyUsd > 0 && (
-          <p className="mt-1 text-sm text-muted-foreground">
-            {currencyFormatter.format(currentTier.priceMonthlyUsd)}
-            {tPricing('perMonth')}
-            {' · '}
-            <span className="text-xs">{t('ivaIncluded')}</span>
-          </p>
-        )}
         {!isSandbox && latestSubscription?.status === 'ACTIVE' && latestSubscription.current_period_start && latestSubscription.current_period_end && (
           <p className="mt-1 text-sm text-muted-foreground">
             {t('billingPeriod', {

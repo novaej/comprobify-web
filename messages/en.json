@@ -573,6 +573,11 @@
     "account": {
       "title": "Account"
     },
+    "legalDocs": {
+      "title": "Legal documents",
+      "description": "Review Comprobify's legal agreements.",
+      "view": "View"
+    },
     "verification": {
       "title": "Verify your email address",
       "description": "Check your inbox and click the verification link. You need to verify your email before activating the production environment.",
@@ -949,6 +954,12 @@
   },
   "certBanner": {
     "dismiss": "Dismiss certificate alert"
+  },
+  "agreementBanner": {
+    "title": "Legal documents pending",
+    "message": "One or more legal agreements require your acceptance.",
+    "action": "Review and accept",
+    "dismiss": "Dismiss"
   },
   "notifications": {
     "panelTitle": "Notifications",

@@ -8,6 +8,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { SandboxBanner } from '@/components/sandbox-banner';
 import { SuspendedBanner } from '@/components/suspended-banner';
 import { CertExpiryBanner } from '@/components/cert-expiry-banner';
+import { AgreementPendingBanner } from '@/components/agreement-pending-banner';
 import { NotificationSync } from '@/components/notification-sync';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
@@ -200,6 +201,7 @@ export default async function LocaleLayout({
                   message={layoutProps.certAlert.message}
                 />
               )}
+              <AgreementPendingBanner />
               {children}
             </main>
           </div>
