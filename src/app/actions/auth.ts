@@ -20,8 +20,11 @@ export async function loginAction(email: string, password: string): Promise<Auth
   // their password before we even attempt a credential check.
   const preCheck = await db.user.findUnique({
     where: { email },
-    select: { inviteStatus: true, passwordHash: true },
+    select: { inviteStatus: true, passwordHash: true, active: true },
   });
+  if (preCheck && !preCheck.active) {
+    return { error: 'ACCOUNT_DISABLED' };
+  }
   if (preCheck?.inviteStatus === 'INVITED' && !preCheck.passwordHash) {
     const params = new URLSearchParams({ email });
     redirect({ href: `/complete-registration?${params}`, locale });

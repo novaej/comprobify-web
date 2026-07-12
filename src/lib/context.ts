@@ -5,12 +5,12 @@ import { decrypt } from '@/lib/crypto';
 import { readCtxCookie } from '@/lib/context-cookie';
 import { ROLE_PERMISSIONS } from '@/lib/rbac';
 import { getLocale } from 'next-intl/server';
-import { notFound } from 'next/navigation';
+import { notFound, redirect as nextRedirect } from 'next/navigation';
 import { redirect } from '@/i18n/navigation';
 import type { Role, Permission } from '@/lib/rbac';
 
 export interface Context {
-  user: { id: number; email: string; emailVerified: boolean; role: Role };
+  user: { id: number; email: string; firstName: string | null; lastName: string | null; emailVerified: boolean; role: Role };
   tenant: { id: number; apiTenantId: number; ruc: string; businessName: string; tradeName: string | null; status: string; environment: 'sandbox' | 'production' };
   permissions: ReadonlySet<Permission>;
   issuer: { id: number; apiIssuerId: number; branchCode: string; issuePointCode: string; businessName: string; tradeName: string | null };
@@ -18,7 +18,7 @@ export interface Context {
 }
 
 export interface MinimalContext {
-  user: Context['user'];
+  user: Context['user']; // includes firstName, lastName
   tenant: Context['tenant'];
   permissions: ReadonlySet<Permission>;
   apiKey: string;
@@ -48,6 +48,14 @@ export async function requireContext(opts?: { skipIssuer?: boolean }): Promise<C
     return null as never;
   }
 
+  if (!user.active) {
+    // Route Handler clears the JWT cookie via signOut() then redirects to /login?reason=disabled.
+    // Can't call signOut() here — Server Components can't clear cookies during rendering.
+    // Use native redirect (not i18n redirect) since this is an API path with no locale prefix.
+    nextRedirect(`/api/auth/signout-disabled?locale=${locale}`);
+    return null as never;
+  }
+
   if (!user.tenantId || !user.tenant) {
     // Super admins have no tenant — send them to their own panel, not onboarding.
     redirect({ href: user.isSuperAdmin ? '/admin' : '/onboarding/tenant', locale });
@@ -71,6 +79,8 @@ export async function requireContext(opts?: { skipIssuer?: boolean }): Promise<C
   const userCtx = {
     id: user.id,
     email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
     emailVerified: user.emailVerified,
     role,
   };

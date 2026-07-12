@@ -313,6 +313,8 @@ This project runs Next.js **16** (not 13-15). Key differences from older version
 
 37. **Wrapping the locale layout's unauthenticated/no-tenant branch in a `<main>` element** — the locale layout falls into its `else` branch for users with no tenant (login page, register page, super admin). A `<main className="flex-1">` there looks harmless, but `flex-1` only works inside a flex container and the body is not one, so the `<main>` collapses to auto-height. Any nested layout that relies on `h-full` (e.g. the admin sidebar's `<div className="flex h-full md:flex-row">`) then resolves `h-full` against that collapsed height — the sidebar only grows as tall as its content instead of filling the viewport. The fix is `<>{children}</>` (no wrapper), so the admin layout's `h-full` div sits directly under `<body>` the same way the regular authenticated layout's div does.
 
+39. **Calling `signOut()` from a Server Component or `requireContext()`** — `signOut()` clears the session cookie, which requires writing a `Set-Cookie` header. Server Components run during rendering and cannot write response headers at that point; the call throws at runtime. The only valid contexts for `signOut()` are Server Actions and Route Handlers. When `requireContext()` needs to force a sign-out (e.g. when `User.active === false`), it must redirect to a Route Handler (`/api/auth/signout-disabled`) that calls `signOut()` and then redirects to `/login`. Attempting to call `signOut()` directly inside `requireContext()` or any Server Component produces a runtime error on every authenticated page load for the affected user.
+
 38. **Gating only the page, not the Server Action** — `requirePermission()` on a page shows 404 to unauthorized users navigating to the URL, but a Server Action is a separate POST endpoint that can be called directly without ever visiting the page. A Viewer who knows the action's name can invoke `createInvoiceAction` without hitting `/invoices/new`. Every mutation Server Action must independently call `requirePermission()` at its top, regardless of whether the page that hosts the form already gates access. Similarly, hiding a button in the UI (`canCreate && <Button>`) is a UX convenience, not a security measure — the action gate is the real boundary. The two-layer pattern is: (1) `requirePermission` in the page → blocks the route for unauthorized roles, (2) `requirePermission` in every action → blocks the mutation even if the page is reached, (3) conditional rendering in the Server Component → hides buttons the user can't use.
 
 ---
@@ -344,7 +346,8 @@ This project runs Next.js **16** (not 13-15). Key differences from older version
 | `src/i18n/navigation.ts` | Typed navigation helpers (import these, not next/navigation) |
 | `src/i18n/request.ts` | `getRequestConfig` — loads message files per locale |
 | `src/providers/query-provider.tsx` | TanStack QueryClientProvider |
-| `src/components/nav.tsx` | Sidebar navigation (Client Component) |
+| `src/components/nav.tsx` | Sidebar navigation (Client Component) — collapsible (`w-14` icon rail ↔ `w-64` locked); hover-to-preview floats an absolute overlay; collapse state persisted to `localStorage`; desktop language/theme/notifications moved to `TopBar`; user footer shows avatar (initials), display name, and role badge |
+| `src/components/top-bar.tsx` | Desktop-only (`hidden md:flex`) top bar above `<main>` — notification bell, language switcher, theme toggle; rendered in `layout.tsx` inside the inner content wrapper |
 | `src/components/status-badge.tsx` | Document status pill with i18n labels |
 | `src/components/sandbox-banner.tsx` | Yellow sandbox mode banner |
 | `src/components/email-verification-notice.tsx` | Yellow notice with resend button shown when email is unverified |
@@ -353,7 +356,7 @@ This project runs Next.js **16** (not 13-15). Key differences from older version
 | `src/app/[locale]/(marketing)/page.tsx` | Landing page — hero, feature cards; auto-redirects authenticated users to dashboard |
 | `src/app/[locale]/(marketing)/pricing/page.tsx` | Pricing page — Server Component fetching `listTiers()`; renders `pricing-plans.tsx` with the real FREE/STARTER/GROWTH/BUSINESS catalog |
 | `src/components/pricing-plans.tsx` | Client Component — monthly/yearly toggle, per-tier feature bullets built from `ApiTierInfo`; CTA links to `/register?tier=X&interval=Y` for paid tiers |
-| `src/app/[locale]/layout.tsx` | Locale layout with providers + nav; unauthenticated/no-tenant branch renders `<>{children}</>` (no wrapper) so the admin sidebar's `h-full` reaches `<body>` |
+| `src/app/[locale]/layout.tsx` | Locale layout with providers + nav; authenticated branch wraps main content in `<div class="flex min-w-0 flex-1 flex-col overflow-hidden">` so `TopBar` sits above `<main>`; unauthenticated/no-tenant branch renders `<>{children}</>` (no wrapper) so the admin sidebar's `h-full` reaches `<body>` |
 | `src/app/[locale]/verify-email/page.tsx` | Public email verification page — reads token from query string, updates Prisma by email (no session required) |
 | `src/app/[locale]/admin/layout.tsx` | Super admin layout — `flex h-full md:flex-row` + `AdminNav`; gated by `requireSuperAdmin()` |
 | `src/app/[locale]/admin/error.tsx` | Admin-scoped error boundary — "Volver al panel de administración" → `/admin/tenants` (not `/dashboard`) |
@@ -365,7 +368,9 @@ This project runs Next.js **16** (not 13-15). Key differences from older version
 | `src/components/admin-payment-manager.tsx` | Client Component — payment list + `ProofViewerDialog` (fetches proofs, renders `<img>`/`<iframe>`, paginated) |
 | `src/components/admin-agreement-manager.tsx` | Client Component — three-panel (TERMS/PRIVACY/DPA) with `PublishDialog` (fetches current markdown, monospace textarea, version input) |
 | `prisma/seed.js` | Seeds `support@comprobify.com` as super admin; requires `ADMIN_SEED_PASSWORD` env var; run with `npm run db:seed` |
-| `src/app/actions/auth.ts` | `loginAction` (post-login routing), `registerAction`, `logoutAction` (clears cookie + signOut) |
+| `src/app/actions/auth.ts` | `loginAction` (post-login routing; pre-checks `user.active` and returns `ACCOUNT_DISABLED` before calling `signIn()`), `registerAction`, `logoutAction` (clears cookie + signOut) |
+| `src/app/actions/account.ts` | `updateProfileAction` (firstName/lastName for own user), `changePasswordAction` (verifies current password, hashes new one) — both act only on the signed-in user's own row |
+| `src/app/api/auth/signout-disabled/route.ts` | Route Handler — called by `requireContext()` when `User.active === false`; calls `signOut()` (legal in Route Handlers, not in Server Components) then redirects to `/login?reason=disabled` |
 | `src/app/actions/onboarding.ts` | `bootstrapTenantAction` (create new tenant) and `linkExistingTenantAction` (link an existing API account) — both create Tenant + TenantApiKey + Issuer + set cookie in one transaction |
 | `src/components/onboarding-tabs.tsx` | Client Component — switches between `IssuerSetupForm` and `LinkExistingAccountForm` on `/onboarding/tenant` |
 | `src/components/link-existing-account-form.tsx` | API-key paste form for linking an existing Comprobify API account |
@@ -379,7 +384,7 @@ This project runs Next.js **16** (not 13-15). Key differences from older version
 | `src/components/issuer-edit-form.tsx` | Client Component — trade name/branch address form, logo + certificate dialogs (moved from `issuer-manager.tsx`), per-document-type/environment sequential editor |
 | `src/components/cert-info.tsx` | Shared cert expiry/fingerprint badge — used by both `issuer-manager.tsx` and `issuer-edit-form.tsx` |
 | `src/app/actions/apiKeys.ts` | `createTenantApiKeyAction` (returns cleartext key once), `revokeTenantApiKeyAction` |
-| `src/app/actions/users.ts` | `inviteUserAction`, `updateUserRoleAction`, `removeUserAction`, `setUserIssuerAccessAction` |
+| `src/app/actions/users.ts` | `inviteUserAction`, `updateUserAction` (name + role + issuers in one call), `toggleUserActiveAction` (disable/enable), `resetUserPasswordAction`, `removeUserAction`, `setUserIssuerAccessAction` |
 | `src/app/actions/invoice.ts` | `createInvoiceAction(data, sendAfterSigning, from?)` / `rebuildInvoiceAction(accessKey, data, sendAfterSigning, from?)` — share `buildCreateDocumentPayload()` and `sendAfterSigningIfRequested()`; `from` is appended to the post-submit redirect so Invoice Detail's back-link doesn't fall back to dashboard; exports `InvoiceFormData` type |
 | `src/app/actions/credit-note.ts` | `createCreditNoteAction`/`rebuildCreditNoteAction` (now also take `originalAccessKey` to re-check the remaining balance server-side via `assertWithinRemainingBalance`); `getInvoiceForCreditNoteAction(accessKey)` resolves an AUTHORIZED invoice into `originalDocument`/`buyer`/`items`/`remaining` prefill data (reconstructing the `NNN-NNN-NNNNNNNNN` number from the issuer's `branchCode`/`issuePointCode` + the document's `sequential`); `searchCreditableInvoicesAction(sequential)` wraps `listDocuments` for the "Buscar comprobante" picker; `resolveOriginalAccessKeyAction`/`getRemainingBalanceAction` support the rebuild-mode balance lookup; exports `CreditNoteFormData` type |
 | `src/app/actions/clients.ts` | Server Actions for client CRUD; exports `SavedClient` type; all ops scoped to `tenantId` |
@@ -402,6 +407,8 @@ This project runs Next.js **16** (not 13-15). Key differences from older version
 | `src/components/billing-manager.tsx` | Client Component — `SubscribeCard`/`ChangeTierCard`/`PendingPaymentCard` (file upload + bank details), subscription/payment history list |
 | `src/app/[locale]/settings/notifications/page.tsx` | Server Component — notification preference toggles (Owner/Admin) |
 | `src/app/[locale]/settings/webhooks/page.tsx` | Server Component — webhook endpoint management (Owner/Admin) |
+| `src/app/[locale]/settings/account/page.tsx` | Server Component — user profile (firstName/lastName) + password change; accessible to any authenticated user via `requireContext({ skipIssuer: true })`; no permission gate |
+| `src/components/account-settings.tsx` | Client Component — profile form + password change form for `/settings/account` |
 | `src/app/[locale]/complete-registration/page.tsx` | Public — invited user sets password; bounces already-authenticated users |
 | `src/components/notification-bell.tsx` | Bell icon + unread badge; auto-refreshes every 60 s; opens `NotificationPanel` |
 | `src/components/notification-panel.tsx` | Dropdown notification list with mark-read per item |

@@ -22,7 +22,7 @@ export function NotificationBell({ initialUnreadCount, initialNotifications }: N
   const ref = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
 
   // Close on outside click (the panel is portaled to document.body, so it
   // sits outside `ref` — check it separately or it would close on every click inside it)
@@ -40,7 +40,7 @@ export function NotificationBell({ initialUnreadCount, initialNotifications }: N
   function handleToggle() {
     if (!open && buttonRef.current) {
       const r = buttonRef.current.getBoundingClientRect();
-      setPos({ top: r.bottom + 8, left: r.left });
+      setPos({ top: r.bottom + 8, right: window.innerWidth - r.right });
     }
     setOpen((v) => !v);
   }
@@ -103,7 +103,7 @@ export function NotificationBell({ initialUnreadCount, initialNotifications }: N
           onMarkRead={handleMarkRead}
           onClose={() => setOpen(false)}
           panelRef={panelRef}
-          style={{ top: pos.top, left: pos.left }}
+          style={{ top: pos.top, right: pos.right }}
         />,
         document.body,
       )}

@@ -7,17 +7,20 @@ datasource db {
 }
 
 model User {
-  id           Int       @id @default(autoincrement())
-  email        String    @unique
-  passwordHash String?   @map("password_hash")
-  emailVerified Boolean  @default(false) @map("email_verified")
-  tenantId     Int?      @map("tenant_id")
-  role         String?
-  inviteStatus String    @default("ACTIVE") @map("invite_status")
-  invitedAt    DateTime? @map("invited_at")
-  acceptedAt   DateTime? @map("accepted_at")
-  isSuperAdmin Boolean   @default(false) @map("is_super_admin")
-  createdAt    DateTime  @default(now()) @map("created_at")
+  id            Int       @id @default(autoincrement())
+  email         String    @unique
+  firstName     String?   @map("first_name")
+  lastName      String?   @map("last_name")
+  passwordHash  String?   @map("password_hash")
+  emailVerified Boolean   @default(false) @map("email_verified")
+  active        Boolean   @default(true)
+  tenantId      Int?      @map("tenant_id")
+  role          String?
+  inviteStatus  String    @default("ACTIVE") @map("invite_status")
+  invitedAt     DateTime? @map("invited_at")
+  acceptedAt    DateTime? @map("accepted_at")
+  isSuperAdmin  Boolean   @default(false) @map("is_super_admin")
+  createdAt     DateTime  @default(now()) @map("created_at")
   tenant       Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   issuerAccess UserIssuerAccess[]
 

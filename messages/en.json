@@ -40,7 +40,9 @@
     "languageTooltip": "UI language and Comprobify transactional email language",
     "noIssuer": "No issue point",
     "noIssuerAssigned": "No issuer assigned",
-    "contactAdmin": "Contact your administrator"
+    "contactAdmin": "Contact your administrator",
+    "collapseSidebar": "Collapse menu",
+    "lockSidebar": "Pin menu"
   },
   "auth": {
     "backToHome": "Back to home",
@@ -55,7 +57,8 @@
       "submit": "Sign in",
       "submitting": "Signing in...",
       "noAccount": "Don't have an account?",
-      "register": "Register"
+      "register": "Register",
+      "accountDisabled": "Your account has been disabled by an administrator. Contact your administrator to regain access."
     },
     "register": {
       "subtitle": "Create your account",
@@ -68,7 +71,8 @@
   "authError": {
     "INVALID_CREDENTIALS": "Incorrect email or password.",
     "EMAIL_TAKEN": "An account with that email already exists.",
-    "PASSWORD_MISMATCH": "Passwords do not match."
+    "PASSWORD_MISMATCH": "Passwords do not match.",
+    "ACCOUNT_DISABLED": "Your account has been disabled. Contact your organization administrator."
   },
   "completeRegistration": {
     "title": "Activate your account",
@@ -579,7 +583,8 @@
       "agreementRequiredLink": "Review and accept agreements"
     },
     "account": {
-      "title": "Account"
+      "title": "Account",
+      "description": "Manage your profile and password."
     },
     "legalDocs": {
       "title": "Legal documents",
@@ -683,7 +688,11 @@
     "REQUIRES_PRODUCTION": "This action is only available in the production environment.",
     "AGREEMENT_NOT_FOUND": "The requested agreement document was not found.",
     "VERSION_MISMATCH": "The terms have been updated. Reload the page and review them before continuing.",
-    "AGREEMENT_ACCEPTANCE_REQUIRED": "You must review and accept the legal agreements before activating production."
+    "AGREEMENT_ACCEPTANCE_REQUIRED": "You must review and accept the legal agreements before activating production.",
+    "WRONG_CURRENT_PASSWORD": "Current password is incorrect.",
+    "PASSWORD_TOO_SHORT": "Password must be at least 8 characters.",
+    "CANNOT_DISABLE_SELF": "You cannot disable your own account.",
+    "CANNOT_RESET_OWN_PASSWORD": "Use the account settings to change your own password."
   },
   "agreements": {
     "title": "Review and accept agreements",
@@ -939,7 +948,9 @@
       "email": "Email",
       "role": "Role",
       "status": "Status",
-      "actions": "Actions"
+      "actions": "Actions",
+      "name": "Name",
+      "issuers": "Issuers"
     },
     "role": {
       "Owner": "Owner",
@@ -989,6 +1000,32 @@
         "accountSettings": "Account settings",
         "promoteToProduction": "Activate production mode"
       }
+    },
+    "allIssuers": "All",
+    "noIssuers": "Unassigned",
+    "editDialog": {
+      "title": "Edit user",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "firstNamePlaceholder": "Jane",
+      "lastNamePlaceholder": "Smith",
+      "role": "Role",
+      "issuers": "Issuer access",
+      "issuersDescription": "Choose which issuers this user can access.",
+      "issuersEmpty": "No issuers available.",
+      "resetPassword": "Reset password",
+      "save": "Save changes"
+    },
+    "editSuccess": "User updated.",
+    "disableSuccess": "User disabled.",
+    "enableSuccess": "User enabled.",
+    "disable": "Disable user",
+    "enable": "Enable user",
+    "resetPasswordSuccess": "Password reset email sent.",
+    "resetPasswordDialog": {
+      "title": "Reset password",
+      "description": "A password reset email will be sent to the user. Continue?",
+      "confirm": "Send email"
     }
   },
   "certBanner": {
@@ -1299,6 +1336,11 @@
       "subject": "You've been invited to join {businessName} on Comprobify",
       "greeting": "You've been invited to join {businessName} on Comprobify.",
       "cta": "Click the link below to complete your registration:"
+    },
+    "passwordReset": {
+      "subject": "Reset your password on Comprobify",
+      "greeting": "An administrator at {businessName} requested a password reset for your account.",
+      "cta": "Click the link below to set a new password:"
     }
   },
   "admin": {
@@ -1432,6 +1474,33 @@
         "loading": "Loading...",
         "publishedAt": "Published on {date}"
       }
+    }
+  },
+  "accountSettings": {
+    "title": "My account",
+    "description": "Manage your profile and password.",
+    "profile": {
+      "title": "Personal information",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "firstNamePlaceholder": "Jane",
+      "lastNamePlaceholder": "Smith",
+      "email": "Email address",
+      "emailNote": "Email address cannot be changed.",
+      "save": "Save",
+      "saving": "Saving...",
+      "saveSuccess": "Profile updated."
+    },
+    "password": {
+      "title": "Change password",
+      "current": "Current password",
+      "new": "New password",
+      "confirm": "Confirm password",
+      "save": "Change password",
+      "saving": "Changing...",
+      "saveSuccess": "Password updated.",
+      "mismatch": "Passwords do not match.",
+      "tooShort": "Password must be at least 8 characters."
     }
   }
 }

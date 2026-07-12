@@ -152,3 +152,103 @@ export async function setUserIssuerAccessAction(
   revalidatePath('/users');
   return null;
 }
+
+async function sendPasswordResetEmail(email: string, businessName: string) {
+  try {
+    const locale = await getLocale();
+    const t = await getTranslations({ locale, namespace: 'email.passwordReset' });
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+    if (!appUrl) throw new Error('NEXT_PUBLIC_APP_URL not configured');
+    const link = `${appUrl}/${locale}/complete-registration?email=${encodeURIComponent(email)}`;
+    const subject = t('subject');
+    const text = `${t('greeting', { businessName })}\n\n${t('cta')}\n\n${link}`;
+    const html = `<p>${t('greeting', { businessName })}</p><p>${t('cta')}</p><p><a href="${link}">${link}</a></p>`;
+    await sendMail({ to: email, subject, text, html });
+  } catch (err) {
+    Sentry.captureException(err, { extra: { email } });
+  }
+}
+
+export async function updateUserAction(
+  userId: number,
+  data: { firstName?: string | null; lastName?: string | null; role?: Role; issuerIds?: number[] },
+): Promise<UsersResult> {
+  await requirePermission('users.manage', { skipIssuer: true });
+  const ctx = await (await import('@/lib/context')).requireContext({ skipIssuer: true });
+
+  const user = await db.user.findUnique({ where: { id: userId } });
+  if (!user || user.tenantId !== ctx.tenant.id) return { error: 'USER_NOT_FOUND' };
+
+  const userUpdate: { firstName?: string | null; lastName?: string | null; role?: string } = {
+    firstName: data.firstName ?? undefined,
+    lastName: data.lastName ?? undefined,
+  };
+
+  if (data.role !== undefined && userId !== ctx.user.id) {
+    const grantError = assertCanGrantRole(data.role, ctx.user.role);
+    if (grantError) return grantError;
+    userUpdate.role = data.role;
+  }
+
+  await db.user.update({ where: { id: userId }, data: userUpdate });
+
+  if (data.issuerIds !== undefined) {
+    if (data.issuerIds.length > 0) {
+      const issuers = await db.issuer.findMany({
+        where: { id: { in: data.issuerIds }, tenantId: ctx.tenant.id, active: true },
+      });
+      if (issuers.length !== data.issuerIds.length) return { error: 'ISSUER_NOT_FOUND' };
+    }
+    await db.$transaction(async (tx) => {
+      await tx.userIssuerAccess.deleteMany({ where: { userId } });
+      if (data.issuerIds!.length > 0) {
+        await tx.userIssuerAccess.createMany({
+          data: data.issuerIds!.map((issuerId) => ({
+            userId,
+            tenantId: ctx.tenant.id,
+            issuerId,
+          })),
+        });
+      }
+    });
+  }
+
+  revalidatePath('/users');
+  return null;
+}
+
+export async function toggleUserActiveAction(
+  userId: number,
+  active: boolean,
+): Promise<UsersResult> {
+  await requirePermission('users.manage', { skipIssuer: true });
+  const ctx = await (await import('@/lib/context')).requireContext({ skipIssuer: true });
+
+  if (userId === ctx.user.id) return { error: 'CANNOT_DISABLE_SELF' };
+
+  const user = await db.user.findUnique({ where: { id: userId } });
+  if (!user || user.tenantId !== ctx.tenant.id) return { error: 'USER_NOT_FOUND' };
+
+  await db.user.update({ where: { id: userId }, data: { active } });
+  revalidatePath('/users');
+  return null;
+}
+
+export async function resetUserPasswordAction(userId: number): Promise<UsersResult> {
+  await requirePermission('users.manage', { skipIssuer: true });
+  const ctx = await (await import('@/lib/context')).requireContext({ skipIssuer: true });
+
+  if (userId === ctx.user.id) return { error: 'CANNOT_RESET_OWN_PASSWORD' };
+
+  const user = await db.user.findUnique({ where: { id: userId } });
+  if (!user || user.tenantId !== ctx.tenant.id) return { error: 'USER_NOT_FOUND' };
+  if (user.inviteStatus !== 'ACTIVE') return { error: 'USER_ALREADY_IN_TENANT' };
+
+  await db.user.update({
+    where: { id: userId },
+    data: { passwordHash: null, inviteStatus: 'INVITED' },
+  });
+
+  await sendPasswordResetEmail(user.email, ctx.tenant.businessName);
+  return null;
+}
