@@ -60,7 +60,7 @@ Shown to Owner/Admin (`webhooks.manage` permission). A card linking to `/setting
 
 ### 7. Account card
 
-Shows the signed-in user's email address (`ctx.user.email`).
+A clickable card linking to `/settings/account`. Shows `firstName + lastName` (if set) alongside the signed-in user's email. Any authenticated user can access this — no special permission required. See `docs/site/screens/account.md`.
 
 ---
 
@@ -77,3 +77,4 @@ Shows the signed-in user's email address (`ctx.user.email`).
 | `src/app/[locale]/settings/billing/page.tsx` | Subscription/payment management sub-page — see `docs/site/screens/billing.md` |
 | `src/app/[locale]/settings/notifications/page.tsx` | Notification preferences sub-page |
 | `src/app/[locale]/settings/webhooks/page.tsx` | Webhook management sub-page |
+| `src/app/[locale]/settings/account/page.tsx` | User profile + password change sub-page — see `docs/site/screens/account.md` |
