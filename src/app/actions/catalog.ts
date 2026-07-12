@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { requireContext } from '@/lib/context';
+import { requirePermission } from '@/lib/context';
 import { revalidatePath } from 'next/cache';
 
 export type CatalogProduct = {
@@ -24,7 +24,7 @@ export type CatalogProductInput = {
 export type CatalogResult = { error: string } | null;
 
 async function requireTenantId(): Promise<number> {
-  const ctx = await requireContext({ skipIssuer: true });
+  const ctx = await requirePermission('catalog.manage', { skipIssuer: true });
   return ctx.tenant.id;
 }
 

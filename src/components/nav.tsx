@@ -5,8 +5,8 @@ import { useSearchParams } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import {
-  LayoutDashboard, Files, Users, Package, Settings, Building2,
-  Menu, X, LogOut, Globe, ChevronDown,
+  LayoutDashboard, Files, Users, UsersRound, Package, Settings, Building2,
+  Menu, X, LogOut, Globe, ChevronDown, ShieldAlert,
 } from 'lucide-react';
 import { NotificationBell } from '@/components/notification-bell';
 import type { listNotificationsAction } from '@/app/actions/notifications';
@@ -16,15 +16,24 @@ import { selectIssuerAction } from '@/app/actions/context';
 import { logoutAction } from '@/app/actions/auth';
 import { updateLanguageAction } from '@/app/actions/tenant';
 import { cn } from '@/lib/utils';
+import type { Role, Permission } from '@/lib/rbac';
+import { ROLE_PERMISSIONS } from '@/lib/rbac';
 
-const navItems = [
-  { href: '/dashboard', icon: LayoutDashboard, labelKey: 'dashboard' as const, requiresIssuer: true },
-  { href: '/documents', icon: Files, labelKey: 'documents' as const, requiresIssuer: true },
-  { href: '/clients', icon: Users, labelKey: 'clients' as const, requiresIssuer: true },
-  { href: '/catalog', icon: Package, labelKey: 'catalog' as const, requiresIssuer: true },
-  { href: '/issuers', icon: Building2, labelKey: 'issuers' as const, requiresIssuer: false },
-  { href: '/settings', icon: Settings, labelKey: 'settings' as const, requiresIssuer: false },
-] as const;
+const navItems: Array<{
+  href: string;
+  icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
+  labelKey: 'dashboard' | 'documents' | 'clients' | 'catalog' | 'issuers' | 'users' | 'settings';
+  requiresIssuer: boolean;
+  permission: Permission | null;
+}> = [
+  { href: '/dashboard',  icon: LayoutDashboard, labelKey: 'dashboard', requiresIssuer: true,  permission: null },
+  { href: '/documents',  icon: Files,           labelKey: 'documents', requiresIssuer: true,  permission: 'documents.read' },
+  { href: '/clients',    icon: Users,           labelKey: 'clients',   requiresIssuer: true,  permission: 'clients.manage' },
+  { href: '/catalog',    icon: Package,         labelKey: 'catalog',   requiresIssuer: true,  permission: 'catalog.manage' },
+  { href: '/issuers',    icon: Building2,       labelKey: 'issuers',   requiresIssuer: false, permission: 'issuers.read' },
+  { href: '/users',      icon: UsersRound,      labelKey: 'users',     requiresIssuer: false, permission: 'users.read' },
+  { href: '/settings',   icon: Settings,        labelKey: 'settings',  requiresIssuer: false, permission: null },
+];
 
 const locales = [
   { code: 'es', label: 'ES' },
@@ -47,6 +56,8 @@ interface NavProps {
   currentIssuer: Issuer | null;
   issuers: Issuer[];
   userEmail: string;
+  userRole: Role;
+  noIssuerAssigned: boolean;
   initialUnreadCount: number;
   initialNotifications: NotificationItem[];
   appVersion: string;
@@ -80,10 +91,14 @@ function TenantBadge({ name, environment }: { name: string | null; environment: 
 function IssuerSwitcher({
   currentIssuer,
   issuers,
+  userRole,
+  noIssuerAssigned,
   onClose,
 }: {
   currentIssuer: Issuer | null;
   issuers: Issuer[];
+  userRole: Role;
+  noIssuerAssigned: boolean;
   onClose?: () => void;
 }) {
   const t = useTranslations('nav');
@@ -99,6 +114,18 @@ function IssuerSwitcher({
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
+
+  if (noIssuerAssigned) {
+    return (
+      <div className="mt-1 flex items-start gap-1.5">
+        <ShieldAlert className="h-3.5 w-3.5 shrink-0 text-amber-400 mt-0.5" />
+        <div className="min-w-0">
+          <p className="text-xs text-amber-400 leading-snug">{t('noIssuerAssigned')}</p>
+          <p className="text-[10px] text-sidebar-foreground/50 leading-snug">{t('contactAdmin')}</p>
+        </div>
+      </div>
+    );
+  }
 
   const displayName = currentIssuer
     ? `${currentIssuer.branchCode}-${currentIssuer.issuePointCode} ${currentIssuer.name}`
@@ -117,7 +144,7 @@ function IssuerSwitcher({
     return (
       <p className="truncate text-xs text-sidebar-foreground/70 mt-0.5">
         {currentIssuer
-          ? `${currentIssuer.branchCode}-${currentIssuer.issuePointCode}`
+          ? `${currentIssuer.branchCode}-${currentIssuer.issuePointCode} ${currentIssuer.name}`
           : t('noIssuer')}
       </p>
     );
@@ -135,7 +162,7 @@ function IssuerSwitcher({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1 min-w-[180px] rounded-lg border border-sidebar-border bg-sidebar shadow-lg">
+        <div className="absolute left-0 top-full z-50 mt-1 min-w-45 rounded-lg border border-sidebar-border bg-sidebar shadow-lg">
           {issuers.map((issuer) => (
             <button
               key={issuer.id}
@@ -212,12 +239,17 @@ function UserMenu({ email, pathname }: { email: string; pathname: string }) {
 
 // ── Nav ───────────────────────────────────────────────────────────────────────
 
-export function Nav({ hasIssuer, environment, tenantName, currentIssuer, issuers, userEmail, initialUnreadCount, initialNotifications, appVersion }: NavProps) {
+export function Nav({ hasIssuer, environment, tenantName, currentIssuer, issuers, userEmail, userRole, noIssuerAssigned, initialUnreadCount, initialNotifications, appVersion }: NavProps) {
   const t = useTranslations('nav');
+  const tUsers = useTranslations('users');
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+  const roleLabel = tUsers(`role.${userRole}` as Parameters<typeof tUsers>[0]);
 
-  const visibleNavItems = navItems.filter(({ requiresIssuer }) => !requiresIssuer || hasIssuer);
+  const userPerms = ROLE_PERMISSIONS[userRole];
+  const visibleNavItems = navItems.filter(({ requiresIssuer, permission }) =>
+    (!requiresIssuer || hasIssuer) && (!permission || userPerms.has(permission)),
+  );
 
   const sidebarContent = (
     <>
@@ -227,6 +259,8 @@ export function Nav({ hasIssuer, environment, tenantName, currentIssuer, issuers
         <IssuerSwitcher
           currentIssuer={currentIssuer}
           issuers={issuers}
+          userRole={userRole}
+          noIssuerAssigned={noIssuerAssigned}
           onClose={() => setIsOpen(false)}
         />
       </div>
@@ -280,6 +314,8 @@ export function Nav({ hasIssuer, environment, tenantName, currentIssuer, issuers
             <IssuerSwitcher
               currentIssuer={currentIssuer}
               issuers={issuers}
+              userRole={userRole}
+              noIssuerAssigned={noIssuerAssigned}
               onClose={() => setIsOpen(false)}
             />
           </div>
@@ -306,7 +342,7 @@ export function Nav({ hasIssuer, environment, tenantName, currentIssuer, issuers
         )}
       >
         {/* Logo header */}
-        <div className="flex h-14 items-center gap-3 border-b border-sidebar-border px-4">
+        <div className="flex h-14 items-center gap-2 border-b border-sidebar-border px-4">
           <button
             onClick={() => setIsOpen(false)}
             className="rounded-md p-1 text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:hidden"
@@ -315,6 +351,12 @@ export function Nav({ hasIssuer, environment, tenantName, currentIssuer, issuers
             <X className="h-4 w-4" />
           </button>
           <LogoLockup className="h-7 w-auto flex-1" />
+          <span
+            className="shrink-0 max-w-24 truncate rounded bg-sidebar-primary/15 px-1.5 py-0.5 text-[10px] font-medium leading-none text-sidebar-primary"
+            title={roleLabel}
+          >
+            {roleLabel}
+          </span>
           <NotificationBell
             initialUnreadCount={initialUnreadCount}
             initialNotifications={initialNotifications}

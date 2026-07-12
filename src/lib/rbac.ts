@@ -51,7 +51,6 @@ export const ROLE_PERMISSIONS: Record<Role, ReadonlySet<Permission>> = {
     'documents.create', 'documents.read', 'documents.manage',
     'clients.manage', 'catalog.manage',
     'issuers.read',
-    'billing.read', 'billing.manage',
     'notifications.read',
   ]),
   Viewer: new Set([

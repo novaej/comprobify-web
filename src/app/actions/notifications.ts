@@ -2,6 +2,11 @@
 
 import { Prisma } from '@prisma/client';
 import { requireContext, requirePermission } from '@/lib/context';
+
+const BILLING_NOTIFICATION_TYPES = [
+  'PAYMENT_VERIFIED', 'PAYMENT_REJECTED',
+  'SUBSCRIPTION_RENEWAL_DUE', 'SUBSCRIPTION_EXPIRED',
+];
 import {
   listNotifications,
   markNotificationRead,
@@ -223,6 +228,13 @@ export async function listNotificationsAction(): Promise<{
   const userId = ctx.user.id;
   const tenantId = ctx.tenant.id;
 
+  const userDates = await db.user.findUnique({
+    where: { id: userId },
+    select: { acceptedAt: true, invitedAt: true },
+  });
+  const joinedAt = userDates?.acceptedAt ?? userDates?.invitedAt;
+  const canSeeBilling = ctx.user.role === 'Owner' || ctx.user.role === 'Admin';
+
   const notifications = await db.notification.findMany({
     where: {
       tenantId,
@@ -230,6 +242,8 @@ export async function listNotificationsAction(): Promise<{
         { expiresAt: null },
         { expiresAt: { gt: new Date() } },
       ],
+      ...(joinedAt ? { apiCreatedAt: { gte: joinedAt } } : {}),
+      ...(!canSeeBilling ? { type: { notIn: BILLING_NOTIFICATION_TYPES } } : {}),
     },
     orderBy: { apiCreatedAt: 'desc' },
     take: 20,

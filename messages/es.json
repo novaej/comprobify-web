@@ -23,16 +23,24 @@
     "description": "La página que buscas no existe o fue movida.",
     "backToDashboard": "Volver al panel"
   },
+  "noIssuerAssigned": {
+    "title": "Sin emisor asignado",
+    "description": "Aún no tienes acceso a ningún emisor. Contacta a tu administrador para que te asigne uno.",
+    "hint": "Una vez que tengas acceso asignado, el panel cargará automáticamente."
+  },
   "nav": {
     "dashboard": "Panel",
     "documents": "Comprobantes",
     "clients": "Clientes",
     "catalog": "Catálogo",
     "issuers": "Emisores",
+    "users": "Usuarios",
     "settings": "Configuración",
     "signOut": "Cerrar sesión",
     "languageTooltip": "Idioma de la interfaz y de los correos transaccionales de Comprobify",
-    "noIssuer": "Sin punto de emisión"
+    "noIssuer": "Sin punto de emisión",
+    "noIssuerAssigned": "Sin emisor asignado",
+    "contactAdmin": "Contacta a tu administrador"
   },
   "auth": {
     "backToHome": "Volver al inicio",
@@ -1009,12 +1017,19 @@
     "sendInvite": "Enviar invitación",
     "cancel": "Cancelar",
     "remove": "Eliminar",
+    "removing": "Eliminando...",
     "confirmRemove": "¿Eliminar este usuario de la organización?",
+    "removeDialog": {
+      "title": "Eliminar usuario",
+      "description": "¿Estás seguro de que deseas eliminar este usuario de la organización? Esta acción no se puede deshacer.",
+      "confirm": "Eliminar"
+    },
     "emailPlaceholder": "correo@empresa.com",
     "table": {
       "email": "Correo",
       "role": "Rol",
-      "status": "Estado"
+      "status": "Estado",
+      "actions": "Acciones"
     },
     "role": {
       "Owner": "Propietario",
@@ -1037,9 +1052,33 @@
     "accessSuccess": "Acceso a emisores actualizado.",
     "accessDialog": {
       "title": "Acceso a emisores",
-      "description": "Elige a qué emisores puede acceder este usuario. Si no seleccionas ninguno, tendrá acceso a todos los emisores.",
+      "description": "Elige a qué emisores puede acceder este usuario. Si no seleccionas ninguno, solo tendrá acceso al emisor predeterminado.",
       "empty": "No hay emisores disponibles.",
       "save": "Guardar"
+    },
+    "rolesInfo": {
+      "button": "Ver permisos por rol",
+      "title": "Permisos por rol",
+      "capability": "Capacidad",
+      "capabilities": {
+        "createDocuments": "Crear y firmar documentos",
+        "viewDocuments": "Ver documentos e historial",
+        "manageDocuments": "Reenviar correos y gestionar documentos",
+        "clientsCatalog": "Gestionar clientes y catálogo de productos",
+        "viewIssuers": "Ver información de emisores",
+        "manageIssuers": "Configurar emisores (certificados, secuencias)",
+        "viewBilling": "Ver planes y facturación",
+        "manageBilling": "Cambiar plan y gestionar pagos",
+        "viewApiKeys": "Ver API keys",
+        "manageApiKeys": "Crear y revocar API keys",
+        "viewUsers": "Ver lista de usuarios",
+        "manageUsers": "Invitar usuarios y gestionar accesos",
+        "webhooks": "Gestionar webhooks",
+        "viewNotifications": "Ver notificaciones",
+        "manageNotifications": "Configurar preferencias de notificación",
+        "accountSettings": "Configuración de cuenta",
+        "promoteToProduction": "Activar modo producción"
+      }
     }
   },
   "marketing": {
@@ -1265,7 +1304,7 @@
   "admin": {
     "nav": {
       "title": "Panel de administración",
-      "adminBadge": "Admin",
+      "adminBadge": "Super Admin",
       "tenants": "Tenants",
       "payments": "Pagos",
       "agreements": "Contratos",

@@ -1,4 +1,5 @@
 import 'server-only';
+import { notFound } from 'next/navigation';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
 import { getLocale } from 'next-intl/server';
@@ -22,19 +23,13 @@ export async function requireSuperAdmin(): Promise<AdminContext> {
     return null as never;
   }
 
-  if (!session.user.isSuperAdmin) {
-    redirect({ href: '/login', locale });
-    return null as never;
-  }
-
   const user = await db.user.findUnique({
     where: { id: Number(session.user.id) },
     select: { id: true, email: true, isSuperAdmin: true },
   });
 
   if (!user?.isSuperAdmin) {
-    redirect({ href: '/login', locale });
-    return null as never;
+    notFound();
   }
 
   return { user: { id: user.id, email: user.email } };

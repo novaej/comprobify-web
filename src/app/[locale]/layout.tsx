@@ -12,11 +12,17 @@ import { AgreementPendingBanner } from '@/components/agreement-pending-banner';
 import { NotificationSync } from '@/components/notification-sync';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
+import type { Role } from '@/lib/rbac';
 import { readCtxCookie } from '@/lib/context-cookie';
 import type { listNotificationsAction } from '@/app/actions/notifications';
 import packageJson from '../../../package.json';
 
 type NotificationItem = Awaited<ReturnType<typeof listNotificationsAction>>['notifications'][number];
+
+const BILLING_NOTIFICATION_TYPES = [
+  'PAYMENT_VERIFIED', 'PAYMENT_REJECTED',
+  'SUBSCRIPTION_RENEWAL_DUE', 'SUBSCRIPTION_EXPIRED',
+];
 
 interface CertAlertProps {
   id: number;
@@ -33,6 +39,8 @@ interface LayoutProps {
   currentIssuer: { id: number; apiIssuerId: number; name: string; branchCode: string; issuePointCode: string } | null;
   issuers: Array<{ id: number; apiIssuerId: number; name: string; branchCode: string; issuePointCode: string }>;
   userEmail: string;
+  userRole: Role;
+  noIssuerAssigned: boolean;
   initialUnreadCount: number;
   initialNotifications: NotificationItem[];
   certAlert: CertAlertProps | null;
@@ -45,6 +53,9 @@ async function getLayoutProps(userId: string): Promise<LayoutProps | null> {
     where: { id: userNum },
     select: {
       email: true,
+      role: true,
+      acceptedAt: true,
+      invitedAt: true,
       tenant: {
         select: {
           id: true,
@@ -72,18 +83,41 @@ async function getLayoutProps(userId: string): Promise<LayoutProps | null> {
     branchCode: i.branchCode,
     issuePointCode: i.issuePointCode,
   }));
+
+  // For non-Owner/Admin, restrict the issuer switcher to only assigned issuers.
+  const isOwnerOrAdmin = user.role === 'Owner' || user.role === 'Admin';
+  let displayIssuers = allIssuers;
+  let noIssuerAssigned = false;
+  if (!isOwnerOrAdmin) {
+    const userAccess = await db.userIssuerAccess.findMany({
+      where: { tenantId: user.tenant.id, userId: userNum },
+      select: { issuerId: true },
+    });
+    if (userAccess.length === 0) {
+      noIssuerAssigned = true;
+      displayIssuers = [];
+    } else {
+      const assignedIds = new Set(userAccess.map((a) => a.issuerId));
+      displayIssuers = allIssuers.filter((i) => assignedIds.has(i.id));
+    }
+  }
+
   const currentIssuer = ctxCookie
-    ? (allIssuers.find((i) => i.id === ctxCookie.issuerId) ?? null)
+    ? (displayIssuers.find((i) => i.id === ctxCookie.issuerId) ?? allIssuers.find((i) => i.id === ctxCookie.issuerId) ?? null)
     : null;
 
   // Fetch active notifications with per-user read state.
   // Non-fatal — use empty array on failure.
   const tenantId = user.tenant.id;
+  const joinedAt = user.acceptedAt ?? user.invitedAt;
+  const canSeeBilling = user.role === 'Owner' || user.role === 'Admin';
   const notifications = await db.notification
     .findMany({
       where: {
         tenantId,
         OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+        ...(joinedAt ? { apiCreatedAt: { gte: joinedAt } } : {}),
+        ...(!canSeeBilling ? { type: { notIn: BILLING_NOTIFICATION_TYPES } } : {}),
       },
       orderBy: { apiCreatedAt: 'desc' as const },
       take: 20,
@@ -136,13 +170,15 @@ async function getLayoutProps(userId: string): Promise<LayoutProps | null> {
   })();
 
   return {
-    hasIssuer: allIssuers.length > 0,
+    hasIssuer: displayIssuers.length > 0,
     environment: user.tenant.environment as 'sandbox' | 'production',
     isSuspended: user.tenant.status === 'SUSPENDED',
     tenantName: user.tenant.tradeName ?? user.tenant.businessName,
     currentIssuer,
-    issuers: allIssuers,
+    issuers: displayIssuers,
     userEmail: user.email,
+    userRole: user.role as Role,
+    noIssuerAssigned,
     initialUnreadCount,
     initialNotifications: mappedNotifications,
     certAlert,
@@ -185,6 +221,8 @@ export default async function LocaleLayout({
               currentIssuer={layoutProps.currentIssuer}
               issuers={layoutProps.issuers}
               userEmail={layoutProps.userEmail}
+              userRole={layoutProps.userRole}
+              noIssuerAssigned={layoutProps.noIssuerAssigned}
               initialUnreadCount={layoutProps.initialUnreadCount}
               initialNotifications={layoutProps.initialNotifications}
               appVersion={packageJson.version}

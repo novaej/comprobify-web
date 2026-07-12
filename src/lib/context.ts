@@ -2,9 +2,10 @@ import 'server-only';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
 import { decrypt } from '@/lib/crypto';
-import { readCtxCookie, writeCtxCookie, clearCtxCookie } from '@/lib/context-cookie';
+import { readCtxCookie } from '@/lib/context-cookie';
 import { ROLE_PERMISSIONS } from '@/lib/rbac';
 import { getLocale } from 'next-intl/server';
+import { notFound } from 'next/navigation';
 import { redirect } from '@/i18n/navigation';
 import type { Role, Permission } from '@/lib/rbac';
 
@@ -23,19 +24,6 @@ export interface MinimalContext {
   apiKey: string;
 }
 
-async function getAccessibleIssuers(userId: number, tenantId: number, role: Role) {
-  if (role === 'Owner' || role === 'Admin') {
-    return db.issuer.findMany({ where: { tenantId, active: true }, select: { id: true } });
-  }
-  const access = await db.userIssuerAccess.findMany({
-    where: { userId, tenantId, issuer: { active: true } },
-    select: { issuerId: true },
-  });
-  if (access.length === 0) {
-    return db.issuer.findMany({ where: { tenantId, active: true }, select: { id: true } });
-  }
-  return access.map((a) => ({ id: a.issuerId }));
-}
 
 export async function requireContext(opts: { skipIssuer: true }): Promise<MinimalContext>;
 export async function requireContext(opts?: { skipIssuer?: false }): Promise<Context>;
@@ -109,43 +97,48 @@ export async function requireContext(opts?: { skipIssuer?: boolean }): Promise<C
     return { user: userCtx, tenant: tenantCtx, permissions, apiKey: decrypt(keyRow.encryptedKey) };
   }
 
-  // 4. Resolve issuer from cookie; auto-set if exactly one accessible issuer
+  // 4. Resolve issuer from cookie; redirect to picker if none set.
+  //    Cookie writes are not allowed during Server Component rendering — they happen
+  //    in selectIssuerAction (Server Action) called from /issuer/select.
   const ctxCookie = await readCtxCookie();
   let issuerId: number;
 
   if (ctxCookie) {
     issuerId = ctxCookie.issuerId;
   } else {
-    const issuers = await getAccessibleIssuers(user.id, tenant.id, role);
-    if (issuers.length === 1) {
-      await writeCtxCookie({ issuerId: issuers[0].id, v: 1 });
-      issuerId = issuers[0].id;
-    } else {
-      redirect({ href: '/issuer/select', locale });
-      return null as never;
+    // Non-admin users with no issuer assignments go to a dedicated page that
+    // explains the situation and tells them to contact their admin.
+    if (role !== 'Owner' && role !== 'Admin') {
+      const accessCount = await db.userIssuerAccess.count({ where: { userId: user.id } });
+      if (accessCount === 0) {
+        redirect({ href: '/no-issuer-assigned', locale });
+        return null as never;
+      }
     }
+    redirect({ href: '/issuer/select', locale });
+    return null as never;
   }
 
   // 5. Verify issuer belongs to this tenant, is active, and user has access
   const issuer = await db.issuer.findUnique({ where: { id: issuerId } });
 
   if (!issuer || issuer.tenantId !== tenant.id || !issuer.active) {
-    await clearCtxCookie();
     redirect({ href: '/issuer/select', locale });
     return null as never;
   }
 
   if (role !== 'Owner' && role !== 'Admin') {
     const accessCount = await db.userIssuerAccess.count({ where: { userId: user.id } });
-    if (accessCount > 0) {
-      const permitted = await db.userIssuerAccess.findUnique({
-        where: { userId_issuerId: { userId: user.id, issuerId: issuer.id } },
-      });
-      if (!permitted) {
-        await clearCtxCookie();
-        redirect({ href: '/issuer/select', locale });
-        return null as never;
-      }
+    if (accessCount === 0) {
+      redirect({ href: '/no-issuer-assigned', locale });
+      return null as never;
+    }
+    const permitted = await db.userIssuerAccess.findUnique({
+      where: { userId_issuerId: { userId: user.id, issuerId: issuer.id } },
+    });
+    if (!permitted) {
+      redirect({ href: '/issuer/select', locale });
+      return null as never;
     }
   }
 
@@ -181,7 +174,7 @@ export async function requirePermission(code: Permission, opts?: { skipIssuer?: 
     ? await requireContext({ skipIssuer: true })
     : await requireContext();
   if (!ctx.permissions.has(code)) {
-    throw new Error('FORBIDDEN');
+    notFound();
   }
   return ctx;
 }

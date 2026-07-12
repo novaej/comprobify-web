@@ -18,11 +18,26 @@ export default async function IssuersPage({
 
   const ctx = await requirePermission('issuers.read', { skipIssuer: true });
 
-  // Includes inactive issuers too, so a deactivated one can still be shown
-  // (greyed out) with a way to reactivate it — only active ones are eligible
-  // as a "source" to inherit from when creating a new branch/issue point.
+  // Owner/Admin see all issuers (including inactive for management).
+  // Other roles see only their assigned issuers (active only — they can't manage).
+  const isOwnerOrAdmin = ctx.user.role === 'Owner' || ctx.user.role === 'Admin';
+  let accessibleIds: number[] | null = null;
+  if (!isOwnerOrAdmin) {
+    const userAccess = await db.userIssuerAccess.findMany({
+      where: { tenantId: ctx.tenant.id, userId: ctx.user.id },
+      select: { issuerId: true },
+    });
+    accessibleIds = userAccess.map((a) => a.issuerId);
+  }
+
+  // Includes inactive issuers for Owner/Admin so a deactivated one can be shown
+  // (greyed out) with a way to reactivate it.
   const issuers = await db.issuer.findMany({
-    where: { tenantId: ctx.tenant.id },
+    where: {
+      tenantId: ctx.tenant.id,
+      ...(accessibleIds !== null ? { id: { in: accessibleIds } } : {}),
+      ...(accessibleIds !== null ? { active: true } : {}),
+    },
     orderBy: [{ active: 'desc' }, { isDefault: 'desc' }, { createdAt: 'asc' }],
   });
   const activeIssuers = issuers.filter((i) => i.active);
