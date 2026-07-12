@@ -69,6 +69,7 @@ export default async function DocumentListPage({
   const t = await getTranslations('documents');
 
   const ctx = await requirePermission('documents.read');
+  const canCreate = ctx.permissions.has('documents.create');
   const apiCtx = { apiKey: ctx.apiKey, issuerId: ctx.issuer.apiIssuerId };
 
   const page = Math.max(1, Number(sp.page) || 1);
@@ -115,7 +116,7 @@ export default async function DocumentListPage({
         backHref="/documents"
         backLabel={t('title')}
         action={
-          createHref ? (
+          createHref && canCreate ? (
             <Link href={`${createHref}?from=documents-${type}`} className={buttonVariants({ size: 'sm' })}>
               <Plus className="h-4 w-4" />
               {t('createNew')}

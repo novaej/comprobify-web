@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { requireContext } from '@/lib/context';
+import { requireContext, requirePermission } from '@/lib/context';
 import { revalidatePath } from 'next/cache';
 import type { InvoiceFormData } from './invoice';
 import type { Prisma } from '@prisma/client';
@@ -19,6 +19,11 @@ async function requireTenantId(): Promise<number> {
   return ctx.tenant.id;
 }
 
+async function requireTenantIdForCreate(): Promise<number> {
+  const ctx = await requirePermission('documents.create', { skipIssuer: true });
+  return ctx.tenant.id;
+}
+
 // documentType is hardcoded to '01' (invoices) until other document types get a create flow.
 const INVOICE_DOCUMENT_TYPE = '01';
 
@@ -33,7 +38,7 @@ export async function listInvoiceTemplatesAction(): Promise<SavedDocumentTemplat
 }
 
 export async function saveInvoiceTemplateAction(name: string, data: InvoiceFormData): Promise<TemplateResult> {
-  const tenantId = await requireTenantId();
+  const tenantId = await requireTenantIdForCreate();
   const trimmed = name.trim();
   if (!trimmed) return { error: 'REQUIRED_FIELDS' };
 
@@ -47,7 +52,7 @@ export async function saveInvoiceTemplateAction(name: string, data: InvoiceFormD
 }
 
 export async function deleteInvoiceTemplateAction(id: number): Promise<TemplateResult> {
-  const tenantId = await requireTenantId();
+  const tenantId = await requireTenantIdForCreate();
   await db.documentTemplate.deleteMany({ where: { id, tenantId, documentType: INVOICE_DOCUMENT_TYPE } });
   revalidatePath('/invoices/new');
   return null;

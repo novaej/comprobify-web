@@ -36,6 +36,8 @@ interface InvoiceActionsProps {
   status: DocumentStatus;
   documentType: string;
   from?: string;
+  canManage?: boolean;
+  canCreate?: boolean;
 }
 
 // Document types whose "Corregir" link goes through /credit-notes/new instead of
@@ -44,7 +46,7 @@ const REBUILD_HREFS: Record<string, string> = {
   '04': '/credit-notes/new',
 };
 
-export function InvoiceActions({ accessKey, status, documentType, from }: InvoiceActionsProps) {
+export function InvoiceActions({ accessKey, status, documentType, from, canManage = true, canCreate = true }: InvoiceActionsProps) {
   const t = useTranslations('invoiceDetail');
   const tError = useTranslations('apiError');
   const router = useRouter();
@@ -147,14 +149,14 @@ export function InvoiceActions({ accessKey, status, documentType, from }: Invoic
       ) : (
         <>
         <div className="flex flex-wrap gap-2">
-          {status === 'SIGNED' && (
+          {status === 'SIGNED' && canManage && (
             <Button onClick={() => setConfirmOpen(true)}>
               <Send className="mr-2 h-4 w-4" />
               {t('actions.send')}
             </Button>
           )}
 
-          {(status === 'RETURNED' || status === 'NOT_AUTHORIZED') && (
+          {(status === 'RETURNED' || status === 'NOT_AUTHORIZED') && canManage && (
             <Link
               href={(() => {
                 const base = REBUILD_HREFS[documentType] ?? '/invoices/new';
@@ -182,11 +184,13 @@ export function InvoiceActions({ accessKey, status, documentType, from }: Invoic
                     <Download className="h-4 w-4" />
                     {t('actions.downloadXml')}
                   </DropdownMenuItem>
-                  <DropdownMenuItem disabled={resendPending} onClick={handleResendEmail}>
-                    <Mail className="h-4 w-4" />
-                    {t('actions.resendEmail')}
-                  </DropdownMenuItem>
-                  {documentType === '01' && (
+                  {canManage && (
+                    <DropdownMenuItem disabled={resendPending} onClick={handleResendEmail}>
+                      <Mail className="h-4 w-4" />
+                      {t('actions.resendEmail')}
+                    </DropdownMenuItem>
+                  )}
+                  {documentType === '01' && canCreate && (
                     <DropdownMenuItem
                       render={
                         <Link

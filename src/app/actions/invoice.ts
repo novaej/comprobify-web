@@ -4,7 +4,7 @@ import { getLocale } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
 import { createDocument, rebuildDocument, sendToSri, checkAuthorization, type CreateInvoicePayload } from '@/lib/api';
 import { ApiError } from '@/lib/errors';
-import { requireContext } from '@/lib/context';
+import { requirePermission } from '@/lib/context';
 import { syncSuspensionStatus } from '@/lib/suspension-sync';
 import type { BackTargetKey } from '@/lib/back-targets';
 
@@ -105,7 +105,7 @@ export async function createInvoiceAction(
   sendAfterSigning: boolean,
   from?: BackTargetKey
 ): Promise<CreateInvoiceResult> {
-  const ctx = await requireContext();
+  const ctx = await requirePermission('documents.create');
   const apiCtx = { apiKey: ctx.apiKey, issuerId: ctx.issuer.apiIssuerId };
   const payload = buildCreateDocumentPayload(data);
 
@@ -134,7 +134,7 @@ export async function rebuildInvoiceAction(
   sendAfterSigning: boolean,
   from?: BackTargetKey
 ): Promise<CreateInvoiceResult> {
-  const ctx = await requireContext();
+  const ctx = await requirePermission('documents.manage');
   const apiCtx = { apiKey: ctx.apiKey, issuerId: ctx.issuer.apiIssuerId };
   const payload = buildCreateDocumentPayload(data);
 

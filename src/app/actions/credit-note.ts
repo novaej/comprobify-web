@@ -13,7 +13,7 @@ import {
   type CreateCreditNotePayload,
 } from '@/lib/api';
 import { ApiError } from '@/lib/errors';
-import { requireContext } from '@/lib/context';
+import { requirePermission } from '@/lib/context';
 import type { BackTargetKey } from '@/lib/back-targets';
 
 // Only invoices (type 01) can currently be credited from this UI — the search/prefill
@@ -155,7 +155,7 @@ export async function createCreditNoteAction(
   sendAfterSigning: boolean,
   from?: BackTargetKey
 ): Promise<CreateCreditNoteResult> {
-  const ctx = await requireContext();
+  const ctx = await requirePermission('documents.create');
   const apiCtx = { apiKey: ctx.apiKey, issuerId: ctx.issuer.apiIssuerId };
 
   if (originalAccessKey) {
@@ -188,7 +188,7 @@ export async function rebuildCreditNoteAction(
   sendAfterSigning: boolean,
   from?: BackTargetKey
 ): Promise<CreateCreditNoteResult> {
-  const ctx = await requireContext();
+  const ctx = await requirePermission('documents.manage');
   const apiCtx = { apiKey: ctx.apiKey, issuerId: ctx.issuer.apiIssuerId };
 
   if (originalAccessKey) {
@@ -230,7 +230,7 @@ export type SearchCreditableInvoicesResult =
 export async function searchCreditableInvoicesAction(
   sequential: string
 ): Promise<SearchCreditableInvoicesResult> {
-  const ctx = await requireContext();
+  const ctx = await requirePermission('documents.read');
   const apiCtx = { apiKey: ctx.apiKey, issuerId: ctx.issuer.apiIssuerId };
 
   try {
@@ -274,7 +274,7 @@ export type GetInvoiceForCreditNoteResult = { data: CreditNotePrefillData } | { 
 export async function getInvoiceForCreditNoteAction(
   accessKey: string
 ): Promise<GetInvoiceForCreditNoteResult> {
-  const ctx = await requireContext();
+  const ctx = await requirePermission('documents.read');
   const apiCtx = { apiKey: ctx.apiKey, issuerId: ctx.issuer.apiIssuerId };
 
   let document;
@@ -347,7 +347,7 @@ export async function resolveOriginalAccessKeyAction(
   const sequential = number.split('-').pop();
   if (!sequential) return undefined;
 
-  const ctx = await requireContext();
+  const ctx = await requirePermission('documents.read');
   const apiCtx = { apiKey: ctx.apiKey, issuerId: ctx.issuer.apiIssuerId };
 
   try {
@@ -374,7 +374,7 @@ export type GetCreditNotesBalanceResult =
 export async function getRemainingBalanceAction(
   originalAccessKey: string
 ): Promise<GetCreditNotesBalanceResult> {
-  const ctx = await requireContext();
+  const ctx = await requirePermission('documents.read');
   const apiCtx = { apiKey: ctx.apiKey, issuerId: ctx.issuer.apiIssuerId };
   try {
     const balance = await getCreditNotesBalance(apiCtx, originalAccessKey);
