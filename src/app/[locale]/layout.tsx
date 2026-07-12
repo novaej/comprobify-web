@@ -10,6 +10,7 @@ import { SuspendedBanner } from '@/components/suspended-banner';
 import { CertExpiryBanner } from '@/components/cert-expiry-banner';
 import { AgreementPendingBanner } from '@/components/agreement-pending-banner';
 import { NotificationSync } from '@/components/notification-sync';
+import { TopBar } from '@/components/top-bar';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
 import type { Role } from '@/lib/rbac';
@@ -39,6 +40,8 @@ interface LayoutProps {
   currentIssuer: { id: number; apiIssuerId: number; name: string; branchCode: string; issuePointCode: string } | null;
   issuers: Array<{ id: number; apiIssuerId: number; name: string; branchCode: string; issuePointCode: string }>;
   userEmail: string;
+  userFirstName: string | null;
+  userLastName: string | null;
   userRole: Role;
   noIssuerAssigned: boolean;
   initialUnreadCount: number;
@@ -53,6 +56,8 @@ async function getLayoutProps(userId: string): Promise<LayoutProps | null> {
     where: { id: userNum },
     select: {
       email: true,
+      firstName: true,
+      lastName: true,
       role: true,
       active: true,
       acceptedAt: true,
@@ -174,10 +179,12 @@ async function getLayoutProps(userId: string): Promise<LayoutProps | null> {
     hasIssuer: displayIssuers.length > 0,
     environment: user.tenant.environment as 'sandbox' | 'production',
     isSuspended: user.tenant.status === 'SUSPENDED',
-    tenantName: user.tenant.tradeName ?? user.tenant.businessName,
+    tenantName: user.tenant.businessName,
     currentIssuer,
     issuers: displayIssuers,
     userEmail: user.email,
+    userFirstName: user.firstName,
+    userLastName: user.lastName,
     userRole: user.role as Role,
     noIssuerAssigned,
     initialUnreadCount,
@@ -222,27 +229,35 @@ export default async function LocaleLayout({
               currentIssuer={layoutProps.currentIssuer}
               issuers={layoutProps.issuers}
               userEmail={layoutProps.userEmail}
+              userFirstName={layoutProps.userFirstName}
+              userLastName={layoutProps.userLastName}
               userRole={layoutProps.userRole}
               noIssuerAssigned={layoutProps.noIssuerAssigned}
               initialUnreadCount={layoutProps.initialUnreadCount}
               initialNotifications={layoutProps.initialNotifications}
               appVersion={packageJson.version}
             />
-            <NotificationSync />
-            <main className="flex-1 overflow-y-auto p-4 md:p-8">
-              <SuspendedBanner isSuspended={layoutProps.isSuspended} />
-              <SandboxBanner environment={layoutProps.environment} />
-              {layoutProps.certAlert && (
-                <CertExpiryBanner
-                  id={layoutProps.certAlert.id}
-                  type={layoutProps.certAlert.type}
-                  title={layoutProps.certAlert.title}
-                  message={layoutProps.certAlert.message}
-                />
-              )}
-              <AgreementPendingBanner />
-              {children}
-            </main>
+            <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+              <TopBar
+                initialUnreadCount={layoutProps.initialUnreadCount}
+                initialNotifications={layoutProps.initialNotifications}
+              />
+              <NotificationSync />
+              <main className="flex-1 overflow-y-auto p-4 md:p-8">
+                <SuspendedBanner isSuspended={layoutProps.isSuspended} />
+                <SandboxBanner environment={layoutProps.environment} />
+                {layoutProps.certAlert && (
+                  <CertExpiryBanner
+                    id={layoutProps.certAlert.id}
+                    type={layoutProps.certAlert.type}
+                    title={layoutProps.certAlert.title}
+                    message={layoutProps.certAlert.message}
+                  />
+                )}
+                <AgreementPendingBanner />
+                {children}
+              </main>
+            </div>
           </div>
         ) : (
           <>{children}</>

@@ -6,7 +6,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import {
   LayoutDashboard, Files, Users, UsersRound, Package, Settings, Building2,
-  Menu, X, LogOut, Globe, ChevronDown, ShieldAlert,
+  Menu, X, LogOut, Globe, ChevronDown, ChevronLeft, ChevronRight, ShieldAlert,
 } from 'lucide-react';
 import { NotificationBell } from '@/components/notification-bell';
 import type { listNotificationsAction } from '@/app/actions/notifications';
@@ -56,11 +56,25 @@ interface NavProps {
   currentIssuer: Issuer | null;
   issuers: Issuer[];
   userEmail: string;
+  userFirstName: string | null;
+  userLastName: string | null;
   userRole: Role;
   noIssuerAssigned: boolean;
   initialUnreadCount: number;
   initialNotifications: NotificationItem[];
   appVersion: string;
+}
+
+function getInitials(firstName: string | null, lastName: string | null, email: string): string {
+  if (firstName) {
+    return `${firstName[0]}${lastName ? lastName[0] : ''}`.toUpperCase();
+  }
+  return email.slice(0, 2).toUpperCase();
+}
+
+function getDisplayName(firstName: string | null, lastName: string | null, email: string): string {
+  const parts = [firstName, lastName].filter(Boolean);
+  return parts.length > 0 ? parts.join(' ') : email;
 }
 
 // ── TenantBadge ───────────────────────────────────────────────────────────────
@@ -127,10 +141,6 @@ function IssuerSwitcher({
     );
   }
 
-  const displayName = currentIssuer
-    ? `${currentIssuer.branchCode}-${currentIssuer.issuePointCode} ${currentIssuer.name}`
-    : t('noIssuer');
-
   function handleSelect(id: number) {
     setOpen(false);
     startTransition(async () => {
@@ -157,7 +167,11 @@ function IssuerSwitcher({
         disabled={isPending}
         className="flex max-w-full items-center gap-1 text-xs text-sidebar-foreground/70 hover:text-sidebar-foreground disabled:opacity-50 transition-colors"
       >
-        <span className="truncate">{displayName}</span>
+        <span className="truncate">
+          {currentIssuer
+            ? `${currentIssuer.branchCode}-${currentIssuer.issuePointCode} ${currentIssuer.name}`
+            : t('noIssuer')}
+        </span>
         <ChevronDown className="h-3 w-3 shrink-0" />
       </button>
 
@@ -185,124 +199,101 @@ function IssuerSwitcher({
   );
 }
 
-// ── UserMenu ──────────────────────────────────────────────────────────────────
+// ── Nav ───────────────────────────────────────────────────────────────────────
 
-function UserMenu({ email, pathname }: { email: string; pathname: string }) {
+export function Nav({
+  hasIssuer,
+  environment,
+  tenantName,
+  currentIssuer,
+  issuers,
+  userEmail,
+  userFirstName,
+  userLastName,
+  userRole,
+  noIssuerAssigned,
+  initialUnreadCount,
+  initialNotifications,
+  appVersion,
+}: NavProps) {
   const t = useTranslations('nav');
+  const tUsers = useTranslations('users');
+  const pathname = usePathname();
   const locale = useLocale();
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  function handleLocaleChange(code: string) {
-    if (code === locale) return;
-    // Fire-and-forget: update API preference (no-op for non-Owners).
-    updateLanguageAction(code).catch(() => {});
-    const query = searchParams.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname, { locale: code as 'es' | 'en' });
-  }
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('nav-collapsed') === 'true';
+  });
+  const [hovered, setHovered] = useState(false);
 
-  return (
-    <div className="border-t border-sidebar-border px-3 py-3 space-y-0.5">
-      <p className="truncate px-3 py-1 text-xs text-sidebar-foreground/50">{email}</p>
-      <div className="flex items-center justify-between px-3 py-1.5">
-        <div className="flex items-center gap-1" title={t('languageTooltip')}>
-          <Globe className="h-3.5 w-3.5 shrink-0 text-sidebar-foreground/40" aria-hidden />
-          {locales.map(({ code, label }) => (
-            <button
-              key={code}
-              onClick={() => handleLocaleChange(code)}
-              className={cn(
-                'rounded px-1.5 py-0.5 text-xs transition-colors',
-                locale === code
-                  ? 'font-semibold text-sidebar-foreground'
-                  : 'text-sidebar-foreground/40 hover:text-sidebar-foreground/70'
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <ThemeToggle />
-      </div>
-      <form action={logoutAction}>
-        <button
-          type="submit"
-          className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-        >
-          <LogOut className="h-4 w-4 shrink-0" aria-hidden />
-          {t('signOut')}
-        </button>
-      </form>
-    </div>
-  );
-}
-
-// ── Nav ───────────────────────────────────────────────────────────────────────
-
-export function Nav({ hasIssuer, environment, tenantName, currentIssuer, issuers, userEmail, userRole, noIssuerAssigned, initialUnreadCount, initialNotifications, appVersion }: NavProps) {
-  const t = useTranslations('nav');
-  const tUsers = useTranslations('users');
-  const pathname = usePathname();
-  const [isOpen, setIsOpen] = useState(false);
+  const isExpanded = !collapsed || hovered;
   const roleLabel = tUsers(`role.${userRole}` as Parameters<typeof tUsers>[0]);
+  const initials = getInitials(userFirstName, userLastName, userEmail);
+  const displayName = getDisplayName(userFirstName, userLastName, userEmail);
 
   const userPerms = ROLE_PERMISSIONS[userRole];
   const visibleNavItems = navItems.filter(({ requiresIssuer, permission }) =>
     (!requiresIssuer || hasIssuer) && (!permission || userPerms.has(permission)),
   );
 
-  const sidebarContent = (
-    <>
-      {/* Tenant + issuer header */}
-      <div className="border-b border-sidebar-border px-4 py-3">
-        <TenantBadge name={tenantName} environment={environment} />
-        <IssuerSwitcher
-          currentIssuer={currentIssuer}
-          issuers={issuers}
-          userRole={userRole}
-          noIssuerAssigned={noIssuerAssigned}
-          onClose={() => setIsOpen(false)}
-        />
-      </div>
+  function toggleCollapsed() {
+    const next = !collapsed;
+    setCollapsed(next);
+    if (!next) setHovered(false); // locking open — clear hover state
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('nav-collapsed', String(next));
+    }
+  }
 
-      {/* Nav links */}
-      <div className="flex-1 overflow-y-auto px-3 py-4">
-        <ul className="flex flex-col gap-0.5">
-          {visibleNavItems.map(({ href, icon: Icon, labelKey }) => {
-            const isActive = pathname.startsWith(href);
-            return (
-              <li key={href}>
-                <Link
-                  href={href}
-                  onClick={() => setIsOpen(false)}
-                  className={cn(
-                    'flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors',
-                    isActive
-                      ? 'bg-sidebar-primary text-sidebar-primary-foreground font-medium'
-                      : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                  )}
-                >
-                  <Icon className="h-4 w-4 shrink-0" aria-hidden />
-                  {t(labelKey)}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
+  function handleLocaleChange(code: string) {
+    if (code === locale) return;
+    updateLanguageAction(code).catch(() => {});
+    const query = searchParams.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { locale: code as 'es' | 'en' });
+  }
 
-      {/* User menu */}
-      <UserMenu email={userEmail} pathname={pathname} />
-      <p className="px-3 py-1.5 text-center text-[10px] text-sidebar-foreground/30">v{appVersion}</p>
-    </>
-  );
+  // Shared nav link list used by both mobile drawer and desktop sidebar
+  function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
+    return (
+      <ul className="flex flex-col gap-0.5">
+        {visibleNavItems.map(({ href, icon: Icon, labelKey }) => {
+          const isActive = pathname.startsWith(href);
+          return (
+            <li key={href}>
+              <Link
+                href={href}
+                title={!isExpanded ? t(labelKey) : undefined}
+                onClick={onNavigate}
+                className={cn(
+                  'flex items-center rounded-md transition-colors',
+                  isExpanded
+                    ? 'gap-2.5 px-3 py-2 text-sm'
+                    : 'justify-center py-2.5',
+                  isActive
+                    ? 'bg-sidebar-primary text-sidebar-primary-foreground font-medium'
+                    : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                )}
+              >
+                <Icon className="h-4 w-4 shrink-0" aria-hidden />
+                {isExpanded && <span className="truncate">{t(labelKey)}</span>}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    );
+  }
 
   return (
     <>
-      {/* Mobile top bar */}
+      {/* ── Mobile top bar ── */}
       <div className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background px-4 md:hidden">
         <button
-          onClick={() => setIsOpen(true)}
+          onClick={() => setMobileOpen(true)}
           aria-label="Abrir menú"
           className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
@@ -316,55 +307,235 @@ export function Nav({ hasIssuer, environment, tenantName, currentIssuer, issuers
               issuers={issuers}
               userRole={userRole}
               noIssuerAssigned={noIssuerAssigned}
-              onClose={() => setIsOpen(false)}
+              onClose={() => setMobileOpen(false)}
             />
           </div>
         </div>
+        <NotificationBell
+          initialUnreadCount={initialUnreadCount}
+          initialNotifications={initialNotifications}
+        />
       </div>
 
-      {/* Backdrop */}
-      {isOpen && (
+      {/* ── Mobile backdrop ── */}
+      {mobileOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden"
-          onClick={() => setIsOpen(false)}
+          onClick={() => setMobileOpen(false)}
           aria-hidden
         />
       )}
 
-      {/* Sidebar */}
+      {/* ── Mobile drawer ── */}
       <nav
         aria-label="Navegación principal"
         className={cn(
-          'fixed inset-y-0 left-0 z-50 flex w-64 shrink-0 flex-col bg-sidebar border-r border-sidebar-border',
+          'fixed inset-y-0 left-0 z-50 flex w-64 shrink-0 flex-col bg-sidebar border-r border-sidebar-border md:hidden',
           'transition-transform duration-200',
-          'md:relative md:inset-auto md:z-auto md:translate-x-0 md:transition-none',
-          isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+          mobileOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
-        {/* Logo header */}
-        <div className="flex h-14 items-center gap-2 border-b border-sidebar-border px-4">
+        {/* Mobile drawer header */}
+        <div className="flex h-14 shrink-0 items-center gap-2 border-b border-sidebar-border px-4">
           <button
-            onClick={() => setIsOpen(false)}
-            className="rounded-md p-1 text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:hidden"
+            onClick={() => setMobileOpen(false)}
+            className="rounded-md p-1 text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
             aria-label="Cerrar menú"
           >
             <X className="h-4 w-4" />
           </button>
-          <LogoLockup className="h-7 w-auto flex-1" />
-          <span
-            className="shrink-0 max-w-24 truncate rounded bg-sidebar-primary/15 px-1.5 py-0.5 text-[10px] font-medium leading-none text-sidebar-primary"
-            title={roleLabel}
-          >
-            {roleLabel}
-          </span>
-          <NotificationBell
-            initialUnreadCount={initialUnreadCount}
-            initialNotifications={initialNotifications}
+          <LogoLockup className="h-7 w-auto flex-1 min-w-0" />
+        </div>
+
+        {/* Mobile tenant + issuer */}
+        <div className="border-b border-sidebar-border px-4 py-3">
+          <TenantBadge name={tenantName} environment={environment} />
+          <IssuerSwitcher
+            currentIssuer={currentIssuer}
+            issuers={issuers}
+            userRole={userRole}
+            noIssuerAssigned={noIssuerAssigned}
+            onClose={() => setMobileOpen(false)}
           />
         </div>
 
-        {sidebarContent}
+        {/* Mobile nav links */}
+        <div className="flex-1 overflow-y-auto px-2 py-3">
+          <NavLinks onNavigate={() => setMobileOpen(false)} />
+        </div>
+
+        {/* Mobile user footer */}
+        <div className="border-t border-sidebar-border px-3 py-3 space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 shrink-0 rounded-full bg-sidebar-primary/20 flex items-center justify-center text-xs font-semibold text-sidebar-primary select-none">
+              {initials}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-medium text-sidebar-foreground">{displayName}</p>
+              <span className="mt-0.5 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium leading-none bg-sidebar-primary/15 text-sidebar-primary">
+                {roleLabel}
+              </span>
+            </div>
+            <form action={logoutAction}>
+              <button
+                type="submit"
+                title={t('signOut')}
+                className="rounded-md p-1.5 text-sidebar-foreground/40 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+              >
+                <LogOut className="h-4 w-4 shrink-0" aria-hidden />
+              </button>
+            </form>
+          </div>
+
+          {/* Language + theme — mobile only, not in desktop sidebar */}
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-0.5" title={t('languageTooltip')}>
+              <Globe className="h-3.5 w-3.5 text-sidebar-foreground/40 mr-0.5" aria-hidden />
+              {locales.map(({ code, label }) => (
+                <button
+                  key={code}
+                  onClick={() => handleLocaleChange(code)}
+                  className={cn(
+                    'rounded px-1.5 py-0.5 text-xs transition-colors',
+                    locale === code
+                      ? 'font-semibold text-sidebar-foreground'
+                      : 'text-sidebar-foreground/40 hover:text-sidebar-foreground/70'
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <ThemeToggle />
+          </div>
+        </div>
+
+        <p className="px-3 pb-2 text-center text-[10px] text-sidebar-foreground/30">v{appVersion}</p>
       </nav>
+
+      {/* ── Desktop sidebar ── */}
+      {/* Outer div is the layout spacer — width changes on lock/unlock */}
+      <div
+        className={cn(
+          'relative hidden md:block shrink-0 transition-[width] duration-200',
+          collapsed ? 'w-14' : 'w-64'
+        )}
+      >
+        {/* Inner nav is absolute so hover-expand can overlay content */}
+        <nav
+          aria-label="Navegación principal"
+          className={cn(
+            'absolute inset-y-0 left-0 flex flex-col bg-sidebar border-r border-sidebar-border overflow-hidden',
+            'transition-[width] duration-200',
+            collapsed && hovered
+              ? 'w-64 shadow-2xl z-50'
+              : collapsed
+              ? 'w-14'
+              : 'w-64'
+          )}
+          onMouseEnter={() => collapsed && setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+        >
+          {/* Desktop header */}
+          <div className="flex h-14 shrink-0 items-center border-b border-sidebar-border px-3">
+            {isExpanded ? (
+              <>
+                <LogoLockup className="h-7 w-auto flex-1 min-w-0" />
+                <button
+                  onClick={toggleCollapsed}
+                  title={collapsed ? t('lockSidebar') : t('collapseSidebar')}
+                  className="ml-2 shrink-0 rounded-md p-1.5 text-sidebar-foreground/40 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+                >
+                  {collapsed
+                    ? <ChevronRight className="h-4 w-4" aria-hidden />
+                    : <ChevronLeft className="h-4 w-4" aria-hidden />
+                  }
+                </button>
+              </>
+            ) : (
+              <div className="flex w-full justify-center">
+                <Logomark className="h-7 w-7" />
+              </div>
+            )}
+          </div>
+
+          {/* Desktop tenant + issuer */}
+          {isExpanded ? (
+            <div className="border-b border-sidebar-border px-4 py-3">
+              <TenantBadge name={tenantName} environment={environment} />
+              <IssuerSwitcher
+                currentIssuer={currentIssuer}
+                issuers={issuers}
+                userRole={userRole}
+                noIssuerAssigned={noIssuerAssigned}
+              />
+            </div>
+          ) : (
+            <div className="border-b border-sidebar-border flex flex-col items-center gap-1 py-2.5">
+              <Building2 className="h-4 w-4 text-sidebar-foreground/40" aria-hidden />
+              <span
+                className={cn(
+                  'h-1.5 w-1.5 rounded-full',
+                  environment === 'production' ? 'bg-green-500' : 'bg-amber-400'
+                )}
+              />
+            </div>
+          )}
+
+          {/* Desktop nav links */}
+          <div className="flex-1 overflow-y-auto px-2 py-3">
+            <NavLinks />
+          </div>
+
+          {/* Desktop user footer */}
+          <div className="border-t border-sidebar-border px-3 py-3">
+            {isExpanded ? (
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 shrink-0 rounded-full bg-sidebar-primary/20 flex items-center justify-center text-xs font-semibold text-sidebar-primary select-none">
+                  {initials}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-medium text-sidebar-foreground">{displayName}</p>
+                  <span className="mt-0.5 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium leading-none bg-sidebar-primary/15 text-sidebar-primary">
+                    {roleLabel}
+                  </span>
+                </div>
+                <form action={logoutAction}>
+                  <button
+                    type="submit"
+                    title={t('signOut')}
+                    className="rounded-md p-1.5 text-sidebar-foreground/40 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+                  >
+                    <LogOut className="h-4 w-4 shrink-0" aria-hidden />
+                  </button>
+                </form>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-2">
+                <div
+                  className="h-8 w-8 shrink-0 rounded-full bg-sidebar-primary/20 flex items-center justify-center text-xs font-semibold text-sidebar-primary select-none"
+                  title={displayName}
+                >
+                  {initials}
+                </div>
+                <form action={logoutAction}>
+                  <button
+                    type="submit"
+                    title={t('signOut')}
+                    className="rounded-md p-1.5 text-sidebar-foreground/40 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+                  >
+                    <LogOut className="h-4 w-4 shrink-0" aria-hidden />
+                  </button>
+                </form>
+              </div>
+            )}
+          </div>
+
+          {isExpanded && (
+            <p className="pb-2 text-center text-[10px] text-sidebar-foreground/30">v{appVersion}</p>
+          )}
+        </nav>
+      </div>
     </>
   );
 }

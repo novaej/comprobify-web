@@ -40,7 +40,9 @@
     "languageTooltip": "Idioma de la interfaz y de los correos transaccionales de Comprobify",
     "noIssuer": "Sin punto de emisión",
     "noIssuerAssigned": "Sin emisor asignado",
-    "contactAdmin": "Contacta a tu administrador"
+    "contactAdmin": "Contacta a tu administrador",
+    "collapseSidebar": "Colapsar menú",
+    "lockSidebar": "Fijar menú"
   },
   "auth": {
     "backToHome": "Volver al inicio",

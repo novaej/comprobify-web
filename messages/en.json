@@ -40,7 +40,9 @@
     "languageTooltip": "UI language and Comprobify transactional email language",
     "noIssuer": "No issue point",
     "noIssuerAssigned": "No issuer assigned",
-    "contactAdmin": "Contact your administrator"
+    "contactAdmin": "Contact your administrator",
+    "collapseSidebar": "Collapse menu",
+    "lockSidebar": "Pin menu"
   },
   "auth": {
     "backToHome": "Back to home",
