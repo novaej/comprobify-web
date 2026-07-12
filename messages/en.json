@@ -23,16 +23,24 @@
     "description": "The page you're looking for doesn't exist or was moved.",
     "backToDashboard": "Back to dashboard"
   },
+  "noIssuerAssigned": {
+    "title": "No issuer assigned",
+    "description": "You don't have access to any issuer yet. Contact your administrator to get one assigned.",
+    "hint": "Once you have been given access, the dashboard will load automatically."
+  },
   "nav": {
     "dashboard": "Dashboard",
     "documents": "Documents",
     "clients": "Clients",
     "catalog": "Catalog",
     "issuers": "Issuers",
+    "users": "Users",
     "settings": "Settings",
     "signOut": "Sign out",
     "languageTooltip": "UI language and Comprobify transactional email language",
-    "noIssuer": "No issue point"
+    "noIssuer": "No issue point",
+    "noIssuerAssigned": "No issuer assigned",
+    "contactAdmin": "Contact your administrator"
   },
   "auth": {
     "backToHome": "Back to home",
@@ -919,12 +927,19 @@
     "sendInvite": "Send invitation",
     "cancel": "Cancel",
     "remove": "Remove",
+    "removing": "Removing...",
     "confirmRemove": "Remove this user from the organization?",
+    "removeDialog": {
+      "title": "Remove user",
+      "description": "Are you sure you want to remove this user from the organization? This action cannot be undone.",
+      "confirm": "Remove"
+    },
     "emailPlaceholder": "email@company.com",
     "table": {
       "email": "Email",
       "role": "Role",
-      "status": "Status"
+      "status": "Status",
+      "actions": "Actions"
     },
     "role": {
       "Owner": "Owner",
@@ -947,9 +962,33 @@
     "accessSuccess": "Issuer access updated.",
     "accessDialog": {
       "title": "Issuer access",
-      "description": "Choose which issuers this user can access. Leave none selected to allow access to all issuers.",
+      "description": "Choose which issuers this user can access. Leave none selected to default to the primary issuer.",
       "empty": "No issuers available.",
       "save": "Save"
+    },
+    "rolesInfo": {
+      "button": "View role permissions",
+      "title": "Permissions by role",
+      "capability": "Capability",
+      "capabilities": {
+        "createDocuments": "Create and sign documents",
+        "viewDocuments": "View documents and history",
+        "manageDocuments": "Resend emails and manage documents",
+        "clientsCatalog": "Manage clients and product catalog",
+        "viewIssuers": "View issuer information",
+        "manageIssuers": "Configure issuers (certificates, sequences)",
+        "viewBilling": "View plans and billing",
+        "manageBilling": "Change plan and manage payments",
+        "viewApiKeys": "View API keys",
+        "manageApiKeys": "Create and revoke API keys",
+        "viewUsers": "View user list",
+        "manageUsers": "Invite users and manage access",
+        "webhooks": "Manage webhooks",
+        "viewNotifications": "View notifications",
+        "manageNotifications": "Configure notification preferences",
+        "accountSettings": "Account settings",
+        "promoteToProduction": "Activate production mode"
+      }
     }
   },
   "certBanner": {
@@ -1265,7 +1304,7 @@
   "admin": {
     "nav": {
       "title": "Admin panel",
-      "adminBadge": "Admin",
+      "adminBadge": "Super Admin",
       "tenants": "Tenants",
       "payments": "Payments",
       "agreements": "Agreements",

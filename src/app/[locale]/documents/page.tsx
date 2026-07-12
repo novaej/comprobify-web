@@ -65,6 +65,7 @@ export default async function DocumentsPage({
   const t = await getTranslations('documents');
 
   const ctx = await requirePermission('documents.read');
+  const canCreate = ctx.permissions.has('documents.create');
   const apiCtx: ApiCtx = { apiKey: ctx.apiKey, issuerId: ctx.issuer.apiIssuerId };
 
   let docTypes: string[] = [];
@@ -155,7 +156,7 @@ export default async function DocumentsPage({
                     {t('viewList')}
                     <ArrowRight className="h-3.5 w-3.5" />
                   </Link>
-                  {createHref && (
+                  {createHref && canCreate && (
                     <Link
                       href={`${createHref}?from=documents`}
                       className={cn(buttonVariants({ size: 'sm' }), 'gap-1.5')}

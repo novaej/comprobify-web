@@ -45,7 +45,9 @@ async function postLoginRedirect(email: string, locale: string): Promise<null> {
   const user = await db.user.findUnique({
     where: { email },
     select: {
+      id: true,
       tenantId: true,
+      role: true,
       inviteStatus: true,
       isSuperAdmin: true,
       tenant: { select: { _count: { select: { issuers: { where: { active: true } } } } } },
@@ -69,16 +71,36 @@ async function postLoginRedirect(email: string, locale: string): Promise<null> {
     return null;
   }
 
-  const issuerCount = user.tenant._count.issuers;
+  const totalIssuerCount = user.tenant._count.issuers;
 
-  if (issuerCount === 0) {
+  if (totalIssuerCount === 0) {
     redirect({ href: '/issuers?empty=true', locale });
     return null;
   }
 
-  if (issuerCount === 1) {
+  const isAdminLike = user.role === 'Owner' || user.role === 'Admin';
+
+  // Non-admin/owner users never see the issuer picker — auto-select their first assigned issuer.
+  // If no assignment exists yet, send them to the dedicated no-issuer page.
+  if (!isAdminLike) {
+    const access = await db.userIssuerAccess.findMany({
+      where: { userId: user.id, issuer: { active: true } },
+      select: { issuerId: true },
+      take: 1,
+    });
+    if (access.length === 0) {
+      redirect({ href: '/no-issuer-assigned', locale });
+      return null;
+    }
+    await writeCtxCookie({ issuerId: access[0].issuerId, v: 1 });
+    redirect({ href: '/dashboard', locale });
+    return null;
+  }
+
+  // Admin/Owner: auto-select when there is only one issuer, show picker for multiple.
+  if (totalIssuerCount === 1) {
     const issuer = await db.issuer.findFirst({
-      where: { tenantId: user.tenantId!, active: true },
+      where: { tenantId: user.tenantId, active: true },
       select: { id: true },
     });
     if (issuer) await writeCtxCookie({ issuerId: issuer.id, v: 1 });
@@ -118,6 +140,7 @@ export async function completeRegistrationAction(
       passwordHash,
       inviteStatus: 'ACTIVE',
       acceptedAt: new Date(),
+      emailVerified: true,  // invite link sent to their address proves ownership
     },
   });
 

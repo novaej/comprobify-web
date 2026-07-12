@@ -13,11 +13,32 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { UserPlus, Settings2 } from 'lucide-react';
-import type { Role } from '@/lib/rbac';
+import { UserPlus, Settings2, Info, Check, Minus, Mail, Trash2 } from 'lucide-react';
+import type { Role, Permission } from '@/lib/rbac';
+import { ROLE_PERMISSIONS } from '@/lib/rbac';
 import { toastApiError } from '@/lib/api-error-toast';
 
 const ROLES: Role[] = ['Owner', 'Admin', 'BillingOperator', 'Viewer', 'Developer'];
+
+const ROLE_CAPABILITY_ROWS: { key: string; permissions: Permission[] }[] = [
+  { key: 'createDocuments',      permissions: ['documents.create'] },
+  { key: 'viewDocuments',        permissions: ['documents.read'] },
+  { key: 'manageDocuments',      permissions: ['documents.manage'] },
+  { key: 'clientsCatalog',       permissions: ['clients.manage', 'catalog.manage'] },
+  { key: 'viewIssuers',          permissions: ['issuers.read'] },
+  { key: 'manageIssuers',        permissions: ['issuers.manage'] },
+  { key: 'viewBilling',          permissions: ['billing.read'] },
+  { key: 'manageBilling',        permissions: ['billing.manage'] },
+  { key: 'viewApiKeys',          permissions: ['apikeys.read'] },
+  { key: 'manageApiKeys',        permissions: ['apikeys.manage'] },
+  { key: 'viewUsers',            permissions: ['users.read'] },
+  { key: 'manageUsers',          permissions: ['users.manage'] },
+  { key: 'webhooks',             permissions: ['webhooks.manage'] },
+  { key: 'viewNotifications',    permissions: ['notifications.read'] },
+  { key: 'manageNotifications',  permissions: ['notifications.manage'] },
+  { key: 'accountSettings',      permissions: ['tenant.manage'] },
+  { key: 'promoteToProduction',  permissions: ['tenant.promote'] },
+];
 
 interface UserRow {
   id: number;
@@ -58,6 +79,8 @@ export function UserManager({
   const [accessSelection, setAccessSelection] = useState<number[]>([]);
 
   const assignableRoles = ROLES.filter((r) => r !== 'Owner' || currentUserRole === 'Owner');
+  const [showRolesInfo, setShowRolesInfo] = useState(false);
+  const [removeUserId, setRemoveUserId] = useState<number | null>(null);
 
   function handleInvite() {
     startTransition(async () => {
@@ -95,7 +118,6 @@ export function UserManager({
   }
 
   function handleRemove(userId: number) {
-    if (!confirm(t('confirmRemove'))) return;
     startTransition(async () => {
       const result = await removeUserAction(userId);
       if (result?.error) {
@@ -103,6 +125,7 @@ export function UserManager({
       } else {
         toast.success(t('removeSuccess'));
       }
+      setRemoveUserId(null);
     });
   }
 
@@ -135,7 +158,17 @@ export function UserManager({
       {canManage && (
         showInvite ? (
           <div className="rounded-xl border border-border bg-card p-4 space-y-3">
-            <p className="text-sm font-medium">{t('invite')}</p>
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium">{t('invite')}</p>
+              <button
+                type="button"
+                onClick={() => setShowRolesInfo(true)}
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <Info className="h-3.5 w-3.5" />
+                {t('rolesInfo.button')}
+              </button>
+            </div>
             <div className="flex flex-col gap-2 sm:flex-row">
               <Input
                 type="email"
@@ -164,10 +197,20 @@ export function UserManager({
             </div>
           </div>
         ) : (
-          <Button size="sm" onClick={() => setShowInvite(true)}>
-            <UserPlus className="h-4 w-4 mr-1" />
-            {t('invite')}
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button size="sm" onClick={() => setShowInvite(true)}>
+              <UserPlus className="h-4 w-4 mr-1" />
+              {t('invite')}
+            </Button>
+            <button
+              type="button"
+              onClick={() => setShowRolesInfo(true)}
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+            >
+              <Info className="h-3.5 w-3.5" />
+              {t('rolesInfo.button')}
+            </button>
+          </div>
         )
       )}
 
@@ -179,7 +222,11 @@ export function UserManager({
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('table.email')}</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('table.role')}</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('table.status')}</th>
-                {canManage && <th className="px-4 py-3" />}
+                {canManage && (
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {t('table.actions')}
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -214,34 +261,36 @@ export function UserManager({
                       </span>
                     </td>
                     {canManage && (
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-3">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-1">
                           {user.inviteStatus === 'INVITED' && (
                             <button
                               onClick={() => handleResendInvite(user.id)}
                               disabled={isPending}
-                              className="text-xs text-muted-foreground hover:underline disabled:opacity-50"
+                              title={t('resendInvite')}
+                              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
                             >
-                              {t('resendInvite')}
+                              <Mail className="h-4 w-4" />
                             </button>
                           )}
                           {!isOwnerOrAdmin && (
                             <button
                               onClick={() => openAccessDialog(user)}
                               disabled={isPending}
-                              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:underline disabled:opacity-50"
+                              title={t('manageAccess')}
+                              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
                             >
-                              <Settings2 className="h-3 w-3" />
-                              {t('manageAccess')}
+                              <Settings2 className="h-4 w-4" />
                             </button>
                           )}
                           {user.id !== currentUserId && (
                             <button
-                              onClick={() => handleRemove(user.id)}
+                              onClick={() => setRemoveUserId(user.id)}
                               disabled={isPending}
-                              className="text-xs text-destructive hover:underline disabled:opacity-50"
+                              title={t('remove')}
+                              className="rounded-md p-1.5 text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-40"
                             >
-                              {t('remove')}
+                              <Trash2 className="h-4 w-4" />
                             </button>
                           )}
                         </div>
@@ -254,6 +303,28 @@ export function UserManager({
           </table>
         </div>
       </div>
+
+      <Dialog open={removeUserId !== null} onOpenChange={(v) => { if (!v) setRemoveUserId(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('removeDialog.title')}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">{t('removeDialog.description')}</p>
+          <DialogFooter>
+            <Button size="sm" variant="outline" onClick={() => setRemoveUserId(null)} disabled={isPending}>
+              {t('cancel')}
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => removeUserId !== null && handleRemove(removeUserId)}
+              disabled={isPending}
+            >
+              {isPending ? t('removing') : t('removeDialog.confirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={accessUserId !== null} onOpenChange={(v) => { if (!v) setAccessUserId(null); }}>
         <DialogContent className="sm:max-w-sm">
@@ -291,6 +362,47 @@ export function UserManager({
               {t('accessDialog.save')}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showRolesInfo} onOpenChange={setShowRolesInfo}>
+        <DialogContent className="sm:max-w-5xl">
+          <DialogHeader>
+            <DialogTitle>{t('rolesInfo.title')}</DialogTitle>
+          </DialogHeader>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="py-2 pr-4 text-left font-medium text-muted-foreground w-48">{t('rolesInfo.capability')}</th>
+                  {ROLES.map((r) => (
+                    <th key={r} className="px-3 py-2 text-center font-medium">
+                      {t(`role.${r}` as Parameters<typeof t>[0])}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {ROLE_CAPABILITY_ROWS.map(({ key, permissions }) => (
+                  <tr key={key} className="hover:bg-muted/30">
+                    <td className="py-2 pr-4 text-muted-foreground">
+                      {t(`rolesInfo.capabilities.${key}` as Parameters<typeof t>[0])}
+                    </td>
+                    {ROLES.map((role) => {
+                      const allowed = permissions.some((p) => ROLE_PERMISSIONS[role].has(p));
+                      return (
+                        <td key={role} className="px-3 py-2 text-center">
+                          {allowed
+                            ? <Check className="h-3.5 w-3.5 text-green-600 dark:text-green-400 mx-auto" />
+                            : <Minus className="h-3.5 w-3.5 text-muted-foreground/40 mx-auto" />}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

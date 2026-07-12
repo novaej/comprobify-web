@@ -28,6 +28,7 @@ export default async function SettingsPage({
   const canManageWebhooks = ctx.permissions.has('webhooks.manage');
   const canManageNotifications = ctx.permissions.has('notifications.manage');
   const canReadBilling = ctx.permissions.has('billing.read');
+  const canManageTenant = ctx.permissions.has('tenant.manage');
 
   const activeIssuers = await db.issuer.findMany({
     where: { tenantId, active: true },
@@ -67,7 +68,9 @@ export default async function SettingsPage({
           .then((subs) => subs.find((s) => s.status !== 'CANCELLED' && s.status !== 'EXPIRED') ?? null)
           .catch(() => null)
       : Promise.resolve(null),
-    getAgreementStatus({ apiKey: ctx.apiKey }).catch(() => null),
+    canManageTenant
+      ? getAgreementStatus({ apiKey: ctx.apiKey }).catch(() => null)
+      : Promise.resolve(null),
   ]);
   const agreementsAccepted = !agreementStatus?.needsAcceptance;
 
@@ -76,7 +79,7 @@ export default async function SettingsPage({
       <PageHeader title={t('title')} />
 
       <div className="space-y-4">
-        {hasIssuer && !emailVerified && <EmailVerificationNotice />}
+        {hasIssuer && !emailVerified && canManageTenant && <EmailVerificationNotice />}
 
         {hasIssuer && (
           <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
@@ -116,35 +119,37 @@ export default async function SettingsPage({
           <p className="mt-1.5 text-sm text-muted-foreground">{email}</p>
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-          <h2 className="text-sm font-semibold">{t('legalDocs.title')}</h2>
-          <p className="mt-1 text-xs text-muted-foreground">{t('legalDocs.description')}</p>
-          <div className="mt-4 divide-y divide-border">
-            {(['TERMS', 'PRIVACY', 'DPA'] as const).map((type) => {
-              const isPending = agreementStatus?.outdated.some((d) => d.documentType === type) ?? false;
-              return (
-                <div key={type} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <span className="text-sm">{tAgreements(`documentTitles.${type}`)}</span>
-                    {isPending && (
-                      <span className="inline-flex shrink-0 items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
-                        {tAgreements('statusPending')}
-                      </span>
-                    )}
+        {canManageTenant && (
+          <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+            <h2 className="text-sm font-semibold">{t('legalDocs.title')}</h2>
+            <p className="mt-1 text-xs text-muted-foreground">{t('legalDocs.description')}</p>
+            <div className="mt-4 divide-y divide-border">
+              {(['TERMS', 'PRIVACY', 'DPA'] as const).map((type) => {
+                const isPending = agreementStatus?.outdated.some((d) => d.documentType === type) ?? false;
+                return (
+                  <div key={type} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="text-sm">{tAgreements(`documentTitles.${type}`)}</span>
+                      {isPending && (
+                        <span className="inline-flex shrink-0 items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
+                          {tAgreements('statusPending')}
+                        </span>
+                      )}
+                    </div>
+                    <a
+                      href={`/api/tenant/agreements/${type}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="shrink-0 text-xs text-primary underline underline-offset-2 hover:opacity-80"
+                    >
+                      {t('legalDocs.view')}
+                    </a>
                   </div>
-                  <a
-                    href={`/api/tenant/agreements/${type}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="shrink-0 text-xs text-primary underline underline-offset-2 hover:opacity-80"
-                  >
-                    {t('legalDocs.view')}
-                  </a>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
 
         {canReadBilling && (
           <Link

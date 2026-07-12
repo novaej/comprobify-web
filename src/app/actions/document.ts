@@ -4,14 +4,14 @@ import { getLocale } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
 import { sendToSri, checkAuthorization, retrySingleEmail } from '@/lib/api';
 import { ApiError } from '@/lib/errors';
-import { requireContext } from '@/lib/context';
+import { requirePermission } from '@/lib/context';
 
 export type ActionResult = { error: string } | null;
 
 export async function sendToSriAction(
   accessKey: string,
 ): Promise<{ status: string } | { error: string }> {
-  const ctx = await requireContext();
+  const ctx = await requirePermission('documents.manage');
   const apiCtx = { apiKey: ctx.apiKey, issuerId: ctx.issuer.apiIssuerId };
   try {
     const doc = await sendToSri(apiCtx, accessKey);
@@ -31,7 +31,7 @@ export async function sendToSriAction(
 }
 
 export async function authorizeAction(accessKey: string): Promise<ActionResult> {
-  const ctx = await requireContext();
+  const ctx = await requirePermission('documents.manage');
   const apiCtx = { apiKey: ctx.apiKey, issuerId: ctx.issuer.apiIssuerId };
   try {
     await checkAuthorization(apiCtx, accessKey);
@@ -49,7 +49,7 @@ export async function authorizeAction(accessKey: string): Promise<ActionResult> 
 export async function tryAuthorizeAction(
   accessKey: string,
 ): Promise<{ status: string } | { error: string }> {
-  const ctx = await requireContext();
+  const ctx = await requirePermission('documents.manage');
   const apiCtx = { apiKey: ctx.apiKey, issuerId: ctx.issuer.apiIssuerId };
   try {
     const doc = await checkAuthorization(apiCtx, accessKey);
@@ -61,7 +61,7 @@ export async function tryAuthorizeAction(
 }
 
 export async function resendEmailAction(accessKey: string): Promise<ActionResult> {
-  const ctx = await requireContext();
+  const ctx = await requirePermission('documents.manage');
   const apiCtx = { apiKey: ctx.apiKey, issuerId: ctx.issuer.apiIssuerId };
   try {
     await retrySingleEmail(apiCtx, accessKey, true);

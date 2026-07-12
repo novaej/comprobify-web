@@ -6,9 +6,21 @@
 
 ---
 
+## Access
+
+Requires: authenticated session with an active issuer (`requireContext()`). All roles that have `documents.read` (Owner, Admin, BillingOperator, Viewer, Developer) can view the dashboard. The "Nueva factura" button is only rendered for roles with `documents.create` (Owner, Admin, BillingOperator).
+
+---
+
 ## Purpose
 
 The first screen after login. Shows KPI summary cards for the current month plus a preview of the most recent documents. Entry point for creating new invoices.
+
+---
+
+## No-issuer state
+
+Non-Owner/Admin users with no issuer assignment are redirected here by `requireContext()`, but the dashboard calls `requireContext()` which itself redirects them to `/no-issuer-assigned`. That page (`src/app/[locale]/no-issuer-assigned/page.tsx`) shows a "Sin emisor asignado" notice and tells users to contact their administrator. The "Volver al panel" link on the 404 page also points to `/dashboard`, so no-issuer users end up at `/no-issuer-assigned` without a redirect loop.
 
 ---
 
@@ -86,4 +98,4 @@ Rendered by the shared `<DocumentTable>` (`src/components/document-table.tsx`, a
 
 ## State: empty list
 
-Show a centered empty state with a "Crea tu primer comprobante" CTA button.
+Show a centered empty state with a "Crea tu primer comprobante" CTA button (only rendered when the user has `documents.create`).

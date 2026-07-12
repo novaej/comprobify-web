@@ -20,6 +20,7 @@ export default async function DashboardPage({
   const tDocs = await getTranslations('documents');
 
   const ctx = await requireContext();
+  const canCreate = ctx.permissions.has('documents.create');
   const apiCtx = { apiKey: ctx.apiKey, issuerId: ctx.issuer.apiIssuerId };
 
   let documents: Document[] = [];
@@ -54,10 +55,12 @@ export default async function DashboardPage({
       <PageHeader
         title={t('title')}
         action={
-          <Link href="/invoices/new" className={buttonVariants({ size: 'sm' })}>
-            <Plus className="h-4 w-4" />
-            {t('newDocument')}
-          </Link>
+          canCreate ? (
+            <Link href="/invoices/new" className={buttonVariants({ size: 'sm' })}>
+              <Plus className="h-4 w-4" />
+              {t('newDocument')}
+            </Link>
+          ) : undefined
         }
       />
 

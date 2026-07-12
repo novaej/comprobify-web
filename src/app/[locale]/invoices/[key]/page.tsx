@@ -2,7 +2,7 @@ import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { ChevronLeft, ArrowRight } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { getDocument, getDocumentEvents, getSriResponses } from '@/lib/api';
-import { requireContext } from '@/lib/context';
+import { requirePermission } from '@/lib/context';
 import { ApiError } from '@/lib/errors';
 import { notFound } from 'next/navigation';
 import { StatusBadge } from '@/components/status-badge';
@@ -40,7 +40,9 @@ export default async function InvoiceDetailPage({
   const tBack = backTarget.namespace === 'documents' ? tDocuments : tDashboard;
   const backLabel = tBack(backTarget.key as Parameters<typeof tBack>[0]);
 
-  const ctx = await requireContext();
+  const ctx = await requirePermission('documents.read');
+  const canManage = ctx.permissions.has('documents.manage');
+  const canCreate = ctx.permissions.has('documents.create');
   const apiCtx = { apiKey: ctx.apiKey, issuerId: ctx.issuer.apiIssuerId };
 
   let document;
@@ -179,6 +181,8 @@ export default async function InvoiceDetailPage({
         status={document.status}
         documentType={document.documentType}
         from={backTargetKey}
+        canManage={canManage}
+        canCreate={canCreate}
       />
 
       {/* Events timeline */}

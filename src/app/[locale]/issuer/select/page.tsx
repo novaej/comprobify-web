@@ -15,8 +15,22 @@ export default async function IssuerSelectPage({
   const ctx = await requireContext({ skipIssuer: true });
   const t = await getTranslations('issuerSelect');
 
+  const isOwnerOrAdmin = ctx.user.role === 'Owner' || ctx.user.role === 'Admin';
+  let issuerIds: number[] | null = null;
+  if (!isOwnerOrAdmin) {
+    const access = await db.userIssuerAccess.findMany({
+      where: { tenantId: ctx.tenant.id, userId: ctx.user.id },
+      select: { issuerId: true },
+    });
+    issuerIds = access.map((a) => a.issuerId);
+  }
+
   const issuers = await db.issuer.findMany({
-    where: { tenantId: ctx.tenant.id, active: true },
+    where: {
+      tenantId: ctx.tenant.id,
+      active: true,
+      ...(issuerIds !== null ? { id: { in: issuerIds } } : {}),
+    },
     orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
   });
 

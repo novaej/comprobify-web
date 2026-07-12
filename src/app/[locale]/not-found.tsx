@@ -1,5 +1,5 @@
 import { getTranslations, getLocale } from 'next-intl/server';
-import { FileQuestionMark } from 'lucide-react';
+import { FileSearch2 } from 'lucide-react';
 import { buttonVariants } from '@/components/ui/button';
 
 export default async function LocaleNotFound() {
@@ -7,14 +7,24 @@ export default async function LocaleNotFound() {
   const locale = await getLocale();
 
   return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 p-8 text-center">
-      <FileQuestionMark className="h-10 w-10 text-muted-foreground" />
-      <h2 className="text-xl font-semibold">{t('title')}</h2>
-      <p className="max-w-md text-sm text-muted-foreground">{t('description')}</p>
+    <div className="flex min-h-[60vh] flex-col items-center justify-center p-8 text-center">
+      {/* Large muted numeral as visual anchor */}
+      <p className="select-none text-[9rem] font-black leading-none tracking-tight text-foreground/[0.04]">
+        404
+      </p>
+
+      {/* Icon circle overlapping the numeral */}
+      <div className="-mt-8 mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-muted ring-4 ring-background">
+        <FileSearch2 className="h-7 w-7 text-muted-foreground" />
+      </div>
+
+      <h2 className="mb-2 text-xl font-semibold">{t('title')}</h2>
+      <p className="mb-6 max-w-sm text-sm text-muted-foreground">{t('description')}</p>
+
       {/* Plain <a>, not the i18n Link: client-side navigation away from a
           notFound() boundary silently no-ops (Next.js #49736/#59981) — a
           full browser navigation sidesteps the broken soft-nav state. */}
-      <a href={`/${locale}/dashboard`} className={buttonVariants({ variant: 'outline' })}>
+      <a href={`/${locale}/dashboard`} className={buttonVariants()}>
         {t('backToDashboard')}
       </a>
     </div>

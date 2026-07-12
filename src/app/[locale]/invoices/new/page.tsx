@@ -1,7 +1,7 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { InvoiceForm } from '@/components/invoice-form';
 import { PageHeader } from '@/components/page-header';
-import { requireContext } from '@/lib/context';
+import { requirePermission } from '@/lib/context';
 import { db } from '@/lib/db';
 import {
   listCatalogIdTypes,
@@ -47,7 +47,7 @@ export default async function NewInvoicePage({
   const tDashboard = await getTranslations('dashboard');
   const tDocuments = await getTranslations('documents');
 
-  const ctx = await requireContext();
+  const ctx = await requirePermission('documents.create');
   const { apiKey, tenant } = ctx;
 
   const apiCtx = { apiKey, issuerId: ctx.issuer.apiIssuerId };
