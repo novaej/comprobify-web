@@ -37,8 +37,11 @@ export default async function UsersPage({
         users={users.map((u) => ({
           id: u.id,
           email: u.email,
+          firstName: u.firstName,
+          lastName: u.lastName,
           role: u.role ?? 'Viewer',
           inviteStatus: u.inviteStatus,
+          active: u.active,
           issuerIds: u.issuerAccess.map((a) => a.issuerId),
         }))}
         issuers={issuers}

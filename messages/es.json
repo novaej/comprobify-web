@@ -55,7 +55,8 @@
       "submit": "Ingresar",
       "submitting": "Ingresando...",
       "noAccount": "¿No tienes cuenta?",
-      "register": "Regístrate"
+      "register": "Regístrate",
+      "accountDisabled": "Tu cuenta ha sido desactivada por un administrador. Contacta al administrador para recuperar el acceso."
     },
     "register": {
       "subtitle": "Crea tu cuenta",
@@ -68,7 +69,8 @@
   "authError": {
     "INVALID_CREDENTIALS": "Correo o contraseña incorrectos.",
     "EMAIL_TAKEN": "Ya existe una cuenta con ese correo.",
-    "PASSWORD_MISMATCH": "Las contraseñas no coinciden."
+    "PASSWORD_MISMATCH": "Las contraseñas no coinciden.",
+    "ACCOUNT_DISABLED": "Tu cuenta ha sido desactivada. Contacta al administrador de tu organización."
   },
   "completeRegistration": {
     "title": "Activa tu cuenta",
@@ -579,7 +581,8 @@
       "agreementRequiredLink": "Revisar y aceptar acuerdos"
     },
     "account": {
-      "title": "Cuenta"
+      "title": "Cuenta",
+      "description": "Gestiona tu perfil personal y contraseña."
     },
     "legalDocs": {
       "title": "Documentos legales",
@@ -683,7 +686,11 @@
     "REQUIRES_PRODUCTION": "Esta acción solo está disponible en el ambiente de producción.",
     "AGREEMENT_NOT_FOUND": "No se encontró el documento de acuerdo solicitado.",
     "VERSION_MISMATCH": "Los términos han sido actualizados. Recargue la página y revíselos antes de continuar.",
-    "AGREEMENT_ACCEPTANCE_REQUIRED": "Debe revisar y aceptar los acuerdos legales antes de activar producción."
+    "AGREEMENT_ACCEPTANCE_REQUIRED": "Debe revisar y aceptar los acuerdos legales antes de activar producción.",
+    "WRONG_CURRENT_PASSWORD": "La contraseña actual es incorrecta.",
+    "PASSWORD_TOO_SHORT": "La contraseña debe tener al menos 8 caracteres.",
+    "CANNOT_DISABLE_SELF": "No puedes desactivar tu propia cuenta.",
+    "CANNOT_RESET_OWN_PASSWORD": "No puedes restablecer tu propia contraseña desde aquí."
   },
   "agreements": {
     "title": "Revisa y acepta los acuerdos",
@@ -1029,7 +1036,9 @@
       "email": "Correo",
       "role": "Rol",
       "status": "Estado",
-      "actions": "Acciones"
+      "actions": "Acciones",
+      "name": "Nombre",
+      "issuers": "Emisores"
     },
     "role": {
       "Owner": "Propietario",
@@ -1079,6 +1088,32 @@
         "accountSettings": "Configuración de cuenta",
         "promoteToProduction": "Activar modo producción"
       }
+    },
+    "allIssuers": "Todos",
+    "noIssuers": "Sin asignar",
+    "editDialog": {
+      "title": "Editar usuario",
+      "firstName": "Nombre",
+      "lastName": "Apellido",
+      "firstNamePlaceholder": "María",
+      "lastNamePlaceholder": "García",
+      "role": "Rol",
+      "issuers": "Acceso a emisores",
+      "issuersDescription": "Elige a qué emisores puede acceder este usuario.",
+      "issuersEmpty": "No hay emisores disponibles.",
+      "resetPassword": "Restablecer contraseña",
+      "save": "Guardar cambios"
+    },
+    "editSuccess": "Usuario actualizado.",
+    "disableSuccess": "Usuario desactivado.",
+    "enableSuccess": "Usuario activado.",
+    "disable": "Desactivar usuario",
+    "enable": "Activar usuario",
+    "resetPasswordSuccess": "Correo de restablecimiento enviado.",
+    "resetPasswordDialog": {
+      "title": "Restablecer contraseña",
+      "description": "Se enviará un correo al usuario con un enlace para establecer una nueva contraseña. ¿Continuar?",
+      "confirm": "Enviar correo"
     }
   },
   "marketing": {
@@ -1299,6 +1334,11 @@
       "subject": "Te invitaron a unirte a {businessName} en Comprobify",
       "greeting": "Te invitaron a unirte a {businessName} en Comprobify.",
       "cta": "Haz clic en el siguiente enlace para completar tu registro:"
+    },
+    "passwordReset": {
+      "subject": "Restablece tu contraseña en Comprobify",
+      "greeting": "Un administrador de {businessName} solicitó restablecer tu contraseña.",
+      "cta": "Haz clic en el siguiente enlace para establecer una nueva contraseña:"
     }
   },
   "admin": {
@@ -1432,6 +1472,33 @@
         "loading": "Cargando...",
         "publishedAt": "Publicado el {date}"
       }
+    }
+  },
+  "accountSettings": {
+    "title": "Mi cuenta",
+    "description": "Gestiona tu perfil personal y contraseña.",
+    "profile": {
+      "title": "Información personal",
+      "firstName": "Nombre",
+      "lastName": "Apellido",
+      "firstNamePlaceholder": "María",
+      "lastNamePlaceholder": "García",
+      "email": "Correo electrónico",
+      "emailNote": "El correo electrónico no se puede cambiar.",
+      "save": "Guardar",
+      "saving": "Guardando...",
+      "saveSuccess": "Perfil actualizado."
+    },
+    "password": {
+      "title": "Cambiar contraseña",
+      "current": "Contraseña actual",
+      "new": "Nueva contraseña",
+      "confirm": "Confirmar contraseña",
+      "save": "Cambiar contraseña",
+      "saving": "Cambiando...",
+      "saveSuccess": "Contraseña actualizada.",
+      "mismatch": "Las contraseñas no coinciden.",
+      "tooShort": "La contraseña debe tener al menos 8 caracteres."
     }
   }
 }

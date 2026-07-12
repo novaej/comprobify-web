@@ -6,22 +6,28 @@ import { Link, redirect } from '@/i18n/navigation';
 import { LocaleSwitcher } from '@/components/locale-switcher';
 import { LogoLockupStacked } from '@/components/logo';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, ShieldOff } from 'lucide-react';
 
 export default async function LoginPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ reason?: string }>;
 }) {
-  const { locale } = await params;
+  const [{ locale }, { reason }] = await Promise.all([params, searchParams]);
   setRequestLocale(locale);
 
   const session = await auth();
   if (session) {
-    const user = await db.user.findUnique({ where: { id: Number(session.user.id) }, select: { id: true } });
-    if (user) redirect({ href: '/dashboard', locale });
-    // Session JWT is valid but the user row is gone — fall through to show the login form
-    // instead of bouncing back to /dashboard (which would redirect here again in a loop).
+    const user = await db.user.findUnique({
+      where: { id: Number(session.user.id) },
+      select: { id: true, active: true },
+    });
+    // Only redirect active users to dashboard. Disabled users arrive here from the
+    // /api/auth/signout-disabled route which already cleared their session cookie,
+    // so on this render session will be null and we fall through to the form.
+    if (user?.active) redirect({ href: '/dashboard', locale });
   }
 
   const t = await getTranslations('auth');
@@ -52,6 +58,12 @@ export default async function LoginPage({
             <p className="mt-1 text-sm text-muted-foreground">{t('login.subtitle')}</p>
           </div>
 
+          {reason === 'disabled' && (
+            <div className="mb-4 flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3">
+              <ShieldOff className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+              <p className="text-sm text-destructive">{t('login.accountDisabled')}</p>
+            </div>
+          )}
           <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
             <LoginForm />
           </div>

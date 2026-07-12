@@ -54,6 +54,7 @@ async function getLayoutProps(userId: string): Promise<LayoutProps | null> {
     select: {
       email: true,
       role: true,
+      active: true,
       acceptedAt: true,
       invitedAt: true,
       tenant: {
@@ -73,7 +74,7 @@ async function getLayoutProps(userId: string): Promise<LayoutProps | null> {
     },
   });
 
-  if (!user?.tenant) return null;
+  if (!user?.active || !user?.tenant) return null;
 
   const ctxCookie = await readCtxCookie();
   const allIssuers = user.tenant.issuers.map((i) => ({

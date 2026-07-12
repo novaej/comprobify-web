@@ -7,7 +7,7 @@ import { listIssuerDocumentTypes, getMySubscriptions, getAgreementStatus } from 
 import { listTiers } from '@/lib/public-api';
 import { Link } from '@/i18n/navigation';
 import { db } from '@/lib/db';
-import { Webhook, Bell, ChevronRight, CreditCard } from 'lucide-react';
+import { Webhook, Bell, ChevronRight, CreditCard, User } from 'lucide-react';
 
 export default async function SettingsPage({
   params,
@@ -20,7 +20,8 @@ export default async function SettingsPage({
 
   const ctx = await requireContext({ skipIssuer: true });
   const { environment, id: tenantId } = ctx.tenant;
-  const { email, emailVerified } = ctx.user;
+  const { email, emailVerified, firstName, lastName } = ctx.user;
+  const displayName = [firstName, lastName].filter(Boolean).join(' ') || null;
   const tWebhooks = await getTranslations('webhooks');
   const tNotifPrefs = await getTranslations('notificationPreferences');
   const tBilling = await getTranslations('billing');
@@ -114,10 +115,21 @@ export default async function SettingsPage({
           </div>
         )}
 
-        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-          <h2 className="text-sm font-semibold">{t('account.title')}</h2>
-          <p className="mt-1.5 text-sm text-muted-foreground">{email}</p>
-        </div>
+        <Link
+          href="/settings/account"
+          className="flex items-center justify-between rounded-xl border border-border bg-card p-6 shadow-sm transition-colors hover:bg-accent"
+        >
+          <div className="flex items-center gap-3">
+            <User className="h-5 w-5 shrink-0 text-muted-foreground" />
+            <div>
+              <h2 className="text-sm font-semibold">{t('account.title')}</h2>
+              <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">
+                {displayName ? `${displayName} · ` : ''}{email}
+              </p>
+            </div>
+          </div>
+          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+        </Link>
 
         {canManageTenant && (
           <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
