@@ -59,17 +59,26 @@ Shows the full state of a document and provides contextual actions based on its 
 
 ---
 
+## Access
+
+Requires: `documents.read` permission (`requirePermission('documents.read')`). All five roles have `documents.read`, so any authenticated user with an issuer can view the detail page. Mutation controls are gated separately by `documents.manage` / `documents.create` (see below).
+
+---
+
 ## Contextual actions by status
 
-Rendered by `<InvoiceActions accessKey={...} status={...} documentType={...} from={backTargetKey} />` (`src/components/invoice-actions.tsx`).
+Rendered by `<InvoiceActions accessKey={...} status={...} documentType={...} from={backTargetKey} canManage={...} canCreate={...} />` (`src/components/invoice-actions.tsx`). The page computes `canManage = ctx.permissions.has('documents.manage')` and `canCreate = ctx.permissions.has('documents.create')` and passes them as props — the component never reads permissions directly (it's a Client Component). Roles without `documents.manage` (Viewer, Developer) see only the read-only actions; roles without `documents.create` do not see "Crear nota de crédito".
 
-| Status | Actions shown |
-|---|---|
-| SIGNED | "Enviar" button |
-| RECEIVED | "Verificar autorización" button + polling spinner |
-| AUTHORIZED | "Vista previa PDF" (primary button, toggles the inline preview — see below) + an "⋮ Acciones" dropdown containing: download XML, resend email, and — for type `01` documents only — "Crear nota de crédito" |
-| RETURNED | "Corregir" button |
-| NOT_AUTHORIZED | Same as RETURNED |
+| Status | Actions shown | Permission required |
+|---|---|---|
+| SIGNED | "Enviar" button | `documents.manage` |
+| RECEIVED | Polling spinner (automatic, no user action) | — |
+| AUTHORIZED | "Vista previa PDF" (primary, toggles inline preview) | — |
+| AUTHORIZED | "⋮ Acciones" dropdown: download XML | — |
+| AUTHORIZED | "⋮ Acciones" dropdown: resend email | `documents.manage` |
+| AUTHORIZED | "⋮ Acciones" dropdown: "Crear nota de crédito" (type `01` only) | `documents.create` |
+| RETURNED | "Corregir" button | `documents.manage` |
+| NOT_AUTHORIZED | Same as RETURNED | `documents.manage` |
 
 The "Corregir" link's target depends on `documentType` via `REBUILD_HREFS` — `/invoices/new?rebuild=...` for type `01`, `/credit-notes/new?rebuild=...` for type `04` — since both document types reuse this same detail page and action component. "Crear nota de crédito" links to `/credit-notes/new?fromInvoice=:accessKey&from=...`, pre-filling the credit note form from this invoice (see `credit-notes.md`).
 

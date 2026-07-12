@@ -6,6 +6,16 @@
 
 ---
 
+## Access
+
+- **Create:** `requirePermission('documents.create')` — page (`/credit-notes/new`) and `createCreditNoteAction` both gate on this. Roles with this permission: Owner, Admin, BillingOperator.
+- **Rebuild (Corregir):** `rebuildCreditNoteAction` requires `documents.manage`. Only Owner and Admin have `documents.manage`.
+- **Read-only helpers** (`searchCreditableInvoicesAction`, `getInvoiceForCreditNoteAction`, `resolveOriginalAccessKeyAction`, `getRemainingBalanceAction`): require `documents.read`, which all five roles have.
+
+Roles without `documents.create` (Viewer, Developer) get a 404 when navigating to `/credit-notes/new`. The "Crear nota de crédito" button on Invoice Detail is also hidden for these roles (see `invoice-detail.md`).
+
+---
+
 ## Purpose
 
 Form for creating a credit note (Nota de Crédito, document type `04`) that references a previously authorized invoice. Maps to `POST /api/documents` (same endpoint as Create Invoice — the request shape is selected by `documentType`). Also doubles as the "Corregir" (rebuild) form for `RETURNED`/`NOT_AUTHORIZED` credit notes via `?rebuild=<accessKey>`, and accepts `?fromInvoice=<accessKey>` to pre-fill from a specific invoice. On success, redirects to the (shared) Invoice Detail screen for the document.

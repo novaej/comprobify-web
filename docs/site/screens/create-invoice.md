@@ -6,6 +6,15 @@
 
 ---
 
+## Access
+
+- **Create:** `requirePermission('documents.create')` — page and `createInvoiceAction` both gate on this. Roles with this permission: Owner, Admin, BillingOperator.
+- **Rebuild (Corregir):** `rebuildInvoiceAction` additionally requires `documents.manage`. Only Owner and Admin have `documents.manage` (BillingOperator can create but not rebuild).
+
+Roles without `documents.create` (Viewer, Developer) get a 404 when they navigate to `/invoices/new`. They also can't reach the rebuild form at `/invoices/new?rebuild=...` since the same page gate applies.
+
+---
+
 ## Purpose
 
 Multi-section form for creating an electronic invoice. Maps to `POST /api/documents`. Also doubles as the "Corregir" (rebuild) form for `RETURNED`/`NOT_AUTHORIZED` documents via `?rebuild=<accessKey>` — see "Rebuild mode" below. On success, redirects to the Invoice Detail screen for the document.
