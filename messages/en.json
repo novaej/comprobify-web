@@ -96,6 +96,7 @@
   },
   "status": {
     "SIGNED": "Signed",
+    "PENDING_SEND": "Queued for sending",
     "RECEIVED": "Received by SRI",
     "AUTHORIZED": "Authorized",
     "RETURNED": "Returned",

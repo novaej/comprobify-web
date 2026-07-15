@@ -43,6 +43,7 @@ export interface ApiCtx {
 
 export const DOCUMENT_STATUSES = [
   'SIGNED',
+  'PENDING_SEND',
   'RECEIVED',
   'AUTHORIZED',
   'RETURNED',
@@ -384,6 +385,9 @@ export async function createDocument(
   return { document: result.document, created: true };
 }
 
+// Async since ADR-019 (RabbitMQ worker) — this only queues the SRI submission and
+// returns 202 with status PENDING_SEND. It never returns RECEIVED/RETURNED itself;
+// poll getDocument() for the real outcome.
 export async function sendToSri(ctx: ApiCtx, accessKey: string): Promise<Document> {
   const result = await request<{ ok: true; document: Document }>(
     `/v1/documents/${accessKey}/send`,
@@ -393,6 +397,9 @@ export async function sendToSri(ctx: ApiCtx, accessKey: string): Promise<Documen
   return result.document;
 }
 
+// Async since ADR-019 (RabbitMQ worker) — this only queues the authorization check
+// and returns 202 with status unchanged (still RECEIVED). It never returns
+// AUTHORIZED/NOT_AUTHORIZED itself; poll getDocument() for the real outcome.
 export async function checkAuthorization(ctx: ApiCtx, accessKey: string): Promise<Document> {
   const result = await request<{ ok: true; document: Document }>(
     `/v1/documents/${accessKey}/authorize`,

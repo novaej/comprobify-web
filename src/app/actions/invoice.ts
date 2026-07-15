@@ -2,7 +2,7 @@
 
 import { getLocale } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
-import { createDocument, rebuildDocument, sendToSri, checkAuthorization, type CreateInvoicePayload } from '@/lib/api';
+import { createDocument, rebuildDocument, sendToSri, type CreateInvoicePayload } from '@/lib/api';
 import { ApiError } from '@/lib/errors';
 import { requirePermission } from '@/lib/context';
 import { syncSuspensionStatus } from '@/lib/suspension-sync';
@@ -83,9 +83,10 @@ function buildCreateDocumentPayload(data: InvoiceFormData): CreateInvoicePayload
   };
 }
 
-// Best-effort: send to SRI immediately, unless the user chose "Firmar" (sign only).
-// If it fails — or was skipped — the detail page shows SIGNED status with a
-// recovery Send button (src/components/invoice-actions.tsx).
+// Best-effort: queue the send to SRI immediately, unless the user chose "Firmar"
+// (sign only). This only queues the async submission (see ADR-019) — the
+// detail page's InvoiceActions auto-resumes polling for PENDING_SEND on mount,
+// and falls back to a recovery Send button if queuing failed or was skipped.
 async function sendAfterSigningIfRequested(
   apiCtx: { apiKey: string; issuerId: number },
   accessKey: string,
@@ -93,10 +94,7 @@ async function sendAfterSigningIfRequested(
 ): Promise<void> {
   if (!sendAfterSigning) return;
   try {
-    const sent = await sendToSri(apiCtx, accessKey);
-    if (sent.status === 'RECEIVED') {
-      try { await checkAuthorization(apiCtx, accessKey); } catch { /* polling handles it */ }
-    }
+    await sendToSri(apiCtx, accessKey);
   } catch { /* non-fatal */ }
 }
 
