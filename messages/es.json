@@ -96,6 +96,7 @@
   },
   "status": {
     "SIGNED": "Firmado",
+    "PENDING_SEND": "En cola para envío",
     "RECEIVED": "Recibido por SRI",
     "AUTHORIZED": "Autorizado",
     "RETURNED": "Devuelto",

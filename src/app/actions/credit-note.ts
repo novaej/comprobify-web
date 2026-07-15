@@ -6,7 +6,6 @@ import {
   createDocument,
   rebuildDocument,
   sendToSri,
-  checkAuthorization,
   getDocument,
   listDocuments,
   getCreditNotesBalance,
@@ -135,6 +134,8 @@ function buildCreditNotePayload(data: CreditNoteFormData): CreateCreditNotePaylo
 
 // Same best-effort send pattern as src/app/actions/invoice.ts — duplicated rather than
 // shared since each action file in this project is self-contained (see clients.ts/catalog.ts).
+// Only queues the async submission (see ADR-019); InvoiceActions on the detail page
+// auto-resumes polling for PENDING_SEND on mount.
 async function sendAfterSigningIfRequested(
   apiCtx: { apiKey: string; issuerId: number },
   accessKey: string,
@@ -142,10 +143,7 @@ async function sendAfterSigningIfRequested(
 ): Promise<void> {
   if (!sendAfterSigning) return;
   try {
-    const sent = await sendToSri(apiCtx, accessKey);
-    if (sent.status === 'RECEIVED') {
-      try { await checkAuthorization(apiCtx, accessKey); } catch { /* polling handles it */ }
-    }
+    await sendToSri(apiCtx, accessKey);
   } catch { /* non-fatal */ }
 }
 

@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { tryAuthorizeAction, authorizeAction } from '@/app/actions/document';
+import { tryAuthorizeAction, getDocumentStatusAction, authorizeAction } from '@/app/actions/document';
 
 const POLL_INTERVAL_MS = 5_000;
 const TIMEOUT_MS = 2 * 60 * 1_000;
@@ -18,16 +18,29 @@ export function InvoicePolling({ accessKey }: InvoicePollingProps) {
   const t = useTranslations('invoiceDetail');
   const router = useRouter();
   const startedAt = useRef(Date.now());
+  const triggeredRef = useRef(false);
   const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
+    // Kick the async authorization check once (see ADR-019) — its response
+    // status is always RECEIVED unchanged, so it's fire-and-forget here; the
+    // interval below polls the document's real status for the outcome.
+    // Guarded by a ref (not just relying on this effect running once) because
+    // React StrictMode's dev-only double-invoke would otherwise queue it twice
+    // per mount — harmless (the worker's assertTransition skips the redelivery
+    // as a benign no-op) but noisy in the worker logs.
+    if (!triggeredRef.current) {
+      triggeredRef.current = true;
+      tryAuthorizeAction(accessKey).catch(() => {});
+    }
+
     const interval = setInterval(async () => {
       if (Date.now() - startedAt.current >= TIMEOUT_MS) {
         clearInterval(interval);
         setTimedOut(true);
         return;
       }
-      const result = await tryAuthorizeAction(accessKey);
+      const result = await getDocumentStatusAction(accessKey);
       if ('status' in result && result.status !== 'RECEIVED') {
         clearInterval(interval);
         router.refresh();

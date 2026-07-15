@@ -19,7 +19,7 @@ const DEBOUNCE_MS = 400;
 const ALL_STATUSES = 'all';
 // Mirrors DOCUMENT_STATUSES in src/lib/api.ts — duplicated as a literal because
 // that module is server-only and cannot be imported (even for a value) from here.
-const STATUSES: DocumentStatus[] = ['SIGNED', 'RECEIVED', 'AUTHORIZED', 'RETURNED', 'NOT_AUTHORIZED'];
+const STATUSES: DocumentStatus[] = ['SIGNED', 'PENDING_SEND', 'RECEIVED', 'AUTHORIZED', 'RETURNED', 'NOT_AUTHORIZED'];
 
 interface DocumentFiltersProps {
   labels: {

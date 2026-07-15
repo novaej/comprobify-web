@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useTransition } from 'react';
+import { useState, useEffect, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Send, Download, Mail, Loader2, Hammer, FileMinus, MoreVertical, Eye, EyeOff } from 'lucide-react';
@@ -20,7 +20,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { sendToSriAction, tryAuthorizeAction, resendEmailAction } from '@/app/actions/document';
+import { sendToSriAction, getDocumentStatusAction, resendEmailAction } from '@/app/actions/document';
 import type { DocumentStatus } from '@/lib/api';
 import { toastApiError } from '@/lib/api-error-toast';
 import { Link, useRouter } from '@/i18n/navigation';
@@ -54,24 +54,38 @@ export function InvoiceActions({ accessKey, status, documentType, from, canManag
   const [previewOpen, setPreviewOpen] = useState(false);
   const [phase, setPhase] = useState<Phase>('idle');
   const [resendPending, startResendTransition] = useTransition();
-  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // When router.refresh() delivers a new status prop, stop any in-flight processing.
+  // Auto-resumes polling whenever the document is (or becomes) PENDING_SEND —
+  // covers a manual send below, the best-effort send-after-signing on creation
+  // (invoice.ts's sendAfterSigningIfRequested), and revisiting a page that's
+  // still waiting on the RabbitMQ worker from an earlier session (see ADR-019).
   useEffect(() => {
-    if (status !== 'SIGNED' && phase !== 'idle') {
-      setPhase('idle');
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-        pollIntervalRef.current = null;
+    if (status !== 'PENDING_SEND') return;
+    setPhase('polling');
+    const startedAt = Date.now();
+    const interval = setInterval(async () => {
+      if (Date.now() - startedAt >= TIMEOUT_MS) {
+        clearInterval(interval);
+        setPhase('idle');
+        router.refresh();
+        return;
       }
+      const pollResult = await getDocumentStatusAction(accessKey);
+      if ('status' in pollResult && pollResult.status !== 'PENDING_SEND') {
+        clearInterval(interval);
+        router.refresh();
+      }
+    }, POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [status, accessKey, router]);
+
+  // Once router.refresh() delivers a status that isn't PENDING_SEND anymore
+  // (RECEIVED/RETURNED), drop back to idle so the buttons for the new status render.
+  useEffect(() => {
+    if (status !== 'PENDING_SEND' && phase === 'polling') {
+      setPhase('idle');
     }
   }, [status, phase]);
-
-  useEffect(() => {
-    return () => {
-      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-    };
-  }, []);
 
   async function handleSend() {
     setConfirmOpen(false);
@@ -84,28 +98,9 @@ export function InvoiceActions({ accessKey, status, documentType, from, canManag
       return;
     }
 
-    if (result.status !== 'RECEIVED') {
-      router.refresh();
-      return;
-    }
-
-    setPhase('polling');
-    const startedAt = Date.now();
-    pollIntervalRef.current = setInterval(async () => {
-      if (Date.now() - startedAt >= TIMEOUT_MS) {
-        clearInterval(pollIntervalRef.current!);
-        pollIntervalRef.current = null;
-        setPhase('idle');
-        router.refresh();
-        return;
-      }
-      const pollResult = await tryAuthorizeAction(accessKey);
-      if ('status' in pollResult && pollResult.status !== 'RECEIVED') {
-        clearInterval(pollIntervalRef.current!);
-        pollIntervalRef.current = null;
-        router.refresh();
-      }
-    }, POLL_INTERVAL_MS);
+    // Always PENDING_SEND now (see ADR-019) — router.refresh() delivers that
+    // status prop, which the effect above picks up to start polling.
+    router.refresh();
   }
 
   function handleResendEmail() {
