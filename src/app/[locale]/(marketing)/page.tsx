@@ -1,11 +1,31 @@
+import type { Metadata } from 'next';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { auth } from '@/auth';
 import { redirect } from '@/i18n/navigation';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { localeAlternates } from '@/lib/seo';
 import { Code2, FileText, ArrowRight } from 'lucide-react';
 
 const API_DOCS_URL = 'https://docs.comprobify.com/';
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'landing.seo' });
+  const title = t('title');
+  const description = t('description');
+
+  return {
+    title,
+    description,
+    alternates: { canonical: `/${locale}`, languages: localeAlternates('') },
+    openGraph: { title, description, type: 'website', locale },
+  };
+}
 
 export default async function LandingPage({
   params,

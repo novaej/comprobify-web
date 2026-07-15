@@ -1,6 +1,26 @@
+import type { Metadata } from 'next';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { listTiers } from '@/lib/public-api';
 import { PricingPlans } from '@/components/pricing-plans';
+import { localeAlternates } from '@/lib/seo';
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'pricing.seo' });
+  const title = t('title');
+  const description = t('description');
+
+  return {
+    title,
+    description,
+    alternates: { canonical: `/${locale}/pricing`, languages: localeAlternates('/pricing') },
+    openGraph: { title, description, type: 'website', locale },
+  };
+}
 
 export default async function PricingPage({
   params,

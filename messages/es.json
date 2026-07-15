@@ -1145,6 +1145,10 @@
     }
   },
   "landing": {
+    "seo": {
+      "title": "Comprobify — Facturación electrónica SRI para Ecuador",
+      "description": "Emite, firma y autoriza facturas, notas de crédito y retenciones electrónicas con el SRI desde la web o vía API. Empieza gratis en el ambiente de pruebas."
+    },
     "hero": {
       "title": "Facturación electrónica para Ecuador, sin complicaciones",
       "subtitle": "Emite, firma y autoriza facturas y comprobantes directamente con el SRI. Usa nuestra interfaz web o integra la API en tu sistema.",
@@ -1167,6 +1171,10 @@
     }
   },
   "pricing": {
+    "seo": {
+      "title": "Planes y precios — Comprobify",
+      "description": "Compara los planes de Comprobify para facturación electrónica en Ecuador: cuotas, precios mensuales y anuales, y qué incluye cada nivel."
+    },
     "title": "Planes y precios",
     "subtitle": "Comienza gratis en el ambiente de pruebas del SRI. Pasa a producción cuando estés listo.",
     "badge": {
