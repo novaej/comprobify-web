@@ -19,8 +19,13 @@ Because the numbers come from the API at request time, this page can never drift
 
 ---
 
+## SEO
+`generateMetadata` reads `pricing.seo.title`/`pricing.seo.description` and sets `alternates.canonical` (`/${locale}/pricing`) + `alternates.languages` (es/en hreflang, via `localeAlternates('/pricing')` in `src/lib/seo.ts`) and a matching `openGraph` block. Only indexed at all when `SEO_INDEXABLE` is true (production) — see "Marketing SEO" in `CLAUDE.md`.
+
+---
+
 ## i18n namespaces
-- `pricing` — title/subtitle, `interval.*`, `free`/`perMonth`/`perYear`/`yearlyEquivalent`, `tiers.<NAME>.{name,description,cta}` (marketing copy only — numbers are not duplicated here), `features.*` (quota/branches/issuePoints/webhooks/docTypes label templates)
+- `pricing` — title/subtitle, `seo` (title/description), `interval.*`, `free`/`perMonth`/`perYear`/`yearlyEquivalent`, `tiers.<NAME>.{name,description,cta}` (marketing copy only — numbers are not duplicated here), `features.*` (quota/branches/issuePoints/webhooks/docTypes label templates)
 - `marketing` — shared nav and footer labels
 - `settings.setup` — reused for `docType01`/`docType04`/etc. labels in the feature list
 
@@ -29,9 +34,10 @@ Because the numbers come from the API at request time, this page can never drift
 ## Files
 | File | Role |
 |------|------|
-| `src/app/[locale]/(marketing)/pricing/page.tsx` | Server Component — calls `listTiers()`, renders `<PricingPlans>` |
+| `src/app/[locale]/(marketing)/pricing/page.tsx` | Server Component — calls `listTiers()`, renders `<PricingPlans>`; `generateMetadata` |
 | `src/components/pricing-plans.tsx` | Client Component — monthly/yearly toggle, tier cards, CTA links |
 | `src/lib/public-api.ts` | `ApiTierInfo` interface + `listTiers()` |
-| `src/app/[locale]/(marketing)/layout.tsx` | Marketing layout (header + footer) |
+| `src/app/[locale]/(marketing)/layout.tsx` | Marketing layout (header + footer); sets `metadataBase` |
+| `src/lib/seo.ts` | `MARKETING_BASE_URL`/`SEO_INDEXABLE`/`localeAlternates()` |
 | `messages/es.json` → `pricing`, `marketing` | Spanish copy |
 | `messages/en.json` → `pricing`, `marketing` | English copy |
