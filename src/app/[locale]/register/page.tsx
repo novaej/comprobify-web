@@ -70,6 +70,14 @@ export default async function RegisterPage({
               {t('register.login')}
             </Link>
           </p>
+          <p className="mt-2 text-center text-sm text-muted-foreground">
+            <Link
+              href="/support"
+              className="hover:text-foreground hover:underline underline-offset-4 transition-colors"
+            >
+              {t('needHelp')}
+            </Link>
+          </p>
         </div>
       </div>
     </div>

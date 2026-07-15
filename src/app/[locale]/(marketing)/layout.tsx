@@ -96,6 +96,12 @@ export default async function MarketingLayout({
           >
             {t('footer.register')}
           </a>
+          <a
+            href={`/${locale}/support`}
+            className="hover:text-foreground transition-colors"
+          >
+            {t('footer.support')}
+          </a>
         </div>
       </footer>
     </div>

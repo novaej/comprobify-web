@@ -36,6 +36,7 @@
     "issuers": "Issuers",
     "users": "Users",
     "settings": "Settings",
+    "support": "Support",
     "signOut": "Sign out",
     "languageTooltip": "UI language and Comprobify transactional email language",
     "noIssuer": "No issue point",
@@ -47,6 +48,7 @@
   "auth": {
     "backToHome": "Back to home",
     "backToPricing": "Back to pricing",
+    "needHelp": "Need help? Contact support",
     "fields": {
       "email": "Email address",
       "password": "Password",
@@ -778,6 +780,14 @@
     "errorDescription": "The verification link is invalid or has already expired. You can request a new one from Settings.",
     "goToSettings": "Go to Settings"
   },
+  "support": {
+    "title": "Support",
+    "description": "Have questions or need help? Reach out through any of these channels.",
+    "emailLabel": "Email",
+    "emailDescription": "Write to us and we'll get back to you as soon as possible.",
+    "phoneLabel": "WhatsApp",
+    "phoneDescription": "Message us on WhatsApp during business hours."
+  },
   "onboarding": {
     "title": "Set up your company",
     "description": "Complete your company information to start issuing electronic invoices.",
@@ -1130,7 +1140,8 @@
       "pricing": "Pricing",
       "docs": "API documentation",
       "login": "Log in",
-      "register": "Sign up"
+      "register": "Sign up",
+      "support": "Support"
     }
   },
   "landing": {

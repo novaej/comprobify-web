@@ -81,6 +81,7 @@ src/
       login/page.tsx        Public — Auth.js credentials login form
       register/page.tsx     Public — account registration (no tenant)
       verify-email/page.tsx Public — email token verification (session-independent)
+      support/page.tsx      Public — contact page (SUPPORT_EMAIL/SUPPORT_PHONE); dual chrome depending on whether Nav would wrap it
       admin/
         layout.tsx          Super admin layout — sidebar identical to main Nav; gated by requireSuperAdmin()
         error.tsx           Admin-scoped error boundary — "Volver al panel de administración"
@@ -358,6 +359,7 @@ This project runs Next.js **16** (not 13-15). Key differences from older version
 | `src/components/pricing-plans.tsx` | Client Component — monthly/yearly toggle, per-tier feature bullets built from `ApiTierInfo`; CTA links to `/register?tier=X&interval=Y` for paid tiers |
 | `src/app/[locale]/layout.tsx` | Locale layout with providers + nav; authenticated branch wraps main content in `<div class="flex min-w-0 flex-1 flex-col overflow-hidden">` so `TopBar` sits above `<main>`; unauthenticated/no-tenant branch renders `<>{children}</>` (no wrapper) so the admin sidebar's `h-full` reaches `<body>` |
 | `src/app/[locale]/verify-email/page.tsx` | Public email verification page — reads token from query string, updates Prisma by email (no session required) |
+| `src/app/[locale]/support/page.tsx` | Public `/support` contact page — reads `SUPPORT_EMAIL`/`SUPPORT_PHONE`; picks in-app `PageHeader` vs. standalone header by re-checking the same `active`/`tenantId` condition the locale layout uses to decide whether `Nav` wraps the page |
 | `src/app/[locale]/admin/layout.tsx` | Super admin layout — `flex h-full md:flex-row` + `AdminNav`; gated by `requireSuperAdmin()` |
 | `src/app/[locale]/admin/error.tsx` | Admin-scoped error boundary — "Volver al panel de administración" → `/admin/tenants` (not `/dashboard`) |
 | `src/app/[locale]/admin/tenants/page.tsx` | Tenant list — tier/status/verification controls; calls `listTenants()` from `admin-api.ts` |
