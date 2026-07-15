@@ -1,12 +1,14 @@
 'use server';
 
 import bcrypt from 'bcryptjs';
+import { after } from 'next/server';
 import { signIn, signOut } from '@/auth';
 import { db } from '@/lib/db';
 import { AuthError } from 'next-auth';
 import { getLocale } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
 import { writeCtxCookie, clearCtxCookie } from '@/lib/context-cookie';
+import { pingApiHealth } from '@/lib/api';
 import type { PaidTier, BillingInterval } from '@/lib/subscription-tiers';
 import * as Sentry from '@sentry/nextjs';
 
@@ -45,6 +47,12 @@ export async function loginAction(email: string, password: string): Promise<Auth
 
 /** Shared post-login redirect logic used by loginAction and completeRegistrationAction. */
 async function postLoginRedirect(email: string, locale: string): Promise<null> {
+  // Fire-and-forget: wake up the Comprobify API in case its free-tier instance
+  // has spun down from inactivity, so it's warm by the time the dashboard (or
+  // any other page) makes its first real request. Runs after the response is
+  // sent — never blocks the login redirect.
+  after(() => pingApiHealth());
+
   const user = await db.user.findUnique({
     where: { email },
     select: {
