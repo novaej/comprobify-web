@@ -1,11 +1,21 @@
+import type { Metadata } from 'next';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { buttonVariants } from '@/components/ui/button';
 import { Logomark } from '@/components/logo';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { LocaleSwitcher } from '@/components/locale-switcher';
+import { MARKETING_BASE_URL } from '@/lib/seo';
 
 const API_DOCS_URL = 'https://docs.comprobify.com/';
+
+// metadataBase for every (marketing) page's relative OG images / alternates —
+// must be the marketing host's own origin, never NEXT_PUBLIC_APP_URL (the app
+// host), since this route group is only ever served on comprobify.com /
+// staging.comprobify.com.
+export const metadata: Metadata = {
+  metadataBase: new URL(MARKETING_BASE_URL),
+};
 
 export default async function MarketingLayout({
   children,

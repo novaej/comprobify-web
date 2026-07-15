@@ -1145,6 +1145,10 @@
     }
   },
   "landing": {
+    "seo": {
+      "title": "Comprobify — SRI electronic invoicing for Ecuador",
+      "description": "Issue, sign, and authorize electronic invoices, credit notes, and withholding receipts with the SRI from the web or via API. Start free in the test environment."
+    },
     "hero": {
       "title": "Electronic invoicing for Ecuador, made simple",
       "subtitle": "Issue, sign, and authorize invoices and tax documents with the SRI. Use our web app or integrate the API directly into your system.",
@@ -1167,6 +1171,10 @@
     }
   },
   "pricing": {
+    "seo": {
+      "title": "Plans & pricing — Comprobify",
+      "description": "Compare Comprobify's plans for electronic invoicing in Ecuador: quotas, monthly and yearly pricing, and what each tier includes."
+    },
     "title": "Plans & pricing",
     "subtitle": "Start free in the SRI test environment. Move to production when you're ready.",
     "badge": {
