@@ -8,6 +8,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-07-15
+
 ### Added
 - **Marketing SEO** — `robots.txt` (`src/app/robots.ts`) and `sitemap.xml` (`src/app/sitemap.ts`) for the `(marketing)` routes (landing, pricing), gated behind a new `SEO_INDEXABLE` flag (`src/lib/seo.ts`, true only when `NEXT_PUBLIC_APP_ENV=production`) so the real, publicly-reachable staging domain never gets indexed. Landing and pricing pages each add `generateMetadata` (per-page title/description, canonical URL, es/en hreflang via `alternates.languages`, basic OpenGraph). New `NEXT_PUBLIC_MARKETING_URL` env var supplies the marketing host's own origin for all of the above — deliberately separate from `NEXT_PUBLIC_APP_URL`, which points at the app host.
 - **API wake-up ping on login** — `pingApiHealth()` (`src/lib/api.ts`) hits the Comprobify API's unauthenticated `GET /health` and is called from `postLoginRedirect()` (`src/app/actions/auth.ts`) wrapped in Next's `after()`, so it fires after the response is sent and never delays the login redirect. Compensates for the API running on a free-tier instance that spins down after inactivity — this gives it a head start warming up before the dashboard's first real request.
