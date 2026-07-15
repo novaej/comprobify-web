@@ -36,6 +36,7 @@
     "issuers": "Emisores",
     "users": "Usuarios",
     "settings": "Configuración",
+    "support": "Soporte",
     "signOut": "Cerrar sesión",
     "languageTooltip": "Idioma de la interfaz y de los correos transaccionales de Comprobify",
     "noIssuer": "Sin punto de emisión",
@@ -47,6 +48,7 @@
   "auth": {
     "backToHome": "Volver al inicio",
     "backToPricing": "Volver a precios",
+    "needHelp": "¿Necesitas ayuda? Contacta a soporte",
     "fields": {
       "email": "Correo electrónico",
       "password": "Contraseña",
@@ -868,6 +870,14 @@
     "errorDescription": "El enlace de verificación es inválido o ya expiró. Puedes solicitar uno nuevo desde la configuración.",
     "goToSettings": "Ir a configuración"
   },
+  "support": {
+    "title": "Soporte",
+    "description": "¿Tienes preguntas o necesitas ayuda? Contáctanos por cualquiera de estos medios.",
+    "emailLabel": "Correo electrónico",
+    "emailDescription": "Escríbenos y te responderemos lo antes posible.",
+    "phoneLabel": "WhatsApp",
+    "phoneDescription": "Escríbenos por WhatsApp en horario de oficina."
+  },
   "onboarding": {
     "title": "Configura tu empresa",
     "description": "Completa la información de tu empresa para empezar a emitir comprobantes electrónicos.",
@@ -1130,7 +1140,8 @@
       "pricing": "Precios",
       "docs": "Documentación API",
       "login": "Iniciar sesión",
-      "register": "Registrarse"
+      "register": "Registrarse",
+      "support": "Soporte"
     }
   },
   "landing": {

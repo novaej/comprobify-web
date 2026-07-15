@@ -7,6 +7,7 @@ import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import {
   LayoutDashboard, Files, Users, UsersRound, Package, Settings, Building2,
   Menu, X, LogOut, Globe, ChevronDown, ChevronLeft, ChevronRight, ShieldAlert,
+  LifeBuoy,
 } from 'lucide-react';
 import { NotificationBell } from '@/components/notification-bell';
 import type { listNotificationsAction } from '@/app/actions/notifications';
@@ -22,7 +23,7 @@ import { ROLE_PERMISSIONS } from '@/lib/rbac';
 const navItems: Array<{
   href: string;
   icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
-  labelKey: 'dashboard' | 'documents' | 'clients' | 'catalog' | 'issuers' | 'users' | 'settings';
+  labelKey: 'dashboard' | 'documents' | 'clients' | 'catalog' | 'issuers' | 'users' | 'settings' | 'support';
   requiresIssuer: boolean;
   permission: Permission | null;
 }> = [
@@ -33,6 +34,7 @@ const navItems: Array<{
   { href: '/issuers',    icon: Building2,       labelKey: 'issuers',   requiresIssuer: false, permission: 'issuers.read' },
   { href: '/users',      icon: UsersRound,      labelKey: 'users',     requiresIssuer: false, permission: 'users.read' },
   { href: '/settings',   icon: Settings,        labelKey: 'settings',  requiresIssuer: false, permission: null },
+  { href: '/support',    icon: LifeBuoy,        labelKey: 'support',   requiresIssuer: false, permission: null },
 ];
 
 const locales = [
