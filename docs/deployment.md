@@ -275,6 +275,10 @@ All variables are required. Set them in each Vercel project under **Settings →
 | `MAILGUN_DOMAIN` | No | Mailgun sending domain (e.g. `mg.your-domain.com`). Required alongside `MAILGUN_API_KEY`. |
 | `MAILGUN_FROM` | No | From address for invite emails (e.g. `Comprobify <no-reply@mg.your-domain.com>`). |
 | `COMPROBIFY_ADMIN_SECRET` | No* | Bearer secret for the Comprobify API's `/admin/*` routes, used by `src/lib/admin-api.ts` for the `/admin` super-admin panel (tenant management, payment-proof review). Must match the API's own `ADMIN_SECRET`. *Required only on the one deployment a super admin actually logs into — normal tenant flows never call `/admin/*`. |
+| `ADMIN_SEED_PASSWORD` | No* | Password for the super admin user created by `prisma/seed.js` (`npm run db:seed`). *Not read at runtime by Next.js* — only needed transiently when running the seed script against an environment's database, not as a persistent Vercel env var. |
+| `SUPPORT_EMAIL` | No | Contact email shown on `/support` (`mailto:` link) and linked from the sidebar, marketing footer, and login/register screens. |
+| `SUPPORT_PHONE` | No | Contact phone shown on `/support`, used to build a `https://wa.me/` WhatsApp link. Include the country code; non-digit characters are stripped when building the link. |
+| `NEXT_PUBLIC_MARKETING_URL` | No | Public origin of the **marketing** host (`comprobify.com` / `staging.comprobify.com`) — not the app host. Used as the canonical/OG base URL and by `robots.ts`/`sitemap.ts` (`src/lib/seo.ts`). `robots.txt`/`sitemap.xml` only allow indexing when `NEXT_PUBLIC_APP_ENV=production`, so this only matters for the production and staging projects. |
 
 > **Staging:** point `COMPROBIFY_API_URL` at the staging Comprobify API. Use a separate `DATABASE_URL` from production — staging users and production users must be isolated.
 
