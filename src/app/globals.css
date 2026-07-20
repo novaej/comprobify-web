@@ -129,6 +129,43 @@
   --sidebar-ring: oklch(0.80 0.12 183);
 }
 
+/* ---------------------------------------------------------------------------
+ * Marketing landing decoration.
+ *
+ * Every animation below sits inside a `prefers-reduced-motion: no-preference`
+ * guard, so a motion-sensitive visitor gets the exact same page with nothing
+ * moving. The static styles (grid, glow position) stay outside the guard so the
+ * composition still reads correctly when the motion is off.
+ * ------------------------------------------------------------------------- */
+@utility bg-grid {
+  background-image:
+    linear-gradient(to right, var(--border) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--border) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+
+/* Radial fade so the grid dissolves toward the edges instead of ending in a
+   hard line. */
+@utility mask-radial-fade {
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, black 30%, transparent 75%);
+}
+
+@keyframes glow-drift {
+  0%   { transform: translate3d(-4%, 0, 0) scale(1); }
+  100% { transform: translate3d(4%, 3%, 0) scale(1.12); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .animate-glow-drift {
+    animation: glow-drift 16s ease-in-out infinite alternate;
+  }
+
+  /* Smooth in-page jumps for the marketing anchor links. */
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

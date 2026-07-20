@@ -1131,43 +1131,145 @@
   },
   "marketing": {
     "nav": {
+      "howToStart": "How to start",
       "pricing": "Pricing",
       "docs": "API documentation",
-      "login": "Log in",
-      "register": "Sign up"
+      "login": "Sign in",
+      "register": "Create account",
+      "menu": "Menu",
+      "openMenu": "Open menu",
+      "closeMenu": "Close menu"
     },
     "footer": {
+      "groups": {
+        "product": "Product",
+        "developers": "Developers",
+        "account": "Account",
+        "help": "Help"
+      },
       "pricing": "Pricing",
       "docs": "API documentation",
-      "login": "Log in",
-      "register": "Sign up",
+      "login": "Sign in",
+      "register": "Create account",
       "support": "Support"
     }
   },
   "landing": {
     "seo": {
       "title": "Comprobify — SRI electronic invoicing for Ecuador",
-      "description": "Issue, sign, and authorize electronic invoices, credit notes, and withholding receipts with the SRI from the web or via API. Start free in the test environment."
+      "description": "Issue, sign and authorize electronic invoices and credit notes with the SRI from the web or via API. Start free in the test environment."
     },
     "hero": {
-      "title": "Electronic invoicing for Ecuador, made simple",
-      "subtitle": "Issue, sign, and authorize invoices and tax documents with the SRI. Use our web app or integrate the API directly into your system.",
+      "badge": "Free test environment · SRI signing and authorization",
+      "title": "Electronic invoicing for Ecuador, without the headaches",
+      "subtitle": "Issue, sign and authorize documents directly with the SRI. From your browser, or by integrating the API into your system.",
       "cta": {
         "register": "Create a free account",
-        "login": "Log in"
+        "howItWorks": "See how it works"
+      },
+      "trust": {
+        "sri": "Online authorization with the SRI",
+        "signing": "Signed with your electronic certificate",
+        "webhooks": "Real-time webhooks and notifications"
       }
     },
-    "features": {
-      "api": {
-        "title": "API for developers",
-        "description": "Integrate electronic invoice generation directly into your application. REST API with token authentication, real-time webhooks, and full documentation.",
-        "cta": "View documentation"
+    "steps": {
+      "title": "Get started in three steps",
+      "subtitle": "The same path for everyone, with a different ending depending on how you issue.",
+      "stepLabel": "Step {number}",
+      "tabs": {
+        "web": "Issue from the web",
+        "api": "Integrate with my system"
       },
       "web": {
-        "title": "Web application",
-        "description": "Create and send invoices, credit notes, and withholding receipts from your browser with zero code. Designed for non-technical teams.",
-        "cta": "Create account"
+        "step1": {
+          "title": "Create your free account",
+          "description": "All you need is an email. You start in the test environment at no cost."
+        },
+        "step2": {
+          "title": "Set up your company",
+          "description": "Enter your RUC, upload your signing certificate (.p12) and define your branch and issue point."
+        },
+        "step3": {
+          "title": "Issue your first invoice",
+          "description": "Fill in the form, sign and send. Comprobify generates the XML, handles SRI authorization and your RIDE PDF."
+        },
+        "cta": "Create a free account",
+        "ctaNote": "Free in the test environment. No commitment.",
+        "mock": {
+          "title": "New invoice",
+          "buyer": "Customer",
+          "buyerValue": "Final Consumer",
+          "item": "Description",
+          "itemValue": "Consulting service",
+          "total": "Total",
+          "authorized": "Authorized by the SRI"
+        }
+      },
+      "api": {
+        "step1": {
+          "title": "Create your account and generate an API key",
+          "description": "Sign up and create an access key from the dashboard. One account covers both the web app and the API."
+        },
+        "step2": {
+          "title": "Set up your company",
+          "description": "Register your RUC, your signing certificate (.p12) and your branches — from the dashboard or via API."
+        },
+        "step3": {
+          "title": "Send your first document",
+          "description": "One POST to /v1/documents. We sign it, transmit it to the SRI and notify you by webhook once it is authorized."
+        },
+        "cta": "Read the documentation",
+        "ctaNote": "REST, token authentication and webhooks.",
+        "mock": {
+          "item": "Consulting service",
+          "response": "AUTHORIZED · webhook sent"
+        }
       }
+    },
+    "docTypes": {
+      "title": "Documents you can issue today",
+      "subtitle": "Our current coverage for electronic signing and SRI authorization.",
+      "upcomingNote": "Types marked with a clock are not available yet. We are rolling them out progressively."
+    },
+    "pricingTeaser": {
+      "title": "Start free, grow when you need to",
+      "description": "Plans based on your document volume. Change or cancel your plan whenever you want.",
+      "cta": "See plans and pricing"
+    },
+    "faq": {
+      "title": "Frequently asked questions",
+      "subtitle": "What people ask us most before getting started.",
+      "certificate": {
+        "question": "Do I need an electronic signing certificate?",
+        "answer": "Yes, and that is an SRI requirement, not ours. Comprobify does not issue or generate signing certificates: you must obtain your .p12 file from an accredited certification authority in Ecuador. Once you have it, you upload it to Comprobify and we sign your documents with it. We also notify you by email and in the app when it is about to expire."
+      },
+      "sandbox": {
+        "question": "Can I test before issuing for real?",
+        "answer": "Yes. Every account starts in the SRI test environment: you issue documents against the test system, with no tax validity. When you are ready you promote your account to production from Settings. Note that promotion is permanent: a production account cannot go back to the test environment, so do it once you have verified everything."
+      },
+      "payment": {
+        "question": "How do I pay for the subscription?",
+        "answer": "By bank transfer. Once you pick and confirm a plan we show you the account details; you make the transfer and upload the receipt from Billing. When we verify it, we issue your invoice and activate your plan. You can change plan whenever you want: upgrading creates a new payment for the difference only, prorated over the days left in your current period; downgrading applies when the period you already paid for ends, at no extra charge. Switching between monthly and yearly billing also applies at the end of the period."
+      },
+      "sequentials": {
+        "question": "I already invoice in another system. Do I lose my numbering?",
+        "answer": "No. You can set the next sequential per document type and per branch, so you continue exactly where you left off without duplicating numbers."
+      },
+      "both": {
+        "question": "Can I use the web app and the API at the same time?",
+        "answer": "Yes, it is the same account and the same issuers. Your team can issue from the browser while your system issues via API, and everything shows up together in the same dashboard."
+      },
+      "authorization": {
+        "question": "How do I know the SRI authorized my document?",
+        "answer": "Comprobify sends the document, checks the authorization and notifies you when the status changes: in the app, by email, and by webhook if you integrate it. From the document itself you download the authorized XML and the RIDE PDF."
+      }
+    },
+    "finalCta": {
+      "title": "Issue your first invoice today",
+      "subtitle": "Create your free account and test in the SRI environment before invoicing in production.",
+      "register": "Create a free account",
+      "docs": "Read the documentation"
     }
   },
   "pricing": {

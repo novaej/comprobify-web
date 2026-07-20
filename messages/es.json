@@ -1131,43 +1131,145 @@
   },
   "marketing": {
     "nav": {
+      "howToStart": "Cómo empezar",
       "pricing": "Precios",
       "docs": "Documentación API",
       "login": "Iniciar sesión",
-      "register": "Registrarse"
+      "register": "Crear cuenta",
+      "menu": "Menú",
+      "openMenu": "Abrir menú",
+      "closeMenu": "Cerrar menú"
     },
     "footer": {
+      "groups": {
+        "product": "Producto",
+        "developers": "Desarrolladores",
+        "account": "Cuenta",
+        "help": "Ayuda"
+      },
       "pricing": "Precios",
       "docs": "Documentación API",
       "login": "Iniciar sesión",
-      "register": "Registrarse",
+      "register": "Crear cuenta",
       "support": "Soporte"
     }
   },
   "landing": {
     "seo": {
       "title": "Comprobify — Facturación electrónica SRI para Ecuador",
-      "description": "Emite, firma y autoriza facturas, notas de crédito y retenciones electrónicas con el SRI desde la web o vía API. Empieza gratis en el ambiente de pruebas."
+      "description": "Emite, firma y autoriza facturas y notas de crédito electrónicas con el SRI desde la web o vía API. Empieza gratis en el ambiente de pruebas."
     },
     "hero": {
+      "badge": "Ambiente de pruebas gratis · Firma y autorización ante el SRI",
       "title": "Facturación electrónica para Ecuador, sin complicaciones",
-      "subtitle": "Emite, firma y autoriza facturas y comprobantes directamente con el SRI. Usa nuestra interfaz web o integra la API en tu sistema.",
+      "subtitle": "Emite, firma y autoriza comprobantes directamente con el SRI. Desde el navegador o integrando la API en tu sistema.",
       "cta": {
         "register": "Crear cuenta gratis",
-        "login": "Iniciar sesión"
+        "howItWorks": "Ver cómo funciona"
+      },
+      "trust": {
+        "sri": "Autorización en línea con el SRI",
+        "signing": "Firma con tu certificado electrónico",
+        "webhooks": "Webhooks y notificaciones en tiempo real"
       }
     },
-    "features": {
-      "api": {
-        "title": "API para desarrolladores",
-        "description": "Integra la emisión de comprobantes electrónicos directamente en tu aplicación. REST API con autenticación por token, webhooks en tiempo real y documentación completa.",
-        "cta": "Ver documentación"
+    "steps": {
+      "title": "Empieza en tres pasos",
+      "subtitle": "El mismo camino para todos, con un final distinto según cómo prefieras emitir.",
+      "stepLabel": "Paso {number}",
+      "tabs": {
+        "web": "Emitir desde la web",
+        "api": "Integrar con mi sistema"
       },
       "web": {
-        "title": "Aplicación web",
-        "description": "Crea y envía facturas, notas de crédito y retenciones desde el navegador sin una sola línea de código. Pensado para equipos no técnicos.",
-        "cta": "Crear cuenta"
+        "step1": {
+          "title": "Crea tu cuenta gratis",
+          "description": "Solo necesitas un correo. Empiezas en el ambiente de pruebas, sin costo."
+        },
+        "step2": {
+          "title": "Configura tu empresa",
+          "description": "Ingresa tu RUC, sube tu certificado de firma (.p12) y define tu establecimiento y punto de emisión."
+        },
+        "step3": {
+          "title": "Emite tu primera factura",
+          "description": "Llena el formulario, firma y envía. Comprobify genera el XML, gestiona la autorización del SRI y tu RIDE en PDF."
+        },
+        "cta": "Crear cuenta gratis",
+        "ctaNote": "Gratis en el ambiente de pruebas. Sin compromiso.",
+        "mock": {
+          "title": "Nueva factura",
+          "buyer": "Cliente",
+          "buyerValue": "Consumidor Final",
+          "item": "Detalle",
+          "itemValue": "Servicio de consultoría",
+          "total": "Total",
+          "authorized": "Autorizado por el SRI"
+        }
+      },
+      "api": {
+        "step1": {
+          "title": "Crea tu cuenta y genera tu API key",
+          "description": "Regístrate y crea una llave de acceso desde el panel. La misma cuenta sirve para la web y para la API."
+        },
+        "step2": {
+          "title": "Configura tu empresa",
+          "description": "Registra tu RUC, tu certificado de firma (.p12) y tus establecimientos, desde el panel o por API."
+        },
+        "step3": {
+          "title": "Envía tu primer comprobante",
+          "description": "Un POST a /v1/documents. Nosotros firmamos, transmitimos al SRI y te avisamos por webhook cuando se autoriza."
+        },
+        "cta": "Ver documentación",
+        "ctaNote": "REST, autenticación por token y webhooks.",
+        "mock": {
+          "item": "Servicio de consultoría",
+          "response": "AUTHORIZED · webhook enviado"
+        }
       }
+    },
+    "docTypes": {
+      "title": "Comprobantes que puedes emitir hoy",
+      "subtitle": "Nuestra cobertura actual de firma y autorización electrónica ante el SRI.",
+      "upcomingNote": "Los tipos marcados con reloj aún no están disponibles. Los estamos habilitando progresivamente."
+    },
+    "pricingTeaser": {
+      "title": "Empieza gratis, crece cuando lo necesites",
+      "description": "Planes según tu volumen de comprobantes. Cambia o cancela tu plan cuando quieras.",
+      "cta": "Ver planes y precios"
+    },
+    "faq": {
+      "title": "Preguntas frecuentes",
+      "subtitle": "Lo que más nos preguntan antes de empezar.",
+      "certificate": {
+        "question": "¿Necesito un certificado de firma electrónica?",
+        "answer": "Sí, y es un requisito del SRI, no nuestro. Comprobify no emite ni genera certificados de firma: debes obtener tu archivo .p12 de una entidad de certificación acreditada en Ecuador. Una vez que lo tengas, lo subes a Comprobify y nosotros firmamos tus comprobantes con él. Además te avisamos por correo y en la app cuando esté por vencer."
+      },
+      "sandbox": {
+        "question": "¿Puedo probar antes de facturar de verdad?",
+        "answer": "Sí. Toda cuenta empieza en el ambiente de pruebas del SRI: emites comprobantes contra el sistema de pruebas, sin validez tributaria. Cuando estés listo promueves tu cuenta a producción desde Configuración. Ten en cuenta que la promoción es definitiva: una cuenta en producción no puede volver al ambiente de pruebas, así que hazlo cuando ya hayas verificado todo."
+      },
+      "payment": {
+        "question": "¿Cómo se paga la suscripción?",
+        "answer": "Por transferencia bancaria. Cuando eliges y confirmas un plan te mostramos los datos de la cuenta; haces la transferencia y subes el comprobante desde Facturación. Al verificarlo emitimos tu factura y activamos tu plan. Puedes cambiar de plan cuando quieras: al subir de plan se genera un pago nuevo solo por la diferencia, proporcional a los días que le queden a tu período actual; al bajar de plan el cambio se aplica cuando termina el período que ya pagaste, sin cobro adicional. Los cambios entre facturación mensual y anual también se aplican al final del período."
+      },
+      "sequentials": {
+        "question": "Ya facturo en otro sistema. ¿Pierdo mi numeración?",
+        "answer": "No. Puedes fijar el siguiente secuencial por tipo de comprobante y por establecimiento, para continuar exactamente donde lo dejaste sin duplicar números."
+      },
+      "both": {
+        "question": "¿Puedo usar la web y la API a la vez?",
+        "answer": "Sí, es la misma cuenta y los mismos emisores. Tu equipo puede emitir desde el navegador mientras tu sistema emite por API, y todo aparece junto en el mismo panel."
+      },
+      "authorization": {
+        "question": "¿Cómo sé si el SRI autorizó mi comprobante?",
+        "answer": "Comprobify envía el comprobante, consulta la autorización y te avisa cuando cambia el estado: en la app, por correo y por webhook si lo integras. Desde el mismo comprobante descargas el XML autorizado y el RIDE en PDF."
+      }
+    },
+    "finalCta": {
+      "title": "Emite tu primera factura hoy",
+      "subtitle": "Crea tu cuenta gratis y prueba en el ambiente del SRI antes de facturar en producción.",
+      "register": "Crear cuenta gratis",
+      "docs": "Ver documentación"
     }
   },
   "pricing": {
