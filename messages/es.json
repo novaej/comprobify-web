@@ -1248,6 +1248,10 @@
         "question": "¿Puedo probar antes de facturar de verdad?",
         "answer": "Sí. Toda cuenta empieza en el ambiente de pruebas del SRI: emites comprobantes contra el sistema de pruebas, sin validez tributaria. Cuando estés listo promueves tu cuenta a producción desde Configuración. Ten en cuenta que la promoción es definitiva: una cuenta en producción no puede volver al ambiente de pruebas, así que hazlo cuando ya hayas verificado todo."
       },
+      "payment": {
+        "question": "¿Cómo se paga la suscripción?",
+        "answer": "Por transferencia bancaria. Cuando eliges y confirmas un plan te mostramos los datos de la cuenta; haces la transferencia y subes el comprobante desde Facturación. Al verificarlo emitimos tu factura y activamos tu plan. Puedes cambiar de plan cuando quieras: al subir de plan se genera un pago nuevo solo por la diferencia, proporcional a los días que le queden a tu período actual; al bajar de plan el cambio se aplica cuando termina el período que ya pagaste, sin cobro adicional. Los cambios entre facturación mensual y anual también se aplican al final del período."
+      },
       "sequentials": {
         "question": "Ya facturo en otro sistema. ¿Pierdo mi numeración?",
         "answer": "No. Puedes fijar el siguiente secuencial por tipo de comprobante y por establecimiento, para continuar exactamente donde lo dejaste sin duplicar números."

@@ -1248,6 +1248,10 @@
         "question": "Can I test before issuing for real?",
         "answer": "Yes. Every account starts in the SRI test environment: you issue documents against the test system, with no tax validity. When you are ready you promote your account to production from Settings. Note that promotion is permanent: a production account cannot go back to the test environment, so do it once you have verified everything."
       },
+      "payment": {
+        "question": "How do I pay for the subscription?",
+        "answer": "By bank transfer. Once you pick and confirm a plan we show you the account details; you make the transfer and upload the receipt from Billing. When we verify it, we issue your invoice and activate your plan. You can change plan whenever you want: upgrading creates a new payment for the difference only, prorated over the days left in your current period; downgrading applies when the period you already paid for ends, at no extra charge. Switching between monthly and yearly billing also applies at the end of the period."
+      },
       "sequentials": {
         "question": "I already invoice in another system. Do I lose my numbering?",
         "answer": "No. You can set the next sequential per document type and per branch, so you continue exactly where you left off without duplicating numbers."

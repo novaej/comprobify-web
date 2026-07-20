@@ -1,7 +1,14 @@
 import { getTranslations } from 'next-intl/server';
 import { ChevronDown } from 'lucide-react';
 
-const QUESTIONS = ['certificate', 'sandbox', 'sequentials', 'both', 'authorization'] as const;
+const QUESTIONS = [
+  'certificate',
+  'sandbox',
+  'payment',
+  'sequentials',
+  'both',
+  'authorization',
+] as const;
 
 /**
  * Landing page FAQ.
