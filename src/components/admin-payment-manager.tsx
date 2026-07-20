@@ -34,6 +34,7 @@ export function AdminPaymentManager({
   reviewable: boolean;
 }) {
   const t = useTranslations('admin.payments');
+  const tPricing = useTranslations('pricing');
   const tError = useTranslations('apiError');
   const [payments, setPayments] = useState(initialPayments);
   const [isPending, startTransition] = useTransition();
@@ -131,7 +132,9 @@ export function AdminPaymentManager({
                   <p className="mt-1 text-sm text-muted-foreground">
                     {currencyFormatter.format(Number(payment.total_amount))}
                     {' · '}
-                    {payment.tier}
+                    {tPricing.has(`tiers.${payment.tier}.name` as Parameters<typeof tPricing>[0])
+                      ? tPricing(`tiers.${payment.tier}.name` as Parameters<typeof tPricing>[0])
+                      : payment.tier}
                     {' · '}
                     {payment.purpose}
                   </p>

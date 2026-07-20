@@ -23,6 +23,7 @@ const STATUS_TRIGGER: Record<string, string> = {
 
 export function AdminTenantManager({ tenants }: { tenants: AdminTenant[] }) {
   const t = useTranslations('admin.tenants');
+  const tPricing = useTranslations('pricing');
   const tError = useTranslations('apiError');
   const [isPending, startTransition] = useTransition();
   const [pendingId, setPendingId] = useState<number | null>(null);
@@ -93,12 +94,12 @@ export function AdminTenantManager({ tenants }: { tenants: AdminTenant[] }) {
                     disabled={rowPending}
                   >
                     <SelectTrigger className="h-7 w-28 text-xs">
-                      <SelectValue>{(v: string) => v}</SelectValue>
+                      <SelectValue>{(v: string) => tPricing(`tiers.${v as (typeof TIERS)[number]}.name`)}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {TIERS.map((tier) => (
                         <SelectItem key={tier} value={tier} className="text-xs">
-                          {tier}
+                          {tPricing(`tiers.${tier}.name`)}
                         </SelectItem>
                       ))}
                     </SelectContent>
