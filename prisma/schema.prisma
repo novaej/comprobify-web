@@ -7,14 +7,14 @@ datasource db {
 }
 
 model User {
-  id            Int       @id @default(autoincrement())
+  id            String    @id @default(uuid(7)) @db.Uuid
   email         String    @unique
   firstName     String?   @map("first_name")
   lastName      String?   @map("last_name")
   passwordHash  String?   @map("password_hash")
   emailVerified Boolean   @default(false) @map("email_verified")
   active        Boolean   @default(true)
-  tenantId      Int?      @map("tenant_id")
+  tenantId      String?   @map("tenant_id") @db.Uuid
   role          String?
   inviteStatus  String    @default("ACTIVE") @map("invite_status")
   invitedAt     DateTime? @map("invited_at")
@@ -29,8 +29,8 @@ model User {
 }
 
 model Tenant {
-  id           Int            @id @default(autoincrement())
-  apiTenantId  Int            @unique @map("api_tenant_id")
+  id           String         @id @default(uuid(7)) @db.Uuid
+  apiTenantId  String         @unique @map("api_tenant_id") @db.Uuid
   ruc          String         @unique @db.VarChar(13)
   businessName String         @map("business_name")
   tradeName    String?        @map("trade_name")
@@ -53,9 +53,9 @@ model Tenant {
 }
 
 model TenantApiKey {
-  id           Int       @id @default(autoincrement())
-  tenantId     Int       @map("tenant_id")
-  apiKeyId     Int       @unique @map("api_key_id")
+  id           String    @id @default(uuid(7)) @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  apiKeyId     String    @unique @map("api_key_id") @db.Uuid
   label        String
   environment  String
   encryptedKey String    @map("encrypted_key")
@@ -70,9 +70,9 @@ model TenantApiKey {
 }
 
 model Issuer {
-  id             Int      @id @default(autoincrement())
-  tenantId       Int      @map("tenant_id")
-  apiIssuerId    Int      @unique @map("api_issuer_id")
+  id             String   @id @default(uuid(7)) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  apiIssuerId    String   @unique @map("api_issuer_id") @db.Uuid
   branchCode     String   @map("branch_code") @db.VarChar(3)
   issuePointCode String   @map("issue_point_code") @db.VarChar(3)
   businessName   String   @map("business_name")
@@ -90,10 +90,10 @@ model Issuer {
 }
 
 model UserIssuerAccess {
-  id       Int    @id @default(autoincrement())
-  userId   Int    @map("user_id")
-  tenantId Int    @map("tenant_id")
-  issuerId Int    @map("issuer_id")
+  id       String @id @default(uuid(7)) @db.Uuid
+  userId   String @map("user_id") @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  issuerId String @map("issuer_id") @db.Uuid
   user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   issuer   Issuer @relation(fields: [issuerId], references: [id], onDelete: Cascade)
@@ -104,8 +104,8 @@ model UserIssuerAccess {
 }
 
 model Product {
-  id          Int      @id @default(autoincrement())
-  tenantId    Int      @map("tenant_id")
+  id          String   @id @default(uuid(7)) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
   mainCode    String   @map("main_code") @db.VarChar(25)
   auxCode     String?  @map("aux_code") @db.VarChar(25)
   description String
@@ -119,8 +119,8 @@ model Product {
 }
 
 model Client {
-  id        Int      @id @default(autoincrement())
-  tenantId  Int      @map("tenant_id")
+  id        String   @id @default(uuid(7)) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
   idType    String   @map("id_type") @db.VarChar(5)
   idNumber  String   @map("id_number") @db.VarChar(20)
   name      String
@@ -137,8 +137,8 @@ model Client {
 /// invoices — documentType '01' — but the shape generalizes to other SRI
 /// document types as the create flows for those are built).
 model DocumentTemplate {
-  id           Int      @id @default(autoincrement())
-  tenantId     Int      @map("tenant_id")
+  id           String   @id @default(uuid(7)) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
   documentType String   @default("01") @map("document_type") @db.VarChar(2)
   name         String
   data         Json
@@ -156,15 +156,18 @@ model DocumentTemplate {
 /// delivery or catch-up poll; the (tenantId, apiNotificationId) pair is the
 /// natural key used by the upsert.
 model Notification {
-  id                Int                @id @default(autoincrement())
-  tenantId          Int                @map("tenant_id")
+  id                String             @id @default(uuid(7)) @db.Uuid
+  tenantId          String             @map("tenant_id") @db.Uuid
   apiNotificationId String             @map("api_notification_id")
   type              String
   severity          String             // INFO | WARNING | ERROR
   title             String
   message           String
   metadata          Json?
-  issuerId          Int?               @map("issuer_id")
+  /// API-side issuer id, NOT a local Issuer.id FK — always compare against
+  /// Issuer.apiIssuerId. Both are UUIDs, so they are structurally
+  /// interchangeable and the compiler cannot catch a mix-up here.
+  issuerId          String?            @map("issuer_id") @db.Uuid
   apiReadAt         DateTime?          @map("api_read_at")
   expiresAt         DateTime?          @map("expires_at")
   apiCreatedAt      DateTime           @map("api_created_at")
@@ -179,9 +182,9 @@ model Notification {
 /// Per-user read state for a notification. The API-level read (apiReadAt) is
 /// set only once every eligible user has an entry here.
 model NotificationRead {
-  id             Int          @id @default(autoincrement())
-  notificationId Int          @map("notification_id")
-  userId         Int          @map("user_id")
+  id             String       @id @default(uuid(7)) @db.Uuid
+  notificationId String       @map("notification_id") @db.Uuid
+  userId         String       @map("user_id") @db.Uuid
   readAt         DateTime     @default(now()) @map("read_at")
   notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
 
@@ -196,7 +199,7 @@ model NotificationRead {
 /// only super admins can edit legal documents and there is no meaningful
 /// multi-author scenario here.
 model AgreementDraft {
-  id           Int      @id @default(autoincrement())
+  id           String   @id @default(uuid(7)) @db.Uuid
   documentType String   @unique @map("document_type")
   version      String   @default("")
   content      String
@@ -209,8 +212,8 @@ model AgreementDraft {
 /// A webhook endpoint registered with the Comprobify API. The signing secret
 /// is stored encrypted (AES-256-GCM) the same way as TenantApiKey.encryptedKey.
 model WebhookEndpoint {
-  id              Int      @id @default(autoincrement())
-  tenantId        Int      @map("tenant_id")
+  id              String   @id @default(uuid(7)) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
   apiEndpointId   String   @map("api_endpoint_id")
   url             String
   encryptedSecret String   @map("encrypted_secret")

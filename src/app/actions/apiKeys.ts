@@ -48,7 +48,7 @@ export async function createTenantApiKeyAction(label: string): Promise<CreateApi
   return { key: created.key, label: created.label };
 }
 
-export async function revokeTenantApiKeyAction(id: number): Promise<ApiKeyResult> {
+export async function revokeTenantApiKeyAction(id: string): Promise<ApiKeyResult> {
   await requirePermission('apikeys.manage', { skipIssuer: true });
   const ctx = await (await import('@/lib/context')).requireContext({ skipIssuer: true });
 

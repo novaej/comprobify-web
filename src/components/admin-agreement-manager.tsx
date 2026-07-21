@@ -89,7 +89,7 @@ function TypeSection({
   const t = useTranslations('admin.agreements');
   const tError = useTranslations('apiError');
   const [isPending, startTransition] = useTransition();
-  const [pendingId, setPendingId] = useState<number | null>(null);
+  const [pendingId, setPendingId] = useState<string | null>(null);
   const [localVersions, setLocalVersions] = useState(versions);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [draft, setDraft] = useState<AgreementDraftData | null>(initialDraft);
@@ -98,7 +98,7 @@ function TypeSection({
 
   const current = localVersions.find((v) => v.is_current);
 
-  function handleActivate(id: number) {
+  function handleActivate(id: string) {
     setPendingId(id);
     startTransition(async () => {
       const result = await activateAgreementAction(id);
@@ -318,7 +318,7 @@ function EditorDialog({
   onClose: () => void;
   documentType: AgreementDocumentType;
   mode: EditorMode;
-  currentVersionId: number | null;
+  currentVersionId: string | null;
   existingDraft: AgreementDraftData | null;
   onPublished: (v: AdminAgreementVersion) => void;
   onDraftSaved: (d: AgreementDraftData) => void;

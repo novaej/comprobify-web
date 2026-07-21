@@ -13,7 +13,7 @@ export async function GET(
   }
 
   let apiKey: string;
-  let issuerId: number;
+  let issuerId: string;
   try {
     const ctx = await requireContext();
     apiKey = ctx.apiKey;

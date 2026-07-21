@@ -103,7 +103,7 @@ async function postLoginRedirect(email: string, locale: string): Promise<null> {
       redirect({ href: '/no-issuer-assigned', locale });
       return null;
     }
-    await writeCtxCookie({ issuerId: access[0].issuerId, v: 1 });
+    await writeCtxCookie({ issuerId: access[0].issuerId, v: 2 });
     redirect({ href: '/dashboard', locale });
     return null;
   }
@@ -114,7 +114,7 @@ async function postLoginRedirect(email: string, locale: string): Promise<null> {
       where: { tenantId: user.tenantId, active: true },
       select: { id: true },
     });
-    if (issuer) await writeCtxCookie({ issuerId: issuer.id, v: 1 });
+    if (issuer) await writeCtxCookie({ issuerId: issuer.id, v: 2 });
     redirect({ href: '/dashboard', locale });
     return null;
   }

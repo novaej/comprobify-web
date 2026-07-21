@@ -19,7 +19,7 @@ export async function GET(
   const { id } = await params;
 
   try {
-    const document = await getAgreementVersion(Number(id));
+    const document = await getAgreementVersion(id);
     return NextResponse.json({ document });
   } catch (err) {
     if (err instanceof ApiError) {

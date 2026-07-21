@@ -75,7 +75,7 @@ export function BillingManager({
   const t = useTranslations('billing');
   const tPricing = useTranslations('pricing');
   const tIssuers = useTranslations('issuers');
-  const [viewingHistoryProof, setViewingHistoryProof] = useState<{ paymentId: number; proof: ApiPaymentProof } | null>(null);
+  const [viewingHistoryProof, setViewingHistoryProof] = useState<{ paymentId: string; proof: ApiPaymentProof } | null>(null);
 
   const tierKey = `tiers.${tenantInfo.subscriptionTier}.name` as Parameters<typeof tPricing>[0];
   const tierName = tPricing.has(tierKey) ? tPricing(tierKey) : tenantInfo.subscriptionTier;
@@ -103,7 +103,7 @@ export function BillingManager({
     <div className="space-y-4">
       <ProofPreviewDialog
         proof={viewingHistoryProof?.proof ?? null}
-        paymentId={viewingHistoryProof?.paymentId ?? 0}
+        paymentId={viewingHistoryProof?.paymentId ?? ''}
         onClose={() => setViewingHistoryProof(null)}
       />
       <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
@@ -499,7 +499,7 @@ function ProofPreviewDialog({
   onClose,
 }: {
   proof: ApiPaymentProof | null;
-  paymentId: string | number;
+  paymentId: string;
   onClose: () => void;
 }) {
   const t = useTranslations('billing');

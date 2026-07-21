@@ -44,18 +44,18 @@ const ROLE_CAPABILITY_ROWS: { key: string; permissions: Permission[] }[] = [
 ];
 
 interface UserRow {
-  id: number;
+  id: string;
   email: string;
   firstName: string | null;
   lastName: string | null;
   role: string;
   inviteStatus: string;
   active: boolean;
-  issuerIds: number[];
+  issuerIds: string[];
 }
 
 interface IssuerRow {
-  id: number;
+  id: string;
   branchCode: string;
   issuePointCode: string;
   businessName: string;
@@ -94,7 +94,7 @@ export function UserManager({
 }: {
   users: UserRow[];
   issuers: IssuerRow[];
-  currentUserId: number;
+  currentUserId: string;
   currentUserRole: Role;
   canManage: boolean;
 }) {
@@ -111,20 +111,20 @@ export function UserManager({
   const [showRolesInfo, setShowRolesInfo] = useState(false);
 
   // Remove confirm dialog
-  const [removeUserId, setRemoveUserId] = useState<number | null>(null);
+  const [removeUserId, setRemoveUserId] = useState<string | null>(null);
 
   // Edit dialog
   const [editUser, setEditUser] = useState<UserRow | null>(null);
   const [editFirst, setEditFirst] = useState('');
   const [editLast, setEditLast] = useState('');
   const [editRole, setEditRole] = useState<Role>('Viewer');
-  const [editIssuerIds, setEditIssuerIds] = useState<number[]>([]);
+  const [editIssuerIds, setEditIssuerIds] = useState<string[]>([]);
 
   // Reset password confirm
-  const [resetUserId, setResetUserId] = useState<number | null>(null);
+  const [resetUserId, setResetUserId] = useState<string | null>(null);
 
   // Optimistic active states
-  const [activeStates, setActiveStates] = useState<Record<number, boolean>>(() =>
+  const [activeStates, setActiveStates] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(users.map((u) => [u.id, u.active])),
   );
 
@@ -140,7 +140,7 @@ export function UserManager({
     });
   }
 
-  function handleResendInvite(userId: number) {
+  function handleResendInvite(userId: string) {
     startTransition(async () => {
       const result = await resendInviteAction(userId);
       if (result?.error) { toastApiError(result.error, tError); }
@@ -148,7 +148,7 @@ export function UserManager({
     });
   }
 
-  function handleRemove(userId: number) {
+  function handleRemove(userId: string) {
     startTransition(async () => {
       const result = await removeUserAction(userId);
       if (result?.error) { toastApiError(result.error, tError); }

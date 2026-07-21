@@ -11,15 +11,16 @@ import { redirect } from '@/i18n/navigation';
 import { revalidatePath } from 'next/cache';
 import { ApiError } from '@/lib/errors';
 import { parseIntendedPlan } from '@/lib/subscription-tiers';
+import { isUuid } from '@/lib/utils';
 import * as Sentry from '@sentry/nextjs';
 
 export type OnboardingResult = { error: string } | null;
 
 export async function bootstrapTenantAction(formData: FormData): Promise<OnboardingResult> {
   const session = await auth();
-  if (!session?.user?.id) return { error: 'UNAUTHORIZED' };
+  if (!session?.user?.id || !isUuid(session.user.id)) return { error: 'UNAUTHORIZED' };
 
-  const userId = Number(session.user.id);
+  const userId = session.user.id;
   const user = await db.user.findUnique({ where: { id: userId } });
   if (!user) return { error: 'UNAUTHORIZED' };
   if (user.tenantId) return { error: 'TENANT_ALREADY_EXISTS' };
@@ -61,8 +62,8 @@ export async function bootstrapTenantAction(formData: FormData): Promise<Onboard
   const appUrl = process.env.NEXT_PUBLIC_APP_URL;
   const verificationRedirectUrl = appUrl ? `${appUrl}/${locale}/verify-email` : undefined;
 
-  let apiTenantId: number;
-  let apiIssuerId: number;
+  let apiTenantId: string;
+  let apiIssuerId: string;
   let plainApiKey: string;
   let isEmailVerified: boolean;
 
@@ -103,7 +104,7 @@ export async function bootstrapTenantAction(formData: FormData): Promise<Onboard
   const keyRecord = keys[0];
   if (!keyRecord) return { error: 'DB_WRITE_FAILED' };
 
-  let newIssuerId: number;
+  let newIssuerId: string;
   try {
     newIssuerId = await db.$transaction(async (tx) => {
       const tenant = await tx.tenant.create({
@@ -122,7 +123,7 @@ export async function bootstrapTenantAction(formData: FormData): Promise<Onboard
       await tx.tenantApiKey.create({
         data: {
           tenantId: tenant.id,
-          apiKeyId: Number(keyRecord.id),
+          apiKeyId: keyRecord.id,
           label: keyRecord.label ?? 'Initial sandbox key',
           environment: 'sandbox',
           encryptedKey: encrypt(plainApiKey),
@@ -152,6 +153,9 @@ export async function bootstrapTenantAction(formData: FormData): Promise<Onboard
       return issuer.id;
     });
   } catch (err) {
+    // Sentry is a no-op locally (no DSN), so log too — otherwise this failure is
+    // invisible in dev and the user only sees the generic DB_WRITE_FAILED copy.
+    console.error('[onboarding] tenant bootstrap transaction failed', err);
     Sentry.captureException(err, { extra: { apiTenantId } });
     return { error: 'DB_WRITE_FAILED' };
   }
@@ -159,7 +163,7 @@ export async function bootstrapTenantAction(formData: FormData): Promise<Onboard
   // Write the context cookie after the transaction commits — cookie writes are
   // not transactional and must not be inside $transaction or a failure would
   // silently roll back all the DB writes above.
-  await writeCtxCookie({ issuerId: newIssuerId, v: 1 });
+  await writeCtxCookie({ issuerId: newIssuerId, v: 2 });
 
   revalidatePath('/', 'layout');
   // Always redirect to /agreements so the tenant can review and formally accept
@@ -185,9 +189,9 @@ export async function bootstrapTenantAction(formData: FormData): Promise<Onboard
  */
 export async function linkExistingTenantAction(formData: FormData): Promise<OnboardingResult> {
   const session = await auth();
-  if (!session?.user?.id) return { error: 'UNAUTHORIZED' };
+  if (!session?.user?.id || !isUuid(session.user.id)) return { error: 'UNAUTHORIZED' };
 
-  const userId = Number(session.user.id);
+  const userId = session.user.id;
   const user = await db.user.findUnique({ where: { id: userId } });
   if (!user) return { error: 'UNAUTHORIZED' };
   if (user.tenantId) return { error: 'TENANT_ALREADY_EXISTS' };
@@ -207,7 +211,7 @@ export async function linkExistingTenantAction(formData: FormData): Promise<Onbo
 
   if (apiIssuers.length === 0) return { error: 'NO_ISSUERS_FOUND' };
 
-  const apiTenantId = Number(tenantInfo.id);
+  const apiTenantId = tenantInfo.id;
   const alreadyLinked = await db.tenant.findUnique({ where: { apiTenantId } });
   if (alreadyLinked) return { error: 'TENANT_ALREADY_LINKED' };
 
@@ -226,9 +230,9 @@ export async function linkExistingTenantAction(formData: FormData): Promise<Onbo
   const defaultIssuer = apiIssuers[0];
   const environment = tenantInfo.sandbox ? 'sandbox' : 'production';
 
-  let defaultLocalIssuerId: number;
+  let defaultLocalIssuerId: string;
   try {
-    defaultLocalIssuerId = await db.$transaction(async (tx): Promise<number> => {
+    defaultLocalIssuerId = await db.$transaction(async (tx): Promise<string> => {
       const tenant = await tx.tenant.create({
         data: {
           apiTenantId,
@@ -252,12 +256,12 @@ export async function linkExistingTenantAction(formData: FormData): Promise<Onbo
         },
       });
 
-      let firstLocalIssuerId: number | null = null;
+      let firstLocalIssuerId: string | null = null;
       for (const apiIssuer of apiIssuers) {
-        const issuer: { id: number } = await tx.issuer.create({
+        const issuer: { id: string } = await tx.issuer.create({
           data: {
             tenantId: tenant.id,
-            apiIssuerId: Number(apiIssuer.id),
+            apiIssuerId: apiIssuer.id,
             branchCode: apiIssuer.branchCode,
             issuePointCode: apiIssuer.issuePointCode,
             businessName: apiIssuer.businessName,
@@ -274,14 +278,17 @@ export async function linkExistingTenantAction(formData: FormData): Promise<Onbo
         data: { tenantId: tenant.id, role: 'Owner' },
       });
 
-      return firstLocalIssuerId as number;
+      return firstLocalIssuerId as string;
     });
   } catch (err) {
+    // Sentry is a no-op locally (no DSN), so log too — otherwise this failure is
+    // invisible in dev and the user only sees the generic DB_WRITE_FAILED copy.
+    console.error('[onboarding] link-existing-tenant transaction failed', err);
     Sentry.captureException(err, { extra: { apiTenantId } });
     return { error: 'DB_WRITE_FAILED' };
   }
 
-  await writeCtxCookie({ issuerId: defaultLocalIssuerId, v: 1 });
+  await writeCtxCookie({ issuerId: defaultLocalIssuerId, v: 2 });
 
   revalidatePath('/', 'layout');
   const locale = await getLocale();

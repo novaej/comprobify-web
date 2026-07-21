@@ -24,7 +24,7 @@ import { ImageIcon, RefreshCw, Pencil } from 'lucide-react';
 import type { ApiIssuerSequential } from '@/lib/api';
 
 interface IssuerDetail {
-  id: number;
+  id: string;
   ruc: string;
   businessName: string;
   tradeName: string | null;
@@ -41,7 +41,7 @@ interface SequentialTarget {
   current: number;
 }
 
-function LogoDialog({ issuerId, open, onOpenChange }: { issuerId: number; open: boolean; onOpenChange: (open: boolean) => void }) {
+function LogoDialog({ issuerId, open, onOpenChange }: { issuerId: string; open: boolean; onOpenChange: (open: boolean) => void }) {
   const t = useTranslations('issuers');
   const tError = useTranslations('apiError');
   const [isPending, startTransition] = useTransition();
@@ -89,7 +89,7 @@ function LogoDialog({ issuerId, open, onOpenChange }: { issuerId: number; open: 
   );
 }
 
-function CertRenewalDialog({ issuerId, open, onOpenChange }: { issuerId: number; open: boolean; onOpenChange: (open: boolean) => void }) {
+function CertRenewalDialog({ issuerId, open, onOpenChange }: { issuerId: string; open: boolean; onOpenChange: (open: boolean) => void }) {
   const t = useTranslations('issuers');
   const tError = useTranslations('apiError');
   const [isPending, startTransition] = useTransition();

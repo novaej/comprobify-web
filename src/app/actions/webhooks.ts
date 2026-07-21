@@ -56,7 +56,7 @@ export async function registerWebhookAction(
 /**
  * Soft-delete a webhook endpoint (active = false in both API and local DB).
  */
-export async function deleteWebhookAction(localId: number): Promise<WebhookActionResult> {
+export async function deleteWebhookAction(localId: string): Promise<WebhookActionResult> {
   const ctx = await requirePermission('webhooks.manage', { skipIssuer: true });
 
   const endpoint = await db.webhookEndpoint.findUnique({ where: { id: localId } });
@@ -85,7 +85,7 @@ export async function deleteWebhookAction(localId: number): Promise<WebhookActio
  */
 export async function listWebhooksAction(): Promise<{
   endpoints: Array<{
-    id: number;
+    id: string;
     url: string;
     eventTypes: string[];
     active: boolean;

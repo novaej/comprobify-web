@@ -66,7 +66,7 @@ export function NotificationBell({ initialUnreadCount, initialNotifications }: N
     return () => clearInterval(id);
   }, [refresh]);
 
-  function handleMarkRead(id: number) {
+  function handleMarkRead(id: string) {
     startTransition(async () => {
       await markNotificationReadAction(id);
       setNotifications((prev) =>

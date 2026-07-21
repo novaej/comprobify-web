@@ -8,13 +8,16 @@ import { ROLE_PERMISSIONS } from '@/lib/rbac';
 import { getLocale } from 'next-intl/server';
 import { notFound, redirect as nextRedirect } from 'next/navigation';
 import { redirect } from '@/i18n/navigation';
+import { isUuid } from '@/lib/utils';
 import type { Role, Permission } from '@/lib/rbac';
 
 export interface Context {
-  user: { id: number; email: string; firstName: string | null; lastName: string | null; emailVerified: boolean; role: Role };
-  tenant: { id: number; apiTenantId: number; ruc: string; businessName: string; tradeName: string | null; status: string; environment: 'sandbox' | 'production' };
+  user: { id: string; email: string; firstName: string | null; lastName: string | null; emailVerified: boolean; role: Role };
+  tenant: { id: string; apiTenantId: string; ruc: string; businessName: string; tradeName: string | null; status: string; environment: 'sandbox' | 'production' };
   permissions: ReadonlySet<Permission>;
-  issuer: { id: number; apiIssuerId: number; branchCode: string; issuePointCode: string; businessName: string; tradeName: string | null };
+  // id is the local UUID PK; apiIssuerId is the API-side UUID sent as ApiCtx.issuerId.
+  // Both are UUIDs — the compiler cannot tell them apart, so pick deliberately.
+  issuer: { id: string; apiIssuerId: string; branchCode: string; issuePointCode: string; businessName: string; tradeName: string | null };
   apiKey: string;
 }
 
@@ -33,14 +36,16 @@ export async function requireContext(opts?: { skipIssuer?: boolean }): Promise<C
 
   // 1. Must be authenticated
   const session = await auth();
-  if (!session?.user?.id) {
+  // A JWT minted before local ids became UUIDs carries an integer id; passing it
+  // to a uuid column throws a Prisma validation error instead of redirecting.
+  if (!session?.user?.id || !isUuid(session.user.id)) {
     redirect({ href: '/login', locale });
     return null as never;
   }
 
   // 2. Load user with tenant
   const user = await db.user.findUnique({
-    where: { id: Number(session.user.id) },
+    where: { id: session.user.id },
     include: { tenant: true },
   });
 
@@ -110,7 +115,7 @@ export async function requireContext(opts?: { skipIssuer?: boolean }): Promise<C
   //    Cookie writes are not allowed during Server Component rendering — they happen
   //    in selectIssuerAction (Server Action) called from /issuer/select.
   const ctxCookie = await readCtxCookie();
-  let issuerId: number;
+  let issuerId: string;
 
   if (ctxCookie) {
     issuerId = ctxCookie.issuerId;
@@ -188,9 +193,9 @@ export async function requirePermission(code: Permission, opts?: { skipIssuer?: 
 
 export async function hasContextPermission(code: Permission): Promise<boolean> {
   const session = await auth();
-  if (!session?.user?.id) return false;
+  if (!session?.user?.id || !isUuid(session.user.id)) return false;
   const user = await db.user.findUnique({
-    where: { id: Number(session.user.id) },
+    where: { id: session.user.id },
     select: { role: true },
   });
   if (!user?.role) return false;

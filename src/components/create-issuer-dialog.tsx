@@ -26,7 +26,7 @@ import { cn } from '@/lib/utils';
 
 
 interface ExistingIssuer {
-  id: number;
+  id: string;
   branchCode: string;
   businessName: string;
   tradeName: string | null;

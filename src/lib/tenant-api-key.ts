@@ -21,7 +21,7 @@ import { db } from '@/lib/db';
  *    row the app is using (the API refuses to revoke the key that authenticates
  *    the revoke request itself: `SELF_REVOCATION_FORBIDDEN`).
  */
-export function findAppApiKeyRow(tenantId: number, environment: string) {
+export function findAppApiKeyRow(tenantId: string, environment: string) {
   return db.tenantApiKey.findFirst({
     where: { tenantId, isActive: true, environment },
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],

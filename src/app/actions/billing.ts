@@ -31,7 +31,7 @@ const PROOF_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'appli
 const MAX_PROOF_BYTES = 2 * 1024 * 1024;
 
 export async function submitPaymentProofAction(
-  paymentId: number,
+  paymentId: string,
   formData: FormData,
 ): Promise<BillingResult> {
   const ctx = await requirePermission('billing.manage', { skipIssuer: true });
@@ -73,7 +73,7 @@ export async function submitPaymentProofAction(
   }
 }
 
-export async function listPaymentProofsAction(paymentId: number): Promise<ProofListResult> {
+export async function listPaymentProofsAction(paymentId: string): Promise<ProofListResult> {
   const ctx = await requirePermission('billing.read', { skipIssuer: true });
   try {
     const proofs = await listPaymentProofs({ apiKey: ctx.apiKey }, paymentId);
@@ -85,7 +85,7 @@ export async function listPaymentProofsAction(paymentId: number): Promise<ProofL
 }
 
 export async function deletePaymentProofAction(
-  paymentId: number,
+  paymentId: string,
   proofId: string,
 ): Promise<{ error: string } | { ok: true }> {
   const ctx = await requirePermission('billing.manage', { skipIssuer: true });

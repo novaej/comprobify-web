@@ -20,7 +20,7 @@ export async function GET(
   const inline = req.nextUrl.searchParams.get('inline') === '1';
 
   try {
-    const { buffer, filename, mimeType } = await getAdminPaymentProofFile(Number(id), Number(proofId));
+    const { buffer, filename, mimeType } = await getAdminPaymentProofFile(id, proofId);
     return new Response(buffer, {
       status: 200,
       headers: {

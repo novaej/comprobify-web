@@ -38,7 +38,7 @@ export function AdminPaymentManager({
   const tError = useTranslations('apiError');
   const [payments, setPayments] = useState(initialPayments);
   const [isPending, startTransition] = useTransition();
-  const [pendingId, setPendingId] = useState<number | null>(null);
+  const [pendingId, setPendingId] = useState<string | null>(null);
   const [rejectTarget, setRejectTarget] = useState<AdminPayment | null>(null);
   const [rejectionReasonCode, setRejectionReasonCode] = useState('');
   const [proofTarget, setProofTarget] = useState<AdminPayment | null>(null);
@@ -51,7 +51,7 @@ export function AdminPaymentManager({
   }
 
   function handleVerify(payment: AdminPayment) {
-    const id = Number(payment.id);
+    const id = payment.id;
     setPendingId(id);
     startTransition(async () => {
       const result = await reviewPaymentAction(id, 'VERIFIED');
@@ -67,7 +67,7 @@ export function AdminPaymentManager({
 
   function handleReject() {
     if (!rejectTarget || !rejectionReasonCode) return;
-    const id = Number(rejectTarget.id);
+    const id = rejectTarget.id;
     setPendingId(id);
     startTransition(async () => {
       const result = await reviewPaymentAction(id, 'REJECTED', rejectionReasonCode);
@@ -85,10 +85,10 @@ export function AdminPaymentManager({
 
   function handleLinkInvoice() {
     if (!linkTarget || !linkAccessKey.trim()) return;
-    const subscriptionId = Number(linkTarget.subscription_id);
+    const subscriptionId = linkTarget.subscription_id;
     const accessKey = linkAccessKey.trim();
     const targetId = linkTarget.id;
-    setPendingId(Number(targetId));
+    setPendingId(targetId);
     startTransition(async () => {
       const result = await linkInvoiceAction(subscriptionId, accessKey);
       if ('error' in result) {
@@ -117,7 +117,7 @@ export function AdminPaymentManager({
     <>
       <div className="space-y-3">
         {payments.map((payment) => {
-          const id = Number(payment.id);
+          const id = payment.id;
           const rowPending = isPending && pendingId === id;
           return (
             <div key={payment.id} className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6">

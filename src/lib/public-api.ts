@@ -42,8 +42,8 @@ export interface IssuerRegistrationFields {
 }
 
 export interface RegisterTenantResult {
-  tenantId: number;
-  issuerId: number;
+  tenantId: string;
+  issuerId: string;
   apiKey: string;
   isEmailVerified: boolean;
 }
@@ -96,14 +96,14 @@ export async function registerTenant(
 
   const result = await publicRequest<{
     ok: true;
-    tenant: { id: number; email: string; status: string };
-    issuer: { id: number; ruc: string };
+    tenant: { id: string; email: string; status: string };
+    issuer: { id: string; ruc: string };
     apiKey: string;
   }>('/v1/register', { method: 'POST', body: form });
 
   return {
-    tenantId: Number(result.tenant.id),
-    issuerId: Number(result.issuer.id),
+    tenantId: result.tenant.id,
+    issuerId: result.issuer.id,
     apiKey: result.apiKey,
     isEmailVerified: result.tenant.status === 'ACTIVE',
   };

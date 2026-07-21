@@ -264,23 +264,41 @@ The TypeScript interface that matches this is:
 { ok: true; key: CreatedApiKey } // ✗ wrong — result.key would be undefined
 ```
 
-### Step 3 — Watch for the bigint-as-string trap
+### Step 3 — Every API id is a UUID string, and never a number
 
-The API database uses `BIGSERIAL` (`BIGINT`) primary keys. Node's `pg` library serializes bigint columns as JavaScript **strings** in query results. Express's `res.json()` then encodes strings as JSON strings (with quotes), not JSON numbers.
-
-**This means every `id` field from the API is a JSON string at runtime**, even if you type it as `number`.
+The Comprobify API is UUID-keyed throughout. Every table is declared
+`id UUID PRIMARY KEY DEFAULT uuid_generate_v7()` — see its
+`db/migrations/001_create_issuers.sql`, `023_create_api_keys.sql`,
+`035_tenants.sql`, `044_notifications.sql`, `052_subscriptions_and_payments.sql` —
+and its own routes validate ids with `param('id').isUUID()`.
 
 ```ts
-// API sends:  {"id": "42"}   (a JSON string)
-// NOT:        {"id": 42}     (a JSON number)
+// API sends:  {"id": "0199a3f2-7c41-7e3a-9f2b-6d1c4e8a05b7"}
 ```
 
 Consequences:
-- **Always use `Number(record.id)`** when passing an API-returned id to a Prisma `Int` field.
-- **Type API id fields as `string`** in the interface: `id: string`.
-- For callers that need a numeric id, apply `Number()` at the call site — do not pretend it's `number` in the interface.
+- **Type every API id and id parameter as `string`.**
+- **Never call `Number()` on an API id.** `Number("0199a3f2-…")` is `NaN`. Prisma
+  rejects `NaN` on write, and the failure surfaces to the user as an opaque
+  "internal error" with no indication of the cause.
 
-Affected fields in every API response: `id`, `tenant_id`, `issuer_id`, any other `*_id` bigint column.
+> This section previously described a "bigint-as-string trap" and instructed
+> applying `Number(record.id)` at every Prisma write site. That was never true of
+> this API, and following it broke tenant onboarding outright
+> (`Number(result.tenant.id)` → `NaN` → `DB_WRITE_FAILED`) along with every admin
+> payment and tenant action. If you find any `Number()` around an id, it is a bug.
+
+**Local ids and API ids are both UUID strings — the compiler cannot tell them apart.**
+That makes this the one ID rule you have to enforce by reading rather than by
+`tsc`. The four columns that mirror an API id are `Tenant.apiTenantId`,
+`TenantApiKey.apiKeyId`, `Issuer.apiIssuerId` and `Notification.issuerId`; every
+other id column is local. Matching one against the other is a bug that has
+shipped before — see CLAUDE.md Common Mistake #20 and ADR-007.
+
+| | Example | Used in |
+|---|---|---|
+| Local id | `Issuer.id`, `User.id` | `db.*` where-clauses |
+| API id | `Issuer.apiIssuerId`, `ApiCtx.issuerId` | `src/lib/api.ts`, `admin-api.ts` |
 
 ### Step 4 — Check what fields are actually present
 
@@ -301,7 +319,7 @@ Some fields you might expect are simply not returned. Verify each interface fiel
 // Verified against: ../comprobify/src/controllers/example.controller.js → create()
 // Response shape:   { ok: true; item: { id: string; name: string } }
 export interface ExampleItem {
-  id: string;    // bigint → JSON string
+  id: string;    // uuid
   name: string;
 }
 
@@ -315,11 +333,12 @@ export async function createExample(ctx: ApiCtx, name: string): Promise<ExampleI
 }
 ```
 
-If callers need to store the id in a Prisma `Int` field, apply `Number()` at the call site:
+Store the id verbatim — the local mirror column is `@db.Uuid`, so there is
+nothing to convert:
 ```ts
 await db.example.create({
   data: {
-    apiExampleId: Number(apiExample.id), // bigint string → number
+    apiExampleId: apiExample.id, // UUID string, stored as-is — never Number()
     ...
   },
 });
@@ -351,7 +370,7 @@ Before merging any new `api.ts` function:
 - [ ] Route confirmed in `../comprobify/src/routes/`
 - [ ] Response shape read from the controller's `res.json()` call
 - [ ] Every interface field traced to the service/presenter return value
-- [ ] `id` fields typed as `string` (bigint)
+- [ ] `id` fields typed as `string` (uuid), with no `Number()` anywhere
 - [ ] `Number(record.id)` used at every Prisma `Int` write site
 - [ ] Field names match exactly (e.g., `active` not `isActive`, `apiKey` not `key`)
 - [ ] If POST omits id: follow-up GET implemented

@@ -21,7 +21,7 @@ export default async function IssuersPage({
   // Owner/Admin see all issuers (including inactive for management).
   // Other roles see only their assigned issuers (active only — they can't manage).
   const isOwnerOrAdmin = ctx.user.role === 'Owner' || ctx.user.role === 'Admin';
-  let accessibleIds: number[] | null = null;
+  let accessibleIds: string[] | null = null;
   if (!isOwnerOrAdmin) {
     const userAccess = await db.userIssuerAccess.findMany({
       where: { tenantId: ctx.tenant.id, userId: ctx.user.id },
@@ -57,7 +57,7 @@ export default async function IssuersPage({
   const allowedDocumentTypes = currentTier?.allowedDocumentTypes ?? ['01'];
 
   const issuersWithTypes = issuers.map((issuer, i) => {
-    const apiIssuer = apiIssuers.find((a) => a.id === String(issuer.apiIssuerId));
+    const apiIssuer = apiIssuers.find((a) => a.id === issuer.apiIssuerId);
     return {
       ...issuer,
       documentTypes: documentTypesPerIssuer[i],

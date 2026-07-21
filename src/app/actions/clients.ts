@@ -5,7 +5,7 @@ import { requirePermission } from '@/lib/context';
 import { revalidatePath } from 'next/cache';
 
 export type SavedClient = {
-  id: number;
+  id: string;
   idType: string;
   idNumber: string;
   name: string;
@@ -23,7 +23,7 @@ export type ClientInput = {
 
 export type ClientResult = { error: string } | null;
 
-async function requireTenantId(): Promise<number> {
+async function requireTenantId(): Promise<string> {
   const ctx = await requirePermission('clients.manage', { skipIssuer: true });
   return ctx.tenant.id;
 }
@@ -44,7 +44,7 @@ export async function createClientAction(input: ClientInput): Promise<ClientResu
   return null;
 }
 
-export async function updateClientAction(id: number, input: ClientInput): Promise<ClientResult> {
+export async function updateClientAction(id: string, input: ClientInput): Promise<ClientResult> {
   const tenantId = await requireTenantId();
   await db.client.updateMany({
     where: { id, tenantId },
@@ -60,7 +60,7 @@ export async function updateClientAction(id: number, input: ClientInput): Promis
   return null;
 }
 
-export async function deleteClientAction(id: number): Promise<ClientResult> {
+export async function deleteClientAction(id: string): Promise<ClientResult> {
   const tenantId = await requireTenantId();
   await db.client.deleteMany({ where: { id, tenantId } });
   revalidatePath('/clients');

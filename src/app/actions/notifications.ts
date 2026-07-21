@@ -32,7 +32,7 @@ function toJson(v: Record<string, unknown> | null | undefined): Prisma.InputJson
  * - When ALL eligible users have read it, calls POST /api/notifications/:id/read
  *   so the API marks it globally read and stops returning it in future responses.
  */
-export async function markNotificationReadAction(notificationId: number): Promise<void> {
+export async function markNotificationReadAction(notificationId: string): Promise<void> {
   const ctx = await requireContext({ skipIssuer: true });
   const userId = ctx.user.id;
   const tenantId = ctx.tenant.id;
@@ -62,9 +62,12 @@ export async function markNotificationReadAction(notificationId: number): Promis
     const adminCount = await db.user.count({
       where: { tenantId, role: { in: ['Owner', 'Admin'] }, inviteStatus: 'ACTIVE' },
     });
-    const accessCount = await db.userIssuerAccess.count({
-      where: { tenantId, issuerId: notification.issuerId },
-    });
+    // notification.issuerId is the API-side issuer id — resolve it to the local
+    // Issuer.id before querying UserIssuerAccess, which stores the local FK.
+    const localIssuerId = await resolveLocalIssuerId(tenantId, notification.issuerId);
+    const accessCount = localIssuerId
+      ? await db.userIssuerAccess.count({ where: { tenantId, issuerId: localIssuerId } })
+      : 0;
     // Owners/admins + access users may overlap — use a set via raw query is ideal,
     // but for safety we take the max of the two, knowing createMany skipDuplicates
     // ensures the reads count is the true unique set.
@@ -138,7 +141,7 @@ export async function catchUpNotificationsAction(): Promise<{ upserted: number }
           title: n.title,
           message: n.message,
           metadata: toJson(n.metadata),
-          issuerId: n.issuerId ? Number(n.issuerId) : null,
+          issuerId: n.issuerId ?? null,
           apiReadAt: n.readAt ? new Date(n.readAt) : null,
           expiresAt: n.expiresAt ? new Date(n.expiresAt) : null,
           apiCreatedAt: new Date(n.createdAt),
@@ -164,7 +167,7 @@ export async function catchUpNotificationsAction(): Promise<{ upserted: number }
     }
     // Fan out reads for newly created notifications.
     if (existing) {
-      await fanOutReads(tenantId, existing.id, existing.issuerId, existing.reads.map((r: { userId: number }) => r.userId));
+      await fanOutReads(tenantId, existing.id, existing.issuerId, existing.reads.map((r: { userId: string }) => r.userId));
     }
     upserted++;
   }
@@ -210,14 +213,14 @@ export async function getUnreadCountAction(): Promise<number> {
  */
 export async function listNotificationsAction(): Promise<{
   notifications: Array<{
-    id: number;
+    id: string;
     apiNotificationId: string;
     type: string;
     severity: string;
     title: string;
     message: string;
     metadata: unknown;
-    issuerId: number | null;
+    issuerId: string | null;
     readByMe: boolean;
     apiReadAt: Date | null;
     expiresAt: Date | null;
@@ -311,13 +314,27 @@ export async function updatePreferencesAction(
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
+/**
+ * Maps an API-side issuer id (Notification.issuerId, a BIGSERIAL integer) to the
+ * local Issuer.id UUID. UserIssuerAccess.issuerId is a local FK, so the two are
+ * never directly comparable — see CLAUDE.md Common Mistake #20.
+ */
+async function resolveLocalIssuerId(tenantId: string, apiIssuerId: string): Promise<string | null> {
+  const issuer = await db.issuer.findFirst({
+    where: { tenantId, apiIssuerId },
+    select: { id: true },
+  });
+  return issuer?.id ?? null;
+}
+
 async function fanOutReads(
-  tenantId: number,
-  notificationId: number,
-  issuerId: number | null,
-  alreadyReadUserIds: number[],
+  tenantId: string,
+  notificationId: string,
+  /** API-side issuer id, not a local Issuer.id. */
+  issuerId: string | null,
+  alreadyReadUserIds: string[],
 ): Promise<void> {
-  let eligibleUserIds: number[];
+  let eligibleUserIds: string[];
 
   if (issuerId === null) {
     const users = await db.user.findMany({
@@ -330,10 +347,13 @@ async function fanOutReads(
       where: { tenantId, role: { in: ['Owner', 'Admin'] }, inviteStatus: 'ACTIVE' },
       select: { id: true },
     });
-    const accessUsers = await db.userIssuerAccess.findMany({
-      where: { tenantId, issuerId },
-      select: { userId: true },
-    });
+    const localIssuerId = await resolveLocalIssuerId(tenantId, issuerId);
+    const accessUsers = localIssuerId
+      ? await db.userIssuerAccess.findMany({
+          where: { tenantId, issuerId: localIssuerId },
+          select: { userId: true },
+        })
+      : [];
     const adminIds = adminUsers.map((u) => u.id);
     const accessIds = accessUsers.map((a) => a.userId);
     eligibleUserIds = [...new Set([...adminIds, ...accessIds])];

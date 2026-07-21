@@ -12,7 +12,7 @@ import { toastApiError } from '@/lib/api-error-toast';
 const API_DOCS_URL = 'https://docs.comprobify.com/';
 
 interface ApiKeyRow {
-  id: number;
+  id: string;
   label: string;
   environment: string;
   lastFour: string;
@@ -32,7 +32,7 @@ export function ApiKeyManager({
   canManage: boolean;
   missingKey: boolean;
   /** Row the web app itself authenticates with — cannot be revoked. */
-  appKeyId: number | null;
+  appKeyId: string | null;
   environment: string;
   apiBaseUrl: string;
 }) {
@@ -66,7 +66,7 @@ export function ApiKeyManager({
     });
   }
 
-  function handleRevoke(id: number) {
+  function handleRevoke(id: string) {
     if (!confirm(t('confirmRevoke'))) return;
     startTransition(async () => {
       const result = await revokeTenantApiKeyAction(id);

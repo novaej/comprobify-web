@@ -43,7 +43,7 @@ const locales = [
 ] as const;
 
 interface Issuer {
-  id: number;
+  id: string;
   name: string;
   branchCode: string;
   issuePointCode: string;
@@ -143,7 +143,7 @@ function IssuerSwitcher({
     );
   }
 
-  function handleSelect(id: number) {
+  function handleSelect(id: string) {
     setOpen(false);
     startTransition(async () => {
       await selectIssuerAction(id);

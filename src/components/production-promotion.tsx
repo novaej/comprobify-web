@@ -15,8 +15,8 @@ import type { PaidTier, BillingInterval } from '@/lib/subscription-tiers';
 const currencyFormatter = new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
 export type IssuerForPromotion = {
-  id: number;
-  apiIssuerId: number;
+  id: string;
+  apiIssuerId: string;
   name: string;
   branchCode: string;
   issuePointCode: string;
@@ -51,7 +51,7 @@ export function ProductionPromotion({
   const [resendSent, setResendSent] = useState(false);
 
   // Sequentials keyed by apiIssuerId → documentType → number
-  const [sequentials, setSequentials] = useState<Record<number, Record<string, number>>>(
+  const [sequentials, setSequentials] = useState<Record<string, Record<string, number>>>(
     () => Object.fromEntries(
       issuers.map((issuer) => [
         issuer.apiIssuerId,
@@ -74,7 +74,7 @@ export function ProductionPromotion({
         : errorCode)
     : null;
 
-  function handleSequentialChange(apiIssuerId: number, code: string, raw: string) {
+  function handleSequentialChange(apiIssuerId: string, code: string, raw: string) {
     setSequentials((prev) => ({
       ...prev,
       [apiIssuerId]: {

@@ -22,7 +22,7 @@ import { toastApiError } from '@/lib/api-error-toast';
 import { cn } from '@/lib/utils';
 
 interface IssuerWithTypes {
-  id: number;
+  id: string;
   branchCode: string;
   issuePointCode: string;
   businessName: string;
@@ -49,7 +49,7 @@ export function IssuerManager({
   const tError = useTranslations('apiError');
   const [isPending, startTransition] = useTransition();
   const [issuers, setIssuers] = useState<IssuerWithTypes[]>(initialIssuers);
-  const [addTarget, setAddTarget] = useState<{ issuerId: number; code: string } | null>(null);
+  const [addTarget, setAddTarget] = useState<{ issuerId: string; code: string } | null>(null);
 
   function handleAddType() {
     if (!addTarget) return;
@@ -65,7 +65,7 @@ export function IssuerManager({
     });
   }
 
-  function handleRemoveType(issuerId: number, code: string) {
+  function handleRemoveType(issuerId: string, code: string) {
     startTransition(async () => {
       const result = await removeDocumentTypeAction(issuerId, code);
       if (result?.error) {
@@ -76,7 +76,7 @@ export function IssuerManager({
     });
   }
 
-  function handleToggleActive(issuerId: number, nextActive: boolean) {
+  function handleToggleActive(issuerId: string, nextActive: boolean) {
     setIssuers((prev) => prev.map((i) => (i.id === issuerId ? { ...i, active: nextActive } : i)));
 
     startTransition(async () => {

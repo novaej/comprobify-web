@@ -5,9 +5,15 @@ import { createHmac, timingSafeEqual } from 'crypto';
 const COOKIE_NAME = 'comprobify_ctx';
 const SECRET_ENV = 'CONTEXT_COOKIE_SECRET';
 
+/**
+ * v2 carries the issuer's UUID primary key. v1 carried an autoincrement integer;
+ * a leftover v1 cookie is rejected outright by readCtxCookie so the stale integer
+ * never reaches `issuer.findUnique`, which would throw a Prisma validation error
+ * on a uuid column instead of cleanly redirecting to the issuer picker.
+ */
 interface CtxPayload {
-  issuerId: number;
-  v: 1;
+  issuerId: string;
+  v: 2;
 }
 
 function getSecret(): string {
@@ -42,7 +48,9 @@ export async function readCtxCookie(): Promise<CtxPayload | null> {
   const b64Payload = verifyAndExtract(raw);
   if (!b64Payload) return null;
   try {
-    return JSON.parse(Buffer.from(b64Payload, 'base64url').toString('utf8')) as CtxPayload;
+    const parsed = JSON.parse(Buffer.from(b64Payload, 'base64url').toString('utf8')) as CtxPayload;
+    if (parsed?.v !== 2 || typeof parsed.issuerId !== 'string') return null;
+    return parsed;
   } catch {
     return null;
   }

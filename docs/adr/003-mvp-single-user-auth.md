@@ -35,7 +35,7 @@ Implemented 2026-05-15 as part of the multitenant rewrite. Key decisions:
 
 4. **RBAC** — five roles (`Owner`, `Admin`, `BillingOperator`, `Viewer`, `Developer`) with a hardcoded permission map in `src/lib/rbac.ts`. `requirePermission(code)` gates Server Actions; `hasContextPermission(code)` gates Server Component UI branches.
 
-5. **Issuer context cookie** — a signed HMAC cookie (`comprobify_ctx`) carries `{ issuerId, v: 1 }`. Set by `bootstrapTenantAction` and `selectIssuerAction`; cleared by `logoutAction`.
+5. **Issuer context cookie** — a signed HMAC cookie (`comprobify_ctx`) carries `{ issuerId, v: 1 }`. Set by `bootstrapTenantAction` and `selectIssuerAction`; cleared by `logoutAction`. *(Superseded by ADR-007: the payload is now `{ issuerId: string, v: 2 }`, carrying the issuer's UUID.)*
 
 6. **Onboarding** — new users (no `tenantId`) redirect to `/onboarding/tenant`. `bootstrapTenantAction` calls `POST /api/register` (public endpoint), then creates `Tenant` + `TenantApiKey` + `Issuer` + updates `User.tenantId` and `User.role='Owner'` in a single DB transaction.
 

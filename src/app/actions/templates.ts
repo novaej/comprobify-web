@@ -7,19 +7,19 @@ import type { InvoiceFormData } from './invoice';
 import type { Prisma } from '@prisma/client';
 
 export type SavedDocumentTemplate = {
-  id: number;
+  id: string;
   name: string;
   data: InvoiceFormData;
 };
 
 export type TemplateResult = { error: string } | null;
 
-async function requireTenantId(): Promise<number> {
+async function requireTenantId(): Promise<string> {
   const ctx = await requireContext({ skipIssuer: true });
   return ctx.tenant.id;
 }
 
-async function requireTenantIdForCreate(): Promise<number> {
+async function requireTenantIdForCreate(): Promise<string> {
   const ctx = await requirePermission('documents.create', { skipIssuer: true });
   return ctx.tenant.id;
 }
@@ -51,7 +51,7 @@ export async function saveInvoiceTemplateAction(name: string, data: InvoiceFormD
   return null;
 }
 
-export async function deleteInvoiceTemplateAction(id: number): Promise<TemplateResult> {
+export async function deleteInvoiceTemplateAction(id: string): Promise<TemplateResult> {
   const tenantId = await requireTenantIdForCreate();
   await db.documentTemplate.deleteMany({ where: { id, tenantId, documentType: INVOICE_DOCUMENT_TYPE } });
   revalidatePath('/invoices/new');

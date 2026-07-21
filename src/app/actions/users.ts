@@ -73,7 +73,7 @@ export async function inviteUserAction(email: string, role: Role): Promise<Users
   return null;
 }
 
-export async function resendInviteAction(userId: number): Promise<UsersResult> {
+export async function resendInviteAction(userId: string): Promise<UsersResult> {
   await requirePermission('users.manage', { skipIssuer: true });
   const ctx = await (await import('@/lib/context')).requireContext({ skipIssuer: true });
 
@@ -85,7 +85,7 @@ export async function resendInviteAction(userId: number): Promise<UsersResult> {
   return null;
 }
 
-export async function updateUserRoleAction(userId: number, role: Role): Promise<UsersResult> {
+export async function updateUserRoleAction(userId: string, role: Role): Promise<UsersResult> {
   await requirePermission('users.manage', { skipIssuer: true });
   const ctx = await (await import('@/lib/context')).requireContext({ skipIssuer: true });
 
@@ -102,7 +102,7 @@ export async function updateUserRoleAction(userId: number, role: Role): Promise<
   return null;
 }
 
-export async function removeUserAction(userId: number): Promise<UsersResult> {
+export async function removeUserAction(userId: string): Promise<UsersResult> {
   await requirePermission('users.manage', { skipIssuer: true });
   const ctx = await (await import('@/lib/context')).requireContext({ skipIssuer: true });
 
@@ -121,8 +121,8 @@ export async function removeUserAction(userId: number): Promise<UsersResult> {
 }
 
 export async function setUserIssuerAccessAction(
-  userId: number,
-  issuerIds: number[],
+  userId: string,
+  issuerIds: string[],
 ): Promise<UsersResult> {
   await requirePermission('users.manage', { skipIssuer: true });
   const ctx = await (await import('@/lib/context')).requireContext({ skipIssuer: true });
@@ -170,8 +170,8 @@ async function sendPasswordResetEmail(email: string, businessName: string) {
 }
 
 export async function updateUserAction(
-  userId: number,
-  data: { firstName?: string | null; lastName?: string | null; role?: Role; issuerIds?: number[] },
+  userId: string,
+  data: { firstName?: string | null; lastName?: string | null; role?: Role; issuerIds?: string[] },
 ): Promise<UsersResult> {
   await requirePermission('users.manage', { skipIssuer: true });
   const ctx = await (await import('@/lib/context')).requireContext({ skipIssuer: true });
@@ -218,7 +218,7 @@ export async function updateUserAction(
 }
 
 export async function toggleUserActiveAction(
-  userId: number,
+  userId: string,
   active: boolean,
 ): Promise<UsersResult> {
   await requirePermission('users.manage', { skipIssuer: true });
@@ -234,7 +234,7 @@ export async function toggleUserActiveAction(
   return null;
 }
 
-export async function resetUserPasswordAction(userId: number): Promise<UsersResult> {
+export async function resetUserPasswordAction(userId: string): Promise<UsersResult> {
   await requirePermission('users.manage', { skipIssuer: true });
   const ctx = await (await import('@/lib/context')).requireContext({ skipIssuer: true });
 

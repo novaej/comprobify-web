@@ -21,7 +21,7 @@ import { revalidatePath } from 'next/cache';
 export type AdminTenantResult = { error: string } | { tenant: AdminTenant };
 export type AdminPaymentResult = { error: string } | { payment: AdminPayment };
 
-export async function updateTenantTierAction(id: number, tier: string): Promise<AdminTenantResult> {
+export async function updateTenantTierAction(id: string, tier: string): Promise<AdminTenantResult> {
   await requireSuperAdmin();
   try {
     const tenant = await updateTenantTier(id, tier);
@@ -34,7 +34,7 @@ export async function updateTenantTierAction(id: number, tier: string): Promise<
 }
 
 export async function updateTenantStatusAction(
-  id: number,
+  id: string,
   status: 'PENDING_VERIFICATION' | 'ACTIVE' | 'SUSPENDED',
 ): Promise<AdminTenantResult> {
   await requireSuperAdmin();
@@ -48,7 +48,7 @@ export async function updateTenantStatusAction(
   }
 }
 
-export async function verifyTenantAction(id: number): Promise<AdminTenantResult> {
+export async function verifyTenantAction(id: string): Promise<AdminTenantResult> {
   await requireSuperAdmin();
   try {
     const tenant = await verifyTenant(id);
@@ -61,7 +61,7 @@ export async function verifyTenantAction(id: number): Promise<AdminTenantResult>
 }
 
 export async function reviewPaymentAction(
-  id: number,
+  id: string,
   decision: 'VERIFIED' | 'REJECTED',
   rejectionReasonCode?: string,
 ): Promise<AdminPaymentResult> {
@@ -77,7 +77,7 @@ export async function reviewPaymentAction(
 }
 
 export async function linkInvoiceAction(
-  subscriptionId: number,
+  subscriptionId: string,
   accessKey: string,
 ): Promise<{ error: string } | { ok: true }> {
   await requireSuperAdmin();
@@ -109,7 +109,7 @@ export async function publishAgreementAction(
   }
 }
 
-export async function activateAgreementAction(id: number): Promise<AdminAgreementResult> {
+export async function activateAgreementAction(id: string): Promise<AdminAgreementResult> {
   await requireSuperAdmin();
   try {
     const document = await activateAgreement(id);

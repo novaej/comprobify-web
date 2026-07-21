@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { requirePermission } from '@/lib/context';
 import { db } from '@/lib/db';
+import { isUuid } from '@/lib/utils';
 import { listIssuerDocumentTypes, listTenantIssuers } from '@/lib/api';
 import { getIssuerSequentialsAction } from '@/app/actions/issuers';
 import { PageHeader } from '@/components/page-header';
@@ -18,8 +19,8 @@ export default async function IssuerEditPage({
 
   const ctx = await requirePermission('issuers.manage', { skipIssuer: true });
 
-  const issuerId = Number(id);
-  if (!Number.isInteger(issuerId)) notFound();
+  const issuerId = id;
+  if (!isUuid(issuerId)) notFound();
 
   const issuer = await db.issuer.findFirst({
     where: { id: issuerId, tenantId: ctx.tenant.id, active: true },
@@ -32,7 +33,7 @@ export default async function IssuerEditPage({
     getIssuerSequentialsAction(issuerId),
   ]);
 
-  const apiIssuer = apiIssuers.find((a) => a.id === String(issuer.apiIssuerId));
+  const apiIssuer = apiIssuers.find((a) => a.id === issuer.apiIssuerId);
   const sequentials = 'sequentials' in sequentialsResult ? sequentialsResult.sequentials : [];
 
   return (

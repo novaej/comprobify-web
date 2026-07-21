@@ -3,6 +3,7 @@ import { Info } from 'lucide-react';
 import { auth } from '@/auth';
 import { redirect } from '@/i18n/navigation';
 import { db } from '@/lib/db';
+import { isUuid } from '@/lib/utils';
 import { OnboardingTabs } from '@/components/onboarding-tabs';
 import { LogoLockupStacked } from '@/components/logo';
 import { LocaleSwitcher } from '@/components/locale-switcher';
@@ -30,14 +31,14 @@ export default async function OnboardingTenantPage({
   const termsVersion = agreements.find((d) => d.documentType === 'TERMS')?.version ?? 'pre-launch';
 
   const session = await auth();
-  if (!session?.user?.id) {
+  if (!session?.user?.id || !isUuid(session.user.id)) {
     redirect({ href: '/login', locale });
     return null;
   }
 
   // If user already has a tenant, send them to dashboard
   const user = await db.user.findUnique({
-    where: { id: Number(session.user.id) },
+    where: { id: session.user.id },
     select: { tenantId: true },
   });
   if (user?.tenantId) {

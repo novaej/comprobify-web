@@ -82,7 +82,7 @@ function computeGrandTotal(items: CreditNoteFormData['items']): number {
 // creditedTotal; documented there as a UI guard, not a hard guarantee, due to a known race
 // between concurrently-created credit notes).
 async function assertWithinRemainingBalance(
-  apiCtx: { apiKey: string; issuerId: number },
+  apiCtx: { apiKey: string; issuerId: string },
   originalAccessKey: string,
   data: CreditNoteFormData
 ): Promise<{ error: string } | null> {
@@ -137,7 +137,7 @@ function buildCreditNotePayload(data: CreditNoteFormData): CreateCreditNotePaylo
 // Only queues the async submission (see ADR-019); InvoiceActions on the detail page
 // auto-resumes polling for PENDING_SEND on mount.
 async function sendAfterSigningIfRequested(
-  apiCtx: { apiKey: string; issuerId: number },
+  apiCtx: { apiKey: string; issuerId: string },
   accessKey: string,
   sendAfterSigning: boolean
 ): Promise<void> {
