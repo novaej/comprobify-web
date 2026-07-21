@@ -254,7 +254,6 @@ comprobify-web/
       crypto.ts             AES-256-GCM encrypt/decrypt for API keys at rest
       rbac.ts               Role/Permission types + ROLE_PERMISSIONS map
       public-api.ts         Unauthenticated API calls (registerTenant, verifyEmailToken, ...)
-      auth-token.ts         Thin shim — requireApiKey() wraps requireContext()
       db.ts                 Prisma client singleton
       errors.ts             ApiError + ProblemDetails
     i18n/                   next-intl config and navigation helpers
