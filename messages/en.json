@@ -656,7 +656,8 @@
     "ISSUER_FORBIDDEN": "You do not have access to that issuer.",
     "SOURCE_ISSUER_NOT_FOUND": "The source issuer was not found.",
     "API_KEY_ENV_MISMATCH": "The API key does not match the active environment (sandbox/production).",
-    "SELF_REVOCATION_FORBIDDEN": "You cannot revoke the API key you are currently using.",
+    "SELF_REVOCATION_FORBIDDEN": "The API key this app authenticates with cannot be revoked. Create another key and revoke this one from it.",
+    "ALREADY_REVOKED": "This API key has already been revoked.",
     "PRODUCTION_KEY_REQUIRES_PROMOTION": "You must activate production mode before creating production keys.",
     "BRANCH_LIMIT_REACHED": "You have reached the maximum number of branches for your plan.",
     "ISSUE_POINT_LIMIT_REACHED": "You have reached the maximum number of issue points for this branch.",
@@ -911,8 +912,12 @@
   },
   "apiKeys": {
     "title": "API Keys",
-    "description": "Manage your Comprobify API access keys.",
+    "description": "Create keys to connect Postman, your ERP, or any custom system to the Comprobify API.",
     "empty": "No API keys.",
+    "show": "Show key",
+    "hide": "Hide key",
+    "appKeyBadge": "Used by the app",
+    "appKeyLocked": "Not revocable",
     "createKey": "New API key",
     "labelPlaceholder": "Label (e.g. production)",
     "creating": "Creating...",
@@ -937,7 +942,20 @@
       "revoked": "Revoked"
     },
     "revokeSuccess": "API key revoked successfully.",
-    "createSuccess": "API key \"{label}\" created. Copy it now — you won't be able to see it again."
+    "createSuccess": "API key \"{label}\" created. Copy it now — you won't be able to see it again.",
+    "environmentNames": {
+      "sandbox": "sandbox",
+      "production": "production"
+    },
+    "usage": {
+      "title": "Using it in Postman or your own system",
+      "description": "Keys created here belong to your organization's {environment} environment. Send them in the Authorization header of every request.",
+      "baseUrl": "API base URL",
+      "header": "Authentication header",
+      "curl": "curl example",
+      "keyPlaceholder": "YOUR_API_KEY",
+      "docsLink": "Read the API documentation"
+    }
   },
   "users": {
     "title": "Users",

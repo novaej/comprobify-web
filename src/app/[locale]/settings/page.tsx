@@ -7,7 +7,7 @@ import { listIssuerDocumentTypes, getMySubscriptions, getAgreementStatus } from 
 import { listTiers } from '@/lib/public-api';
 import { Link } from '@/i18n/navigation';
 import { db } from '@/lib/db';
-import { Webhook, Bell, ChevronRight, CreditCard, User } from 'lucide-react';
+import { Webhook, Bell, ChevronRight, CreditCard, User, KeyRound } from 'lucide-react';
 
 export default async function SettingsPage({
   params,
@@ -26,9 +26,11 @@ export default async function SettingsPage({
   const tNotifPrefs = await getTranslations('notificationPreferences');
   const tBilling = await getTranslations('billing');
   const tAgreements = await getTranslations('agreements');
+  const tApiKeys = await getTranslations('apiKeys');
   const canManageWebhooks = ctx.permissions.has('webhooks.manage');
   const canManageNotifications = ctx.permissions.has('notifications.manage');
   const canReadBilling = ctx.permissions.has('billing.read');
+  const canReadApiKeys = ctx.permissions.has('apikeys.read');
   const canManageTenant = ctx.permissions.has('tenant.manage');
 
   const activeIssuers = await db.issuer.findMany({
@@ -192,6 +194,24 @@ export default async function SettingsPage({
                 <h2 className="text-sm font-semibold">{tNotifPrefs('title')}</h2>
                 <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">
                   {tNotifPrefs('description')}
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+          </Link>
+        )}
+
+        {canReadApiKeys && (
+          <Link
+            href="/api-keys"
+            className="flex items-center justify-between rounded-xl border border-border bg-card p-6 shadow-sm transition-colors hover:bg-accent"
+          >
+            <div className="flex items-center gap-3">
+              <KeyRound className="h-5 w-5 shrink-0 text-muted-foreground" />
+              <div>
+                <h2 className="text-sm font-semibold">{tApiKeys('title')}</h2>
+                <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">
+                  {tApiKeys('description')}
                 </p>
               </div>
             </div>
