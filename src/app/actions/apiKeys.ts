@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { requirePermission } from '@/lib/context';
 import { createTenantApiKey, revokeTenantApiKey } from '@/lib/api';
 import { encrypt, lastFour } from '@/lib/crypto';
+import { findAppApiKeyRow } from '@/lib/tenant-api-key';
 import { ApiError } from '@/lib/errors';
 import { revalidatePath } from 'next/cache';
 
@@ -16,7 +17,15 @@ export async function createTenantApiKeyAction(label: string): Promise<CreateApi
 
   let created;
   try {
-    created = await createTenantApiKey({ apiKey: ctx.apiKey }, label.trim() || 'default');
+    // The environment MUST be sent explicitly: POST /v1/keys defaults to 'sandbox'
+    // (api-key.service.js → createKey), and the API then rejects that key on a
+    // promoted tenant with API_KEY_ENV_MISMATCH — so a production tenant would
+    // otherwise mint keys that authenticate for nothing.
+    created = await createTenantApiKey(
+      { apiKey: ctx.apiKey },
+      label.trim() || 'default',
+      ctx.tenant.environment,
+    );
   } catch (err) {
     if (err instanceof ApiError) return { error: err.code };
     throw err;
@@ -27,7 +36,8 @@ export async function createTenantApiKeyAction(label: string): Promise<CreateApi
       tenantId: ctx.tenant.id,
       apiKeyId: created.id,
       label: created.label,
-      environment: ctx.tenant.environment,
+      // Mirror what the API actually stored, not what we asked for.
+      environment: created.environment,
       encryptedKey: encrypt(created.key),
       lastFour: lastFour(created.key),
       isActive: true,
@@ -45,6 +55,13 @@ export async function revokeTenantApiKeyAction(id: number): Promise<ApiKeyResult
   const keyRow = await db.tenantApiKey.findUnique({ where: { id } });
   if (!keyRow || keyRow.tenantId !== ctx.tenant.id) return { error: 'NOT_FOUND' };
   if (!keyRow.isActive) return { error: 'ALREADY_REVOKED' };
+
+  // The key this app authenticates with can't be revoked: the API refuses to
+  // revoke the key that signed the revoke request (SELF_REVOCATION_FORBIDDEN),
+  // and revoking it would leave the whole web app unable to reach the API.
+  // The UI already disables that row's button — this is the action-side gate.
+  const appKey = await findAppApiKeyRow(ctx.tenant.id, ctx.tenant.environment);
+  if (appKey?.id === keyRow.id) return { error: 'SELF_REVOCATION_FORBIDDEN' };
 
   try {
     await revokeTenantApiKey({ apiKey: ctx.apiKey }, keyRow.apiKeyId);

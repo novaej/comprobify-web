@@ -656,7 +656,8 @@
     "ISSUER_FORBIDDEN": "No tiene acceso a ese emisor.",
     "SOURCE_ISSUER_NOT_FOUND": "El emisor de origen no fue encontrado.",
     "API_KEY_ENV_MISMATCH": "La API key no corresponde al ambiente activo (sandbox/producción).",
-    "SELF_REVOCATION_FORBIDDEN": "No puede revocar la API key que está utilizando actualmente.",
+    "SELF_REVOCATION_FORBIDDEN": "No se puede revocar la API key que usa esta aplicación. Crea otra clave y revoca esta desde ella.",
+    "ALREADY_REVOKED": "Esta API key ya fue revocada.",
     "PRODUCTION_KEY_REQUIRES_PROMOTION": "Debe activar el modo producción antes de crear claves de producción.",
     "BRANCH_LIMIT_REACHED": "Ha alcanzado el límite de establecimientos de su plan.",
     "ISSUE_POINT_LIMIT_REACHED": "Ha alcanzado el límite de puntos de emisión para este establecimiento.",
@@ -1001,8 +1002,12 @@
   },
   "apiKeys": {
     "title": "API Keys",
-    "description": "Administra las claves de acceso a la API de Comprobify.",
+    "description": "Crea claves para conectar Postman, tu ERP o cualquier sistema propio con la API de Comprobify.",
     "empty": "No hay API keys.",
+    "show": "Mostrar clave",
+    "hide": "Ocultar clave",
+    "appKeyBadge": "En uso por la app",
+    "appKeyLocked": "No revocable",
     "createKey": "Nueva API key",
     "labelPlaceholder": "Etiqueta (ej. producción)",
     "creating": "Creando...",
@@ -1027,7 +1032,20 @@
       "revoked": "Revocada"
     },
     "revokeSuccess": "API key revocada correctamente.",
-    "createSuccess": "API key «{label}» creada. Cópiala ahora, no podrás verla de nuevo."
+    "createSuccess": "API key «{label}» creada. Cópiala ahora, no podrás verla de nuevo.",
+    "environmentNames": {
+      "sandbox": "pruebas",
+      "production": "producción"
+    },
+    "usage": {
+      "title": "Cómo usarla en Postman o tu sistema",
+      "description": "Las claves que crees aquí corresponden al ambiente de {environment} de tu organización. Envíalas en el encabezado Authorization de cada solicitud.",
+      "baseUrl": "URL base de la API",
+      "header": "Encabezado de autenticación",
+      "curl": "Ejemplo con curl",
+      "keyPlaceholder": "TU_API_KEY",
+      "docsLink": "Ver la documentación de la API"
+    }
   },
   "users": {
     "title": "Usuarios",
