@@ -18,7 +18,7 @@ export async function GET(
   const { id } = await params;
 
   try {
-    const proofs = await listAdminPaymentProofs(Number(id));
+    const proofs = await listAdminPaymentProofs(id);
     return NextResponse.json({ proofs });
   } catch (err) {
     if (err instanceof ApiError) {

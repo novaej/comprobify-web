@@ -1,6 +1,7 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
+import { isUuid } from '@/lib/utils';
 import { PageHeader } from '@/components/page-header';
 import { LocaleSwitcher } from '@/components/locale-switcher';
 import { LogoLockupStacked } from '@/components/logo';
@@ -23,9 +24,9 @@ export default async function SupportPage({
   // (e.g. super admins) get bare children there, so this page must render its
   // own chrome for them too instead of assuming the sidebar is present.
   let showsInAppChrome = false;
-  if (session) {
+  if (session && isUuid(session.user.id)) {
     const user = await db.user.findUnique({
-      where: { id: Number(session.user.id) },
+      where: { id: session.user.id },
       select: { active: true, tenantId: true },
     });
     showsInAppChrome = !!user?.active && !!user?.tenantId;

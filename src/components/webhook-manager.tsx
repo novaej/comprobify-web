@@ -20,7 +20,7 @@ const ALL_EVENT_TYPES = [
 ] as const;
 
 interface WebhookRow {
-  id: number;
+  id: string;
   url: string;
   eventTypes: string[];
   active: boolean;
@@ -32,7 +32,7 @@ export type CanonicalAvailability = 'available' | 'not_configured' | 'invalid_ur
 interface WebhookManagerProps {
   endpoints: WebhookRow[];
   canonicalAvailability: CanonicalAvailability;
-  canonicalEndpointId: number | null;
+  canonicalEndpointId: string | null;
 }
 
 export function WebhookManager({ endpoints: initial, canonicalAvailability, canonicalEndpointId }: WebhookManagerProps) {
@@ -41,7 +41,7 @@ export function WebhookManager({ endpoints: initial, canonicalAvailability, cano
   const format = useFormatter();
   const [isPending, startTransition] = useTransition();
   const [endpoints, setEndpoints] = useState<WebhookRow[]>(initial);
-  const [canonicalId, setCanonicalId] = useState<number | null>(canonicalEndpointId);
+  const [canonicalId, setCanonicalId] = useState<string | null>(canonicalEndpointId);
   const [showForm, setShowForm] = useState(false);
   const [url, setUrl] = useState('');
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]); // empty = all
@@ -100,7 +100,7 @@ export function WebhookManager({ endpoints: initial, canonicalAvailability, cano
     });
   }
 
-  function handleDelete(id: number) {
+  function handleDelete(id: string) {
     if (!confirm(t('confirmDelete'))) return;
     startTransition(async () => {
       const result = await deleteWebhookAction(id);

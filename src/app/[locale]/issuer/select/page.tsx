@@ -16,7 +16,7 @@ export default async function IssuerSelectPage({
   const t = await getTranslations('issuerSelect');
 
   const isOwnerOrAdmin = ctx.user.role === 'Owner' || ctx.user.role === 'Admin';
-  let issuerIds: number[] | null = null;
+  let issuerIds: string[] | null = null;
   if (!isOwnerOrAdmin) {
     const access = await db.userIssuerAccess.findMany({
       where: { tenantId: ctx.tenant.id, userId: ctx.user.id },

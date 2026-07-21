@@ -4,9 +4,10 @@ import { auth } from '@/auth';
 import { db } from '@/lib/db';
 import { getLocale } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
+import { isUuid } from '@/lib/utils';
 
 export interface AdminContext {
-  user: { id: number; email: string };
+  user: { id: string; email: string };
 }
 
 /**
@@ -18,13 +19,13 @@ export async function requireSuperAdmin(): Promise<AdminContext> {
   const locale = await getLocale();
 
   const session = await auth();
-  if (!session?.user?.id) {
+  if (!session?.user?.id || !isUuid(session.user.id)) {
     redirect({ href: '/login', locale });
     return null as never;
   }
 
   const user = await db.user.findUnique({
-    where: { id: Number(session.user.id) },
+    where: { id: session.user.id },
     select: { id: true, email: true, isSuperAdmin: true },
   });
 

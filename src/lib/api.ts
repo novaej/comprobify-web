@@ -13,13 +13,16 @@ import { ApiError, ProblemDetails } from './errors';
 //         back to what is literally returned — do not infer from function names.
 //    Past bugs were 100% caused by interfaces written against assumed shapes.
 //
-// 2. ID FIELDS ARE ALWAYS JSON STRINGS (bigint-as-string trap).
-//    PostgreSQL BIGSERIAL/BIGINT columns are serialized as JS strings by pg,
-//    then sent as JSON strings by Express. Every `id` from the API arrives as
-//    the string "42", not the number 42. Consequences:
-//      • Type id fields as `string` in interfaces (e.g. `id: string`).
-//      • Apply Number(record.id) at every Prisma Int write site.
-//    Forgetting this produces a Prisma type error or a silent NaN in the DB.
+// 2. EVERY API ID IS A UUID STRING.
+//    The Comprobify API is UUID-keyed throughout — every table is
+//    `id UUID PRIMARY KEY DEFAULT uuid_generate_v7()` (see its
+//    db/migrations/001_create_issuers.sql, 023_create_api_keys.sql,
+//    035_tenants.sql, 052_subscriptions_and_payments.sql). Consequences:
+//      • Type every id field and id parameter as `string`.
+//      • NEVER apply Number() to an API id — it yields NaN, which Prisma
+//        rejects and which surfaces as an opaque "internal error" to the user.
+//    The local mirror columns (Tenant.apiTenantId, TenantApiKey.apiKeyId,
+//    Issuer.apiIssuerId, Notification.issuerId) are @db.Uuid for this reason.
 //
 // 3. POST RESPONSES OFTEN OMIT THE RECORD ID.
 //    Several endpoints return only a token or minimal payload on creation. If
@@ -36,7 +39,7 @@ import { ApiError, ProblemDetails } from './errors';
 
 export interface ApiCtx {
   apiKey: string;
-  issuerId?: number; // API-side issuer id; added as X-Issuer-Id when present
+  issuerId?: string; // API-side issuer id (UUID); added as X-Issuer-Id when present
 }
 
 // ── Document types ────────────────────────────────────────────────────────────
@@ -86,7 +89,7 @@ export interface Document {
 }
 
 export interface DocumentEvent {
-  id: number;
+  id: string;
   eventType: string;
   fromStatus: string | null;
   toStatus: string | null;
@@ -249,7 +252,7 @@ export type CreateDocumentPayload = CreateInvoicePayload | CreateCreditNotePaylo
 
 // Verified against: ../comprobify/src/services/issuer.service.js → listIssuers()
 export interface ApiIssuer {
-  id: string;           // bigint → serialized as string by pg/JSON
+  id: string;           // uuid
   ruc: string;
   businessName: string;
   tradeName: string | null;
@@ -262,7 +265,7 @@ export interface ApiIssuer {
 
 // Verified against: ../comprobify/src/validators/issuer.validator.js → createBranch
 export interface CreateIssuerFields {
-  sourceIssuerId?: number;
+  sourceIssuerId?: string;
   branchCode: string;
   issuePointCode: string;
   branchAddress?: string;
@@ -289,9 +292,9 @@ export interface ApiKeyInfo {
   revokedAt: string | null;
 }
 
-// Normalized shape returned by createTenantApiKey (id already coerced to number).
+// Normalized shape returned by createTenantApiKey.
 export interface CreatedApiKey {
-  id: number;
+  id: string;
   label: string;
   environment: string;
   key: string;
@@ -583,7 +586,7 @@ export async function createIssuer(
 // Verified against: ../comprobify/src/controllers/issuer.controller.js → updateIssuer
 export async function updateIssuer(
   ctx: ApiCtx,
-  issuerId: number,
+  issuerId: string,
   fields: { tradeName?: string; branchAddress?: string },
 ): Promise<ApiIssuer> {
   const result = await request<{ ok: true; issuer: ApiIssuer }>(
@@ -595,17 +598,17 @@ export async function updateIssuer(
 }
 
 // Verified against: ../comprobify/src/controllers/issuer.controller.js → removeIssuer
-export async function removeIssuer(ctx: ApiCtx, issuerId: number): Promise<void> {
+export async function removeIssuer(ctx: ApiCtx, issuerId: string): Promise<void> {
   await request(`/v1/issuers/${issuerId}`, { apiKey: ctx.apiKey }, { method: 'DELETE' });
 }
 
 // Verified against: ../comprobify/src/controllers/issuer.controller.js → activateIssuer
-export async function activateIssuer(ctx: ApiCtx, issuerId: number): Promise<void> {
+export async function activateIssuer(ctx: ApiCtx, issuerId: string): Promise<void> {
   await request(`/v1/issuers/${issuerId}/activate`, { apiKey: ctx.apiKey }, { method: 'PATCH' });
 }
 
 // Verified against: ../comprobify/src/services/sequential.service.js → getCounters()
-export async function getIssuerSequentials(ctx: ApiCtx, issuerId: number): Promise<ApiIssuerSequential[]> {
+export async function getIssuerSequentials(ctx: ApiCtx, issuerId: string): Promise<ApiIssuerSequential[]> {
   const result = await request<{ ok: true; sequentials: ApiIssuerSequential[] }>(
     `/v1/issuers/${issuerId}/sequentials`,
     { apiKey: ctx.apiKey },
@@ -616,7 +619,7 @@ export async function getIssuerSequentials(ctx: ApiCtx, issuerId: number): Promi
 // Verified against: ../comprobify/src/services/sequential.service.js → setNext()
 export async function setIssuerSequential(
   ctx: ApiCtx,
-  issuerId: number,
+  issuerId: string,
   documentType: string,
   environment: 'sandbox' | 'production',
   nextSequential: number,
@@ -628,7 +631,7 @@ export async function setIssuerSequential(
   );
 }
 
-export async function listIssuerDocumentTypes(ctx: ApiCtx, issuerId: number): Promise<string[]> {
+export async function listIssuerDocumentTypes(ctx: ApiCtx, issuerId: string): Promise<string[]> {
   const result = await request<{ ok: true; documentTypes: string[] }>(
     `/v1/issuers/${issuerId}/document-types`,
     { apiKey: ctx.apiKey },
@@ -640,7 +643,7 @@ export async function listIssuerDocumentTypes(ctx: ApiCtx, issuerId: number): Pr
 // (body field is `documentType`, not `code` — see CLAUDE.md Common Mistake #17).
 export async function addIssuerDocumentType(
   ctx: ApiCtx,
-  issuerId: number,
+  issuerId: string,
   code: string,
 ): Promise<void> {
   await request(
@@ -652,7 +655,7 @@ export async function addIssuerDocumentType(
 
 export async function removeIssuerDocumentType(
   ctx: ApiCtx,
-  issuerId: number,
+  issuerId: string,
   code: string,
 ): Promise<void> {
   await request(
@@ -667,7 +670,7 @@ export async function removeIssuerDocumentType(
 // 500KB limit, PNG/JPEG/GIF only). Returns { ok: true } with no body data.
 export async function uploadIssuerLogo(
   ctx: ApiCtx,
-  issuerId: number,
+  issuerId: string,
   logo: Buffer,
   mimeType: string,
 ): Promise<void> {
@@ -692,7 +695,7 @@ export async function uploadIssuerLogo(
 // { ok: true, certFingerprint, certExpiry } — certExpiry is an ISO date string.
 export async function renewIssuerCertificate(
   ctx: ApiCtx,
-  issuerId: number,
+  issuerId: string,
   p12: Buffer,
   p12Password?: string,
 ): Promise<{ certFingerprint: string; certExpiry: string }> {
@@ -808,13 +811,13 @@ export interface PromoteTenantResult {
   apiKeys: Array<{ label: string; apiKey: string }>;
   // Only present when `tier` was supplied in the request.
   subscription?: {
-    id: number;
+    id: string;
     tier: 'STARTER' | 'GROWTH' | 'BUSINESS';
     status: string;
     billing_interval: 'MONTHLY' | 'YEARLY';
   };
   payment?: {
-    id: number;
+    id: string;
     status: string;
     amount: string; // numeric column → serialized as string by pg/JSON
   };
@@ -823,7 +826,7 @@ export interface PromoteTenantResult {
 
 export async function promoteTenant(
   ctx: ApiCtx,
-  initialSequentials?: Array<{ issuerId: number; documentType: string; sequential: number }>,
+  initialSequentials?: Array<{ issuerId: string; documentType: string; sequential: number }>,
   tier?: 'STARTER' | 'GROWTH' | 'BUSINESS',
   billingInterval?: 'MONTHLY' | 'YEARLY',
 ): Promise<PromoteTenantResult> {
@@ -853,8 +856,8 @@ export async function promoteTenant(
 // Old payments (before 065) have iva_rate/iva_amount/total_amount = null; in that
 // case amount itself was the all-in total — use total_amount ?? amount for display.
 export interface ApiPaymentInfo {
-  id: number;
-  subscription_id?: number;
+  id: string;
+  subscription_id?: string;
   status: 'PENDING' | 'REPORTED' | 'VERIFIED' | 'REJECTED' | 'REFUNDED';
   amount: string;            // base imponible; numeric → string by pg/JSON
   iva_rate?: number | null;
@@ -887,15 +890,15 @@ export interface ApiPaymentProof {
 // period elapsed unpaid, tenant auto-downgraded to FREE — migration 056) both occur in
 // practice; SUSPENDED is schema-allowed but not yet set by any service code.
 export interface ApiSubscriptionInfo {
-  id: number;
-  tenant_id: number;
+  id: string;
+  tenant_id: string;
   tier: 'STARTER' | 'GROWTH' | 'BUSINESS';
   billing_interval: 'MONTHLY' | 'YEARLY';
   status: 'PENDING_PAYMENT' | 'PAYMENT_RECEIVED' | 'INVOICE_PROCESSING' | 'ACTIVE' | 'EXPIRED' | 'SUSPENDED' | 'CANCELLED';
   // 'FREE' means a cancellation is scheduled (applyScheduledTierChanges drops the tenant
   // to FREE and closes the subscription at period end) — added in API commit 161803a.
   pending_tier?: 'FREE' | 'STARTER' | 'GROWTH' | 'BUSINESS' | null;
-  invoice_document_id: number | null;
+  invoice_document_id: string | null;
   current_period_start: string | null;
   current_period_end: string | null;
   created_at: string;
@@ -922,7 +925,7 @@ export async function getMySubscriptions(ctx: ApiCtx): Promise<ApiSubscriptionIn
 export interface ChangeTierResult {
   ok: true;
   subscription: {
-    id: number;
+    id: string;
     tier: 'STARTER' | 'GROWTH' | 'BUSINESS';
     status?: string;
     billing_interval?: 'MONTHLY' | 'YEARLY';
@@ -976,7 +979,7 @@ export async function cancelSubscription(ctx: ApiCtx): Promise<CancelSubscriptio
 // prorate against yet).
 export interface CreateSubscriptionResult {
   ok: true;
-  subscription: { id: number; tier: 'STARTER' | 'GROWTH' | 'BUSINESS'; status: string; billing_interval: 'MONTHLY' | 'YEARLY' };
+  subscription: { id: string; tier: 'STARTER' | 'GROWTH' | 'BUSINESS'; status: string; billing_interval: 'MONTHLY' | 'YEARLY' };
   payment: ApiPaymentInfo;
   bankTransfer: ApiBankTransferInfo;
 }
@@ -1000,7 +1003,7 @@ export async function createSubscription(
 // Returns only the proofs uploaded in this request; call listPaymentProofs for the full set.
 export async function submitPaymentProof(
   ctx: ApiCtx,
-  paymentId: number,
+  paymentId: string,
   files: Array<{ buffer: Buffer; mimeType: string; filename: string }>,
   referenceNumber: string,
 ): Promise<{ payment: ApiPaymentInfo; proofs: ApiPaymentProof[] }> {
@@ -1029,7 +1032,7 @@ export async function submitPaymentProof(
 
 // Verified against: ../comprobify/src/controllers/payment.controller.js → listProofs()
 // Returns only active (non-deleted) proofs; call after upload/delete to refresh the list.
-export async function listPaymentProofs(ctx: ApiCtx, paymentId: number): Promise<ApiPaymentProof[]> {
+export async function listPaymentProofs(ctx: ApiCtx, paymentId: string): Promise<ApiPaymentProof[]> {
   const result = await request<{ ok: true; proofs: ApiPaymentProof[] }>(
     `/v1/payments/${paymentId}/proofs`,
     { apiKey: ctx.apiKey },
@@ -1039,7 +1042,7 @@ export async function listPaymentProofs(ctx: ApiCtx, paymentId: number): Promise
 
 // Verified against: ../comprobify/src/controllers/payment.controller.js → deleteProof()
 // Soft-delete — admin can still see the file; blocked once payment is VERIFIED.
-export async function deletePaymentProof(ctx: ApiCtx, paymentId: number, proofId: string): Promise<void> {
+export async function deletePaymentProof(ctx: ApiCtx, paymentId: string, proofId: string): Promise<void> {
   const res = await fetch(`${getApiUrl()}/v1/payments/${paymentId}/proofs/${proofId}`, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${ctx.apiKey}` },
@@ -1092,14 +1095,14 @@ export async function createTenantApiKey(
   if (!keyRecord) throw new Error('KEY_METADATA_MISSING');
 
   return {
-    id: Number(keyRecord.id),
+    id: keyRecord.id,
     label: keyRecord.label ?? label,
     environment: keyRecord.environment,
     key: plainKey,
   };
 }
 
-export async function revokeTenantApiKey(ctx: ApiCtx, id: number): Promise<void> {
+export async function revokeTenantApiKey(ctx: ApiCtx, id: string): Promise<void> {
   await request(
     `/v1/keys/${id}`,
     { apiKey: ctx.apiKey },

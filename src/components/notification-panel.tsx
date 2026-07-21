@@ -13,7 +13,7 @@ type Notification = Awaited<ReturnType<typeof listNotificationsAction>>['notific
 interface NotificationPanelProps {
   notifications: Notification[];
   isLoading: boolean;
-  onMarkRead: (id: number) => void;
+  onMarkRead: (id: string) => void;
   onClose: () => void;
   panelRef: RefObject<HTMLDivElement | null>;
   style: CSSProperties;

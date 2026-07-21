@@ -26,9 +26,9 @@ export function AdminTenantManager({ tenants }: { tenants: AdminTenant[] }) {
   const tPricing = useTranslations('pricing');
   const tError = useTranslations('apiError');
   const [isPending, startTransition] = useTransition();
-  const [pendingId, setPendingId] = useState<number | null>(null);
+  const [pendingId, setPendingId] = useState<string | null>(null);
 
-  function handleTierChange(id: number, tier: string) {
+  function handleTierChange(id: string, tier: string) {
     setPendingId(id);
     startTransition(async () => {
       const result = await updateTenantTierAction(id, tier);
@@ -38,7 +38,7 @@ export function AdminTenantManager({ tenants }: { tenants: AdminTenant[] }) {
     });
   }
 
-  function handleStatusChange(id: number, currentStatus: string, newStatus: string) {
+  function handleStatusChange(id: string, currentStatus: string, newStatus: string) {
     setPendingId(id);
     startTransition(async () => {
       // Use the dedicated verify endpoint when approving a pending tenant.
@@ -52,7 +52,7 @@ export function AdminTenantManager({ tenants }: { tenants: AdminTenant[] }) {
     });
   }
 
-  function handleVerify(id: number) {
+  function handleVerify(id: string) {
     setPendingId(id);
     startTransition(async () => {
       const result = await verifyTenantAction(id);
@@ -79,7 +79,7 @@ export function AdminTenantManager({ tenants }: { tenants: AdminTenant[] }) {
         </TableHeader>
         <TableBody>
           {tenants.map((tenant) => {
-            const id = Number(tenant.id);
+            const id = tenant.id;
             const rowPending = isPending && pendingId === id;
             const triggerClass = STATUS_TRIGGER[tenant.status] ?? '';
             return (

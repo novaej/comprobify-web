@@ -6,7 +6,7 @@ import { selectIssuerAndRedirectAction } from '@/app/actions/context';
 import { Building2 } from 'lucide-react';
 
 interface Issuer {
-  id: number;
+  id: string;
   branchCode: string;
   issuePointCode: string;
   businessName: string;

@@ -1,6 +1,7 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
+import { isUuid } from '@/lib/utils';
 import { LoginForm } from '@/components/login-form';
 import { Link, redirect } from '@/i18n/navigation';
 import { LocaleSwitcher } from '@/components/locale-switcher';
@@ -19,9 +20,9 @@ export default async function LoginPage({
   setRequestLocale(locale);
 
   const session = await auth();
-  if (session) {
+  if (session && isUuid(session.user.id)) {
     const user = await db.user.findUnique({
-      where: { id: Number(session.user.id) },
+      where: { id: session.user.id },
       select: { id: true, active: true },
     });
     // Only redirect active users to dashboard. Disabled users arrive here from the

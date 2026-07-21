@@ -30,7 +30,7 @@ interface WebhookPayload {
   event: string;
   deliveryId: number;
   timestamp: number;
-  tenantId: number;
+  tenantId: string;
   data: {
     id: string;
     type: string;
@@ -129,7 +129,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   //    produces the same row state, which satisfies the idempotency requirement.
 
   // 5. Upsert Notification by (tenantId, apiNotificationId).
-  let notificationId: number;
+  let notificationId: string;
   try {
     const notification = await db.notification.upsert({
       where: {
@@ -146,7 +146,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         title: data.title,
         message: data.message,
         metadata: toJson(data.metadata),
-        issuerId: data.issuerId ? Number(data.issuerId) : null,
+        issuerId: data.issuerId ?? null,
         apiReadAt: data.readAt ? new Date(data.readAt) : null,
         expiresAt: data.expiresAt ? new Date(data.expiresAt) : null,
         apiCreatedAt: new Date(data.createdAt),
@@ -169,7 +169,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     // 6. Fan out NotificationRead rows to all eligible users who don't yet have one.
     //    Eligible = Owner/Admin (all notifications) + users with access to the
     //    specific issuer when issuerId is set.
-    await fanOutReads(tenant.id, notificationId, notification.issuerId, notification.reads.map((r: { userId: number }) => r.userId));
+    await fanOutReads(tenant.id, notificationId, notification.issuerId, notification.reads.map((r: { userId: string }) => r.userId));
   } catch (err) {
     console.error('[webhook] upsert error', err);
     return new Response('Internal error', { status: 500 });
@@ -181,13 +181,14 @@ export async function POST(request: NextRequest): Promise<Response> {
 }
 
 async function fanOutReads(
-  tenantId: number,
-  notificationId: number,
-  issuerId: number | null,
-  alreadyReadUserIds: number[],
+  tenantId: string,
+  notificationId: string,
+  /** API-side issuer id (BIGSERIAL), not a local Issuer.id — see Common Mistake #20. */
+  issuerId: string | null,
+  alreadyReadUserIds: string[],
 ): Promise<void> {
   // Find all eligible users who haven't read this notification yet.
-  let eligibleUserIds: number[];
+  let eligibleUserIds: string[];
 
   if (issuerId === null) {
     // Tenant-level notification → all active users in the tenant.
@@ -202,10 +203,18 @@ async function fanOutReads(
       where: { tenantId, role: { in: ['Owner', 'Admin'] }, inviteStatus: 'ACTIVE' },
       select: { id: true },
     });
-    const accessUsers = await db.userIssuerAccess.findMany({
-      where: { tenantId, issuerId },
-      select: { userId: true },
+    // UserIssuerAccess.issuerId is the local UUID FK, so the API-side issuerId
+    // has to be resolved through Issuer.apiIssuerId before it can be matched.
+    const localIssuer = await db.issuer.findFirst({
+      where: { tenantId, apiIssuerId: issuerId },
+      select: { id: true },
     });
+    const accessUsers = localIssuer
+      ? await db.userIssuerAccess.findMany({
+          where: { tenantId, issuerId: localIssuer.id },
+          select: { userId: true },
+        })
+      : [];
     const adminIds = adminUsers.map((u) => u.id);
     const accessIds = accessUsers.map((a) => a.userId);
     eligibleUserIds = [...new Set([...adminIds, ...accessIds])];

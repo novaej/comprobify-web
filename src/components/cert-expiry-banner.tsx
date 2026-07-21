@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { markNotificationReadAction } from '@/app/actions/notifications';
 
 interface CertAlertProps {
-  id: number;
+  id: string;
   type: 'CERT_EXPIRING' | 'CERT_EXPIRED';
   title: string;
   message: string;

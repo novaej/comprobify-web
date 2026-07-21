@@ -555,7 +555,7 @@
       "docType07": "Comprobante de retención",
       "submit": "Activar entorno de pruebas",
       "submitting": "Configurando...",
-      "agreementNotice": "Al crear tu cuenta aceptarás los Términos de Servicio, la Política de Privacidad y el Acuerdo de Procesamiento de Datos de Comprobify. Podrás revisarlos en detalle en el siguiente paso."
+      "agreementNotice": "En el siguiente paso te pediremos revisar y aceptar los Términos de Servicio, la Política de Privacidad y el Acuerdo de Procesamiento de Datos de Comprobify."
     },
     "environment": {
       "title": "Ambiente",

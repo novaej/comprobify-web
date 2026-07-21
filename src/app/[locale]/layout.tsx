@@ -13,6 +13,7 @@ import { NotificationSync } from '@/components/notification-sync';
 import { TopBar } from '@/components/top-bar';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
+import { isUuid } from '@/lib/utils';
 import type { Role } from '@/lib/rbac';
 import { readCtxCookie } from '@/lib/context-cookie';
 import type { listNotificationsAction } from '@/app/actions/notifications';
@@ -26,7 +27,7 @@ const BILLING_NOTIFICATION_TYPES = [
 ];
 
 interface CertAlertProps {
-  id: number;
+  id: string;
   type: 'CERT_EXPIRING' | 'CERT_EXPIRED';
   title: string;
   message: string;
@@ -37,8 +38,8 @@ interface LayoutProps {
   environment: 'sandbox' | 'production';
   isSuspended: boolean;
   tenantName: string | null;
-  currentIssuer: { id: number; apiIssuerId: number; name: string; branchCode: string; issuePointCode: string } | null;
-  issuers: Array<{ id: number; apiIssuerId: number; name: string; branchCode: string; issuePointCode: string }>;
+  currentIssuer: { id: string; apiIssuerId: string; name: string; branchCode: string; issuePointCode: string } | null;
+  issuers: Array<{ id: string; apiIssuerId: string; name: string; branchCode: string; issuePointCode: string }>;
   userEmail: string;
   userFirstName: string | null;
   userLastName: string | null;
@@ -50,10 +51,8 @@ interface LayoutProps {
 }
 
 async function getLayoutProps(userId: string): Promise<LayoutProps | null> {
-  const userNum = Number(userId);
-
   const user = await db.user.findUnique({
-    where: { id: userNum },
+    where: { id: userId },
     select: {
       email: true,
       firstName: true,
@@ -96,7 +95,7 @@ async function getLayoutProps(userId: string): Promise<LayoutProps | null> {
   let noIssuerAssigned = false;
   if (!isOwnerOrAdmin) {
     const userAccess = await db.userIssuerAccess.findMany({
-      where: { tenantId: user.tenant.id, userId: userNum },
+      where: { tenantId: user.tenant.id, userId: userId },
       select: { issuerId: true },
     });
     if (userAccess.length === 0) {
@@ -128,15 +127,16 @@ async function getLayoutProps(userId: string): Promise<LayoutProps | null> {
       orderBy: { apiCreatedAt: 'desc' as const },
       take: 20,
       include: {
-        reads: { where: { userId: userNum }, select: { userId: true } },
+        reads: { where: { userId: userId }, select: { userId: true } },
       },
     })
     .catch(() => [] as Array<{
-      id: number; tenantId: number; apiNotificationId: string;
+      id: string; tenantId: string; apiNotificationId: string;
       type: string; severity: string; title: string; message: string;
-      metadata: unknown; issuerId: number | null;
+      // issuerId stays a number here: it is the API-side issuer id, not a local FK.
+      metadata: unknown; issuerId: string | null;
       apiReadAt: Date | null; expiresAt: Date | null; apiCreatedAt: Date; syncedAt: Date;
-      reads: Array<{ userId: number }>;
+      reads: Array<{ userId: string }>;
     }>);
 
   const mappedNotifications: NotificationItem[] = notifications.map((n) => ({
@@ -215,7 +215,8 @@ export default async function LocaleLayout({
   const [messages, session] = await Promise.all([getMessages(), auth()]);
   const isAuthenticated = !!session;
 
-  const layoutProps = isAuthenticated ? await getLayoutProps(session.user.id) : null;
+  const layoutProps =
+    isAuthenticated && isUuid(session.user.id) ? await getLayoutProps(session.user.id) : null;
 
   return (
     <NextIntlClientProvider messages={messages}>

@@ -88,7 +88,7 @@ function buildCreateDocumentPayload(data: InvoiceFormData): CreateInvoicePayload
 // detail page's InvoiceActions auto-resumes polling for PENDING_SEND on mount,
 // and falls back to a recovery Send button if queuing failed or was skipped.
 async function sendAfterSigningIfRequested(
-  apiCtx: { apiKey: string; issuerId: number },
+  apiCtx: { apiKey: string; issuerId: string },
   accessKey: string,
   sendAfterSigning: boolean
 ): Promise<void> {

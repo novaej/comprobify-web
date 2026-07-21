@@ -5,7 +5,7 @@ import { requirePermission } from '@/lib/context';
 import { revalidatePath } from 'next/cache';
 
 export type CatalogProduct = {
-  id: number;
+  id: string;
   mainCode: string;
   auxCode: string | null;
   description: string;
@@ -23,7 +23,7 @@ export type CatalogProductInput = {
 
 export type CatalogResult = { error: string } | null;
 
-async function requireTenantId(): Promise<number> {
+async function requireTenantId(): Promise<string> {
   const ctx = await requirePermission('catalog.manage', { skipIssuer: true });
   return ctx.tenant.id;
 }
@@ -54,7 +54,7 @@ export async function createProductAction(input: CatalogProductInput): Promise<C
   return null;
 }
 
-export async function updateProductAction(id: number, input: CatalogProductInput): Promise<CatalogResult> {
+export async function updateProductAction(id: string, input: CatalogProductInput): Promise<CatalogResult> {
   const tenantId = await requireTenantId();
   await db.product.updateMany({
     where: { id, tenantId },
@@ -70,7 +70,7 @@ export async function updateProductAction(id: number, input: CatalogProductInput
   return null;
 }
 
-export async function deleteProductAction(id: number): Promise<CatalogResult> {
+export async function deleteProductAction(id: string): Promise<CatalogResult> {
   const tenantId = await requireTenantId();
   await db.product.deleteMany({ where: { id, tenantId } });
   revalidatePath('/catalog');

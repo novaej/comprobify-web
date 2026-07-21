@@ -43,7 +43,7 @@ export async function createBranchAction(formData: FormData): Promise<IssuersRes
 
   const sourceLocalIssuerId = (formData.get('sourceLocalIssuerId') as string | null)?.trim();
   const sourceIssuer = sourceLocalIssuerId
-    ? await db.issuer.findFirst({ where: { id: Number(sourceLocalIssuerId), tenantId: ctx.tenant.id, active: true } })
+    ? await db.issuer.findFirst({ where: { id: sourceLocalIssuerId, tenantId: ctx.tenant.id, active: true } })
     : await db.issuer.findFirst({
         where: { tenantId: ctx.tenant.id, active: true },
         orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
@@ -86,7 +86,7 @@ export async function createBranchAction(formData: FormData): Promise<IssuersRes
   await db.issuer.create({
     data: {
       tenantId: ctx.tenant.id,
-      apiIssuerId: Number(apiIssuer.id), // API returns bigint as JSON string
+      apiIssuerId: apiIssuer.id, // API ids are UUID strings — never Number() them
       branchCode: apiIssuer.branchCode,
       issuePointCode: apiIssuer.issuePointCode,
       businessName: apiIssuer.businessName,
@@ -102,7 +102,7 @@ export async function createBranchAction(formData: FormData): Promise<IssuersRes
 }
 
 export async function updateIssuerAction(
-  issuerId: number,
+  issuerId: string,
   fields: { tradeName?: string; branchAddress?: string },
 ): Promise<IssuersResult> {
   const ctx = await requirePermission('issuers.manage', { skipIssuer: true });
@@ -134,7 +134,7 @@ export async function updateIssuerAction(
  * ISSUER_HAS_DOCUMENTS) — this just surfaces those codes, then mirrors the
  * deactivation locally and re-points isDefault if the removed issuer held it.
  */
-export async function removeIssuerAction(issuerId: number): Promise<IssuersResult> {
+export async function removeIssuerAction(issuerId: string): Promise<IssuersResult> {
   const ctx = await requirePermission('issuers.manage', { skipIssuer: true });
 
   const issuer = await db.issuer.findUnique({ where: { id: issuerId } });
@@ -170,7 +170,7 @@ export async function removeIssuerAction(issuerId: number): Promise<IssuersResul
  * ISSUE_POINT_LIMIT_REACHED), so this can fail if the tenant is currently at
  * or over their plan's cap.
  */
-export async function activateIssuerAction(issuerId: number): Promise<IssuersResult> {
+export async function activateIssuerAction(issuerId: string): Promise<IssuersResult> {
   const ctx = await requirePermission('issuers.manage', { skipIssuer: true });
 
   const issuer = await db.issuer.findUnique({ where: { id: issuerId } });
@@ -191,7 +191,7 @@ export async function activateIssuerAction(issuerId: number): Promise<IssuersRes
 }
 
 export async function getIssuerSequentialsAction(
-  issuerId: number,
+  issuerId: string,
 ): Promise<{ sequentials: ApiIssuerSequential[] } | { error: string }> {
   const ctx = await requirePermission('issuers.manage', { skipIssuer: true });
 
@@ -208,7 +208,7 @@ export async function getIssuerSequentialsAction(
 }
 
 export async function setIssuerSequentialAction(
-  issuerId: number,
+  issuerId: string,
   documentType: string,
   environment: 'sandbox' | 'production',
   nextSequential: number,
@@ -229,7 +229,7 @@ export async function setIssuerSequentialAction(
   return null;
 }
 
-export async function addDocumentTypeAction(issuerId: number, code: string): Promise<IssuersResult> {
+export async function addDocumentTypeAction(issuerId: string, code: string): Promise<IssuersResult> {
   const ctx = await requirePermission('issuers.manage', { skipIssuer: true });
 
   const issuer = await db.issuer.findUnique({ where: { id: issuerId } });
@@ -246,7 +246,7 @@ export async function addDocumentTypeAction(issuerId: number, code: string): Pro
   return null;
 }
 
-export async function removeDocumentTypeAction(issuerId: number, code: string): Promise<IssuersResult> {
+export async function removeDocumentTypeAction(issuerId: string, code: string): Promise<IssuersResult> {
   const ctx = await requirePermission('issuers.manage', { skipIssuer: true });
 
   const issuer = await db.issuer.findUnique({ where: { id: issuerId } });
@@ -263,7 +263,7 @@ export async function removeDocumentTypeAction(issuerId: number, code: string): 
   return null;
 }
 
-export async function updateIssuerLogoAction(issuerId: number, formData: FormData): Promise<IssuersResult> {
+export async function updateIssuerLogoAction(issuerId: string, formData: FormData): Promise<IssuersResult> {
   const ctx = await requirePermission('issuers.manage', { skipIssuer: true });
 
   const issuer = await db.issuer.findUnique({ where: { id: issuerId } });
@@ -286,7 +286,7 @@ export async function updateIssuerLogoAction(issuerId: number, formData: FormDat
   return null;
 }
 
-export async function renewIssuerCertificateAction(issuerId: number, formData: FormData): Promise<IssuersResult> {
+export async function renewIssuerCertificateAction(issuerId: string, formData: FormData): Promise<IssuersResult> {
   const ctx = await requirePermission('issuers.manage', { skipIssuer: true });
 
   const issuer = await db.issuer.findUnique({ where: { id: issuerId } });

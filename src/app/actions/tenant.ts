@@ -33,7 +33,7 @@ export async function updateTenantAction(data: {
 }
 
 export async function promoteTenantAction(
-  initialSequentials: { issuerId: number; documentType: string; sequential: number }[] = [],
+  initialSequentials: { issuerId: string; documentType: string; sequential: number }[] = [],
   tier?: PaidTier,
   billingInterval?: BillingInterval,
 ): Promise<TenantResult> {
@@ -53,11 +53,11 @@ export async function promoteTenantAction(
 
   // The promote endpoint returns { label, apiKey } but no key ID.
   // Fetch all active keys using one of the new production tokens to get the IDs.
-  let keyIdByLabel: Record<string, number> = {};
+  let keyIdByLabel: Record<string, string> = {};
   if (result.apiKeys.length > 0) {
     const listedKeys = await listTenantApiKeys({ apiKey: result.apiKeys[0].apiKey }).catch(() => []);
     for (const k of listedKeys) {
-      if (k.label) keyIdByLabel[k.label] = Number(k.id);
+      if (k.label) keyIdByLabel[k.label] = k.id;
     }
   }
 
