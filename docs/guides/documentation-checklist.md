@@ -68,8 +68,8 @@ When making changes to `comprobify-web`, update the corresponding documentation 
 - [ ] Route confirmed in `../comprobify/src/routes/` (method + path)
 - [ ] Response shape read from the controller's `res.json()` call
 - [ ] Every interface field traced to the service/presenter return statement
-- [ ] `id` and all `*_id` fields typed as `string` (PostgreSQL `BIGSERIAL` → JSON string)
-- [ ] `Number(record.id)` applied at every Prisma `Int` write site
+- [ ] `id` and all `*_id` fields typed as `string` (the API is UUID-keyed throughout)
+- [ ] No `Number()` applied to any API id — it yields `NaN` (see ADR-007)
 - [ ] Field names match exactly (e.g. `active` not `isActive`, `apiKey` not `key`)
 - [ ] If `POST` omits `id`: follow-up `GET` implemented to retrieve metadata
 - [ ] Function is in `src/lib/api.ts` (never called from client components)
