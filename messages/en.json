@@ -60,7 +60,8 @@
       "submitting": "Signing in...",
       "noAccount": "Don't have an account?",
       "register": "Register",
-      "accountDisabled": "Your account has been disabled by an administrator. Contact your administrator to regain access."
+      "accountDisabled": "Your account has been disabled by an administrator. Contact your administrator to regain access.",
+      "lostApiKey": "Lost your API key?"
     },
     "register": {
       "subtitle": "Create your account",
@@ -86,6 +87,26 @@
   },
   "completeRegistrationError": {
     "INVALID_OR_EXPIRED_INVITE": "This invitation link is no longer valid. Ask your administrator to re-invite you."
+  },
+  "recoverAccount": {
+    "subtitle": "Recover access to your API key",
+    "backToLogin": "Back to sign in",
+    "description": "If you lost your API key, upload the same P12 certificate you used to register along with your email. If they match an existing account, a new key will be issued.",
+    "fields": {
+      "email": "Email address",
+      "certFile": ".p12 file",
+      "certPassword": "Certificate password"
+    },
+    "submit": "Recover access",
+    "submitting": "Checking...",
+    "genericMessage": "If that email and certificate match an existing account, a new key has been issued. If nothing changes, double-check the email and certificate are exactly what you used to register.",
+    "linkedMessage": "Your API key has been refreshed. Sign in to keep using the app normally.",
+    "unlinkedTitle": "API key recovered",
+    "unlinkedInstructions": "This account isn't linked to a user of this app yet. Sign in (or create an account) and use the \"Link existing account\" tab when setting up your company, pasting this key.",
+    "showOnce": "This key is only shown once. Save it somewhere safe.",
+    "show": "Show",
+    "hide": "Hide",
+    "copy": "Copy"
   },
   "sandbox": {
     "banner": "You are in sandbox mode — documents are sent to the SRI test environment.",
@@ -628,7 +649,7 @@
     "NOT_FOUND": "The requested resource does not exist.",
     "FORBIDDEN": "You do not have permission to perform this action.",
     "UNAUTHORIZED": "Unauthorized. Please verify your API key is valid.",
-    "CONFLICT": "The operation caused a conflict. Please try again.",
+    "CONFLICT": "A record with that data already exists (RUC or email). If you already registered before, use the account recovery page.",
     "TOO_MANY_REQUESTS": "Too many requests. Please try again in a moment.",
     "QUOTA_EXCEEDED": "Monthly document quota reached. Please upgrade your plan.",
     "INTERNAL_ERROR": "Internal server error. Please contact support.",
@@ -673,6 +694,7 @@
     "CERT_REQUIRED": "Please upload your P12 certificate.",
     "TENANT_ALREADY_EXISTS": "A company is already registered for this user.",
     "API_KEY_REQUIRED": "Please enter your API key.",
+    "EMAIL_REQUIRED": "Please enter your email address.",
     "NO_ISSUERS_FOUND": "That account has no active issuers. Check your API key and try again.",
     "TENANT_ALREADY_LINKED": "That API account has already been linked by another user. Ask your administrator to invite you from Users.",
     "DB_WRITE_FAILED": "Your company was registered but an internal error occurred while saving the configuration. Please contact support with your email address.",

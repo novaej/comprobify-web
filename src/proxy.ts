@@ -4,7 +4,7 @@ import { routing } from './i18n/routing';
 
 const intlMiddleware = createMiddleware(routing);
 
-const PUBLIC_ROUTES = /^\/(es|en)(\/(?:login|register|verify-email|onboarding|complete-registration|pricing|support)(?:\/.*)?)?$/;
+const PUBLIC_ROUTES = /^\/(es|en)(\/(?:login|register|recover-account|verify-email|onboarding|complete-registration|pricing|support)(?:\/.*)?)?$/;
 
 // Routes that belong on the marketing domain (comprobify.com).
 // Everything else belongs on the app domain (app.comprobify.com).
