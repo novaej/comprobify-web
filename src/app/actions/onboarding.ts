@@ -2,7 +2,7 @@
 
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
-import { registerTenant } from '@/lib/public-api';
+import { registerTenant, resendVerificationEmail } from '@/lib/public-api';
 import { listTenantApiKeys, getCurrentTenant, listTenantIssuers, createTenantApiKey } from '@/lib/api';
 import { encrypt, lastFour } from '@/lib/crypto';
 import { writeCtxCookie } from '@/lib/context-cookie';
@@ -14,7 +14,10 @@ import { parseIntendedPlan } from '@/lib/subscription-tiers';
 import { isUuid } from '@/lib/utils';
 import * as Sentry from '@sentry/nextjs';
 
-export type OnboardingResult = { error: string } | null;
+// `email` is only ever populated on an EMAIL_VERIFICATION_REQUIRED result from
+// linkExistingTenantAction, so the form can offer a resend button without the
+// user having to re-type the address the pasted API key belongs to.
+export type OnboardingResult = { error: string; email?: string } | null;
 
 export async function bootstrapTenantAction(formData: FormData): Promise<OnboardingResult> {
   const session = await auth();
@@ -223,7 +226,16 @@ export async function linkExistingTenantAction(formData: FormData): Promise<Onbo
       tenantInfo.sandbox ? 'sandbox' : 'production',
     );
   } catch (err) {
-    if (err instanceof ApiError) return { error: err.code };
+    if (err instanceof ApiError) {
+      // Surface the tenant's email (already known from getCurrentTenant() above)
+      // so the form can offer a resend-verification button — at this point no
+      // local Tenant/session link exists yet for resendVerificationAction's
+      // requireContext() to resolve.
+      if (err.code === 'EMAIL_VERIFICATION_REQUIRED') {
+        return { error: err.code, email: tenantInfo.email };
+      }
+      return { error: err.code };
+    }
     throw err;
   }
 
@@ -296,5 +308,25 @@ export async function linkExistingTenantAction(formData: FormData): Promise<Onbo
   // getStatus() lazily generates per-tenant documents for any published template version,
   // so it's safe even when this tenant was never through POST /v1/register.
   redirect({ href: '/agreements', locale });
+  return null;
+}
+
+/**
+ * Resends the verification email for a tenant hit mid-onboarding by
+ * EMAIL_VERIFICATION_REQUIRED on linkExistingTenantAction — no local Tenant
+ * row exists yet at that point, so resendVerificationAction's requireContext()
+ * has nothing to resolve. This calls the same public, unauthenticated
+ * POST /v1/resend-verification endpoint directly by email instead.
+ */
+export async function resendVerificationForLinkingAction(email: string): Promise<{ error: string } | null> {
+  const session = await auth();
+  if (!session?.user?.id || !isUuid(session.user.id)) return { error: 'UNAUTHORIZED' };
+
+  try {
+    await resendVerificationEmail(email);
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.code };
+    throw err;
+  }
   return null;
 }

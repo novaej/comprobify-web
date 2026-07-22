@@ -60,7 +60,8 @@
       "submitting": "Ingresando...",
       "noAccount": "¿No tienes cuenta?",
       "register": "Regístrate",
-      "accountDisabled": "Tu cuenta ha sido desactivada por un administrador. Contacta al administrador para recuperar el acceso."
+      "accountDisabled": "Tu cuenta ha sido desactivada por un administrador. Contacta al administrador para recuperar el acceso.",
+      "lostApiKey": "¿Perdiste tu API key?"
     },
     "register": {
       "subtitle": "Crea tu cuenta",
@@ -86,6 +87,26 @@
   },
   "completeRegistrationError": {
     "INVALID_OR_EXPIRED_INVITE": "Este enlace de invitación ya no es válido. Pide a tu administrador que te reenvíe la invitación."
+  },
+  "recoverAccount": {
+    "subtitle": "Recupera el acceso a tu API key",
+    "backToLogin": "Volver a iniciar sesión",
+    "description": "Si perdiste tu API key, sube el mismo certificado P12 que usaste al registrarte junto con tu correo. Si coinciden con una cuenta existente, se emitirá una API key nueva.",
+    "fields": {
+      "email": "Correo electrónico",
+      "certFile": "Archivo .p12",
+      "certPassword": "Contraseña del certificado"
+    },
+    "submit": "Recuperar acceso",
+    "submitting": "Verificando...",
+    "genericMessage": "Si ese correo y certificado coinciden con una cuenta existente, se emitió una API key nueva. Si no recibes ningún cambio, revisa que el correo y el certificado sean exactamente los que usaste al registrarte.",
+    "linkedMessage": "Tu API key fue renovada. Inicia sesión para continuar usando la aplicación con normalidad. También enviamos un correo de aviso a la dirección registrada.",
+    "unlinkedTitle": "API key recuperada",
+    "unlinkedInstructions": "Esta cuenta aún no está vinculada a un usuario de esta aplicación. Inicia sesión (o crea una cuenta) y usa la pestaña \"Vincular cuenta existente\" al configurar tu empresa, pegando esta API key. También enviamos un correo de aviso a la dirección registrada.",
+    "showOnce": "Esta API key solo se muestra una vez. Guárdala en un lugar seguro.",
+    "show": "Mostrar",
+    "hide": "Ocultar",
+    "copy": "Copiar"
   },
   "sandbox": {
     "banner": "Estás en modo sandbox — los comprobantes se envían al ambiente de pruebas del SRI.",
@@ -628,7 +649,7 @@
     "NOT_FOUND": "El recurso solicitado no existe.",
     "FORBIDDEN": "No tiene permisos para realizar esta acción.",
     "UNAUTHORIZED": "No autorizado. Verifique que su API key sea válida.",
-    "CONFLICT": "La operación generó un conflicto. Intente de nuevo.",
+    "CONFLICT": "Ya existe un registro con esos datos (RUC o correo electrónico). Si ya te registraste antes, usa la página de recuperación de cuenta.",
     "TOO_MANY_REQUESTS": "Demasiadas solicitudes. Intente nuevamente en un momento.",
     "QUOTA_EXCEEDED": "Ha alcanzado el límite mensual de comprobantes. Actualice su plan.",
     "INTERNAL_ERROR": "Error interno del servidor. Contacte al soporte.",
@@ -673,6 +694,7 @@
     "CERT_REQUIRED": "Debe subir su certificado P12.",
     "TENANT_ALREADY_EXISTS": "Ya existe una empresa registrada para este usuario.",
     "API_KEY_REQUIRED": "Debe ingresar su API key.",
+    "EMAIL_REQUIRED": "Debe ingresar su correo electrónico.",
     "NO_ISSUERS_FOUND": "Esa cuenta no tiene emisores activos. Verifique su API key e intente de nuevo.",
     "TENANT_ALREADY_LINKED": "Esa cuenta de la API ya fue vinculada por otro usuario. Pida a su administrador que lo invite desde Usuarios.",
     "DB_WRITE_FAILED": "Su empresa fue registrada pero ocurrió un error interno al guardar la configuración. Contacte al soporte con su correo electrónico.",

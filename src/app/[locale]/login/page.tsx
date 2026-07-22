@@ -80,6 +80,14 @@ export default async function LoginPage({
           </p>
           <p className="mt-2 text-center text-sm text-muted-foreground">
             <Link
+              href="/recover-account"
+              className="hover:text-foreground hover:underline underline-offset-4 transition-colors"
+            >
+              {t('login.lostApiKey')}
+            </Link>
+          </p>
+          <p className="mt-2 text-center text-sm text-muted-foreground">
+            <Link
               href="/support"
               className="hover:text-foreground hover:underline underline-offset-4 transition-colors"
             >

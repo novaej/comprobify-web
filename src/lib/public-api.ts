@@ -109,6 +109,73 @@ export async function registerTenant(
   };
 }
 
+// Verified against: ../comprobify/src/controllers/registration.controller.js → recover()
+// and ../comprobify/src/services/registration.service.js → recover(). Deliberately
+// anti-enumeration: an unregistered email, an account with no issuer, and a mismatched
+// certificate all return { ok: true, message } with no tenant/issuer/apiKey/environment —
+// the presence of `apiKey` is what distinguishes a real match, never the HTTP status
+// (both cases are 200).
+export type RecoverAccountResult =
+  | { matched: false }
+  | {
+      matched: true;
+      tenant: { id: string; email: string; status: string };
+      issuer: {
+        id: string;
+        ruc: string;
+        businessName: string;
+        tradeName: string | null;
+        branchCode: string;
+        issuePointCode: string;
+      };
+      apiKey: string;
+      environment: 'sandbox' | 'production';
+    };
+
+export async function recoverAccount(
+  email: string,
+  p12Buffer: Buffer,
+  p12Password: string,
+): Promise<RecoverAccountResult> {
+  const form = new FormData();
+  form.append('email', email);
+  form.append('certPassword', p12Password);
+
+  const buf = p12Buffer.buffer.slice(
+    p12Buffer.byteOffset,
+    p12Buffer.byteOffset + p12Buffer.byteLength,
+  ) as ArrayBuffer;
+  form.append('cert', new Blob([buf], { type: 'application/x-pkcs12' }), 'cert.p12');
+
+  const result = await publicRequest<{
+    ok: true;
+    message?: string;
+    tenant?: { id: string; email: string; status: string };
+    issuer?: {
+      id: string;
+      ruc: string;
+      businessName: string;
+      tradeName: string | null;
+      branchCode: string;
+      issuePointCode: string;
+    };
+    apiKey?: string;
+    environment?: 'sandbox' | 'production';
+  }>('/v1/recover', { method: 'POST', body: form });
+
+  if (!result.apiKey || !result.tenant || !result.issuer || !result.environment) {
+    return { matched: false };
+  }
+
+  return {
+    matched: true,
+    tenant: result.tenant,
+    issuer: result.issuer,
+    apiKey: result.apiKey,
+    environment: result.environment,
+  };
+}
+
 export async function verifyEmailToken(token: string): Promise<{ email: string }> {
   const data = await publicRequest<{ ok: true; email: string }>(
     `/v1/verify-email?token=${encodeURIComponent(token)}`,
