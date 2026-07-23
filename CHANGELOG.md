@@ -8,6 +8,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-07-23
+
 ### Added
 - **New `/recover-account` page** for regaining a lost Comprobify API key, backed by the API's new `POST /v1/recover` endpoint. Public and unauthenticated — a matching P12 certificate is the same proof of ownership the API itself requires. On a real match, `recoverAccountAction()` (`src/app/actions/recovery.ts`) either refreshes the local `TenantApiKey` row (if this tenant is already linked to the app) or hands the recovered key back for the user to paste into the existing "Link existing account" onboarding tab (if not). Linked from `/login`. See `docs/site/screens/recover-account.md`.
 - **Resend-verification button on "Link existing account"** — pasting an API key for a tenant that registered but never verified its email failed with `EMAIL_VERIFICATION_REQUIRED` and no way to act on it, since `POST /v1/keys` (used to mint the app's own dedicated key) requires an `ACTIVE` tenant. `linkExistingTenantAction` now surfaces the tenant's email alongside that error, and `LinkExistingAccountForm` offers a resend button backed by a new `resendVerificationForLinkingAction(email)` — a session-gated wrapper around the public resend-verification call, needed because no local `Tenant` exists yet at that point for the existing `resendVerificationAction`'s `requireContext()` to resolve.
