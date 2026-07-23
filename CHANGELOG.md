@@ -8,6 +8,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.7.1] — 2026-07-23
+
 ### Added
 - **Sidebar logo now links to the marketing landing page** — in both `nav.tsx` (all four render spots: mobile top bar, mobile drawer header, desktop expanded/collapsed header) and `admin-nav.tsx`. Uses a plain `<a href="/${locale}">`, not `Link`, since it crosses from the app host to the marketing host in the deployed two-domain setup (rule 35 / Common Mistake #35).
 
