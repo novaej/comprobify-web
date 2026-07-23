@@ -43,7 +43,8 @@
     "noIssuerAssigned": "No issuer assigned",
     "contactAdmin": "Contact your administrator",
     "collapseSidebar": "Collapse menu",
-    "lockSidebar": "Pin menu"
+    "lockSidebar": "Pin menu",
+    "goToLanding": "Go to the Comprobify landing page"
   },
   "auth": {
     "backToHome": "Back to home",

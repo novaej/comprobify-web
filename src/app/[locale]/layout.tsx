@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import { headers } from 'next/headers';
 import { NextIntlClientProvider, hasLocale } from 'next-intl';
 import { getMessages, setRequestLocale } from 'next-intl/server';
 import { routing } from '@/i18n/routing';
@@ -212,8 +213,14 @@ export default async function LocaleLayout({
 
   setRequestLocale(locale);
 
+  // Marketing pages ((marketing)/page.tsx, /pricing) nest inside this layout but must
+  // never get the authenticated Nav/TopBar shell, even when logged in — a child layout
+  // can't opt out of markup its parent already wrapped it in, so proxy.ts tells us which
+  // route we're rendering via this header. See src/proxy.ts's MARKETING_ROUTE_HEADER.
+  const isMarketingRoute = (await headers()).get('x-marketing-route') === '1';
+
   const [messages, session] = await Promise.all([getMessages(), auth()]);
-  const isAuthenticated = !!session;
+  const isAuthenticated = !isMarketingRoute && !!session;
 
   const layoutProps =
     isAuthenticated && isUuid(session.user.id) ? await getLayoutProps(session.user.id) : null;

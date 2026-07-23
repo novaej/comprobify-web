@@ -1,8 +1,7 @@
 import type { Metadata } from 'next';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { ArrowRight, ShieldCheck, Zap, Webhook, Sparkles } from 'lucide-react';
-import { auth } from '@/auth';
-import { redirect, Link } from '@/i18n/navigation';
+import { Link } from '@/i18n/navigation';
 import { buttonVariants } from '@/components/ui/button';
 import { Reveal } from '@/components/reveal';
 import { LandingSteps } from '@/components/landing-steps';
@@ -60,11 +59,6 @@ export default async function LandingPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-
-  const session = await auth();
-  if (session) {
-    redirect({ href: '/dashboard', locale });
-  }
 
   const t = await getTranslations('landing');
   const supportedDocTypes = await getSupportedDocumentTypes();

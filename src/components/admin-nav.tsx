@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation';
 import { Building2, Receipt, FileText, LogOut, Menu, X, ShieldCheck } from 'lucide-react';
 import { LogoLockup, Logomark } from '@/components/logo';
@@ -17,6 +17,8 @@ const navItems = [
 
 export function AdminNav({ userEmail }: { userEmail: string }) {
   const t = useTranslations('admin.nav');
+  const tNav = useTranslations('nav');
+  const locale = useLocale();
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -78,7 +80,10 @@ export function AdminNav({ userEmail }: { userEmail: string }) {
         >
           <Menu className="h-5 w-5" />
         </button>
-        <Logomark className="h-6 w-6 shrink-0" />
+        {/* Crosses to the marketing host — must be a plain <a>, never Link. */}
+        <a href={`/${locale}`} aria-label={tNav('goToLanding')} className="shrink-0">
+          <Logomark className="h-6 w-6" />
+        </a>
         <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
           <ShieldCheck className="h-3.5 w-3.5" />
           {t('title')}
@@ -113,7 +118,10 @@ export function AdminNav({ userEmail }: { userEmail: string }) {
           >
             <X className="h-4 w-4" />
           </button>
-          <LogoLockup className="h-7 w-auto flex-1" />
+          {/* Crosses to the marketing host — must be a plain <a>, never Link. */}
+          <a href={`/${locale}`} aria-label={tNav('goToLanding')} className="min-w-0 flex-1">
+            <LogoLockup className="h-7 w-auto" />
+          </a>
           <span className="flex items-center gap-1 rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">
             <ShieldCheck className="h-3 w-3" />
             {t('adminBadge')}
