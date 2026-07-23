@@ -302,7 +302,10 @@ export function Nav({
           <Menu className="h-5 w-5" />
         </button>
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          <Logomark className="h-6 w-6 shrink-0" />
+          {/* Crosses to the marketing host — must be a plain <a>, never Link. */}
+          <a href={`/${locale}`} aria-label={t('goToLanding')} className="shrink-0">
+            <Logomark className="h-6 w-6" />
+          </a>
           <div className="min-w-0 flex-1">
             <IssuerSwitcher
               currentIssuer={currentIssuer}
@@ -346,7 +349,10 @@ export function Nav({
           >
             <X className="h-4 w-4" />
           </button>
-          <LogoLockup className="h-7 w-auto flex-1 min-w-0" />
+          {/* Crosses to the marketing host — must be a plain <a>, never Link. */}
+          <a href={`/${locale}`} aria-label={t('goToLanding')} className="min-w-0 flex-1">
+            <LogoLockup className="h-7 w-auto" />
+          </a>
         </div>
 
         {/* Mobile tenant + issuer */}
@@ -442,7 +448,10 @@ export function Nav({
           <div className="flex h-14 shrink-0 items-center border-b border-sidebar-border px-3">
             {isExpanded ? (
               <>
-                <LogoLockup className="h-7 w-auto flex-1 min-w-0" />
+                {/* Crosses to the marketing host — must be a plain <a>, never Link. */}
+                <a href={`/${locale}`} aria-label={t('goToLanding')} className="min-w-0 flex-1">
+                  <LogoLockup className="h-7 w-auto" />
+                </a>
                 <button
                   onClick={toggleCollapsed}
                   title={collapsed ? t('lockSidebar') : t('collapseSidebar')}
@@ -456,7 +465,10 @@ export function Nav({
               </>
             ) : (
               <div className="flex w-full justify-center">
-                <Logomark className="h-7 w-7" />
+                {/* Crosses to the marketing host — must be a plain <a>, never Link. */}
+                <a href={`/${locale}`} aria-label={t('goToLanding')}>
+                  <Logomark className="h-7 w-7" />
+                </a>
               </div>
             )}
           </div>

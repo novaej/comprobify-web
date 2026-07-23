@@ -1,5 +1,7 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { auth } from '@/auth';
+import { db } from '@/lib/db';
+import { isUuid } from '@/lib/utils';
 import { RegisterForm } from '@/components/register-form';
 import { Link, redirect } from '@/i18n/navigation';
 import { LocaleSwitcher } from '@/components/locale-switcher';
@@ -19,8 +21,17 @@ export default async function RegisterPage({
   setRequestLocale(locale);
 
   const session = await auth();
-  if (session) {
-    redirect({ href: '/dashboard', locale });
+  if (session && isUuid(session.user.id)) {
+    // A session can still be cryptographically valid after its underlying User row is
+    // gone (account removed, or a stale JWT from a reset database) — redirecting to
+    // /dashboard in that case just bounces back to /login via requireContext(), which
+    // reads as "register redirects to login". Verify the user still exists first, same
+    // guard /login already applies.
+    const user = await db.user.findUnique({
+      where: { id: session.user.id },
+      select: { id: true, active: true },
+    });
+    if (user?.active) redirect({ href: '/dashboard', locale });
   }
 
   const { tier, interval } = await searchParams;

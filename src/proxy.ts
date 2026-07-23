@@ -2,6 +2,12 @@ import createMiddleware from 'next-intl/middleware';
 import { auth } from './auth';
 import { routing } from './i18n/routing';
 
+// Forwarded to Server Components as a request header (see [locale]/layout.tsx) so the
+// authenticated Nav/TopBar shell never wraps a marketing page — a child layout like
+// (marketing)/layout.tsx can't opt out of markup its parent already wrapped it in, so
+// the parent needs to know which route it's rendering.
+const MARKETING_ROUTE_HEADER = 'x-marketing-route';
+
 const intlMiddleware = createMiddleware(routing);
 
 const PUBLIC_ROUTES = /^\/(es|en)(\/(?:login|register|recover-account|verify-email|onboarding|complete-registration|pricing|support)(?:\/.*)?)?$/;
@@ -24,10 +30,10 @@ const APP_HOSTS = new Set(Object.keys(DOMAIN_PAIR).filter((h) => h.startsWith('a
 export const proxy = auth((req) => {
   const { pathname } = req.nextUrl;
   const host = req.headers.get('host') ?? '';
+  const isMarketingPath = MARKETING_ROUTES.test(pathname) || pathname === '/';
 
   if (MARKETING_HOSTS.has(host)) {
     // Marketing host: only serve marketing routes; redirect everything else to the app host.
-    const isMarketingPath = MARKETING_ROUTES.test(pathname) || pathname === '/';
     if (!isMarketingPath) {
       const sibling = DOMAIN_PAIR[host];
       return Response.redirect(
@@ -37,7 +43,6 @@ export const proxy = auth((req) => {
     }
   } else if (APP_HOSTS.has(host)) {
     // App host: marketing routes belong on the marketing host; redirect them.
-    const isMarketingPath = MARKETING_ROUTES.test(pathname) || pathname === '/';
     if (isMarketingPath) {
       const sibling = DOMAIN_PAIR[host];
       return Response.redirect(
@@ -46,7 +51,8 @@ export const proxy = auth((req) => {
       );
     }
   }
-  // localhost / unknown hosts: no hostname routing — serve everything locally.
+  // localhost / unknown hosts: no hostname routing — serve everything locally, so a
+  // marketing path can reach this point even while authenticated (see header below).
 
   const isPublic = PUBLIC_ROUTES.test(pathname) || pathname === '/';
 
@@ -55,6 +61,16 @@ export const proxy = auth((req) => {
     return Response.redirect(new URL(`/${locale}/login`, req.url));
   }
 
+  // next-intl's own middleware internally clones `req.headers` into a fresh Headers
+  // instance (to forward the resolved locale via the same NextResponse.next({request:
+  // {headers}}) mechanism) and returns ITS OWN response built that way. Building a
+  // second, separate NextResponse here and copying next-intl's response headers onto
+  // it would clobber this header — both responses set the special
+  // x-middleware-override-headers/x-middleware-request-* headers, and .set()
+  // overwrites rather than merges them. Mutating req.headers before intlMiddleware
+  // runs means its own clone picks this header up for free, so there's only ever one
+  // response constructed this way.
+  req.headers.set(MARKETING_ROUTE_HEADER, isMarketingPath ? '1' : '0');
   return intlMiddleware(req);
 });
 

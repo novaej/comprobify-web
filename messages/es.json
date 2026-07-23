@@ -43,7 +43,8 @@
     "noIssuerAssigned": "Sin emisor asignado",
     "contactAdmin": "Contacta a tu administrador",
     "collapseSidebar": "Colapsar menú",
-    "lockSidebar": "Fijar menú"
+    "lockSidebar": "Fijar menú",
+    "goToLanding": "Ir a la página principal de Comprobify"
   },
   "auth": {
     "backToHome": "Volver al inicio",

@@ -8,6 +8,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Added
+- **Sidebar logo now links to the marketing landing page** — in both `nav.tsx` (all four render spots: mobile top bar, mobile drawer header, desktop expanded/collapsed header) and `admin-nav.tsx`. Uses a plain `<a href="/${locale}">`, not `Link`, since it crosses from the app host to the marketing host in the deployed two-domain setup (rule 35 / Common Mistake #35).
+
+### Changed
+- **Landing page no longer redirects authenticated visitors to `/dashboard`** — it now renders for everyone regardless of session state, same as `/pricing`. Only `/login` still redirects an already-authenticated user into the app. Previously, opening the landing page in a second tab while logged in (or the app itself linking back to `/`) bounced straight into the dashboard with no way to see the marketing page while signed in.
+- **Marketing pages no longer inherit the authenticated Nav/TopBar shell** — removing the redirect above exposed a second bug: `(marketing)` pages nest inside `[locale]/layout.tsx`, which unconditionally wraps authenticated sessions in the `Nav`/`TopBar` shell, and a nested layout can't opt out of markup its parent already applied. `src/proxy.ts` now forwards an `x-marketing-route` request header for `/` and `/pricing` by mutating `req.headers` before handing the request to next-intl's own middleware (which forwards the resolved locale to Server Components the same way internally) — an earlier version built a second, separate `NextResponse` and copied next-intl's response headers onto it, which silently clobbered this header since both responses set the same special `x-middleware-override-headers` machinery. `[locale]/layout.tsx` treats the route as unauthenticated whenever the header is set, so the marketing chrome renders standalone regardless of session state. Mainly visible on `localhost`, where the two-domain marketing/app split that would otherwise intercept this is intentionally bypassed for local dev.
+
+### Fixed
+- **`/register` redirected to `/login` instead of showing the form for a session pointing at a deleted user** — `RegisterPage` redirected to `/dashboard` on any truthy `session`, without checking whether the underlying `User` row still existed. A session that's cryptographically valid but points at a removed account (deleted user, or a stale JWT from a reset database) bounced through `/dashboard` → `requireContext()` (which can't find the user) → `/login`, which reads as "register always redirects to login." Now mirrors `/login`'s existing guard: verify the session's user still exists and is active (via `isUuid()` + `db.user.findUnique`) before redirecting to `/dashboard`; otherwise fall through and render the register form.
+
 ## [0.7.0] — 2026-07-23
 
 ### Added
