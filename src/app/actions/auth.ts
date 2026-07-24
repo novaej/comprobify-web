@@ -1,16 +1,24 @@
 'use server';
 
 import bcrypt from 'bcryptjs';
+import { randomBytes, createHash } from 'crypto';
 import { after } from 'next/server';
 import { signIn, signOut } from '@/auth';
 import { db } from '@/lib/db';
 import { AuthError } from 'next-auth';
-import { getLocale } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
 import { writeCtxCookie, clearCtxCookie } from '@/lib/context-cookie';
 import { pingApiHealth } from '@/lib/api';
+import { sendMail } from '@/lib/mailgun';
 import type { PaidTier, BillingInterval } from '@/lib/subscription-tiers';
 import * as Sentry from '@sentry/nextjs';
+
+const PASSWORD_RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+function hashResetToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
 
 export type AuthResult = { error: string } | null;
 
@@ -165,6 +173,128 @@ export async function completeRegistrationAction(
   }
 
   return postLoginRedirect(email, locale);
+}
+
+/**
+ * Best-effort password reset email — a delivery failure must not reveal
+ * whether the account exists, so callers always get the same generic result.
+ */
+async function sendPasswordResetRequestEmail(email: string, token: string) {
+  try {
+    const locale = await getLocale();
+    const t = await getTranslations({ locale, namespace: 'email.forgotPassword' });
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+    if (!appUrl) throw new Error('NEXT_PUBLIC_APP_URL not configured');
+
+    const link = `${appUrl}/${locale}/reset-password?token=${token}`;
+    const subject = t('subject');
+    const text = `${t('greeting')}\n\n${t('cta')}\n\n${link}`;
+    const html = `<p>${t('greeting')}</p><p>${t('cta')}</p><p><a href="${link}">${link}</a></p>`;
+
+    await sendMail({ to: email, subject, text, html });
+  } catch (err) {
+    Sentry.captureException(err, { extra: { email } });
+  }
+}
+
+/**
+ * Request a password reset link. Deliberately anti-enumeration (mirrors
+ * recoverAccountAction's genericMessage pattern): whether the email matches
+ * an active, password-holding account is never observable from the result —
+ * only from whether an email eventually arrives.
+ */
+export async function requestPasswordResetAction(email: string): Promise<AuthResult> {
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!normalizedEmail) return { error: 'EMAIL_REQUIRED' };
+
+  const user = await db.user.findUnique({
+    where: { email: normalizedEmail },
+    select: { id: true, passwordHash: true, active: true, inviteStatus: true },
+  });
+
+  // Only accounts that already have a password to reset are eligible — an
+  // invited-but-not-yet-activated user should use their invite link instead,
+  // and a disabled account shouldn't be reachable via self-service at all.
+  // None of this is ever surfaced in the response.
+  if (user && user.passwordHash && user.active && user.inviteStatus === 'ACTIVE') {
+    const rawToken = randomBytes(32).toString('hex');
+    await db.user.update({
+      where: { id: user.id },
+      data: {
+        passwordResetTokenHash: hashResetToken(rawToken),
+        passwordResetTokenExpiresAt: new Date(Date.now() + PASSWORD_RESET_TOKEN_TTL_MS),
+      },
+    });
+    await sendPasswordResetRequestEmail(normalizedEmail, rawToken);
+  }
+
+  return null;
+}
+
+/**
+ * Read-only check for whether a reset token currently resolves to an
+ * unexpired, unconsumed reset — used by /reset-password to decide what to
+ * render on page load ("invalid link" vs. the form) instead of only
+ * surfacing INVALID_OR_EXPIRED_RESET_TOKEN once the user submits. Mutates
+ * nothing; resetPasswordAction re-validates the same way at submit time
+ * regardless, so this is purely a rendering decision, not the security check.
+ */
+export async function checkResetTokenValid(token: string): Promise<boolean> {
+  const user = await db.user.findUnique({
+    where: { passwordResetTokenHash: hashResetToken(token) },
+    select: { active: true, passwordResetTokenExpiresAt: true },
+  });
+  return Boolean(
+    user &&
+    user.active &&
+    user.passwordResetTokenExpiresAt &&
+    user.passwordResetTokenExpiresAt >= new Date(),
+  );
+}
+
+/**
+ * Complete a self-service password reset.
+ * - Validates the token hashes to a non-expired match.
+ * - Hashes and saves the new password, clears the token.
+ * - Signs the user in and redirects to the appropriate page.
+ */
+export async function resetPasswordAction(token: string, password: string): Promise<AuthResult> {
+  const locale = await getLocale();
+
+  const user = await db.user.findUnique({
+    where: { passwordResetTokenHash: hashResetToken(token) },
+    select: { id: true, email: true, active: true, passwordResetTokenExpiresAt: true },
+  });
+
+  if (
+    !user ||
+    !user.active ||
+    !user.passwordResetTokenExpiresAt ||
+    user.passwordResetTokenExpiresAt < new Date()
+  ) {
+    return { error: 'INVALID_OR_EXPIRED_RESET_TOKEN' };
+  }
+
+  const passwordHash = await bcrypt.hash(password, 12);
+  await db.user.update({
+    where: { id: user.id },
+    data: {
+      passwordHash,
+      passwordResetTokenHash: null,
+      passwordResetTokenExpiresAt: null,
+    },
+  });
+
+  try {
+    await signIn('credentials', { email: user.email, password, redirect: false });
+  } catch (err) {
+    // Should not happen — we just set the password. Fall back to login page.
+    Sentry.captureException(err, { extra: { email: user.email } });
+    redirect({ href: '/login', locale });
+    return null;
+  }
+
+  return postLoginRedirect(user.email, locale);
 }
 
 export async function registerAction(

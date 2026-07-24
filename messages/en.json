@@ -62,7 +62,8 @@
       "noAccount": "Don't have an account?",
       "register": "Register",
       "accountDisabled": "Your account has been disabled by an administrator. Contact your administrator to regain access.",
-      "lostApiKey": "Lost your API key?"
+      "lostApiKey": "Lost your API key?",
+      "forgotPassword": "Forgot your password?"
     },
     "register": {
       "subtitle": "Create your account",
@@ -88,6 +89,33 @@
   },
   "completeRegistrationError": {
     "INVALID_OR_EXPIRED_INVITE": "This invitation link is no longer valid. Ask your administrator to re-invite you."
+  },
+  "forgotPassword": {
+    "subtitle": "Recover access to your account",
+    "backToLogin": "Back to sign in",
+    "description": "Enter your email address. If it matches an active account, we'll send you a link to reset your password.",
+    "fields": {
+      "email": "Email address"
+    },
+    "submit": "Send link",
+    "submitting": "Sending...",
+    "genericMessage": "If that email matches an active account, you'll receive a password reset link in a few minutes."
+  },
+  "forgotPasswordError": {
+    "EMAIL_REQUIRED": "Enter your email address."
+  },
+  "resetPassword": {
+    "title": "Reset your password",
+    "subtitle": "Choose a new password for your account.",
+    "submit": "Reset password",
+    "submitting": "Resetting...",
+    "passwordMismatch": "Passwords do not match.",
+    "unexpectedError": "An unexpected error occurred. Please try again.",
+    "invalidLinkMessage": "This password reset link is invalid or missing its token.",
+    "requestNewLink": "Request a new link"
+  },
+  "resetPasswordError": {
+    "INVALID_OR_EXPIRED_RESET_TOKEN": "This password reset link is no longer valid or has expired. Request a new one."
   },
   "recoverAccount": {
     "subtitle": "Recover access to your API key",
@@ -1508,6 +1536,11 @@
     "passwordReset": {
       "subject": "Reset your password on Comprobify",
       "greeting": "An administrator at {businessName} requested a password reset for your account.",
+      "cta": "Click the link below to set a new password:"
+    },
+    "forgotPassword": {
+      "subject": "Reset your password on Comprobify",
+      "greeting": "We received a request to reset the password for your Comprobify account. This link expires in 1 hour. If you didn't request this, you can safely ignore this email.",
       "cta": "Click the link below to set a new password:"
     }
   },

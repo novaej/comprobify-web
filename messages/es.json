@@ -62,7 +62,8 @@
       "noAccount": "¿No tienes cuenta?",
       "register": "Regístrate",
       "accountDisabled": "Tu cuenta ha sido desactivada por un administrador. Contacta al administrador para recuperar el acceso.",
-      "lostApiKey": "¿Perdiste tu API key?"
+      "lostApiKey": "¿Perdiste tu API key?",
+      "forgotPassword": "¿Olvidaste tu contraseña?"
     },
     "register": {
       "subtitle": "Crea tu cuenta",
@@ -88,6 +89,33 @@
   },
   "completeRegistrationError": {
     "INVALID_OR_EXPIRED_INVITE": "Este enlace de invitación ya no es válido. Pide a tu administrador que te reenvíe la invitación."
+  },
+  "forgotPassword": {
+    "subtitle": "Recupera el acceso a tu cuenta",
+    "backToLogin": "Volver a iniciar sesión",
+    "description": "Ingresa tu correo electrónico. Si corresponde a una cuenta activa, te enviaremos un enlace para restablecer tu contraseña.",
+    "fields": {
+      "email": "Correo electrónico"
+    },
+    "submit": "Enviar enlace",
+    "submitting": "Enviando...",
+    "genericMessage": "Si ese correo corresponde a una cuenta activa, recibirás un enlace para restablecer tu contraseña en unos minutos."
+  },
+  "forgotPasswordError": {
+    "EMAIL_REQUIRED": "Ingresa tu correo electrónico."
+  },
+  "resetPassword": {
+    "title": "Restablece tu contraseña",
+    "subtitle": "Elige una nueva contraseña para tu cuenta.",
+    "submit": "Restablecer contraseña",
+    "submitting": "Restableciendo...",
+    "passwordMismatch": "Las contraseñas no coinciden.",
+    "unexpectedError": "Ocurrió un error inesperado. Inténtalo de nuevo.",
+    "invalidLinkMessage": "Este enlace para restablecer tu contraseña no es válido o falta el token.",
+    "requestNewLink": "Solicitar un nuevo enlace"
+  },
+  "resetPasswordError": {
+    "INVALID_OR_EXPIRED_RESET_TOKEN": "Este enlace para restablecer tu contraseña ya no es válido o expiró. Solicita uno nuevo."
   },
   "recoverAccount": {
     "subtitle": "Recupera el acceso a tu API key",
@@ -1508,6 +1536,11 @@
     "passwordReset": {
       "subject": "Restablece tu contraseña en Comprobify",
       "greeting": "Un administrador de {businessName} solicitó restablecer tu contraseña.",
+      "cta": "Haz clic en el siguiente enlace para establecer una nueva contraseña:"
+    },
+    "forgotPassword": {
+      "subject": "Restablece tu contraseña en Comprobify",
+      "greeting": "Recibimos una solicitud para restablecer la contraseña de tu cuenta en Comprobify. Este enlace expira en 1 hora. Si no solicitaste este cambio, puedes ignorar este correo.",
       "cta": "Haz clic en el siguiente enlace para establecer una nueva contraseña:"
     }
   },

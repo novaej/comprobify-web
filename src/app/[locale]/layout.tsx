@@ -218,10 +218,15 @@ export default async function LocaleLayout({
   // never get the authenticated Nav/TopBar shell, even when logged in — a child layout
   // can't opt out of markup its parent already wrapped it in, so proxy.ts tells us which
   // route we're rendering via this header. See src/proxy.ts's MARKETING_ROUTE_HEADER.
-  const isMarketingRoute = (await headers()).get('x-marketing-route') === '1';
+  const requestHeaders = await headers();
+  const isMarketingRoute = requestHeaders.get('x-marketing-route') === '1';
+  // Same reasoning for recover-account/forgot-password/reset-password: they deliberately
+  // render for an already-authenticated visitor too (see src/proxy.ts's
+  // STANDALONE_ROUTE_HEADER), so they need the same escape from the Nav wrap.
+  const isStandaloneRoute = requestHeaders.get('x-standalone-route') === '1';
 
   const [messages, session] = await Promise.all([getMessages(), auth()]);
-  const isAuthenticated = !isMarketingRoute && !!session;
+  const isAuthenticated = !isMarketingRoute && !isStandaloneRoute && !!session;
 
   const layoutProps =
     isAuthenticated && isUuid(session.user.id) ? await getLayoutProps(session.user.id) : null;
