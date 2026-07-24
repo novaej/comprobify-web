@@ -340,6 +340,19 @@ async function request<T>(
   });
 
   if (!res.ok) {
+    // Guard against proxy/gateway error pages (e.g. Cloudflare 522) that return HTML instead of JSON.
+    const contentType = res.headers.get('content-type') ?? '';
+    if (!contentType.includes('application/json')) {
+      const body = await res.text().catch(() => '');
+      throw new ApiError({
+        type: 'about:blank',
+        title: `API error ${res.status}`,
+        detail: body.slice(0, 200),
+        status: res.status,
+        code: 'API_UNREACHABLE',
+        instance: '',
+      });
+    }
     const problem: ProblemDetails = await res.json();
     throw new ApiError(problem);
   }
