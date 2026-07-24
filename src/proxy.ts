@@ -75,7 +75,12 @@ export const proxy = auth((req) => {
 });
 
 export const config = {
+  // `.*\..*` excludes any path with a dot (static files, robots.txt, sitemap.xml, ...),
+  // but Next's code-generated icon route is served at the bare, extension-less `/icon`
+  // (Content-Type comes from a header, not the URL) — so it needs its own explicit
+  // exclusion, same as favicon.ico, or this middleware auth-gates/locale-redirects it
+  // instead of letting Next return the actual image.
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|icon|.*\\..*).*)',
   ],
 };
