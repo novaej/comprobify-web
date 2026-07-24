@@ -81,6 +81,15 @@ export default function YourScreenLoading() {
 
 Shape the skeleton after the actual page (card grid, table rows, etc.) so there's no layout shift when real content replaces it — see `src/app/[locale]/dashboard/loading.tsx` and `src/app/[locale]/invoices/[key]/loading.tsx` for examples. If the page's layout changes later, update its skeleton to match.
 
+### 5. Pick the right content width
+
+`<main>` (`src/app/[locale]/layout.tsx`) has no width cap of its own — a page's root `<div>` fills the whole available width (viewport minus the sidebar) unless it opts into a cap. Which one to use depends on content type, not on the page's importance:
+
+- **List/table pages** (records, catalogs, dashboards — anything with a `<Table>` or a card grid of records) stay fluid: no `max-w-*` on the root div. More width means more visible columns/rows, so it should use whatever space `<main>` gives it. Examples: `/dashboard`, `/documents/[type]`, `/users`, `/clients`, `/catalog`, `/issuers`, `/invoices/new`, `/invoices/[key]`, every `/admin/*` list.
+- **Settings/config forms** (a single-column form with no tabular content) cap width and center it: `<div className="mx-auto max-w-3xl">`. A wide single-column form is harder to scan, not easier — capping keeps line lengths readable even on an ultra-wide monitor. Every page in this cluster uses the *same* cap (`max-w-3xl`) so navigating between them doesn't feel like the app randomly resized — don't reach for `max-w-lg`/`2xl`/`4xl`/etc. for a new settings-style page; use `max-w-3xl` unless there's a specific reason to deviate. Examples: `/settings`, `/settings/account`, `/settings/billing`, `/settings/notifications`, `/settings/webhooks`, `/issuers/[id]`, `/api-keys`, `/support` (in-app chrome).
+
+When a new page is genuinely a hybrid (e.g. a form that also renders a wide table), prefer the fluid pattern — that's what `/invoices/new` and `/invoices/[key]` already do.
+
 ---
 
 ## Adding a Server Action (mutation)

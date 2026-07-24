@@ -17,7 +17,7 @@ export default async function AccountSettingsPage({
   const { email, firstName, lastName } = ctx.user;
 
   return (
-    <div className="max-w-lg">
+    <div className="mx-auto max-w-3xl">
       <PageHeader
         title={t('title')}
         description={t('description')}

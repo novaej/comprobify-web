@@ -37,7 +37,7 @@ export default async function IssuerEditPage({
   const sequentials = 'sequentials' in sequentialsResult ? sequentialsResult.sequentials : [];
 
   return (
-    <div className="max-w-2xl">
+    <div className="mx-auto max-w-3xl">
       <PageHeader title={t('editPage.title')} backHref="/issuers" backLabel={t('title')} />
       <IssuerEditForm
         issuer={{

@@ -20,7 +20,7 @@ export default async function NotificationsPreferencesPage({
   const preferences = await getNotificationPreferences({ apiKey: ctx.apiKey }).catch(() => []);
 
   return (
-    <div className="max-w-2xl">
+    <div className="mx-auto max-w-3xl">
       <PageHeader title={t('title')} description={t('description')} backHref="/settings" backLabel={tSettings('title')} />
       <NotificationPreferences initialPreferences={preferences} />
     </div>

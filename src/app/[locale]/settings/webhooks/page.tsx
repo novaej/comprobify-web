@@ -35,7 +35,7 @@ export default async function WebhooksPage({
   const customEndpoints = endpoints.filter((e) => e.id !== canonicalEndpoint?.id);
 
   return (
-    <div className="max-w-3xl">
+    <div className="mx-auto max-w-3xl">
       <PageHeader title={t('title')} description={t('description')} backHref="/settings" backLabel={tSettings('title')} />
       <WebhookManager
         canonicalAvailability={canonicalAvailability}
