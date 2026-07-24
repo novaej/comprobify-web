@@ -40,10 +40,14 @@ export function InvoicePolling({ accessKey }: InvoicePollingProps) {
         setTimedOut(true);
         return;
       }
-      const result = await getDocumentStatusAction(accessKey);
-      if ('status' in result && result.status !== 'RECEIVED') {
-        clearInterval(interval);
-        router.refresh();
+      try {
+        const result = await getDocumentStatusAction(accessKey);
+        if ('status' in result && result.status !== 'RECEIVED') {
+          clearInterval(interval);
+          router.refresh();
+        }
+      } catch {
+        // transient network blip; next tick retries until TIMEOUT_MS
       }
     }, POLL_INTERVAL_MS);
 

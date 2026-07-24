@@ -10,7 +10,9 @@ import { catchUpNotificationsAction } from '@/app/actions/notifications';
  */
 export function NotificationSync() {
   useEffect(() => {
-    void catchUpNotificationsAction();
+    // Best-effort — a network blip here shouldn't leave an unhandled rejection;
+    // the bell's own poll (notification-bell.tsx) will catch up shortly after anyway.
+    catchUpNotificationsAction().catch(() => {});
   }, []); // empty deps — runs once per hard page load / login
 
   return null;
