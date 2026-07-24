@@ -114,6 +114,9 @@
     "badge": "SRI Pruebas",
     "productionBadge": "SRI Producción"
   },
+  "stagingDeployment": {
+    "banner": "Este es el entorno de staging: todos los comprobantes se envían al ambiente de pruebas del SRI, sin importar el estado (sandbox o producción) de tu cuenta."
+  },
   "suspended": {
     "banner": "Tu cuenta está suspendida. No puedes crear ni enviar comprobantes hasta que se resuelva.",
     "bannerLink": "Ver facturación"

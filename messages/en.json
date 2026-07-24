@@ -114,6 +114,9 @@
     "badge": "SRI Pruebas",
     "productionBadge": "SRI Producción"
   },
+  "stagingDeployment": {
+    "banner": "This is the staging environment: all documents are sent to SRI's test environment, regardless of your account's sandbox/production status."
+  },
   "suspended": {
     "banner": "Your account is suspended. You cannot create or send documents until this is resolved.",
     "bannerLink": "View billing"
