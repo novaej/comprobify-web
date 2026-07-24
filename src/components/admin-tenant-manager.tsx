@@ -21,7 +21,9 @@ const STATUS_TRIGGER: Record<string, string> = {
   SUSPENDED: 'border-red-300 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-500/40 dark:bg-red-500/15 dark:text-red-300 dark:hover:bg-red-500/25',
 };
 
-export function AdminTenantManager({ tenants }: { tenants: AdminTenant[] }) {
+type AdminTenantRow = AdminTenant & { businessName: string | null };
+
+export function AdminTenantManager({ tenants }: { tenants: AdminTenantRow[] }) {
   const t = useTranslations('admin.tenants');
   const tPricing = useTranslations('pricing');
   const tError = useTranslations('apiError');
@@ -71,6 +73,7 @@ export function AdminTenantManager({ tenants }: { tenants: AdminTenant[] }) {
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('columns.businessName')}</TableHead>
             <TableHead className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('columns.email')}</TableHead>
             <TableHead className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('columns.tier')}</TableHead>
             <TableHead className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('columns.status')}</TableHead>
@@ -84,6 +87,7 @@ export function AdminTenantManager({ tenants }: { tenants: AdminTenant[] }) {
             const triggerClass = STATUS_TRIGGER[tenant.status] ?? '';
             return (
               <TableRow key={tenant.id} className={rowPending ? 'opacity-60' : ''}>
+                <TableCell className="font-medium">{tenant.businessName ?? '—'}</TableCell>
                 <TableCell className="font-medium">{tenant.email}</TableCell>
 
                 {/* Tier — inline select */}

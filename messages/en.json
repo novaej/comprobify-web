@@ -1522,6 +1522,7 @@
       "description": "Manage each tenant's plan, status, and verification.",
       "empty": "No tenants registered.",
       "columns": {
+        "businessName": "Business name",
         "email": "Email",
         "tier": "Tier",
         "status": "Status",

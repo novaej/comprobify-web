@@ -1522,6 +1522,7 @@
       "description": "Gestiona el plan, estado y verificación de cada tenant.",
       "empty": "No hay tenants registrados.",
       "columns": {
+        "businessName": "Razón social",
         "email": "Correo",
         "tier": "Plan",
         "status": "Estado",
