@@ -74,7 +74,7 @@ export default async function SupportPage({
 
   if (showsInAppChrome) {
     return (
-      <div className="max-w-2xl">
+      <div className="mx-auto max-w-3xl">
         <PageHeader title={t('title')} description={t('description')} />
         {contactCards}
       </div>

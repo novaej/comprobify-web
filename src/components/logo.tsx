@@ -57,7 +57,7 @@ export function LogoLockupStacked({
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 480 215"
+      viewBox="0 0 480 280"
       role="img"
       aria-label="Comprobify"
       className={className}
@@ -83,12 +83,12 @@ export function LogoLockupStacked({
       </g>
       <text
         x="240"
-        y="205"
+        y="240"
         textAnchor="middle"
         fontFamily="Inter, system-ui, -apple-system, sans-serif"
         fontWeight="700"
-        fontSize="72"
-        letterSpacing="-2"
+        fontSize="64"
+        letterSpacing="-1.6"
       >
         <tspan fill={c.wordPrimary}>Compro</tspan>
         <tspan fill={c.wordAccent}>bify</tspan>

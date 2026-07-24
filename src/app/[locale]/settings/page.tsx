@@ -78,7 +78,7 @@ export default async function SettingsPage({
   const agreementsAccepted = !agreementStatus?.needsAcceptance;
 
   return (
-    <div className="max-w-2xl">
+    <div className="mx-auto max-w-3xl">
       <PageHeader title={t('title')} />
 
       <div className="space-y-4">

@@ -114,6 +114,9 @@
     "badge": "SRI Pruebas",
     "productionBadge": "SRI Producción"
   },
+  "stagingDeployment": {
+    "banner": "Este es el entorno de staging: todos los comprobantes se envían al ambiente de pruebas del SRI, sin importar el estado (sandbox o producción) de tu cuenta."
+  },
   "suspended": {
     "banner": "Tu cuenta está suspendida. No puedes crear ni enviar comprobantes hasta que se resuelva.",
     "bannerLink": "Ver facturación"
@@ -1522,6 +1525,7 @@
       "description": "Gestiona el plan, estado y verificación de cada tenant.",
       "empty": "No hay tenants registrados.",
       "columns": {
+        "businessName": "Razón social",
         "email": "Correo",
         "tier": "Plan",
         "status": "Estado",

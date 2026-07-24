@@ -70,10 +70,14 @@ export function InvoiceActions({ accessKey, status, documentType, from, canManag
         router.refresh();
         return;
       }
-      const pollResult = await getDocumentStatusAction(accessKey);
-      if ('status' in pollResult && pollResult.status !== 'PENDING_SEND') {
-        clearInterval(interval);
-        router.refresh();
+      try {
+        const pollResult = await getDocumentStatusAction(accessKey);
+        if ('status' in pollResult && pollResult.status !== 'PENDING_SEND') {
+          clearInterval(interval);
+          router.refresh();
+        }
+      } catch {
+        // transient network blip; next tick retries until TIMEOUT_MS
       }
     }, POLL_INTERVAL_MS);
     return () => clearInterval(interval);

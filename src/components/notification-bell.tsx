@@ -2,8 +2,10 @@
 
 import { useState, useTransition, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslations } from 'next-intl';
 import { Bell } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toastApiError } from '@/lib/api-error-toast';
 import { NotificationPanel } from './notification-panel';
 import { listNotificationsAction, markNotificationReadAction } from '@/app/actions/notifications';
 
@@ -15,6 +17,7 @@ interface NotificationBellProps {
 }
 
 export function NotificationBell({ initialUnreadCount, initialNotifications }: NotificationBellProps) {
+  const tError = useTranslations('apiError');
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>(initialNotifications);
   const [unreadCount, setUnreadCount] = useState(initialUnreadCount);
@@ -45,13 +48,20 @@ export function NotificationBell({ initialUnreadCount, initialNotifications }: N
     setOpen((v) => !v);
   }
 
-  // Refresh notifications from server
+  // Refresh notifications from server. Swallows failures silently (no toast) --
+  // this also runs unattended every 60s for as long as the tab stays open, and a
+  // transient network blip (laptop sleep/wake, wifi change) shouldn't crash the
+  // whole page to the error boundary; the next scheduled poll just retries.
   const refresh = useCallback(() => {
     startTransition(async () => {
-      const result = await listNotificationsAction();
-      setNotifications(result.notifications);
-      const unread = result.notifications.filter((n) => !n.readByMe).length;
-      setUnreadCount(unread);
+      try {
+        const result = await listNotificationsAction();
+        setNotifications(result.notifications);
+        const unread = result.notifications.filter((n) => !n.readByMe).length;
+        setUnreadCount(unread);
+      } catch {
+        // best-effort refresh; next interval tick or panel open retries
+      }
     });
   }, []);
 
@@ -68,11 +78,15 @@ export function NotificationBell({ initialUnreadCount, initialNotifications }: N
 
   function handleMarkRead(id: string) {
     startTransition(async () => {
-      await markNotificationReadAction(id);
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, readByMe: true } : n))
-      );
-      setUnreadCount((prev) => Math.max(0, prev - 1));
+      try {
+        await markNotificationReadAction(id);
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === id ? { ...n, readByMe: true } : n))
+        );
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+      } catch {
+        toastApiError('UNKNOWN', tError);
+      }
     });
   }
 

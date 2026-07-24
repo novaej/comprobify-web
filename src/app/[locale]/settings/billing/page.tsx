@@ -53,7 +53,7 @@ export default async function BillingPage({
   const currentTier = tiers.find((tier: ApiTierInfo) => tier.name === tenantInfo.subscriptionTier) ?? null;
 
   return (
-    <div className="max-w-2xl">
+    <div className="mx-auto max-w-3xl">
       <PageHeader title={t('title')} backHref="/settings" backLabel={tSettings('title')} />
       <BillingManager
         tenantInfo={tenantInfo}

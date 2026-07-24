@@ -29,7 +29,7 @@ export default async function ApiKeysPage({
   const hasActiveKey = keys.some((k) => k.isActive);
 
   return (
-    <div className="max-w-4xl">
+    <div className="mx-auto max-w-3xl">
       <PageHeader
         title={t('title')}
         description={t('description')}

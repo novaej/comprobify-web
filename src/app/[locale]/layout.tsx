@@ -7,6 +7,7 @@ import { QueryProvider } from '@/providers/query-provider';
 import { Nav } from '@/components/nav';
 import { Toaster } from '@/components/ui/sonner';
 import { SandboxBanner } from '@/components/sandbox-banner';
+import { StagingDeploymentBanner } from '@/components/staging-deployment-banner';
 import { SuspendedBanner } from '@/components/suspended-banner';
 import { CertExpiryBanner } from '@/components/cert-expiry-banner';
 import { AgreementPendingBanner } from '@/components/agreement-pending-banner';
@@ -253,6 +254,7 @@ export default async function LocaleLayout({
               <NotificationSync />
               <main className="flex-1 overflow-y-auto p-4 md:p-8">
                 <SuspendedBanner isSuspended={layoutProps.isSuspended} />
+                <StagingDeploymentBanner />
                 <SandboxBanner environment={layoutProps.environment} />
                 {layoutProps.certAlert && (
                   <CertExpiryBanner
