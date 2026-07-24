@@ -8,6 +8,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.7.2] — 2026-07-24
+
+### Fixed
+- **Non-JSON gateway errors (e.g. a Cloudflare 522) crashed with a raw `SyntaxError` instead of a handled `ApiError`** — `src/lib/api.ts`'s `request()` unconditionally called `res.json()` on error responses, same class of bug already fixed in `admin-api.ts` (see CLAUDE.md Common Mistake #36). It now checks the response's `content-type` and throws a proper `ApiError` with code `API_UNREACHABLE` when the body isn't JSON.
+- **`/agreements` showed a generic "unexpected error" for any failure, including `API_UNREACHABLE`** — the page threw the error code into the shared `[locale]/error.tsx` boundary, which can't recover a custom `Error` property across the server→client boundary (CLAUDE.md Common Mistake #28) and always rendered `apiError.UNKNOWN`. It now catches the `ApiError` inline and renders the specific translated message with a retry link.
+
 ## [0.7.1] — 2026-07-23
 
 ### Added
