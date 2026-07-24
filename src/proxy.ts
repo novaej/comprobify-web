@@ -8,9 +8,17 @@ import { routing } from './i18n/routing';
 // the parent needs to know which route it's rendering.
 const MARKETING_ROUTE_HEADER = 'x-marketing-route';
 
+// Same problem, different set of routes: recover-account/forgot-password/reset-password
+// deliberately never read the session (an already-authenticated visitor is a normal,
+// supported way to land on them — e.g. a stale reset-password email opened after the
+// link's own auto-sign-in already happened), so unlike /login or /register they can't
+// dodge the Nav wrap with an auth()-and-redirect check. Same fix as the marketing header.
+const STANDALONE_ROUTE_HEADER = 'x-standalone-route';
+const STANDALONE_ROUTES = /^\/(es|en)\/(recover-account|forgot-password|reset-password)(\/.*)?$/;
+
 const intlMiddleware = createMiddleware(routing);
 
-const PUBLIC_ROUTES = /^\/(es|en)(\/(?:login|register|recover-account|verify-email|onboarding|complete-registration|pricing|support)(?:\/.*)?)?$/;
+const PUBLIC_ROUTES = /^\/(es|en)(\/(?:login|register|recover-account|forgot-password|reset-password|verify-email|onboarding|complete-registration|pricing|support)(?:\/.*)?)?$/;
 
 // Routes that belong on the marketing domain (comprobify.com).
 // Everything else belongs on the app domain (app.comprobify.com).
@@ -71,6 +79,7 @@ export const proxy = auth((req) => {
   // runs means its own clone picks this header up for free, so there's only ever one
   // response constructed this way.
   req.headers.set(MARKETING_ROUTE_HEADER, isMarketingPath ? '1' : '0');
+  req.headers.set(STANDALONE_ROUTE_HEADER, STANDALONE_ROUTES.test(pathname) ? '1' : '0');
   return intlMiddleware(req);
 });
 

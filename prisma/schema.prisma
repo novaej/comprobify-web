@@ -20,6 +20,8 @@ model User {
   invitedAt     DateTime? @map("invited_at")
   acceptedAt    DateTime? @map("accepted_at")
   isSuperAdmin  Boolean   @default(false) @map("is_super_admin")
+  passwordResetTokenHash      String?   @unique @map("password_reset_token_hash")
+  passwordResetTokenExpiresAt DateTime? @map("password_reset_token_expires_at")
   createdAt     DateTime  @default(now()) @map("created_at")
   tenant       Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   issuerAccess UserIssuerAccess[]
