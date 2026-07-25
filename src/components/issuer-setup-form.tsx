@@ -20,11 +20,9 @@ const DOC_TYPES = [
 export function IssuerSetupForm({
   intendedTier,
   intendedBillingInterval,
-  termsVersion,
 }: {
   intendedTier?: PaidTier;
   intendedBillingInterval?: BillingInterval;
-  termsVersion: string;
 }) {
   const t = useTranslations('settings.setup');
   const tError = useTranslations('apiError');
@@ -67,7 +65,6 @@ export function IssuerSetupForm({
 
   return (
     <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
-      <input type="hidden" name="termsVersion" value={termsVersion} />
       {intendedTier && <input type="hidden" name="intendedTier" value={intendedTier} />}
       {intendedTier && (
         <input

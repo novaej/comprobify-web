@@ -10,11 +10,9 @@ import type { PaidTier, BillingInterval } from '@/lib/subscription-tiers';
 export function OnboardingTabs({
   intendedTier,
   intendedBillingInterval,
-  termsVersion,
 }: {
   intendedTier?: PaidTier;
   intendedBillingInterval?: BillingInterval;
-  termsVersion: string;
 }) {
   const t = useTranslations('onboarding');
   const [tab, setTab] = useState<'create' | 'link'>('create');
@@ -52,7 +50,6 @@ export function OnboardingTabs({
         <IssuerSetupForm
           intendedTier={intendedTier}
           intendedBillingInterval={intendedBillingInterval}
-          termsVersion={termsVersion}
         />
       ) : (
         <LinkExistingAccountForm />

@@ -36,8 +36,6 @@ export async function bootstrapTenantAction(formData: FormData): Promise<Onboard
   const issuePointCode = ((formData.get('issuePointCode') as string | null)?.trim() || '001').slice(0, 3);
   const requiredAccounting = formData.get('requiredAccounting') === 'on';
   const certPassword = (formData.get('certPassword') as string | null) ?? '';
-  // termsVersion is populated server-side from listAgreements() and carried as a hidden field.
-  const termsVersion = (formData.get('termsVersion') as string | null)?.trim() || 'pre-launch';
   const intendedPlan = parseIntendedPlan(
     formData.get('intendedTier') as string | null,
     formData.get('intendedBillingInterval') as string | null,
@@ -88,7 +86,6 @@ export async function bootstrapTenantAction(formData: FormData): Promise<Onboard
       },
       p12Buffer,
       certPassword,
-      termsVersion,
       verificationRedirectUrl,
       logoBuffer,
       logoFile?.type,

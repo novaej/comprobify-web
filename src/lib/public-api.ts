@@ -53,14 +53,12 @@ export async function registerTenant(
   fields: IssuerRegistrationFields,
   p12Buffer: Buffer,
   p12Password: string,
-  termsVersion: string,
   verificationRedirectUrl?: string,
   logoBuffer?: Buffer,
   logoType?: string,
 ): Promise<RegisterTenantResult> {
   const form = new FormData();
   form.append('email', email);
-  form.append('termsVersion', termsVersion);
   form.append('ruc', fields.ruc);
   form.append('businessName', fields.businessName);
   if (fields.tradeName) form.append('tradeName', fields.tradeName);
