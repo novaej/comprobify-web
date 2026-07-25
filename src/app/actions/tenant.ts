@@ -5,6 +5,7 @@ import { requirePermission, requireContext, type MinimalContext } from '@/lib/co
 import { promoteTenant, listTenantApiKeys, updateTenantLanguage } from '@/lib/api';
 import { resendVerificationEmail as publicResendVerificationEmail } from '@/lib/public-api';
 import { encrypt, lastFour } from '@/lib/crypto';
+import { isValidIdleTimeoutMinutes } from '@/lib/session-timeout';
 import { revalidatePath } from 'next/cache';
 import { redirect } from '@/i18n/navigation';
 import { getLocale } from 'next-intl/server';
@@ -15,19 +16,34 @@ import type { Prisma } from '@prisma/client';
 export type TenantResult = { error: string } | null;
 export type VerificationResult = { error: string } | { verified: true } | null;
 
+// Each field is only written when the caller actually passed it — omitting a
+// key must leave that column untouched, not null it out. `sessionIdleTimeoutMinutes:
+// null` is a deliberate, meaningful value ("reset to the system default"),
+// distinct from omitting the key entirely.
 export async function updateTenantAction(data: {
   tradeName?: string;
   contactEmail?: string;
+  sessionIdleTimeoutMinutes?: number | null;
 }): Promise<TenantResult> {
   await requirePermission('tenant.manage', { skipIssuer: true });
   const ctx = await requireContext({ skipIssuer: true });
-  await db.tenant.update({
-    where: { id: ctx.tenant.id },
-    data: {
-      tradeName: data.tradeName?.trim() || null,
-      contactEmail: data.contactEmail?.trim() || null,
-    },
-  });
+
+  if (
+    data.sessionIdleTimeoutMinutes !== undefined &&
+    data.sessionIdleTimeoutMinutes !== null &&
+    !isValidIdleTimeoutMinutes(data.sessionIdleTimeoutMinutes)
+  ) {
+    return { error: 'INVALID_SESSION_TIMEOUT' };
+  }
+
+  const updateData: Prisma.TenantUpdateInput = {};
+  if (data.tradeName !== undefined) updateData.tradeName = data.tradeName.trim() || null;
+  if (data.contactEmail !== undefined) updateData.contactEmail = data.contactEmail.trim() || null;
+  if (data.sessionIdleTimeoutMinutes !== undefined) {
+    updateData.sessionIdleTimeoutMinutes = data.sessionIdleTimeoutMinutes;
+  }
+
+  await db.tenant.update({ where: { id: ctx.tenant.id }, data: updateData });
   revalidatePath('/', 'layout');
   return null;
 }

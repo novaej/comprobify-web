@@ -16,6 +16,11 @@ const MARKETING_ROUTE_HEADER = 'x-marketing-route';
 const STANDALONE_ROUTE_HEADER = 'x-standalone-route';
 const STANDALONE_ROUTES = /^\/(es|en)\/(recover-account|forgot-password|reset-password)(\/.*)?$/;
 
+// Auth.js v5's default JWT session cookie name (see @auth/core's defaultCookies) —
+// this app sets no custom `cookies` config in src/auth.ts, so these are the two
+// names in play: the `__Secure-` prefix is added whenever the app runs over https.
+const SESSION_COOKIE_NAMES = ['authjs.session-token', '__Secure-authjs.session-token'];
+
 const intlMiddleware = createMiddleware(routing);
 
 const PUBLIC_ROUTES = /^\/(es|en)(\/(?:login|register|recover-account|forgot-password|reset-password|verify-email|onboarding|complete-registration|pricing|support)(?:\/.*)?)?$/;
@@ -66,7 +71,14 @@ export const proxy = auth((req) => {
 
   if (!req.auth && !isPublic) {
     const locale = pathname.split('/')[1] || 'es';
-    return Response.redirect(new URL(`/${locale}/login`, req.url));
+    // A session cookie that was sent but didn't resolve to a session almost
+    // always means src/auth.ts's jwt callback just invalidated it (idle
+    // timeout expired) rather than "never logged in" — surface that distinction
+    // on the login page instead of a silent bounce, mirroring the existing
+    // ?reason=disabled pattern from /api/auth/signout-disabled.
+    const hadSessionCookie = SESSION_COOKIE_NAMES.some((name) => req.cookies.has(name));
+    const reasonParam = hadSessionCookie ? '?reason=idle' : '';
+    return Response.redirect(new URL(`/${locale}/login${reasonParam}`, req.url));
   }
 
   // next-intl's own middleware internally clones `req.headers` into a fresh Headers

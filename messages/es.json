@@ -62,6 +62,7 @@
       "noAccount": "¿No tienes cuenta?",
       "register": "Regístrate",
       "accountDisabled": "Tu cuenta ha sido desactivada por un administrador. Contacta al administrador para recuperar el acceso.",
+      "idleTimeout": "Tu sesión se cerró por inactividad. Vuelve a iniciar sesión para continuar.",
       "lostApiKey": "¿Perdiste tu API key?",
       "forgotPassword": "¿Olvidaste tu contraseña?"
     },
@@ -647,6 +648,18 @@
       "description": "Consulta los acuerdos legales de Comprobify.",
       "view": "Ver"
     },
+    "security": {
+      "title": "Seguridad",
+      "description": "Define cuánto tiempo puede estar inactiva una sesión antes de cerrarse automáticamente. Aplica a todos los usuarios de tu organización.",
+      "idleTimeoutLabel": "Cerrar sesión tras inactividad",
+      "minutes": "minutos",
+      "useDefault": "Usar predeterminado",
+      "save": "Guardar",
+      "saving": "Guardando...",
+      "saved": "Cambios guardados",
+      "currentlyDefault": "Usando el valor predeterminado ({minutes} minutos).",
+      "currentlyCustom": "Usando un valor personalizado."
+    },
     "verification": {
       "title": "Verifica tu correo electrónico",
       "description": "Revisa tu bandeja de entrada y haz clic en el enlace de verificación. Necesitas verificar tu correo para poder activar el ambiente de producción.",
@@ -671,6 +684,7 @@
     "ISSUER_NOT_CONFIGURED": "Primero debes configurar tu empresa.",
     "EMAIL_NOT_VERIFIED": "Debes verificar tu correo electrónico antes de activar producción. Revisa tu bandeja de entrada.",
     "TOO_MANY_REQUESTS": "Demasiados intentos. Espera unos minutos e inténtalo de nuevo.",
+    "INVALID_SESSION_TIMEOUT": "El tiempo de inactividad debe estar entre 5 y 480 minutos.",
     "UNEXPECTED_ERROR": "Ocurrió un error inesperado. Inténtalo de nuevo."
   },
   "apiError": {

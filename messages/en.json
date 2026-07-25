@@ -62,6 +62,7 @@
       "noAccount": "Don't have an account?",
       "register": "Register",
       "accountDisabled": "Your account has been disabled by an administrator. Contact your administrator to regain access.",
+      "idleTimeout": "Your session ended due to inactivity. Sign in again to continue.",
       "lostApiKey": "Lost your API key?",
       "forgotPassword": "Forgot your password?"
     },
@@ -647,6 +648,18 @@
       "description": "Review Comprobify's legal agreements.",
       "view": "View"
     },
+    "security": {
+      "title": "Security",
+      "description": "Set how long a session can sit idle before it's automatically signed out. Applies to every user in your organization.",
+      "idleTimeoutLabel": "Sign out after inactivity",
+      "minutes": "minutes",
+      "useDefault": "Use default",
+      "save": "Save",
+      "saving": "Saving...",
+      "saved": "Changes saved",
+      "currentlyDefault": "Using the system default ({minutes} minutes).",
+      "currentlyCustom": "Using a custom value."
+    },
     "verification": {
       "title": "Verify your email address",
       "description": "Check your inbox and click the verification link. You need to verify your email before activating the production environment.",
@@ -671,6 +684,7 @@
     "ISSUER_NOT_CONFIGURED": "You must set up your company first.",
     "EMAIL_NOT_VERIFIED": "You must verify your email address before activating production. Check your inbox.",
     "TOO_MANY_REQUESTS": "Too many attempts. Please wait a few minutes and try again.",
+    "INVALID_SESSION_TIMEOUT": "The idle timeout must be between 5 and 480 minutes.",
     "UNEXPECTED_ERROR": "An unexpected error occurred. Please try again."
   },
   "apiError": {
