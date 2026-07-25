@@ -42,6 +42,7 @@ model Tenant {
   intendedBillingInterval String? @map("intended_billing_interval")
   pendingBankTransfer Json?  @map("pending_bank_transfer")
   contactEmail String?        @map("contact_email")
+  sessionIdleTimeoutMinutes Int? @map("session_idle_timeout_minutes")
   createdAt    DateTime       @default(now()) @map("created_at")
   apiKeys      TenantApiKey[]
   issuers      Issuer[]

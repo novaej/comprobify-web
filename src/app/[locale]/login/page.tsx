@@ -7,7 +7,7 @@ import { Link, redirect } from '@/i18n/navigation';
 import { LocaleSwitcher } from '@/components/locale-switcher';
 import { LogoLockupStacked } from '@/components/logo';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { ChevronLeft, ShieldOff } from 'lucide-react';
+import { ChevronLeft, ShieldOff, Clock } from 'lucide-react';
 
 export default async function LoginPage({
   params,
@@ -63,6 +63,12 @@ export default async function LoginPage({
             <div className="mb-4 flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3">
               <ShieldOff className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
               <p className="text-sm text-destructive">{t('login.accountDisabled')}</p>
+            </div>
+          )}
+          {reason === 'idle' && (
+            <div className="mb-4 flex items-start gap-3 rounded-xl border border-border bg-muted/40 px-4 py-3">
+              <Clock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">{t('login.idleTimeout')}</p>
             </div>
           )}
           <div className="rounded-xl border border-border bg-card p-6 shadow-sm">

@@ -1,6 +1,7 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { ProductionPromotion } from '@/components/production-promotion';
 import { EmailVerificationNotice } from '@/components/email-verification-notice';
+import { SessionTimeoutSettings } from '@/components/session-timeout-settings';
 import { PageHeader } from '@/components/page-header';
 import { requireContext } from '@/lib/context';
 import { listIssuerDocumentTypes, getMySubscriptions, getAgreementStatus } from '@/lib/api';
@@ -76,6 +77,13 @@ export default async function SettingsPage({
       : Promise.resolve(null),
   ]);
   const agreementsAccepted = !agreementStatus?.needsAcceptance;
+
+  const tenantSecurity = canManageTenant
+    ? await db.tenant.findUnique({
+        where: { id: tenantId },
+        select: { sessionIdleTimeoutMinutes: true },
+      })
+    : null;
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -161,6 +169,18 @@ export default async function SettingsPage({
                   </div>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {canManageTenant && tenantSecurity && (
+          <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+            <h2 className="text-sm font-semibold">{t('security.title')}</h2>
+            <p className="mt-1 text-xs text-muted-foreground">{t('security.description')}</p>
+            <div className="mt-4">
+              <SessionTimeoutSettings
+                currentValue={tenantSecurity.sessionIdleTimeoutMinutes}
+              />
             </div>
           </div>
         )}

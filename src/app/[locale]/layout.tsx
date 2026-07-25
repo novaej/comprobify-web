@@ -4,6 +4,8 @@ import { NextIntlClientProvider, hasLocale } from 'next-intl';
 import { getMessages, setRequestLocale } from 'next-intl/server';
 import { routing } from '@/i18n/routing';
 import { QueryProvider } from '@/providers/query-provider';
+import { AuthSessionProvider } from '@/providers/auth-session-provider';
+import { IdleActivityTracker } from '@/components/idle-activity-tracker';
 import { Nav } from '@/components/nav';
 import { Toaster } from '@/components/ui/sonner';
 import { SandboxBanner } from '@/components/sandbox-banner';
@@ -18,6 +20,7 @@ import { db } from '@/lib/db';
 import { isUuid } from '@/lib/utils';
 import type { Role } from '@/lib/rbac';
 import { readCtxCookie } from '@/lib/context-cookie';
+import { resolveIdleTimeoutMinutes } from '@/lib/session-timeout';
 import type { listNotificationsAction } from '@/app/actions/notifications';
 import packageJson from '../../../package.json';
 
@@ -50,6 +53,7 @@ interface LayoutProps {
   initialUnreadCount: number;
   initialNotifications: NotificationItem[];
   certAlert: CertAlertProps | null;
+  idleTimeoutMinutes: number;
 }
 
 async function getLayoutProps(userId: string): Promise<LayoutProps | null> {
@@ -70,6 +74,7 @@ async function getLayoutProps(userId: string): Promise<LayoutProps | null> {
           tradeName: true,
           environment: true,
           status: true,
+          sessionIdleTimeoutMinutes: true,
           issuers: {
             where: { active: true },
             orderBy: [{ isDefault: 'desc' as const }, { createdAt: 'asc' as const }],
@@ -191,6 +196,7 @@ async function getLayoutProps(userId: string): Promise<LayoutProps | null> {
     noIssuerAssigned,
     initialUnreadCount,
     initialNotifications: mappedNotifications,
+    idleTimeoutMinutes: resolveIdleTimeoutMinutes(user.tenant.sessionIdleTimeoutMinutes),
     certAlert,
   };
 }
@@ -235,45 +241,48 @@ export default async function LocaleLayout({
     <NextIntlClientProvider messages={messages}>
       <QueryProvider>
         {isAuthenticated && layoutProps ? (
-          <div className="flex h-full flex-col md:flex-row">
-            <Nav
-              hasIssuer={layoutProps.hasIssuer}
-              environment={layoutProps.environment}
-              tenantName={layoutProps.tenantName}
-              currentIssuer={layoutProps.currentIssuer}
-              issuers={layoutProps.issuers}
-              userEmail={layoutProps.userEmail}
-              userFirstName={layoutProps.userFirstName}
-              userLastName={layoutProps.userLastName}
-              userRole={layoutProps.userRole}
-              noIssuerAssigned={layoutProps.noIssuerAssigned}
-              initialUnreadCount={layoutProps.initialUnreadCount}
-              initialNotifications={layoutProps.initialNotifications}
-              appVersion={packageJson.version}
-            />
-            <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-              <TopBar
+          <AuthSessionProvider session={session}>
+            <IdleActivityTracker idleTimeoutMinutes={layoutProps.idleTimeoutMinutes} locale={locale} />
+            <div className="flex h-full flex-col md:flex-row">
+              <Nav
+                hasIssuer={layoutProps.hasIssuer}
+                environment={layoutProps.environment}
+                tenantName={layoutProps.tenantName}
+                currentIssuer={layoutProps.currentIssuer}
+                issuers={layoutProps.issuers}
+                userEmail={layoutProps.userEmail}
+                userFirstName={layoutProps.userFirstName}
+                userLastName={layoutProps.userLastName}
+                userRole={layoutProps.userRole}
+                noIssuerAssigned={layoutProps.noIssuerAssigned}
                 initialUnreadCount={layoutProps.initialUnreadCount}
                 initialNotifications={layoutProps.initialNotifications}
+                appVersion={packageJson.version}
               />
-              <NotificationSync />
-              <main className="flex-1 overflow-y-auto p-4 md:p-8">
-                <SuspendedBanner isSuspended={layoutProps.isSuspended} />
-                <StagingDeploymentBanner />
-                <SandboxBanner environment={layoutProps.environment} />
-                {layoutProps.certAlert && (
-                  <CertExpiryBanner
-                    id={layoutProps.certAlert.id}
-                    type={layoutProps.certAlert.type}
-                    title={layoutProps.certAlert.title}
-                    message={layoutProps.certAlert.message}
-                  />
-                )}
-                <AgreementPendingBanner />
-                {children}
-              </main>
+              <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+                <TopBar
+                  initialUnreadCount={layoutProps.initialUnreadCount}
+                  initialNotifications={layoutProps.initialNotifications}
+                />
+                <NotificationSync />
+                <main className="flex-1 overflow-y-auto p-4 md:p-8">
+                  <SuspendedBanner isSuspended={layoutProps.isSuspended} />
+                  <StagingDeploymentBanner />
+                  <SandboxBanner environment={layoutProps.environment} />
+                  {layoutProps.certAlert && (
+                    <CertExpiryBanner
+                      id={layoutProps.certAlert.id}
+                      type={layoutProps.certAlert.type}
+                      title={layoutProps.certAlert.title}
+                      message={layoutProps.certAlert.message}
+                    />
+                  )}
+                  <AgreementPendingBanner />
+                  {children}
+                </main>
+              </div>
             </div>
-          </div>
+          </AuthSessionProvider>
         ) : (
           <>{children}</>
         )}

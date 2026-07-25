@@ -46,19 +46,23 @@ On confirm → `promoteTenantAction(initialSequentials, tier?, billingInterval?)
 3. If the response included a `subscription` (a tier was requested or already active), redirects to `/settings/billing` instead of staying on this page
 4. Next `requireContext()` call automatically picks up the new production key
 
-### 4. Billing card
+### 4. Security card
+
+Shown when `ctx.permissions.has('tenant.manage')` (Owner-only). `<SessionTimeoutSettings>` — a number input (minutes, bounded 5–480) for `Tenant.sessionIdleTimeoutMinutes`, with Save and (when a custom value is set) "Use default" buttons. `null` in the database means "using `DEFAULT_SESSION_IDLE_TIMEOUT_MINUTES`" (30 minutes) — the card shows which state it's in. Saves via `updateTenantAction({ sessionIdleTimeoutMinutes })`; the actual enforcement (idle sessions get signed out) lives in `src/auth.ts`'s `jwt` callback, not here — see CLAUDE.md's "Per-tenant session idle timeout" pattern. Applies tenant-wide, to every user's session, not just the Owner's own.
+
+### 5. Billing card
 
 Shown to anyone with `billing.read` permission. A card linking to `/settings/billing` with a CreditCard icon and short description. See `docs/site/screens/billing.md`.
 
-### 5. Notification preferences card
+### 6. Notification preferences card
 
 Shown to Owner/Admin (`notifications.manage` permission). A card linking to `/settings/notifications` with a Bell icon and short description. See `docs/site/screens/notifications.md`.
 
-### 6. Webhooks card
+### 7. Webhooks card
 
 Shown to Owner/Admin (`webhooks.manage` permission). A card linking to `/settings/webhooks` with a Webhook icon and short description. See `docs/site/screens/webhooks.md`.
 
-### 7. Account card
+### 8. Account card
 
 A clickable card linking to `/settings/account`. Shows `firstName + lastName` (if set) alongside the signed-in user's email. Any authenticated user can access this — no special permission required. See `docs/site/screens/account.md`.
 
@@ -69,9 +73,11 @@ A clickable card linking to `/settings/account`. Shows `firstName + lastName` (i
 | File | Role |
 |---|---|
 | `src/app/[locale]/settings/page.tsx` | Server Component — calls `requireContext({ skipIssuer: true })`, `listTiers()`, and `getMySubscriptions()` (sandbox only) to detect an already-active subscription |
-| `src/app/actions/tenant.ts` | `promoteTenantAction`, `resendVerificationAction`, `updateTenantAction` |
+| `src/app/actions/tenant.ts` | `promoteTenantAction`, `resendVerificationAction`, `updateTenantAction` (partial update, incl. `sessionIdleTimeoutMinutes`) |
 | `src/components/email-verification-notice.tsx` | Yellow resend banner (Client Component) |
 | `src/components/production-promotion.tsx` | Production promotion card (Client Component) |
+| `src/components/session-timeout-settings.tsx` | Security card's idle-timeout form (Client Component) |
+| `src/lib/session-timeout.ts` | Idle-timeout constants + validation, shared with `src/auth.ts`'s enforcement |
 | `src/lib/subscription-tiers.ts` | `PaidTier`/`BillingInterval` types shared with the billing screen |
 | `src/app/[locale]/verify-email/page.tsx` | Destination for links in verification emails |
 | `src/app/[locale]/settings/billing/page.tsx` | Subscription/payment management sub-page — see `docs/site/screens/billing.md` |
