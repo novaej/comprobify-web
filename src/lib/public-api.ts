@@ -224,6 +224,13 @@ export interface ApiTierInfo {
   priceYearlyUsdBase: number;
   priceYearlyUsdIva: number;
   priceYearlyUsd: number;         // IVA-inclusive total
+  // A published-but-not-yet-effective price change (ADR-023's 30-day notice
+  // window), null when nothing is pending. Visible here so prospective
+  // tenants see it too, not just existing ones who got the notification.
+  upcomingPriceMonthlyUsd: number | null;
+  monthlyPriceEffectiveAt: string | null;
+  upcomingPriceYearlyUsd: number | null;
+  yearlyPriceEffectiveAt: string | null;
   overagePerDocumentUsd: number | null;
 }
 

@@ -8,6 +8,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Fixed
+- **Notification preference toggles on `/settings/notifications` were about to break outright** — comprobify's PR #132 (ADR-024) changed `GET`/`PATCH /v1/notifications/preferences` from one row per `type` to one row per `(type, channel)`, with `channel` being `IN_APP` or `EMAIL`. `notification-preferences.tsx` now renders one toggle per channel a type actually supports (`TYPE_CHANNELS`, mirroring the API's `notification-catalog.js`) instead of a single toggle per type, and `updatePreferencesAction` sends `channel` on every call. See CLAUDE.md Common Mistake #44.
+
+### Added
+- **`PRICE_CHANGE_ANNOUNCED` notification type** — comprobify now fires this mandatory (no opt-out, any channel) notification when a published tier price change enters its 30-day notice window. `notification-preferences.tsx` shows it as a locked, non-toggleable row (it never appears in the preferences `GET` response and `PATCH` rejects it); `getNotificationHref()` routes it to `/settings/billing` alongside the other subscription/payment notification types.
+- **Upcoming price changes surfaced on `/pricing`** — `GET /v1/tiers` now returns `upcomingPrice{Monthly,Yearly}Usd`/`{monthly,yearly}PriceEffectiveAt` for a published-but-not-yet-effective price change still inside its notice window. `pricing-plans.tsx` shows an inline note for the selected billing interval when one is pending, so prospective tenants see it too, not just existing tenants via the notification above.
+- **`/admin/prices` — tier price draft/publish workflow.** comprobify's PR #132 (ADR-023) added `tier_prices` with a `DRAFT → PUBLISHED` lifecycle enforcing the Terms of Service's 30-day price-change notice (`POST`/`GET`/`PATCH /v1/admin/prices`, `POST .../publish`), but shipped with no admin UI to drive it. `AdminPriceManager` mirrors the Agreements editor's table + dialog pattern: create a draft (tier, billing interval, price), edit a draft's price, and publish it (optional `noticeDays`, defaulting to the API's 30-day minimum) — which starts the notice clock and fires `PRICE_CHANGE_ANNOUNCED` to every `ACTIVE` tenant. Published rows are immutable in the UI, matching the API.
+
 ## [0.8.0] — 2026-07-24
 
 ### Added

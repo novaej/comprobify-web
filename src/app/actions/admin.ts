@@ -10,10 +10,16 @@ import {
   linkInvoice,
   publishAgreement,
   activateAgreement,
+  createTierPrice,
+  updateTierPrice,
+  publishTierPrice,
   type AdminTenant,
   type AdminPayment,
   type AdminAgreementVersion,
   type AgreementDocumentType,
+  type AdminTierPrice,
+  type TierName,
+  type BillingInterval,
 } from '@/lib/admin-api';
 import { ApiError } from '@/lib/errors';
 import { revalidatePath } from 'next/cache';
@@ -115,6 +121,50 @@ export async function activateAgreementAction(id: string): Promise<AdminAgreemen
     const document = await activateAgreement(id);
     revalidatePath('/admin/agreements');
     return { document };
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.code };
+    throw err;
+  }
+}
+
+// ── Tier prices ───────────────────────────────────────────────────────────────
+
+export type AdminTierPriceResult = { error: string } | { price: AdminTierPrice };
+
+export async function createTierPriceAction(
+  tier: TierName,
+  billingInterval: BillingInterval,
+  priceUsd: number,
+): Promise<AdminTierPriceResult> {
+  await requireSuperAdmin();
+  try {
+    const price = await createTierPrice(tier, billingInterval, priceUsd);
+    revalidatePath('/admin/prices');
+    return { price };
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.code };
+    throw err;
+  }
+}
+
+export async function updateTierPriceAction(id: string, priceUsd: number): Promise<AdminTierPriceResult> {
+  await requireSuperAdmin();
+  try {
+    const price = await updateTierPrice(id, priceUsd);
+    revalidatePath('/admin/prices');
+    return { price };
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.code };
+    throw err;
+  }
+}
+
+export async function publishTierPriceAction(id: string, noticeDays?: number): Promise<AdminTierPriceResult> {
+  await requireSuperAdmin();
+  try {
+    const price = await publishTierPrice(id, noticeDays);
+    revalidatePath('/admin/prices');
+    return { price };
   } catch (err) {
     if (err instanceof ApiError) return { error: err.code };
     throw err;

@@ -280,7 +280,9 @@ export async function listNotificationsAction(): Promise<{
 
 /**
  * Fetch the current notification preferences for the tenant.
- * Returns all 6 types; types never explicitly configured default to enabled.
+ * Returns one row per subscribable (type, channel) pair; combinations never
+ * explicitly configured default to enabled. Mandatory types (e.g.
+ * PRICE_CHANGE_ANNOUNCED) never appear here.
  */
 export async function getPreferencesAction(): Promise<{
   preferences: NotificationPreference[];

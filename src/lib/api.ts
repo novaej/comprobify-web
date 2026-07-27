@@ -1139,8 +1139,15 @@ export interface ApiNotification {
   createdAt: string;
 }
 
+export type NotificationChannel = 'IN_APP' | 'EMAIL';
+
+// Breaking change (comprobify PR #132, ADR-024): a preference is now keyed by
+// (type, channel), not just type — a type supporting both channels (e.g.
+// PAYMENT_VERIFIED) returns two rows. Mandatory types (PRICE_CHANGE_ANNOUNCED)
+// never appear here and are rejected by PATCH.
 export interface NotificationPreference {
   type: string;
+  channel: NotificationChannel;
   enabled: boolean;
 }
 
