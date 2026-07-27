@@ -3,6 +3,7 @@ import { requirePermission } from '@/lib/context';
 import { db } from '@/lib/db';
 import { listIssuerDocumentTypes, listTenantIssuers, getCurrentTenant } from '@/lib/api';
 import { listTiers } from '@/lib/public-api';
+import { reconcileTenantStatus } from '@/lib/tenant-status-sync';
 import { PageHeader } from '@/components/page-header';
 import { IssuerManager } from '@/components/issuer-manager';
 import { CreateIssuerDialog } from '@/components/create-issuer-dialog';
@@ -52,6 +53,9 @@ export default async function IssuersPage({
     getCurrentTenant({ apiKey: ctx.apiKey }),
     listTiers().catch(() => []),
   ]);
+
+  // See settings/billing/page.tsx for why this reconciles the local mirror here.
+  await reconcileTenantStatus(ctx.tenant.id, ctx.tenant.status, tenantInfo.status);
 
   const currentTier = tiers.find((t) => t.name === tenantInfo.subscriptionTier);
   const allowedDocumentTypes = currentTier?.allowedDocumentTypes ?? ['01'];

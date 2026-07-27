@@ -16,7 +16,7 @@ import {
   type CancelSubscriptionResult,
 } from '@/lib/api';
 import { ApiError } from '@/lib/errors';
-import { syncSuspensionStatus } from '@/lib/suspension-sync';
+import { syncTenantStatusFromError } from '@/lib/tenant-status-sync';
 import { revalidatePath } from 'next/cache';
 import type { Prisma } from '@prisma/client';
 import type { PaidTier, BillingInterval } from '@/lib/subscription-tiers';
@@ -66,7 +66,7 @@ export async function submitPaymentProofAction(
     return result;
   } catch (err) {
     if (err instanceof ApiError) {
-      await syncSuspensionStatus(ctx.tenant.id, err);
+      await syncTenantStatusFromError(ctx.tenant.id, err);
       return { error: err.code };
     }
     throw err;
@@ -107,7 +107,7 @@ export async function changeTierAction(tier: PaidTier, billingInterval?: Billing
     result = await changeTier({ apiKey: ctx.apiKey }, tier, billingInterval);
   } catch (err) {
     if (err instanceof ApiError) {
-      await syncSuspensionStatus(ctx.tenant.id, err);
+      await syncTenantStatusFromError(ctx.tenant.id, err);
       return { error: err.code };
     }
     throw err;
@@ -149,7 +149,7 @@ export async function createSubscriptionAction(
     result = await createSubscription({ apiKey: ctx.apiKey }, tier, billingInterval);
   } catch (err) {
     if (err instanceof ApiError) {
-      await syncSuspensionStatus(ctx.tenant.id, err);
+      await syncTenantStatusFromError(ctx.tenant.id, err);
       return { error: err.code };
     }
     throw err;

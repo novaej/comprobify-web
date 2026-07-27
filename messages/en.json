@@ -150,6 +150,10 @@
     "banner": "Your account is suspended. You cannot create or send documents until this is resolved.",
     "bannerLink": "View billing"
   },
+  "pastDue": {
+    "banner": "Your account is past due on a subscription renewal. Submit a payment proof or start a new subscription to restore access.",
+    "bannerLink": "Go to billing"
+  },
   "status": {
     "SIGNED": "Signed",
     "PENDING_SEND": "Queued for sending",
