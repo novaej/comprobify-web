@@ -1389,6 +1389,7 @@
     "yearlyEquivalent": "Equivalent to {price}/mo",
     "ivaIncluded": "VAT included",
     "ivaNote": "Prices include VAT ({rate}%)",
+    "upcomingPriceNote": "Price increases to {price} on {date}.",
     "tiers": {
       "FREE": {
         "name": "Free",

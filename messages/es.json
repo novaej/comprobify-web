@@ -1389,6 +1389,7 @@
     "yearlyEquivalent": "Equivalente a {price}/mes",
     "ivaIncluded": "IVA incluido",
     "ivaNote": "Precios incluyen IVA ({rate}%)",
+    "upcomingPriceNote": "El precio sube a {price} a partir del {date}.",
     "tiers": {
       "FREE": {
         "name": "Gratis",

@@ -20,6 +20,10 @@ const DOC_TYPE_LABEL_KEYS: Record<string, string> = {
 
 const currencyFormatter = new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
+function upcomingDateFormatter(locale: string) {
+  return new Intl.DateTimeFormat(locale === 'en' ? 'en-US' : 'es-EC', { dateStyle: 'long' });
+}
+
 export function PricingPlans({ tiers }: { tiers: ApiTierInfo[] }) {
   const t = useTranslations('pricing');
   const tDocTypes = useTranslations('settings.setup');
@@ -65,6 +69,8 @@ export function PricingPlans({ tiers }: { tiers: ApiTierInfo[] }) {
           const highlighted = tier.name === HIGHLIGHTED;
           const price = interval === 'MONTHLY' ? tier.priceMonthlyUsd : tier.priceYearlyUsd;
           const isFree = tier.priceMonthlyUsd === 0;
+          const upcomingPrice = interval === 'MONTHLY' ? tier.upcomingPriceMonthlyUsd : tier.upcomingPriceYearlyUsd;
+          const upcomingEffectiveAt = interval === 'MONTHLY' ? tier.monthlyPriceEffectiveAt : tier.yearlyPriceEffectiveAt;
           const docTypeNames = tier.allowedDocumentTypes.map((code) =>
             DOC_TYPE_LABEL_KEYS[code] ? tDocTypes(DOC_TYPE_LABEL_KEYS[code] as Parameters<typeof tDocTypes>[0]) : code,
           );
@@ -102,6 +108,14 @@ export function PricingPlans({ tiers }: { tiers: ApiTierInfo[] }) {
                   </p>
                 )}
                 <p className="text-sm text-muted-foreground mt-2">{t(`tiers.${tier.name}.description`)}</p>
+                {upcomingPrice !== null && upcomingEffectiveAt && (
+                  <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                    {t('upcomingPriceNote', {
+                      price: currencyFormatter.format(upcomingPrice),
+                      date: upcomingDateFormatter(locale).format(new Date(upcomingEffectiveAt)),
+                    })}
+                  </p>
+                )}
               </div>
 
               <ul className="flex flex-col gap-2 flex-1 text-sm">
