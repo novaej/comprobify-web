@@ -25,6 +25,17 @@ function poolSizeFromUrl(databaseUrl) {
   return value ? Number(value) : undefined;
 }
 
+// Mirrors src/lib/db.ts: kept out of DATABASE_URL's query string on purpose
+// (an sslmode param there would silently overwrite this via pg's own
+// connectionString-merge precedence) — see the comment in db.ts for why.
+function sslConfig() {
+  if (process.env.DATABASE_SSL !== 'true') return undefined;
+  return {
+    rejectUnauthorized: true,
+    ...(process.env.DATABASE_SSL_CA ? { ca: process.env.DATABASE_SSL_CA } : {}),
+  };
+}
+
 async function main() {
   const password = process.env.ADMIN_SEED_PASSWORD;
   if (!password) {
@@ -33,7 +44,11 @@ async function main() {
   }
 
   const connectionString = process.env.DATABASE_URL;
-  const adapter = new PrismaPg({ connectionString, max: poolSizeFromUrl(connectionString) });
+  const adapter = new PrismaPg({
+    connectionString,
+    max: poolSizeFromUrl(connectionString),
+    ssl: sslConfig(),
+  });
   const prisma = new PrismaClient({ adapter });
 
   try {

@@ -12,9 +12,34 @@ function poolSizeFromUrl(databaseUrl: string): number | undefined {
   return value ? Number(value) : undefined;
 }
 
+// SSL is intentionally NOT configured via `sslmode`/`sslrootcert` query
+// params on DATABASE_URL. pg's ConnectionParameters constructor does
+// `Object.assign({}, config, parse(connectionString))` (node-postgres,
+// lib/connection-parameters.js) — whatever the connection string's own
+// query params produce OVERWRITES any explicit config passed alongside it
+// for the same key. An `sslmode` in the URL would silently replace the
+// `ca`-bearing object below with an empty one, undoing it. DATABASE_SSL /
+// DATABASE_SSL_CA mirror the same two-variable shape the comprobify API
+// repo uses for the same reason (see its src/config/index.js): DigitalOcean
+// managed Postgres (and similar providers) present a certificate signed by
+// a private, cluster-specific CA that isn't in Node's default trust store —
+// `rejectUnauthorized: true` alone fails with SELF_SIGNED_CERT_IN_CHAIN
+// unless that CA's PEM content is also passed as `ca`.
+function sslConfig() {
+  if (process.env.DATABASE_SSL !== 'true') return undefined;
+  return {
+    rejectUnauthorized: true,
+    ...(process.env.DATABASE_SSL_CA ? { ca: process.env.DATABASE_SSL_CA } : {}),
+  };
+}
+
 function createPrismaClient() {
   const connectionString = process.env.DATABASE_URL as string;
-  const adapter = new PrismaPg({ connectionString, max: poolSizeFromUrl(connectionString) });
+  const adapter = new PrismaPg({
+    connectionString,
+    max: poolSizeFromUrl(connectionString),
+    ssl: sslConfig(),
+  });
   return new PrismaClient({ adapter });
 }
 
