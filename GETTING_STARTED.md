@@ -271,7 +271,7 @@ comprobify-web/
 
 | Variable | Purpose | Required |
 |----------|---------|---------|
-| `DATABASE_URL` | PostgreSQL connection string for the frontend database | Yes |
+| `DATABASE_URL` | PostgreSQL connection string for the frontend database. Not needed locally, but on staging/production append `?connection_limit=N` to cap Prisma's pool size when sharing a cluster's connection budget with another service — see `docs/deployment.md` | Yes |
 | `COMPROBIFY_API_URL` | Base URL of the Comprobify API (no trailing slash) | Yes |
 | `NEXT_PUBLIC_APP_URL` | Full URL of this app — used to build absolute callback URLs (e.g. email verification link) | Yes |
 | `AUTH_SECRET` | Auth.js JWT signing secret — any random 32+ char string | Yes |

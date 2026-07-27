@@ -16,6 +16,15 @@ const bcrypt = require('bcryptjs');
 
 const ADMIN_EMAIL = 'support@comprobify.com';
 
+// Mirrors src/lib/db.ts: @prisma/adapter-pg forwards the connection string
+// straight to node-postgres's pg.Pool, which doesn't read Prisma's
+// connection_limit query param on its own — parse it here and pass it
+// through as pg's own `max` pool option.
+function poolSizeFromUrl(databaseUrl) {
+  const value = new URL(databaseUrl).searchParams.get('connection_limit');
+  return value ? Number(value) : undefined;
+}
+
 async function main() {
   const password = process.env.ADMIN_SEED_PASSWORD;
   if (!password) {
@@ -23,7 +32,8 @@ async function main() {
     process.exit(1);
   }
 
-  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+  const connectionString = process.env.DATABASE_URL;
+  const adapter = new PrismaPg({ connectionString, max: poolSizeFromUrl(connectionString) });
   const prisma = new PrismaClient({ adapter });
 
   try {

@@ -261,7 +261,7 @@ All variables are required. Set them in each Vercel project under **Settings →
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `DATABASE_URL` | Yes | PostgreSQL connection string for the frontend users table. Use a separate database from the Comprobify API DB. Recommended: [Neon](https://neon.tech) — provision as an independent Neon account (not via Vercel Storage integration). |
+| `DATABASE_URL` | Yes | PostgreSQL connection string for the frontend users table. Use a separate logical database from the Comprobify API DB — on staging/production this app and the API share one DigitalOcean Postgres cluster, so use the cluster's connection pooler (PgBouncer) endpoint, not the direct primary connection, and append `?connection_limit=N` (see below). |
 | `COMPROBIFY_API_URL` | Yes | Base URL of the Comprobify API — no trailing slash (e.g. `https://api.comprobify.com`) |
 | `AUTH_SECRET` | Yes | Random 32+ character string used to sign Auth.js JWTs. Generate: `openssl rand -hex 32`. Use a **different value** per environment. |
 | `ENCRYPTION_KEY` | Yes | 32-byte hex string used to encrypt `TenantApiKey` values at rest (AES-256-GCM). Generate: `openssl rand -hex 32`. Use a **different value** per environment. |
@@ -284,6 +284,17 @@ All variables are required. Set them in each Vercel project under **Settings →
 
 > **Production:** point `COMPROBIFY_API_URL` at the production Comprobify API. Generate a fresh `AUTH_SECRET` — never reuse the staging value.
 
+#### `DATABASE_URL` connection budget on a shared cluster
+
+Staging's Postgres lives on a DigitalOcean Basic-plan cluster (~22 total backend connections) shared with the `comprobify` API's own database — not a dedicated instance. The API side reserves 9 connections for itself (6 for its API process, 3 for its worker — see `../comprobify/docs/deployment.md`), leaving roughly 13 for this app plus a few spare for admin/migration access. This app's `DATABASE_URL` carries two things as a result:
+
+1. **The cluster's PgBouncer/connection-pooler endpoint**, not the direct primary connection — check DigitalOcean's "Connection Pools" tab for the cluster to get this host/port, since it's a separate endpoint from the primary connection string DO shows by default.
+2. **`?connection_limit=8`** as a query param — caps how many connections this app's Prisma client will ever open concurrently. Vercel serverless functions can otherwise spike connection demand fast, since each invocation can open a fresh connection with no built-in ceiling of its own, and this app isn't the only thing drawing from the cluster's budget.
+
+**There is deliberately no `pgbouncer=true` param, even though the endpoint above is a PgBouncer pooler.** That flag — like `connection_limit` — is part of Prisma's own connection-string convention, read only by Prisma's Rust query engine. This app uses `@prisma/adapter-pg` instead (see `src/lib/db.ts`), which hands the connection string straight to node-postgres's `pg.Pool` — `pg` never parses either param out of the URL on its own. `src/lib/db.ts` manually parses `connection_limit` back out of `DATABASE_URL` and forwards it as `pg.Pool`'s own `max` option, so that part still works as intended. `pgbouncer=true` has no equivalent to forward: it exists only to tell Prisma's query engine not to cache named prepared statements (which break under transaction-mode pooling when a later query lands on a different backend connection than the one that prepared it) — `@prisma/adapter-pg` only caches a named prepared statement if you explicitly configure a `statementNameGenerator`, which this app never does, so it's already using unnamed statements and is safe under transaction-mode pooling with no flag needed. Do not add `pgbouncer=true` back in "for completeness" — it would be inert, and its presence would incorrectly suggest something is toggled that isn't.
+
+If the reserved-connection split above ever changes (e.g. the API reserves more/fewer connections, or the cluster is upgraded to a larger plan), update `connection_limit` deliberately to match — it is not derived from anything automatically.
+
 ### Removed variables (no longer needed)
 
 | Variable | Reason removed |
@@ -298,6 +309,7 @@ All variables are required. Set them in each Vercel project under **Settings →
 
 **Database**
 - [ ] `DATABASE_URL` points to a production PostgreSQL instance (separate from staging)
+- [ ] If production shares a connection budget with another service (see "DATABASE_URL connection budget on a shared cluster" above), `connection_limit` on `DATABASE_URL` is set deliberately to match the reserved split, not left unset or copied blindly from staging
 - [ ] `npx prisma migrate deploy` ran successfully on the first deploy (automatic via `vercel-build` — check the build log)
 - [ ] Production database has backups enabled
 
