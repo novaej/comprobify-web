@@ -10,11 +10,11 @@
  *   CERT_EXPIRING / CERT_EXPIRED — no document to link to; always the issuer
  *     list, where the certificate can be viewed/renewed.
  *   PAYMENT_VERIFIED / PAYMENT_REJECTED / SUBSCRIPTION_RENEWAL_DUE /
- *     SUBSCRIPTION_EXPIRED / PRICE_CHANGE_ANNOUNCED — all five are about the
- *     tenant's subscription/payment state, which only ever lives on
- *     /settings/billing; none of their metadata fields
- *     (paymentId/subscriptionId/tier/amount/tierPriceId/effectiveAt) have a
- *     dedicated page of their own to deep-link to.
+ *     SUBSCRIPTION_PAST_DUE_WARNING / SUBSCRIPTION_EXPIRED / PRICE_CHANGE_ANNOUNCED
+ *     — all six are about the tenant's subscription/payment state, which only
+ *     ever lives on /settings/billing; none of their metadata fields
+ *     (paymentId/subscriptionId/tier/amount/tierPriceId/effectiveAt/suspendsAt)
+ *     have a dedicated page of their own to deep-link to.
  *   Any other/future type — no mapping yet, so no link (falls back to the
  *     existing "mark read" action only).
  */
@@ -37,6 +37,7 @@ export function getNotificationHref(type: string, metadata: unknown): string | n
     case 'PAYMENT_VERIFIED':
     case 'PAYMENT_REJECTED':
     case 'SUBSCRIPTION_RENEWAL_DUE':
+    case 'SUBSCRIPTION_PAST_DUE_WARNING':
     case 'SUBSCRIPTION_EXPIRED':
     case 'PRICE_CHANGE_ANNOUNCED':
       return '/settings/billing';

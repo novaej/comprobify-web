@@ -44,7 +44,7 @@ All actions use Server Actions in `src/app/actions/admin.ts`, which call `src/li
 | Action | API call | Notes |
 |--------|----------|-------|
 | **Update tier** | `PATCH /admin/tenants/:id` `{ tier }` | Changes the tenant's plan quota immediately without creating a subscription |
-| **Update status** | `PATCH /admin/tenants/:id` `{ status }` | Values: `PENDING_VERIFICATION`, `ACTIVE`, `SUSPENDED` |
+| **Update status** | `PATCH /admin/tenants/:id` `{ status }` | Values: `PENDING_VERIFICATION`, `ACTIVE`, `SUSPENDED`, `PAST_DUE` — the last is normally assigned automatically by the API (ADR-025) when a renewal lapses unpaid, not set by an admin, but the endpoint accepts it like any other status |
 | **Verify tenant** | `POST /admin/tenants/:id/verify` | Marks the tenant as verified (separate from status) |
 
 ### Behavior

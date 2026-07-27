@@ -150,6 +150,10 @@
     "banner": "Tu cuenta está suspendida. No puedes crear ni enviar comprobantes hasta que se resuelva.",
     "bannerLink": "Ver facturación"
   },
+  "pastDue": {
+    "banner": "Tu cuenta está atrasada en el pago de la suscripción. Envía un comprobante de pago o inicia una nueva suscripción para recuperar el acceso.",
+    "bannerLink": "Ir a facturación"
+  },
   "status": {
     "SIGNED": "Firmado",
     "PENDING_SEND": "En cola para envío",
@@ -714,6 +718,7 @@
     "CERTIFICATE_KEY_NOT_FOUND": "No se encontró la clave de firma dentro del archivo P12.",
     "CERTIFICATE_EXPIRED": "El certificado de firma ha expirado. Reemplácelo en la configuración del emisor.",
     "ACCOUNT_SUSPENDED": "La cuenta está suspendida. Contacte al soporte.",
+    "ACCOUNT_PAST_DUE": "La cuenta está atrasada en el pago de la suscripción. Envía un comprobante de pago o inicia una nueva suscripción para recuperar el acceso.",
     "EMAIL_VERIFICATION_REQUIRED": "Debe verificar su correo electrónico antes de realizar esta acción.",
     "RESEND_COOLDOWN": "Espere un momento antes de solicitar otro correo de verificación.",
     "INVALID_OR_EXPIRED_TOKEN": "El enlace de verificación no es válido o ha expirado.",
@@ -815,6 +820,7 @@
       "PAYMENT_VERIFIED": "Pago verificado",
       "PAYMENT_REJECTED": "Pago rechazado",
       "SUBSCRIPTION_RENEWAL_DUE": "Renovación próxima",
+      "SUBSCRIPTION_PAST_DUE_WARNING": "Aviso de atraso en el pago",
       "SUBSCRIPTION_EXPIRED": "Suscripción vencida",
       "PRICE_CHANGE_ANNOUNCED": "Cambio de precio anunciado"
     }
@@ -847,6 +853,7 @@
       "PAYMENT_VERIFIED": "Se crea cuando tu proveedor verifica un comprobante de pago que subiste — suscripción inicial, cambio de plan o renovación.",
       "PAYMENT_REJECTED": "Se crea cuando tu proveedor rechaza un comprobante de pago. Incluye el motivo del rechazo.",
       "SUBSCRIPTION_RENEWAL_DUE": "Se crea unos 7 días antes de que termine tu periodo de facturación actual, con los datos para renovar.",
+      "SUBSCRIPTION_PAST_DUE_WARNING": "Se crea más avanzado el periodo de gracia, antes de que la cuenta pase a estado atrasado. Envía tu comprobante de pago o inicia una nueva suscripción para evitar la interrupción.",
       "SUBSCRIPTION_EXPIRED": "Se crea si tu suscripción vence sin una renovación verificada — tu plan baja automáticamente a Gratis.",
       "PRICE_CHANGE_ANNOUNCED": "Se crea cuando se publica un cambio de precio para tu plan, con al menos 30 días de aviso antes de que entre en vigencia. Cualquier renovación que venza antes de esa fecha se factura al precio actual."
     }
@@ -1595,7 +1602,8 @@
       "statuses": {
         "PENDING_VERIFICATION": "Pendiente",
         "ACTIVE": "Activo",
-        "SUSPENDED": "Suspendido"
+        "SUSPENDED": "Suspendido",
+        "PAST_DUE": "Atrasado"
       },
       "usageValue": "{count} / {quota} docs",
       "verify": "Verificar tenant",

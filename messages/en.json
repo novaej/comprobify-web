@@ -150,6 +150,10 @@
     "banner": "Your account is suspended. You cannot create or send documents until this is resolved.",
     "bannerLink": "View billing"
   },
+  "pastDue": {
+    "banner": "Your account is past due on a subscription renewal. Submit a payment proof or start a new subscription to restore access.",
+    "bannerLink": "Go to billing"
+  },
   "status": {
     "SIGNED": "Signed",
     "PENDING_SEND": "Queued for sending",
@@ -714,6 +718,7 @@
     "CERTIFICATE_KEY_NOT_FOUND": "Signing key not found inside the P12 file.",
     "CERTIFICATE_EXPIRED": "The signing certificate has expired. Replace it in issuer settings.",
     "ACCOUNT_SUSPENDED": "This account is suspended. Please contact support.",
+    "ACCOUNT_PAST_DUE": "This account is past due on a subscription renewal. Submit a payment proof or start a new subscription to restore access.",
     "EMAIL_VERIFICATION_REQUIRED": "You must verify your email address before performing this action.",
     "RESEND_COOLDOWN": "Please wait before requesting another verification email.",
     "INVALID_OR_EXPIRED_TOKEN": "The verification link is invalid or has expired.",
@@ -1154,6 +1159,7 @@
       "PAYMENT_VERIFIED": "Payment verified",
       "PAYMENT_REJECTED": "Payment rejected",
       "SUBSCRIPTION_RENEWAL_DUE": "Renewal due soon",
+      "SUBSCRIPTION_PAST_DUE_WARNING": "Payment past due warning",
       "SUBSCRIPTION_EXPIRED": "Subscription expired",
       "PRICE_CHANGE_ANNOUNCED": "Price change announced"
     }
@@ -1186,6 +1192,7 @@
       "PAYMENT_VERIFIED": "Created when your provider verifies a payment proof you uploaded — initial subscription, tier change, or renewal.",
       "PAYMENT_REJECTED": "Created when your provider rejects a payment proof. Includes the rejection reason.",
       "SUBSCRIPTION_RENEWAL_DUE": "Created about 7 days before your current billing period ends, with renewal details.",
+      "SUBSCRIPTION_PAST_DUE_WARNING": "Created later in the grace period, before the account is marked past due. Submit your payment proof or start a new subscription to avoid interruption.",
       "SUBSCRIPTION_EXPIRED": "Created if your subscription expires with no verified renewal — your plan automatically drops to Free.",
       "PRICE_CHANGE_ANNOUNCED": "Created when a price change is published for your plan, with at least 30 days' notice before it takes effect. Any renewal due before that date is billed at the current price."
     }
@@ -1595,7 +1602,8 @@
       "statuses": {
         "PENDING_VERIFICATION": "Pending",
         "ACTIVE": "Active",
-        "SUSPENDED": "Suspended"
+        "SUSPENDED": "Suspended",
+        "PAST_DUE": "Past due"
       },
       "usageValue": "{count} / {quota} docs",
       "verify": "Verify tenant",

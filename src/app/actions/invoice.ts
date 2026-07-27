@@ -5,7 +5,7 @@ import { redirect } from '@/i18n/navigation';
 import { createDocument, rebuildDocument, sendToSri, type CreateInvoicePayload } from '@/lib/api';
 import { ApiError } from '@/lib/errors';
 import { requirePermission } from '@/lib/context';
-import { syncSuspensionStatus } from '@/lib/suspension-sync';
+import { syncTenantStatusFromError } from '@/lib/tenant-status-sync';
 import type { BackTargetKey } from '@/lib/back-targets';
 
 function invoiceHref(accessKey: string, from?: BackTargetKey): string {
@@ -113,7 +113,7 @@ export async function createInvoiceAction(
     accessKey = document.accessKey;
   } catch (err) {
     if (err instanceof ApiError) {
-      await syncSuspensionStatus(ctx.tenant.id, err);
+      await syncTenantStatusFromError(ctx.tenant.id, err);
       return { error: err.code };
     }
     throw err;
@@ -140,7 +140,7 @@ export async function rebuildInvoiceAction(
     await rebuildDocument(apiCtx, accessKey, payload);
   } catch (err) {
     if (err instanceof ApiError) {
-      await syncSuspensionStatus(ctx.tenant.id, err);
+      await syncTenantStatusFromError(ctx.tenant.id, err);
       return { error: err.code };
     }
     throw err;

@@ -11,11 +11,16 @@ import { ApiError, ProblemDetails } from './errors';
 // key — there is no ApiCtx/issuer concept here.
 // ═══════════════════════════════════════════════════════════════════════════════
 
+// PAST_DUE (ADR-025 on the API side): a self-resolving billing state assigned
+// when a renewal grace period lapses unpaid — distinct from the admin-only,
+// manually-lifted SUSPENDED.
+export type AdminTenantStatus = 'PENDING_VERIFICATION' | 'ACTIVE' | 'SUSPENDED' | 'PAST_DUE';
+
 export interface AdminTenant {
   id: string;
   email: string;
   subscriptionTier: string;
-  status: 'PENDING_VERIFICATION' | 'ACTIVE' | 'SUSPENDED';
+  status: AdminTenantStatus;
   documentQuota: number;
   documentCount: number;
   createdAt: string;
@@ -150,7 +155,7 @@ export async function updateTenantTier(id: string, tier: string): Promise<AdminT
 // Verified against: ../comprobify/src/controllers/admin.controller.js → updateTenantStatus()
 export async function updateTenantStatus(
   id: string,
-  status: 'PENDING_VERIFICATION' | 'ACTIVE' | 'SUSPENDED',
+  status: AdminTenantStatus,
 ): Promise<AdminTenant> {
   const { tenant } = await request<{ ok: true; tenant: AdminTenant }>(`/v1/admin/tenants/${id}/status`, {
     method: 'PATCH',

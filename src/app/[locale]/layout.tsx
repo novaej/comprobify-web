@@ -11,6 +11,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { SandboxBanner } from '@/components/sandbox-banner';
 import { StagingDeploymentBanner } from '@/components/staging-deployment-banner';
 import { SuspendedBanner } from '@/components/suspended-banner';
+import { PastDueBanner } from '@/components/past-due-banner';
 import { CertExpiryBanner } from '@/components/cert-expiry-banner';
 import { AgreementPendingBanner } from '@/components/agreement-pending-banner';
 import { NotificationSync } from '@/components/notification-sync';
@@ -26,9 +27,13 @@ import packageJson from '../../../package.json';
 
 type NotificationItem = Awaited<ReturnType<typeof listNotificationsAction>>['notifications'][number];
 
+// Kept in sync by hand with getNotificationHref()'s /settings/billing cases
+// (src/lib/notification-link.ts) — this list previously missed
+// PRICE_CHANGE_ANNOUNCED, which routes there too.
 const BILLING_NOTIFICATION_TYPES = [
   'PAYMENT_VERIFIED', 'PAYMENT_REJECTED',
-  'SUBSCRIPTION_RENEWAL_DUE', 'SUBSCRIPTION_EXPIRED',
+  'SUBSCRIPTION_RENEWAL_DUE', 'SUBSCRIPTION_PAST_DUE_WARNING', 'SUBSCRIPTION_EXPIRED',
+  'PRICE_CHANGE_ANNOUNCED',
 ];
 
 interface CertAlertProps {
@@ -42,6 +47,7 @@ interface LayoutProps {
   hasIssuer: boolean;
   environment: 'sandbox' | 'production';
   isSuspended: boolean;
+  isPastDue: boolean;
   tenantName: string | null;
   currentIssuer: { id: string; apiIssuerId: string; name: string; branchCode: string; issuePointCode: string } | null;
   issuers: Array<{ id: string; apiIssuerId: string; name: string; branchCode: string; issuePointCode: string }>;
@@ -186,6 +192,7 @@ async function getLayoutProps(userId: string): Promise<LayoutProps | null> {
     hasIssuer: displayIssuers.length > 0,
     environment: user.tenant.environment as 'sandbox' | 'production',
     isSuspended: user.tenant.status === 'SUSPENDED',
+    isPastDue: user.tenant.status === 'PAST_DUE',
     tenantName: user.tenant.businessName,
     currentIssuer,
     issuers: displayIssuers,
@@ -267,6 +274,7 @@ export default async function LocaleLayout({
                 <NotificationSync />
                 <main className="flex-1 overflow-y-auto p-4 md:p-8">
                   <SuspendedBanner isSuspended={layoutProps.isSuspended} />
+                  <PastDueBanner isPastDue={layoutProps.isPastDue} />
                   <StagingDeploymentBanner />
                   <SandboxBanner environment={layoutProps.environment} />
                   {layoutProps.certAlert && (
