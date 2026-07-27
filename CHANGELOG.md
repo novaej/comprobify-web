@@ -20,6 +20,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 - **`SUBSCRIPTION_PAST_DUE_WARNING` notification type** — fires partway through the renewal grace period, after the existing renewal-due reminder and before the account is actually marked `PAST_DUE`. Added to `notification-preferences.tsx`'s togglable live types (both channels) and routed to `/settings/billing`.
 - **`/admin/prices` — tier price draft/publish workflow.** comprobify's PR #132 (ADR-023) added `tier_prices` with a `DRAFT → PUBLISHED` lifecycle enforcing the Terms of Service's 30-day price-change notice (`POST`/`GET`/`PATCH /v1/admin/prices`, `POST .../publish`), but shipped with no admin UI to drive it. `AdminPriceManager` mirrors the Agreements editor's table + dialog pattern: create a draft (tier, billing interval, price), edit a draft's price, and publish it (optional `noticeDays`, defaulting to the API's 30-day minimum) — which starts the notice clock and fires `PRICE_CHANGE_ANNOUNCED` to every `ACTIVE` tenant. Published rows are immutable in the UI, matching the API.
 
+### Changed
+- **`src/lib/tenant-status-sync.ts` now funnels every write through one private `writeTenantStatus()` helper**, called only by its two exports (`syncTenantStatusFromError()`/`reconcileTenantStatus()`) — previously each wrote to `Tenant.status` independently. No behavior change; this closes off the one Prisma write site that could otherwise drift out of sync with the other as the module grows, and reaffirms in one place that `Tenant.status` is a display-only cache (drives `SuspendedBanner`/`PastDueBanner`), never a security boundary.
+
 ## [0.8.0] — 2026-07-24
 
 ### Added
