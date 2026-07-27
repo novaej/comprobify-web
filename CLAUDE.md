@@ -527,7 +527,7 @@ This project runs Next.js **16** (not 13-15). Key differences from older version
 
 ---
 
-## Git Commit Conventions
+## Git Commit & Pull Request Conventions
 
 Format: `type: short description` (max 72 chars, imperative mood, no period)
 
@@ -540,3 +540,5 @@ Format: `type: short description` (max 72 chars, imperative mood, no period)
 | `i18n` | translation file changes |
 | `docs` | documentation only |
 | `chore` | dependencies, tooling, config |
+
+**This format applies to PR titles too, not just individual commits.** `main` only ever receives squash-merged PRs (see `docs/deployment.md` — every commit on `main` is a squash-merged PR, never a direct commit or a rebase-merge that preserves individual commits), so a PR's title becomes the one permanent commit message main actually gets; the individual commits on the branch (however many, however named) disappear into that single squash. A plain descriptive title with no `type:` prefix (e.g. "Add PAST_DUE tenant status and its notification" instead of `feat: add PAST_DUE tenant status and its notification`) breaks `git log --oneline main`'s consistency the same way a wrongly-typed commit would — check `git log --oneline` for recent examples before naming a PR, and pick the single type that best describes the PR's overall effect when the branch mixes multiple commit types (e.g. a branch with `feat`/`fix`/`docs` commits that's centrally a new feature still gets a `feat:` PR title).
