@@ -1150,21 +1150,28 @@
       "PAYMENT_VERIFIED": "Payment verified",
       "PAYMENT_REJECTED": "Payment rejected",
       "SUBSCRIPTION_RENEWAL_DUE": "Renewal due soon",
-      "SUBSCRIPTION_EXPIRED": "Subscription expired"
+      "SUBSCRIPTION_EXPIRED": "Subscription expired",
+      "PRICE_CHANGE_ANNOUNCED": "Price change announced"
     }
   },
   "notificationPreferences": {
     "title": "Notification preferences",
     "description": "Control which types of notifications the system creates for your organization.",
+    "sectionMandatory": "Always on",
     "sectionActive": "Active types",
     "sectionComingSoon": "Coming soon",
     "comingSoonBadge": "Coming soon",
     "comingSoonNote": "This notification type is not yet available.",
+    "mandatoryNote": "Legal notice — cannot be disabled on any channel.",
     "hint": "When a type is disabled, the system will not create new notifications of that type. Existing unread notifications remain in the list.",
     "enabledToast": "{type} enabled.",
     "disabledToast": "{type} disabled.",
     "enableAriaLabel": "Enable {type}",
     "disableAriaLabel": "Disable {type}",
+    "channels": {
+      "IN_APP": "In-app",
+      "EMAIL": "Email"
+    },
     "descriptions": {
       "DOCUMENT_AUTHORIZED": "Created automatically when SRI authorizes a document. Multiple authorizations within a 60-second window are grouped into a single notification.",
       "CERT_EXPIRING": "Created when an issuer's P12 certificate is within 30 days of expiry. Updated automatically and dismissed when the certificate is renewed.",
@@ -1175,7 +1182,8 @@
       "PAYMENT_VERIFIED": "Created when your provider verifies a payment proof you uploaded — initial subscription, tier change, or renewal.",
       "PAYMENT_REJECTED": "Created when your provider rejects a payment proof. Includes the rejection reason.",
       "SUBSCRIPTION_RENEWAL_DUE": "Created about 7 days before your current billing period ends, with renewal details.",
-      "SUBSCRIPTION_EXPIRED": "Created if your subscription expires with no verified renewal — your plan automatically drops to Free."
+      "SUBSCRIPTION_EXPIRED": "Created if your subscription expires with no verified renewal — your plan automatically drops to Free.",
+      "PRICE_CHANGE_ANNOUNCED": "Created when a price change is published for your plan, with at least 30 days' notice before it takes effect. Any renewal due before that date is billed at the current price."
     }
   },
   "webhooks": {

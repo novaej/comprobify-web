@@ -811,21 +811,28 @@
       "PAYMENT_VERIFIED": "Pago verificado",
       "PAYMENT_REJECTED": "Pago rechazado",
       "SUBSCRIPTION_RENEWAL_DUE": "Renovación próxima",
-      "SUBSCRIPTION_EXPIRED": "Suscripción vencida"
+      "SUBSCRIPTION_EXPIRED": "Suscripción vencida",
+      "PRICE_CHANGE_ANNOUNCED": "Cambio de precio anunciado"
     }
   },
   "notificationPreferences": {
     "title": "Preferencias de notificaciones",
     "description": "Controla qué tipos de notificaciones crea el sistema para tu organización.",
+    "sectionMandatory": "Siempre activo",
     "sectionActive": "Tipos activos",
     "sectionComingSoon": "Próximamente",
     "comingSoonBadge": "Próximamente",
     "comingSoonNote": "Este tipo de notificación no está disponible aún.",
+    "mandatoryNote": "Aviso legal — no se puede deshabilitar en ningún canal.",
     "hint": "Cuando se deshabilita un tipo, el sistema no creará nuevas notificaciones de ese tipo. Las existentes sin leer permanecen en la lista.",
     "enabledToast": "{type} habilitado.",
     "disabledToast": "{type} deshabilitado.",
     "enableAriaLabel": "Habilitar {type}",
     "disableAriaLabel": "Deshabilitar {type}",
+    "channels": {
+      "IN_APP": "En la app",
+      "EMAIL": "Correo"
+    },
     "descriptions": {
       "DOCUMENT_AUTHORIZED": "Se crea automáticamente cuando el SRI autoriza un comprobante. Las autorizaciones en bloque dentro de 60 segundos se agrupan en una sola notificación.",
       "CERT_EXPIRING": "Se crea cuando el certificado P12 de un emisor está a menos de 30 días de vencer. Se actualiza automáticamente y se descarta al renovar el certificado.",
@@ -836,7 +843,8 @@
       "PAYMENT_VERIFIED": "Se crea cuando tu proveedor verifica un comprobante de pago que subiste — suscripción inicial, cambio de plan o renovación.",
       "PAYMENT_REJECTED": "Se crea cuando tu proveedor rechaza un comprobante de pago. Incluye el motivo del rechazo.",
       "SUBSCRIPTION_RENEWAL_DUE": "Se crea unos 7 días antes de que termine tu periodo de facturación actual, con los datos para renovar.",
-      "SUBSCRIPTION_EXPIRED": "Se crea si tu suscripción vence sin una renovación verificada — tu plan baja automáticamente a Gratis."
+      "SUBSCRIPTION_EXPIRED": "Se crea si tu suscripción vence sin una renovación verificada — tu plan baja automáticamente a Gratis.",
+      "PRICE_CHANGE_ANNOUNCED": "Se crea cuando se publica un cambio de precio para tu plan, con al menos 30 días de aviso antes de que entre en vigencia. Cualquier renovación que venza antes de esa fecha se factura al precio actual."
     }
   },
   "webhooks": {
