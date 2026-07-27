@@ -738,7 +738,10 @@ export interface ApiTenantInfo {
   id: string;              // bigint (api_keys.tenant_id) → serialized as string by pg/JSON
   email: string;
   subscriptionTier: string;
-  status: 'PENDING_VERIFICATION' | 'ACTIVE' | 'SUSPENDED';
+  // PAST_DUE (ADR-025 on the API side): a self-resolving billing state, distinct
+  // from the admin-only SUSPENDED — assigned when a renewal grace period lapses
+  // unpaid, cleared automatically once a new subscription's invoice authorizes.
+  status: 'PENDING_VERIFICATION' | 'ACTIVE' | 'SUSPENDED' | 'PAST_DUE';
   documentCount: string;   // bigint → serialized as string by pg/JSON
   documentQuota: number;   // regular int column
   sandbox: boolean;

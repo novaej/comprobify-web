@@ -20,6 +20,7 @@ import {
   type AdminTierPrice,
   type TierName,
   type BillingInterval,
+  type AdminTenantStatus,
 } from '@/lib/admin-api';
 import { ApiError } from '@/lib/errors';
 import { revalidatePath } from 'next/cache';
@@ -41,7 +42,7 @@ export async function updateTenantTierAction(id: string, tier: string): Promise<
 
 export async function updateTenantStatusAction(
   id: string,
-  status: 'PENDING_VERIFICATION' | 'ACTIVE' | 'SUSPENDED',
+  status: AdminTenantStatus,
 ): Promise<AdminTenantResult> {
   await requireSuperAdmin();
   try {

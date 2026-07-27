@@ -714,6 +714,7 @@
     "CERTIFICATE_KEY_NOT_FOUND": "No se encontró la clave de firma dentro del archivo P12.",
     "CERTIFICATE_EXPIRED": "El certificado de firma ha expirado. Reemplácelo en la configuración del emisor.",
     "ACCOUNT_SUSPENDED": "La cuenta está suspendida. Contacte al soporte.",
+    "ACCOUNT_PAST_DUE": "La cuenta está atrasada en el pago de la suscripción. Envía un comprobante de pago o inicia una nueva suscripción para recuperar el acceso.",
     "EMAIL_VERIFICATION_REQUIRED": "Debe verificar su correo electrónico antes de realizar esta acción.",
     "RESEND_COOLDOWN": "Espere un momento antes de solicitar otro correo de verificación.",
     "INVALID_OR_EXPIRED_TOKEN": "El enlace de verificación no es válido o ha expirado.",
@@ -1595,7 +1596,8 @@
       "statuses": {
         "PENDING_VERIFICATION": "Pendiente",
         "ACTIVE": "Activo",
-        "SUSPENDED": "Suspendido"
+        "SUSPENDED": "Suspendido",
+        "PAST_DUE": "Atrasado"
       },
       "usageValue": "{count} / {quota} docs",
       "verify": "Verificar tenant",

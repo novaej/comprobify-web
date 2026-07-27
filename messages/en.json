@@ -714,6 +714,7 @@
     "CERTIFICATE_KEY_NOT_FOUND": "Signing key not found inside the P12 file.",
     "CERTIFICATE_EXPIRED": "The signing certificate has expired. Replace it in issuer settings.",
     "ACCOUNT_SUSPENDED": "This account is suspended. Please contact support.",
+    "ACCOUNT_PAST_DUE": "This account is past due on a subscription renewal. Submit a payment proof or start a new subscription to restore access.",
     "EMAIL_VERIFICATION_REQUIRED": "You must verify your email address before performing this action.",
     "RESEND_COOLDOWN": "Please wait before requesting another verification email.",
     "INVALID_OR_EXPIRED_TOKEN": "The verification link is invalid or has expired.",
@@ -1595,7 +1596,8 @@
       "statuses": {
         "PENDING_VERIFICATION": "Pending",
         "ACTIVE": "Active",
-        "SUSPENDED": "Suspended"
+        "SUSPENDED": "Suspended",
+        "PAST_DUE": "Past due"
       },
       "usageValue": "{count} / {quota} docs",
       "verify": "Verify tenant",
