@@ -1155,6 +1155,7 @@
       "PAYMENT_VERIFIED": "Payment verified",
       "PAYMENT_REJECTED": "Payment rejected",
       "SUBSCRIPTION_RENEWAL_DUE": "Renewal due soon",
+      "SUBSCRIPTION_PAST_DUE_WARNING": "Payment past due warning",
       "SUBSCRIPTION_EXPIRED": "Subscription expired",
       "PRICE_CHANGE_ANNOUNCED": "Price change announced"
     }
@@ -1187,6 +1188,7 @@
       "PAYMENT_VERIFIED": "Created when your provider verifies a payment proof you uploaded — initial subscription, tier change, or renewal.",
       "PAYMENT_REJECTED": "Created when your provider rejects a payment proof. Includes the rejection reason.",
       "SUBSCRIPTION_RENEWAL_DUE": "Created about 7 days before your current billing period ends, with renewal details.",
+      "SUBSCRIPTION_PAST_DUE_WARNING": "Created later in the grace period, before the account is marked past due. Submit your payment proof or start a new subscription to avoid interruption.",
       "SUBSCRIPTION_EXPIRED": "Created if your subscription expires with no verified renewal — your plan automatically drops to Free.",
       "PRICE_CHANGE_ANNOUNCED": "Created when a price change is published for your plan, with at least 30 days' notice before it takes effect. Any renewal due before that date is billed at the current price."
     }

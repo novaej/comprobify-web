@@ -26,9 +26,13 @@ import packageJson from '../../../package.json';
 
 type NotificationItem = Awaited<ReturnType<typeof listNotificationsAction>>['notifications'][number];
 
+// Kept in sync by hand with getNotificationHref()'s /settings/billing cases
+// (src/lib/notification-link.ts) — this list previously missed
+// PRICE_CHANGE_ANNOUNCED, which routes there too.
 const BILLING_NOTIFICATION_TYPES = [
   'PAYMENT_VERIFIED', 'PAYMENT_REJECTED',
-  'SUBSCRIPTION_RENEWAL_DUE', 'SUBSCRIPTION_EXPIRED',
+  'SUBSCRIPTION_RENEWAL_DUE', 'SUBSCRIPTION_PAST_DUE_WARNING', 'SUBSCRIPTION_EXPIRED',
+  'PRICE_CHANGE_ANNOUNCED',
 ];
 
 interface CertAlertProps {
