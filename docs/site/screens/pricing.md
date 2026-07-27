@@ -17,6 +17,8 @@
 
 Because the numbers come from the API at request time, this page can never drift from `comprobify`'s `subscription-tiers.js` the way the old hardcoded "Sandbox/Starter/Pro, Coming soon" placeholders did.
 
+**Upcoming price changes.** `GET /v1/tiers` also returns `upcomingPrice{Monthly,Yearly}Usd`/`{monthly,yearly}PriceEffectiveAt` — a published-but-not-yet-effective price change still inside its 30-day notice window (ADR-023 on the API side). When present for the currently selected interval, the card shows an inline amber note ("price increases to $X on \<date\>") below the marketing blurb. This is the same information existing tenants get via the `PRICE_CHANGE_ANNOUNCED` notification, surfaced here for prospective tenants too.
+
 ---
 
 ## SEO
@@ -25,7 +27,7 @@ Because the numbers come from the API at request time, this page can never drift
 ---
 
 ## i18n namespaces
-- `pricing` — title/subtitle, `seo` (title/description), `interval.*`, `free`/`perMonth`/`perYear`/`yearlyEquivalent`, `tiers.<NAME>.{name,description,cta}` (marketing copy only — numbers are not duplicated here), `features.*` (quota/branches/issuePoints/webhooks/docTypes label templates)
+- `pricing` — title/subtitle, `seo` (title/description), `interval.*`, `free`/`perMonth`/`perYear`/`yearlyEquivalent`/`upcomingPriceNote`, `tiers.<NAME>.{name,description,cta}` (marketing copy only — numbers are not duplicated here), `features.*` (quota/branches/issuePoints/webhooks/docTypes label templates)
 - `marketing` — shared nav and footer labels
 - `settings.setup` — reused for `docType01`/`docType04`/etc. labels in the feature list
 

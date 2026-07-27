@@ -13,7 +13,7 @@ Internal tool for Comprobify staff to manage tenants and review payment proofs. 
 
 ## Layout
 
-Standard locale layout with nav, but a separate `AdminNav` (`src/components/admin-nav.tsx`) replaces the normal sidebar links with two tabs: **Emisores** (tenants) and **Pagos** (payments).
+Standard locale layout with nav, but a separate `AdminNav` (`src/components/admin-nav.tsx`) replaces the normal sidebar links with **Tenants**, **Pagos** (payments), **Contratos** (agreements), and **Precios** (prices).
 
 `/admin` itself is a redirect to `/admin/tenants`.
 
@@ -88,10 +88,48 @@ Queue of payment proofs submitted by tenants awaiting manual review. The admin v
 - On success (verify or reject), the payment is removed from the list optimistically.
 - The page only shows `REPORTED` payments (proof uploaded, awaiting decision) — `PENDING_PAYMENT` (no proof yet) and already-decided payments are not shown.
 
+---
+
+## `/admin/prices`
+
+### Purpose
+
+Drives comprobify's tier price draft → publish workflow (ADR-023): a price is created as a `DRAFT` (not visible to tenants, no notice clock running), then published, which sets `effectiveAt`/`publishedAt`, starts the (minimum 30-day) notice window, and fires `PRICE_CHANGE_ANNOUNCED` notifications to every `ACTIVE` tenant. A `PUBLISHED` row is immutable — only a new `DRAFT` can supersede it later.
+
+### Components
+
+| Component | File |
+|-----------|------|
+| `AdminPriceManager` | `src/components/admin-price-manager.tsx` |
+
+### Data
+
+| Source | Description |
+|--------|-------------|
+| `listTierPrices()` | `GET /v1/admin/prices` — every price row (`FREE`/`STARTER`/`GROWTH`/`BUSINESS` × `MONTHLY`/`YEARLY`), `DRAFT` and `PUBLISHED` |
+
+### Actions
+
+| Action | API call | Notes |
+|--------|----------|-------|
+| **Create** | `POST /v1/admin/prices` `{ tier, billingInterval, priceUsd }` | Always creates a `DRAFT`; opened via the "Nuevo precio" dialog |
+| **Edit draft** | `PATCH /v1/admin/prices/:id` `{ priceUsd }` | Only valid on a `DRAFT` row — the API rejects otherwise with `PRICE_NOT_DRAFT` |
+| **Publish** | `POST /v1/admin/prices/:id/publish` `{ noticeDays? }` | `noticeDays` defaults to the API's configured minimum (30); a shorter value is rejected with `PRICE_NOTICE_TOO_SHORT` |
+
+### Behavior
+
+- The table is sorted by tier order (FREE → STARTER → GROWTH → BUSINESS), then interval, then newest first.
+- Status badge distinguishes `DRAFT`, `PUBLISHED` with `effectiveAt` still in the future ("Programado"/scheduled), and `PUBLISHED` with `effectiveAt` already past ("Vigente"/active) — the latter two are computed client-side from `effectiveAt`, not a third API status value (the API only has `DRAFT`/`PUBLISHED`).
+- Only `DRAFT` rows show "Editar"/"Publicar" buttons; published rows have no row actions.
+- The publish dialog shows an explicit irreversibility warning, since there is no unpublish/delete endpoint.
+
+---
+
 ## i18n Namespaces
 
 - `admin.tenants` — keys: `title`, `description`, `tierUpdated`, `statusUpdated`, `verified`, column headers
 - `admin.payments` — keys: `title`, `description`, `verified`, `rejected`, `rejectReason`, dialog labels
+- `admin.prices` — keys: `title`, `description`, `newPrice`, `tiers.*`, `intervals.*`, `status.*`, `columns.*`, `createDialog.*`, `editDialog.*`, `publishDialog.*`
 
 ## Security Notes
 
