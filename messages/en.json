@@ -730,6 +730,10 @@
     "BRANCH_LIMIT_REACHED": "You have reached the maximum number of branches for your plan.",
     "ISSUE_POINT_LIMIT_REACHED": "You have reached the maximum number of issue points for this branch.",
     "INVALID_TIER": "The selected plan is not valid.",
+    "INVALID_BILLING_INTERVAL": "The billing interval is not valid.",
+    "PRICE_NOT_FOUND": "The requested price was not found.",
+    "PRICE_NOT_DRAFT": "Only a draft price can be edited or published.",
+    "PRICE_NOTICE_TOO_SHORT": "The notice period must be at least 30 days.",
     "INVALID_TENANT_STATUS": "The account status is not valid for this operation.",
     "RUC_MISMATCH": "The RUC does not match the source issuer's RUC.",
     "LAST_ISSUER_CANNOT_BE_REMOVED": "Cannot remove the only active issue point.",
@@ -1574,6 +1578,7 @@
       "tenants": "Tenants",
       "payments": "Payments",
       "agreements": "Agreements",
+      "prices": "Prices",
       "signOut": "Sign out"
     },
     "tenants": {
@@ -1698,6 +1703,63 @@
       "viewDialog": {
         "loading": "Loading...",
         "publishedAt": "Published on {date}"
+      }
+    },
+    "prices": {
+      "title": "Plan prices",
+      "description": "Manage each plan's price. A new price is created as a draft and only takes effect — with at least 30 days' notice to tenants — once published.",
+      "newPrice": "New price",
+      "empty": "No prices recorded.",
+      "cancel": "Cancel",
+      "edit": "Edit",
+      "publish": "Publish",
+      "created": "Price created as a draft.",
+      "updated": "Draft updated.",
+      "published": "Price published. Active tenants will be notified.",
+      "tiers": {
+        "FREE": "Free",
+        "STARTER": "Starter",
+        "GROWTH": "Growth",
+        "BUSINESS": "Business"
+      },
+      "intervals": {
+        "MONTHLY": "Monthly",
+        "YEARLY": "Yearly"
+      },
+      "status": {
+        "draft": "Draft",
+        "scheduled": "Scheduled",
+        "active": "Active"
+      },
+      "columns": {
+        "tier": "Tier",
+        "interval": "Interval",
+        "price": "Price",
+        "status": "Status",
+        "effectiveAt": "Effective",
+        "actions": "Actions"
+      },
+      "createDialog": {
+        "title": "New price",
+        "description": "Created as a draft — not visible to tenants and starts no notice clock until you publish it.",
+        "tierLabel": "Tier",
+        "intervalLabel": "Billing interval",
+        "priceLabel": "Price (USD, VAT included)",
+        "priceHint": "Same format as priceMonthlyUsd/priceYearlyUsd on GET /v1/tiers.",
+        "submit": "Create draft",
+        "submitting": "Creating..."
+      },
+      "editDialog": {
+        "title": "Edit draft — {tier} ({interval})"
+      },
+      "publishDialog": {
+        "title": "Publish price — {tier} ({interval})",
+        "description": "New price: {price}",
+        "warning": "This action is irreversible. Once published, the price can't be edited or deleted — only a new draft can replace it later.",
+        "noticeDaysLabel": "Notice days",
+        "noticeDaysHint": "Minimum 30 days. Every active tenant receives a notification (in-app and email) of the change.",
+        "submit": "Publish",
+        "submitting": "Publishing..."
       }
     }
   },

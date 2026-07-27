@@ -730,6 +730,10 @@
     "BRANCH_LIMIT_REACHED": "Ha alcanzado el límite de establecimientos de su plan.",
     "ISSUE_POINT_LIMIT_REACHED": "Ha alcanzado el límite de puntos de emisión para este establecimiento.",
     "INVALID_TIER": "El plan seleccionado no es válido.",
+    "INVALID_BILLING_INTERVAL": "El intervalo de facturación no es válido.",
+    "PRICE_NOT_FOUND": "No se encontró el precio solicitado.",
+    "PRICE_NOT_DRAFT": "Solo un precio en borrador puede editarse o publicarse.",
+    "PRICE_NOTICE_TOO_SHORT": "El aviso debe ser de al menos 30 días.",
     "INVALID_TENANT_STATUS": "El estado de la cuenta no es válido para esta operación.",
     "RUC_MISMATCH": "El RUC no coincide con el del emisor de origen.",
     "LAST_ISSUER_CANNOT_BE_REMOVED": "No se puede eliminar el único punto de emisión activo.",
@@ -1574,6 +1578,7 @@
       "tenants": "Tenants",
       "payments": "Pagos",
       "agreements": "Contratos",
+      "prices": "Precios",
       "signOut": "Cerrar sesión"
     },
     "tenants": {
@@ -1698,6 +1703,63 @@
       "viewDialog": {
         "loading": "Cargando...",
         "publishedAt": "Publicado el {date}"
+      }
+    },
+    "prices": {
+      "title": "Precios de planes",
+      "description": "Gestiona el precio de cada plan. Un precio nuevo se crea como borrador y solo empieza a regir — con al menos 30 días de aviso a los tenants — al publicarlo.",
+      "newPrice": "Nuevo precio",
+      "empty": "No hay precios registrados.",
+      "cancel": "Cancelar",
+      "edit": "Editar",
+      "publish": "Publicar",
+      "created": "Precio creado como borrador.",
+      "updated": "Borrador actualizado.",
+      "published": "Precio publicado. Los tenants activos serán notificados.",
+      "tiers": {
+        "FREE": "Gratis",
+        "STARTER": "Emprendedor",
+        "GROWTH": "Crecimiento",
+        "BUSINESS": "Empresarial"
+      },
+      "intervals": {
+        "MONTHLY": "Mensual",
+        "YEARLY": "Anual"
+      },
+      "status": {
+        "draft": "Borrador",
+        "scheduled": "Programado",
+        "active": "Vigente"
+      },
+      "columns": {
+        "tier": "Plan",
+        "interval": "Intervalo",
+        "price": "Precio",
+        "status": "Estado",
+        "effectiveAt": "Vigencia",
+        "actions": "Acciones"
+      },
+      "createDialog": {
+        "title": "Nuevo precio",
+        "description": "Se crea como borrador — no es visible para los tenants ni inicia el aviso de cambio hasta que lo publiques.",
+        "tierLabel": "Plan",
+        "intervalLabel": "Intervalo de facturación",
+        "priceLabel": "Precio (USD, incluye IVA)",
+        "priceHint": "Mismo formato que priceMonthlyUsd/priceYearlyUsd en GET /v1/tiers.",
+        "submit": "Crear borrador",
+        "submitting": "Creando..."
+      },
+      "editDialog": {
+        "title": "Editar borrador — {tier} ({interval})"
+      },
+      "publishDialog": {
+        "title": "Publicar precio — {tier} ({interval})",
+        "description": "Nuevo precio: {price}",
+        "warning": "Esta acción es irreversible. Una vez publicado, el precio no puede editarse ni eliminarse — solo un nuevo borrador puede reemplazarlo a futuro.",
+        "noticeDaysLabel": "Días de aviso",
+        "noticeDaysHint": "Mínimo 30 días. Cada tenant activo recibe una notificación (app y correo) del cambio.",
+        "submit": "Publicar",
+        "submitting": "Publicando..."
       }
     }
   },

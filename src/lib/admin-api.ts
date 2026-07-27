@@ -72,6 +72,21 @@ export interface AdminAgreementDetail extends AdminAgreementVersion {
   contentMarkdown: string;
 }
 
+export type TierName = 'FREE' | 'STARTER' | 'GROWTH' | 'BUSINESS';
+export type BillingInterval = 'MONTHLY' | 'YEARLY';
+
+// Verified against: ../comprobify/src/controllers/admin.controller.js → formatTierPrice()
+export interface AdminTierPrice {
+  id: string;
+  tier: TierName;
+  billingInterval: BillingInterval;
+  priceUsd: number;
+  status: 'DRAFT' | 'PUBLISHED';
+  effectiveAt: string | null;
+  publishedAt: string | null;
+  createdAt: string;
+}
+
 function getApiUrl(): string {
   const apiUrl = process.env.COMPROBIFY_API_URL;
   if (!apiUrl) throw new Error('COMPROBIFY_API_URL is not set');
@@ -275,4 +290,52 @@ export async function activateAgreement(id: string): Promise<AdminAgreementVersi
     { method: 'PATCH' },
   );
   return document;
+}
+
+// ── Tier prices ───────────────────────────────────────────────────────────────
+// Draft → publish workflow (ADR-023): a price is created as a DRAFT (not
+// visible to tenants, no notice clock running), then published, which sets
+// effectiveAt/publishedAt, starts the (minimum 30-day) notice window, and
+// notifies every ACTIVE tenant. Once PUBLISHED a row is immutable — there is
+// no update/delete for it, only a new DRAFT superseding it later.
+
+// Verified against: ../comprobify/src/controllers/admin.controller.js → listTierPrices()
+export async function listTierPrices(tier?: TierName): Promise<AdminTierPrice[]> {
+  const qs = tier ? `?tier=${encodeURIComponent(tier)}` : '';
+  const { prices } = await request<{ ok: true; prices: AdminTierPrice[] }>(`/v1/admin/prices${qs}`);
+  return prices;
+}
+
+// Verified against: ../comprobify/src/controllers/admin.controller.js → createTierPrice()
+export async function createTierPrice(
+  tier: TierName,
+  billingInterval: BillingInterval,
+  priceUsd: number,
+): Promise<AdminTierPrice> {
+  const { price } = await request<{ ok: true; price: AdminTierPrice }>('/v1/admin/prices', {
+    method: 'POST',
+    body: JSON.stringify({ tier, billingInterval, priceUsd }),
+  });
+  return price;
+}
+
+// Verified against: ../comprobify/src/controllers/admin.controller.js → updateTierPrice()
+// Only a DRAFT price can be edited — the API rejects otherwise with PRICE_NOT_DRAFT.
+export async function updateTierPrice(id: string, priceUsd: number): Promise<AdminTierPrice> {
+  const { price } = await request<{ ok: true; price: AdminTierPrice }>(`/v1/admin/prices/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ priceUsd }),
+  });
+  return price;
+}
+
+// Verified against: ../comprobify/src/controllers/admin.controller.js → publishTierPrice()
+// noticeDays defaults to the API's configured minimum (PRICE_CHANGE_MIN_NOTICE_DAYS,
+// 30) when omitted; the API rejects anything shorter with PRICE_NOTICE_TOO_SHORT.
+export async function publishTierPrice(id: string, noticeDays?: number): Promise<AdminTierPrice> {
+  const { price } = await request<{ ok: true; price: AdminTierPrice }>(`/v1/admin/prices/${id}/publish`, {
+    method: 'POST',
+    body: JSON.stringify({ noticeDays }),
+  });
+  return price;
 }
