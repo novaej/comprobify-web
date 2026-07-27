@@ -61,13 +61,19 @@ Every subscription (newest first) with its nested payments, each as a small stat
 
 ## Renewals
 
-A renewal reuses the exact same proof/review/link-invoice pipeline as the initial subscription — `comprobify`'s scheduled job opens a new `payments` row (`purpose: 'RENEWAL'`, no `target_tier`) on the existing `ACTIVE` subscription about 7 days before `current_period_end`. The tenant finds out only via the `SUBSCRIPTION_RENEWAL_DUE` notification/email (see "Notifications" below) and an email with the bank transfer instructions — there is no Server Action call on this screen that starts a renewal payment, so it never gets its own fresh `bankTransfer` response (see "Bank transfer caching"). Uploading proof against the renewal's `payment.id` works through the identical `submitPaymentProofAction` flow as any other payment. If a renewal runs unpaid past the grace period, the subscription moves to `EXPIRED` and the tenant is auto-downgraded to FREE (`SUBSCRIPTION_EXPIRED` notification/email) — the Subscribe card reappears at that point since an `EXPIRED` subscription doesn't block starting a new one.
+A renewal reuses the exact same proof/review/link-invoice pipeline as the initial subscription — `comprobify`'s scheduled job opens a new `payments` row (`purpose: 'RENEWAL'`, no `target_tier`) on the existing `ACTIVE` subscription about 7 days before `current_period_end`. The tenant finds out only via the `SUBSCRIPTION_RENEWAL_DUE` notification/email (see "Notifications" below) and an email with the bank transfer instructions — there is no Server Action call on this screen that starts a renewal payment, so it never gets its own fresh `bankTransfer` response (see "Bank transfer caching"). Uploading proof against the renewal's `payment.id` works through the identical `submitPaymentProofAction` flow as any other payment. Partway through the grace period that follows — before anything else happens — a second, more urgent `SUBSCRIPTION_PAST_DUE_WARNING` notification/email fires (ADR-025 on the API side). If it still runs unpaid past the full grace period, the subscription moves to `EXPIRED`, the tenant is auto-downgraded to FREE, **and the tenant's account itself (`tenants.status`) becomes `PAST_DUE`** (`SUBSCRIPTION_EXPIRED` notification/email covers both) — the Subscribe card reappears at that point since an `EXPIRED` subscription doesn't block starting a new one, and starting + paying for that new subscription is also exactly what clears the account back out of `PAST_DUE` (see "Account status" below).
+
+---
+
+## Account status: `PAST_DUE`
+
+A `PAST_DUE` account (see CLAUDE.md's "Tenant account status" entry) shows an amber `PastDueBanner` (`src/components/past-due-banner.tsx`, rendered in `[locale]/layout.tsx`) on every page, not just this one — but this screen is where it's resolved: starting a fresh subscription (`POST /v1/subscriptions`) and submitting its payment proof (`PATCH /v1/payments/:id/proof`) are the only two write routes the API keeps reachable while `PAST_DUE`, i.e. exactly the **Subscribe card** and **Pending payment card** flows above. Landing on this page also opportunistically corrects the local `Tenant.status` mirror the banner reads from (`reconcileTenantStatus()`, called right after this page's own `getCurrentTenant()`) — so a tenant who already paid and was flipped back to `ACTIVE` server-side sees the banner disappear on their very next visit here, not stuck showing forever.
 
 ---
 
 ## Notifications
 
-Payment decisions and the renewal lifecycle fire real notifications instead of leaving the tenant to poll: `PAYMENT_VERIFIED`/`PAYMENT_REJECTED` on every `reviewPayment` decision (regardless of `purpose`), and `SUBSCRIPTION_RENEWAL_DUE`/`SUBSCRIPTION_EXPIRED` from the renewal job. All four are "live" types in `/settings/notifications` (see `docs/site/screens/notifications.md`) and route to this screen when clicked (`getNotificationHref()` in `src/lib/notification-link.ts`). Activation itself (the self-billed invoice authorizing) still fires no notification — `GET /v1/subscriptions/me` remains the only way to see that complete.
+Payment decisions and the renewal lifecycle fire real notifications instead of leaving the tenant to poll: `PAYMENT_VERIFIED`/`PAYMENT_REJECTED` on every `reviewPayment` decision (regardless of `purpose`), `SUBSCRIPTION_RENEWAL_DUE`/`SUBSCRIPTION_PAST_DUE_WARNING`/`SUBSCRIPTION_EXPIRED` from the renewal job, and `PRICE_CHANGE_ANNOUNCED` (mandatory, no opt-out) when a published tier price change enters its 30-day notice window. The first five are "live" toggleable types in `/settings/notifications` (see `docs/site/screens/notifications.md`); `PRICE_CHANGE_ANNOUNCED` is mandatory instead. All six route to this screen when clicked (`getNotificationHref()` in `src/lib/notification-link.ts`). Activation itself (the self-billed invoice authorizing) still fires no notification — `GET /v1/subscriptions/me` remains the only way to see that complete.
 
 ---
 
@@ -87,11 +93,13 @@ No self-service path exists to **cancel** a subscription (admin-only `PATCH /v1/
 
 | File | Role |
 |---|---|
-| `src/app/[locale]/settings/billing/page.tsx` | Server Component — data fetching; reads (never clears) `Tenant.pendingBankTransfer` |
+| `src/app/[locale]/settings/billing/page.tsx` | Server Component — data fetching; reads (never clears) `Tenant.pendingBankTransfer`; calls `reconcileTenantStatus()` after `getCurrentTenant()` |
 | `src/components/billing-manager.tsx` | Client Component — all sections above (`SubscribeCard`/`ChangeTierCard`/`PendingPaymentCard` are local to this file) |
 | `src/app/actions/billing.ts` | `submitPaymentProofAction`, `createSubscriptionAction`, `changeTierAction` |
-| `src/lib/api.ts` | `getMySubscriptions`, `submitPaymentProof`, `createSubscription`, `changeTier`, `promoteTenant` (tier/billingInterval), `ApiSubscriptionInfo`/`ApiPaymentInfo`/`ApiBankTransferInfo` types |
+| `src/lib/api.ts` | `getMySubscriptions`, `submitPaymentProof`, `createSubscription`, `changeTier`, `promoteTenant` (tier/billingInterval), `ApiSubscriptionInfo`/`ApiPaymentInfo`/`ApiBankTransferInfo` types, `ApiTenantInfo.status` (includes `PAST_DUE`) |
 | `src/lib/public-api.ts` | `listTiers()` — public tier catalog |
 | `src/lib/subscription-tiers.ts` | `PaidTier`/`BillingInterval` shared types |
 | `src/lib/rbac.ts` | `billing.read`/`billing.manage` permissions |
-| `src/lib/notification-link.ts` | Routes `PAYMENT_VERIFIED`/`PAYMENT_REJECTED`/`SUBSCRIPTION_RENEWAL_DUE`/`SUBSCRIPTION_EXPIRED` notifications here |
+| `src/lib/notification-link.ts` | Routes `PAYMENT_VERIFIED`/`PAYMENT_REJECTED`/`SUBSCRIPTION_RENEWAL_DUE`/`SUBSCRIPTION_PAST_DUE_WARNING`/`SUBSCRIPTION_EXPIRED`/`PRICE_CHANGE_ANNOUNCED` notifications here |
+| `src/lib/tenant-status-sync.ts` | `syncTenantStatusFromError()`/`reconcileTenantStatus()` — keeps the local `Tenant.status` mirror (drives `PastDueBanner`/`SuspendedBanner`) in sync |
+| `src/components/past-due-banner.tsx` | Amber banner shown when `Tenant.status === 'PAST_DUE'`, rendered in `[locale]/layout.tsx` |

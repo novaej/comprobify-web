@@ -33,7 +33,8 @@ Toggles for currently-active notification event types. Types with an email count
 | `PAYMENT_VERIFIED` | In-app + Email | Provider verified an uploaded payment proof (initial, tier-change, or renewal) |
 | `PAYMENT_REJECTED` | In-app + Email | Provider rejected an uploaded payment proof |
 | `SUBSCRIPTION_RENEWAL_DUE` | In-app + Email | ~7 days before the current billing period ends — a renewal payment is already open |
-| `SUBSCRIPTION_EXPIRED` | In-app + Email | Subscription ran past its renewal grace period unpaid — tenant auto-downgraded to FREE |
+| `SUBSCRIPTION_PAST_DUE_WARNING` | In-app + Email | Partway through the renewal grace period, before the account is actually marked `PAST_DUE` (ADR-025) |
+| `SUBSCRIPTION_EXPIRED` | In-app + Email | Subscription ran past its renewal grace period unpaid — tenant auto-downgraded to FREE and account marked `PAST_DUE` |
 
 Each toggle is **optimistic** — it flips immediately in the UI and the API call fires in the background per (type, channel). If the server returns an error the toggle reverts and a toast is shown.
 
