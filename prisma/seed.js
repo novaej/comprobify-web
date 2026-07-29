@@ -16,18 +16,12 @@ const bcrypt = require('bcryptjs');
 
 const ADMIN_EMAIL = 'support@comprobify.com';
 
-// Mirrors src/lib/db.ts: @prisma/adapter-pg forwards the connection string
-// straight to node-postgres's pg.Pool, which doesn't read Prisma's
-// connection_limit query param on its own — parse it here and pass it
-// through as pg's own `max` pool option.
+// Mirrors src/lib/db.ts — see there for why these aren't just query params on DATABASE_URL.
 function poolSizeFromUrl(databaseUrl) {
   const value = new URL(databaseUrl).searchParams.get('connection_limit');
   return value ? Number(value) : undefined;
 }
 
-// Mirrors src/lib/db.ts: kept out of DATABASE_URL's query string on purpose
-// (an sslmode param there would silently overwrite this via pg's own
-// connectionString-merge precedence) — see the comment in db.ts for why.
 function sslConfig() {
   if (process.env.DATABASE_SSL !== 'true') return undefined;
   return {

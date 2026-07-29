@@ -1,30 +1,16 @@
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 
-// @prisma/adapter-pg hands the connection string straight to node-postgres's
-// `pg.Pool`, which never reads Prisma's own `connection_limit`/`pgbouncer`
-// query-string convention (those are understood only by Prisma's Rust query
-// engine, which this app bypasses). Parse `connection_limit` here and forward
-// it as pg's own `max` pool option instead — see docs/deployment.md's
-// DATABASE_URL entry for why this cap exists.
+// @prisma/adapter-pg doesn't read Prisma's connection_limit convention (that's
+// Rust-engine-only) — parse it from the URL ourselves and forward it as pg.Pool's `max`.
 function poolSizeFromUrl(databaseUrl: string): number | undefined {
   const value = new URL(databaseUrl).searchParams.get('connection_limit');
   return value ? Number(value) : undefined;
 }
 
-// SSL is intentionally NOT configured via `sslmode`/`sslrootcert` query
-// params on DATABASE_URL. pg's ConnectionParameters constructor does
-// `Object.assign({}, config, parse(connectionString))` (node-postgres,
-// lib/connection-parameters.js) — whatever the connection string's own
-// query params produce OVERWRITES any explicit config passed alongside it
-// for the same key. An `sslmode` in the URL would silently replace the
-// `ca`-bearing object below with an empty one, undoing it. DATABASE_SSL /
-// DATABASE_SSL_CA mirror the same two-variable shape the comprobify API
-// repo uses for the same reason (see its src/config/index.js): DigitalOcean
-// managed Postgres (and similar providers) present a certificate signed by
-// a private, cluster-specific CA that isn't in Node's default trust store —
-// `rejectUnauthorized: true` alone fails with SELF_SIGNED_CERT_IN_CHAIN
-// unless that CA's PEM content is also passed as `ca`.
+// Kept out of DATABASE_URL's query string on purpose: pg's connection-string parsing
+// overwrites explicit config for overlapping keys, so an sslmode param here would
+// silently wipe out the `ca` below. Mirrors DATABASE_SSL/DATABASE_SSL_CA on the API side.
 function sslConfig() {
   if (process.env.DATABASE_SSL !== 'true') return undefined;
   return {
