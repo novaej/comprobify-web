@@ -8,6 +8,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Fixed
+- **First App Platform staging deploy (`v0.9.0`) failed at `npm ci` with `Missing: @swc/helpers@0.5.23 from lock file`** — `package.json` had no `engines.node`, so App Platform's buildpack defaulted to Node 22.x (bundled npm 10.9.7), while `package-lock.json` was generated under Node 24/npm 11. `npm ci`'s strict validation rejects a lockfile across that big an npm-major gap for this dependency tree, even though the lockfile itself is correct — confirmed by `npm ci` succeeding cleanly locally under Node 24. Pinned `"engines": { "node": "24.x" }` so App Platform resolves the same major that actually produced the lockfile.
+
 ## [0.9.0] — 2026-07-28
 
 ### Fixed
