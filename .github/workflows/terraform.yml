@@ -5,11 +5,16 @@ name: Terraform
 # for App Platform's own Autodeploy to pick up; this workflow never touches them either).
 # Mirrors comprobify/.github/workflows/terraform.yml's shape.
 #
-# DO_TOKEN and CLOUDFLARE_TOKEN live in the `staging-infra` GitHub Environment (Settings ->
-# Environments -> staging-infra) - dedicated, freshly-minted credentials for this repo's
-# pipeline, not reused from the comprobify API repo's own tokens (different repo, secrets
-# don't carry over anyway - this is also a deliberate credential-isolation choice, not just
-# a limitation). Same for every TF_VAR_* secret env var below.
+# All 10 secrets (DO_TOKEN, CLOUDFLARE_TOKEN, and the 8 TF_VAR_* app secrets below) live in
+# the `staging` GitHub Environment (Settings -> Environments -> staging) - dedicated,
+# freshly-minted credentials for this repo's pipeline, not reused from the comprobify API
+# repo's own tokens. Unlike the API repo, there's no separate deploy workflow here to split
+# infra credentials from app secrets across two Environments: Terraform IS what sets this
+# app's secret env vars (via the env{} blocks in modules/app-platform/main.tf), so the same
+# job needs both DO_TOKEN/CLOUDFLARE_TOKEN (to authenticate the providers) and every app
+# secret (to populate those env blocks) in one terraform apply. A single GitHub Actions job
+# can only be tied to one Environment at a time, so splitting these across a second
+# Environment isn't possible without a second, currently-nonexistent workflow to hold it.
 #
 # TERRAFORM_SPACES_ACCESS_KEY_ID/SECRET_ACCESS_KEY are repository secrets, not Environment
 # secrets, holding a Spaces access key scoped to the shared comprobify-terraform-state
@@ -18,8 +23,8 @@ name: Terraform
 #
 # Manual workflow_dispatch supports both apply (default) and destroy, so a teardown can be
 # run deliberately through this same audited pipeline instead of requiring local Terraform
-# CLI access - still gated behind staging-infra like every other run. A push to main always
-# applies; destroy is only ever reachable via an explicit manual dispatch.
+# CLI access - still gated behind the staging Environment like every other run. A push to
+# main always applies; destroy is only ever reachable via an explicit manual dispatch.
 
 on:
   push:
@@ -50,7 +55,7 @@ env:
 jobs:
   plan:
     runs-on: ubuntu-latest
-    environment: staging-infra
+    environment: staging
     steps:
       - uses: actions/checkout@v5
       - uses: hashicorp/setup-terraform@v4
@@ -66,7 +71,7 @@ jobs:
 
   apply:
     needs: plan
-    environment: staging-infra
+    environment: staging
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
