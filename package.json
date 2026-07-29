@@ -9,8 +9,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "build:deploy": "prisma generate && prisma migrate deploy && next build",
+    "build:deploy": "prisma generate && next build",
     "start": "next start",
+    "start:deploy": "prisma migrate deploy && next start",
     "type-check": "tsc --noEmit",
     "migrate": "prisma migrate dev",
     "db:reset": "node scripts/db-reset.js",

@@ -183,12 +183,12 @@ Unlike the API (which runs on a DigitalOcean Droplet and needs an explicit `depl
 |---------|-------|
 | Source directory | `/` (this is a standalone repo, not a monorepo — nothing to scope) |
 | Autodeploy | On, for the app's watched branch (`staging` or `production`) |
-| Build command | `npm run build:deploy` — **must be set explicitly**; App Platform's Node.js buildpack has no equivalent to Vercel's build-script auto-detection and would otherwise run plain `npm run build` (`next build` only), silently skipping `prisma generate`/`prisma migrate deploy` and most likely failing outright since the Prisma Client wouldn't exist yet |
-| Run command | `npm start` (`next start`) — App Platform's buildpack auto-detects this from `package.json`, no override needed. `next start` reads the `PORT` App Platform injects automatically. |
+| Build command | `npm run build:deploy` — **must be set explicitly**; App Platform's Node.js buildpack has no equivalent to Vercel's build-script auto-detection and would otherwise run plain `npm run build` (`next build` only), silently skipping `prisma generate` and most likely failing outright since the Prisma Client wouldn't exist yet |
+| Run command | `npm run start:deploy` — **must also be set explicitly**, overriding the buildpack's auto-detected default (`npm start`). See below for why migrations run here instead of in the build command. |
 
-`build:deploy` runs `prisma generate && prisma migrate deploy && next build` — every deploy applies any pending migrations against `DATABASE_URL` before building. `prisma migrate deploy` only runs migrations not yet recorded in `_prisma_migrations`, so already-applied ones are skipped automatically; it's safe to run on every deploy, including ones with no schema changes.
+`build:deploy` runs `prisma generate && next build` — `prisma generate` only reads the schema file and writes generated client code, no database connection needed, so it's safe and necessary at build time. `start:deploy` runs `prisma migrate deploy && next start` — **migrations run at process startup, not at build time**, confirmed necessary the hard way: App Platform's build phase has no network path to the database at all, regardless of Trusted Sources configuration or `vpc.id` on the app spec (empirically confirmed — the same public DB endpoint, with Trusted Sources correctly set for the app, was unreachable from the build step while reachable from a local machine with its own IP trusted). This mirrors the comprobify API repo's own pattern (`app.js` calls `migrate()` before accepting requests, for the same underlying reason). `prisma migrate deploy` only runs migrations not yet recorded in `_prisma_migrations`, so already-applied ones are skipped automatically — safe to run on every startup, including instance restarts with no schema changes.
 
-**`prisma migrate deploy` does not go through this app's `@prisma/adapter-pg` setup.** It spawns a separate native `schema-engine` binary that connects to `DATABASE_URL` with its own independent Postgres connector — none of `src/lib/db.ts`'s pool/SSL wiring applies to it. Watch this step specifically in the build log on first deploy; if it fails with a certificate error while runtime queries work fine, the fix has to target the schema-engine binary itself, not `DATABASE_SSL`/`DATABASE_SSL_CA`.
+**`prisma migrate deploy` does not go through this app's `@prisma/adapter-pg` setup.** It spawns a separate native `schema-engine` binary that connects to `DATABASE_URL` with its own independent Postgres connector — none of `src/lib/db.ts`'s pool/SSL wiring applies to it. Watch the runtime logs on first deploy for this step specifically; if it fails with a certificate error while other runtime queries work fine, the fix has to target the schema-engine binary itself, not `DATABASE_SSL`/`DATABASE_SSL_CA`.
 
 ### Pipeline stages (staging)
 
@@ -253,7 +253,7 @@ No deploy-hook secret is needed for App Platform either — Autodeploy watches t
    - Source directory: `/` (standalone repo, not a monorepo)
    - Branch: `staging` or `production` respectively
    - Autodeploy: on
-4. Override the **Build Command** to `npm run build:deploy` — see "Build settings" above for why this can't be left on the buildpack's default
+4. Override the **Build Command** to `npm run build:deploy` and the **Run Command** to `npm run start:deploy` — see "Build settings" above for why neither can be left on the buildpack's defaults
 5. Add environment variables to each app (see table below)
 6. Add both the marketing and app custom domains to the same app — see "Domain routing" above
 7. Deploy
@@ -328,7 +328,7 @@ If the reserved-connection split above ever changes (e.g. the API reserves more/
 - [ ] `DATABASE_SSL=true` is set (any real managed Postgres provider enforces TLS)
 - [ ] `DATABASE_SSL_CA` is set if the provider uses a private CA (e.g. DigitalOcean) — verify with a real deploy, not just that the var exists, since a missing/wrong CA fails at connection time with `SELF_SIGNED_CERT_IN_CHAIN`
 - [ ] `DATABASE_URL` itself has no `sslmode`/`sslcert`/`sslkey`/`sslrootcert` query param — see the note above on why that would silently override `DATABASE_SSL_CA`
-- [ ] `npx prisma migrate deploy` ran successfully on the first deploy (automatic via `build:deploy` — check the build log, and separately confirm the `prisma migrate deploy` step itself succeeded, since it runs through a different connector than the app's runtime queries — see the CI/CD pipeline section above)
+- [ ] `npx prisma migrate deploy` ran successfully on the first deploy (automatic via `start:deploy` at process startup, not the build command — check the runtime logs, and separately confirm this step itself succeeded, since it runs through a different connector than the app's other runtime queries — see the CI/CD pipeline section above)
 - [ ] Production database has backups enabled
 
 **Comprobify API**
@@ -342,7 +342,7 @@ If the reserved-connection split above ever changes (e.g. the API reserves more/
 
 **App Platform**
 - [ ] All env vars are set as server-only (no `NEXT_PUBLIC_` prefix on any secret — a Next.js build-time rule, not platform-specific, but easy to get wrong)
-- [ ] Build Command is explicitly set to `npm run build:deploy` — the buildpack's default (`npm run build`) silently skips migrations
+- [ ] Build Command is explicitly set to `npm run build:deploy` and Run Command to `npm run start:deploy` — the buildpack's defaults (`npm run build` / `npm start`) silently skip `prisma generate`/migrations respectively
 - [ ] Custom domains configured in App Platform and DNS records updated
 - [ ] HTTPS enforced — App Platform provisions and renews certs automatically for custom domains
 - [ ] `production` branch is protected in GitHub (no force pushes, restricted push access)
