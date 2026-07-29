@@ -8,6 +8,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Fixed
+- **Every request logged `[auth][error] UntrustedHost`, on both `staging.comprobify.com` and `app-staging.comprobify.com`** — Auth.js rejects requests from hosts it doesn't recognize by default; Vercel auto-trusted its own deployment host, but App Platform gets no such implicit trust. Added `trustHost: true` to the `NextAuth()` config — safe here since App Platform/Cloudflare only route traffic for domains actually configured on this app, not a blanket "trust any Host header" exposure.
+
 ### Changed
 - **`terraform.yml` now triggers on push to `staging` (path-filtered to `terraform/**`) instead of `release-staging.yml` completing via `workflow_run`** — `workflow_run` can't filter by changed paths, so it ran on every single release regardless of whether `terraform/**` changed. `release-staging.yml`'s only job ends with `git push origin staging` (nothing after it), so triggering directly on that push is equivalent for ordering purposes while getting real path filtering back.
 
