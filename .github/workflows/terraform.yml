@@ -1,0 +1,82 @@
+name: Terraform
+
+# Applies infrastructure changes under terraform/ - separate from and never triggered by
+# release-staging.yml/release-production.yml (those only fast-forward staging/production
+# for App Platform's own Autodeploy to pick up; this workflow never touches them either).
+# Mirrors comprobify/.github/workflows/terraform.yml's shape.
+#
+# DO_TOKEN and CLOUDFLARE_TOKEN live in the `staging-infra` GitHub Environment (Settings ->
+# Environments -> staging-infra) - dedicated, freshly-minted credentials for this repo's
+# pipeline, not reused from the comprobify API repo's own tokens (different repo, secrets
+# don't carry over anyway - this is also a deliberate credential-isolation choice, not just
+# a limitation). Same for every TF_VAR_* secret env var below.
+#
+# TERRAFORM_SPACES_ACCESS_KEY_ID/SECRET_ACCESS_KEY are repository secrets, not Environment
+# secrets, holding a Spaces access key scoped to the shared comprobify-terraform-state
+# bucket (see terraform/environments/staging/backend.tf) - dedicated to this repo's
+# pipeline, not the API repo's own Spaces key.
+#
+# Manual workflow_dispatch supports both apply (default) and destroy, so a teardown can be
+# run deliberately through this same audited pipeline instead of requiring local Terraform
+# CLI access - still gated behind staging-infra like every other run. A push to main always
+# applies; destroy is only ever reachable via an explicit manual dispatch.
+
+on:
+  push:
+    branches: [main]
+    paths: ['terraform/**']
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Terraform action to run'
+        type: choice
+        options: [apply, destroy]
+        default: apply
+
+env:
+  TF_VAR_do_token: ${{ secrets.DO_TOKEN }}
+  TF_VAR_cloudflare_token: ${{ secrets.CLOUDFLARE_TOKEN }}
+  TF_VAR_database_url: ${{ secrets.DATABASE_URL }}
+  TF_VAR_auth_secret: ${{ secrets.AUTH_SECRET }}
+  TF_VAR_encryption_key: ${{ secrets.ENCRYPTION_KEY }}
+  TF_VAR_context_cookie_secret: ${{ secrets.CONTEXT_COOKIE_SECRET }}
+  TF_VAR_database_ssl_ca: ${{ secrets.DATABASE_SSL_CA }}
+  TF_VAR_sentry_auth_token: ${{ secrets.SENTRY_AUTH_TOKEN }}
+  TF_VAR_mailgun_api_key: ${{ secrets.MAILGUN_API_KEY }}
+  TF_VAR_comprobify_admin_secret: ${{ secrets.COMPROBIFY_ADMIN_SECRET }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.TERRAFORM_SPACES_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.TERRAFORM_SPACES_SECRET_ACCESS_KEY }}
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    environment: staging-infra
+    steps:
+      - uses: actions/checkout@v5
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.7.5
+      - run: terraform -chdir=terraform/environments/staging init
+      - name: Plan (apply)
+        if: github.event.inputs.action != 'destroy'
+        run: terraform -chdir=terraform/environments/staging plan
+      - name: Plan (destroy)
+        if: github.event.inputs.action == 'destroy'
+        run: terraform -chdir=terraform/environments/staging plan -destroy
+
+  apply:
+    needs: plan
+    environment: staging-infra
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.7.5
+      - run: terraform -chdir=terraform/environments/staging init
+      - name: Apply
+        if: github.event.inputs.action != 'destroy'
+        run: terraform -chdir=terraform/environments/staging apply -auto-approve
+      - name: Destroy
+        if: github.event.inputs.action == 'destroy'
+        run: terraform -chdir=terraform/environments/staging destroy -auto-approve

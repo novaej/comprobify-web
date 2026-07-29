@@ -262,12 +262,13 @@ No deploy-hook secret is needed for App Platform either — Autodeploy watches t
 
 ## Environment variables
 
-All variables are required. Set them in each App Platform app under **Settings → App-Level Environment Variables**.
+All variables are required. Managed via Terraform (`terraform/environments/staging/terraform.tfvars` for non-secret values, CI-supplied `TF_VAR_*` for secrets — see `terraform/environments/staging/variables.tf`) rather than set by hand in the App Platform UI.
 
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `DATABASE_URL` | Yes | PostgreSQL connection string for the frontend users table. Use a separate logical database from the Comprobify API DB — on staging/production this app and the API share one DigitalOcean Postgres cluster with no server-side pooler in front of it, so connect to the cluster's direct primary connection (same as the API does) and append `?connection_limit=N` (see below) so this app's client-side pool stays within its share of the cluster's connection budget. |
 | `COMPROBIFY_API_URL` | Yes | Base URL of the Comprobify API — no trailing slash (e.g. `https://api.comprobify.com`) |
+| `NEXT_PUBLIC_APP_URL` | Yes | Full URL of this app — used to build absolute callback URLs (e.g. webhook receive URL, email verification link). Read server-side in `src/app/actions/{auth,onboarding,users}.ts` and `src/lib/webhook-url.ts`; several of those throw if it's unset. |
 | `AUTH_SECRET` | Yes | Random 32+ character string used to sign Auth.js JWTs. Generate: `openssl rand -hex 32`. Use a **different value** per environment. |
 | `ENCRYPTION_KEY` | Yes | 32-byte hex string used to encrypt `TenantApiKey` values at rest (AES-256-GCM). Generate: `openssl rand -hex 32`. Use a **different value** per environment. |
 | `CONTEXT_COOKIE_SECRET` | Yes | Secret used to HMAC-sign the `comprobify_ctx` issuer-selection cookie. Generate: `openssl rand -hex 32`. Use a **different value** per environment. |
