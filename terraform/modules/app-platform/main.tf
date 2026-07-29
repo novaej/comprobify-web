@@ -6,13 +6,8 @@ terraform {
 }
 
 resource "digitalocean_app" "this" {
-  # Set at creation time, not via a separate digitalocean_project_resources reassignment
-  # afterward - that approach only runs once the app resource itself finishes successfully,
-  # which depends on its deployment succeeding. Every deployment failure this session left
-  # the app sitting in the account's default project ("Comprobify Infra") with no chance for
-  # a reassignment to ever run. project_id is a top-level argument on this resource (outside
-  # spec{}), applied as part of the same create call - the app never lands in the wrong
-  # project in the first place, regardless of deployment outcome.
+  # Set at creation, not via a post-hoc digitalocean_project_resources reassignment - that
+  # only ran once deployment succeeded, which left the app stuck in the default project.
   project_id = data.digitalocean_project.this.id
 
   spec {
@@ -208,6 +203,13 @@ data "digitalocean_vpc" "this" {
 # proxy IP instead of resolving through to itself, breaking verification - a documented,
 # common failure mode connecting Cloudflare-hosted domains to App Platform. Consequence:
 # these two domains don't get Cloudflare's WAF/DDoS layer the way api-staging does.
+#
+# default_ingress is a full URL (https://...), not a bare hostname - CNAME content can't
+# include the scheme.
+locals {
+  app_ingress_hostname = trimprefix(digitalocean_app.this.default_ingress, "https://")
+}
+
 resource "cloudflare_record" "primary" {
   zone_id = var.cloudflare_zone_id
   # cloudflare_record.name wants the bare subdomain (e.g. "staging"), not the FQDN used
@@ -216,7 +218,7 @@ resource "cloudflare_record" "primary" {
   # second variable, so there's only one source of truth to keep in sync.
   name    = trimsuffix(var.domain_primary, ".${var.cloudflare_zone_name}")
   type    = "CNAME"
-  content = digitalocean_app.this.default_ingress
+  content = local.app_ingress_hostname
   proxied = false
   ttl     = 1
 }
@@ -225,7 +227,7 @@ resource "cloudflare_record" "alias" {
   zone_id = var.cloudflare_zone_id
   name    = trimsuffix(var.domain_alias, ".${var.cloudflare_zone_name}")
   type    = "CNAME"
-  content = digitalocean_app.this.default_ingress
+  content = local.app_ingress_hostname
   proxied = false
   ttl     = 1
 }
