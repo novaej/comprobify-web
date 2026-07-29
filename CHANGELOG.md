@@ -8,6 +8,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.9.6] — 2026-07-29
+
 ### Fixed
 - **Every request logged `[auth][error] UntrustedHost`, on both `staging.comprobify.com` and `app-staging.comprobify.com`** — Auth.js rejects requests from hosts it doesn't recognize by default; Vercel auto-trusted its own deployment host, but App Platform gets no such implicit trust. Added `trustHost: true` to the `NextAuth()` config — safe here since App Platform/Cloudflare only route traffic for domains actually configured on this app, not a blanket "trust any Host header" exposure.
 
