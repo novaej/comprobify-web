@@ -8,6 +8,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Changed
+- **`terraform.yml` now triggers on push to `staging` (path-filtered to `terraform/**`) instead of `release-staging.yml` completing via `workflow_run`** — `workflow_run` can't filter by changed paths, so it ran on every single release regardless of whether `terraform/**` changed. `release-staging.yml`'s only job ends with `git push origin staging` (nothing after it), so triggering directly on that push is equivalent for ordering purposes while getting real path filtering back.
+
 ## [0.9.5] — 2026-07-29
 
 ### Fixed

@@ -1,23 +1,24 @@
 name: Terraform
 
-# Applies infrastructure changes under terraform/ - separate from and never triggered by
-# release-staging.yml/release-production.yml themselves (this workflow doesn't touch
-# staging/production branches). Mirrors comprobify/.github/workflows/terraform.yml's shape,
-# with one deliberate difference in the trigger - see below.
+# Applies infrastructure changes under terraform/ - mirrors
+# comprobify/.github/workflows/terraform.yml's shape, with one deliberate difference in the
+# trigger - see below.
 #
-# TRIGGER: runs after release-staging.yml completes, not on every push to main. This repo's
-# digitalocean_app resource couples "infra config" (build/run commands, env vars) with
-# "which branch's code to build" (github.branch) into one resource - Terraform's create/
-# update call blocks waiting for App Platform to actually deploy that code, and fails (
-# tainting the resource) if it can't. If this ran on every push to main, a PR that changes
-# both terraform/** and package.json (e.g. renaming an npm script a run_command depends on)
-# would trigger an apply that tries to deploy the new spec against whatever's still on
-# `staging` - which hasn't caught up yet, since staging only moves via the tagged release
-# process. That's exactly what happened when this was still push-triggered: repeated
-# deployment failures traced back to staging being several commits behind main the whole
-# time. Triggering off release-staging.yml's completion instead guarantees staging has
-# already been fast-forwarded (and App Platform's own Autodeploy already given a chance to
-# pick up that code) before Terraform ever tries to create/update the app against it.
+# TRIGGER: push to `staging` (path-filtered to terraform/**), not push to `main`. This
+# repo's digitalocean_app resource couples "infra config" (build/run commands, env vars)
+# with "which branch's code to build" (github.branch) into one resource - Terraform's
+# create/update call blocks waiting for App Platform to actually deploy that code, and
+# fails (tainting the resource) if it can't. Triggering on push to main meant a PR changing
+# both terraform/** and package.json together (e.g. renaming an npm script a run_command
+# depends on) would apply the new spec against whatever's still on `staging` - which hadn't
+# caught up yet, since staging only moves via the tagged release process. That's exactly
+# what caused a chain of failed deployments earlier. release-staging.yml's only job ends
+# with `git push origin staging` (nothing after it), so that push succeeding is equivalent
+# to the whole release succeeding - triggering directly on it guarantees staging has
+# already been fast-forwarded before Terraform ever touches the app, while still getting
+# real path filtering back (an intermediate workflow_run-based version of this trigger
+# couldn't path-filter at all, so it ran on every release regardless of whether
+# terraform/** changed).
 #
 # All 10 secrets (DO_TOKEN, CLOUDFLARE_TOKEN, and the 8 TF_VAR_* app secrets below) live in
 # the `staging` GitHub Environment (Settings -> Environments -> staging) - dedicated,
@@ -41,9 +42,9 @@ name: Terraform
 # ever reachable via an explicit manual dispatch, never the automatic post-release trigger.
 
 on:
-  workflow_run:
-    workflows: ["Release to Staging"]
-    types: [completed]
+  push:
+    branches: [staging]
+    paths: ['terraform/**']
   workflow_dispatch:
     inputs:
       action:
@@ -68,10 +69,6 @@ env:
 
 jobs:
   plan:
-    # Only run for a manual dispatch, or a release-staging.yml run that actually succeeded -
-    # a failed release means staging never got fast-forwarded, so applying now would hit the
-    # exact same stale-staging problem this trigger change exists to prevent.
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     environment: staging
     steps:
@@ -89,9 +86,6 @@ jobs:
 
   apply:
     needs: plan
-    # Same guard as plan - needs: plan already skips this when plan is skipped, but stated
-    # explicitly so the intent isn't left to the implicit skip-cascade alone.
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     environment: staging
     runs-on: ubuntu-latest
     steps:
