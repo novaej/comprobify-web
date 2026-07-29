@@ -22,6 +22,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ### Changed
 - **`src/lib/tenant-status-sync.ts` now funnels every write through one private `writeTenantStatus()` helper**, called only by its two exports (`syncTenantStatusFromError()`/`reconcileTenantStatus()`) — previously each wrote to `Tenant.status` independently. No behavior change; this closes off the one Prisma write site that could otherwise drift out of sync with the other as the module grows, and reaffirms in one place that `Tenant.status` is a display-only cache (drives `SuspendedBanner`/`PastDueBanner`), never a security boundary.
+- **Staging moved off Vercel to DigitalOcean App Platform**, so this app's database could reach the shared DigitalOcean Postgres cluster over DO's private VPC networking instead of paying for a public-IP allowlisting workaround (Vercel's Static IPs add-on, $100/mo/project). The `vercel-build` npm script — auto-detected by name on Vercel only — is renamed `build:deploy` and now has to be set explicitly as the app's Build Command, since App Platform's buildpack has no equivalent auto-detection and would otherwise run plain `next build` (skipping `prisma generate`/`prisma migrate deploy` entirely). `docs/deployment.md` is updated to describe the App Platform setup end to end; no separate `deploy-*.yml` workflow was needed, matching how Vercel's Git integration worked — App Platform's Autodeploy setting on the watched branch fills the same role.
 
 ## [0.8.0] — 2026-07-24
 

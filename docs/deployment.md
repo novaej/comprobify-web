@@ -4,7 +4,7 @@
 
 ## Branching strategy
 
-Two long-lived branches map to deployed environments. They are **automation-owned** — promoted forward by tags and GitHub Releases, never by direct or manual pushes. Feature/fix branches are always cut from `main` and merged back via pull request. This mirrors the release model used by the Comprobify API (`../comprobify/docs/deployment.md`), substituting Vercel's native Git integration for Render's deploy hooks.
+Two long-lived branches map to deployed environments. They are **automation-owned** — promoted forward by tags and GitHub Releases, never by direct or manual pushes. Feature/fix branches are always cut from `main` and merged back via pull request. This mirrors the release model used by the Comprobify API (`../comprobify/docs/deployment.md`), substituting DigitalOcean App Platform's native Autodeploy-on-push for the API's Droplet SSH-based `deploy-staging.yml`/`deploy-production.yml`.
 
 ```
   feature/xyz              main                                   staging                  production
@@ -24,18 +24,18 @@ Two long-lived branches map to deployed environments. They are **automation-owne
       │─────────────────────────────────────────────────────────────────────────────────────▶  │
 ```
 
-Every push to `staging` or `production` (i.e. every fast-forward the release workflows perform) is picked up automatically by Vercel's Git integration, which builds and deploys the corresponding project (`comprobify-web-staging` / `comprobify-web-production` — see the CI/CD pipeline section below). No deploy step runs inside this repo's workflows.
+Every push to `staging` or `production` (i.e. every fast-forward the release workflows perform) is picked up automatically by DigitalOcean App Platform's Autodeploy setting, which builds and deploys the corresponding app (`comprobify-web-staging` / `comprobify-web-production` — see the CI/CD pipeline section below). No deploy step runs inside this repo's workflows.
 
 | Branch | Environment | Promoted by |
 |--------|-------------|-------------|
 | `main` | — (trunk; CI only, no deploy) | PR merge |
-| `staging` | Staging (Vercel) | `release-staging.yml` — fast-forwarded on tag push `vX.Y.Z` |
-| `production` | Production (Vercel) — *not yet provisioned, pipeline disabled* | `release-production.yml` — fast-forwarded when a GitHub Release is published |
+| `staging` | Staging (DigitalOcean App Platform) | `release-staging.yml` — fast-forwarded on tag push `vX.Y.Z` |
+| `production` | Production (DigitalOcean App Platform) — *not yet provisioned, pipeline disabled* | `release-production.yml` — fast-forwarded when a GitHub Release is published |
 
 **Rules:**
 - All development happens in feature/fix branches off `main`, merged via PR (1 approval required)
 - `staging` and `production` are **automation-owned** — never push to them directly; they only move forward via fast-forward merges performed by the release workflows. Branch protection restricts direct pushes
-- A **tag** (`vX.Y.Z`, semantic versioning) means *"build this, validate it in staging."* Pushing it triggers `release-staging.yml`, which fast-forwards `staging`. Vercel's Git integration deploys the push automatically — no separate deploy workflow needed
+- A **tag** (`vX.Y.Z`, semantic versioning) means *"build this, validate it in staging."* Pushing it triggers `release-staging.yml`, which fast-forwards `staging`. App Platform's Autodeploy deploys the push automatically — no separate deploy workflow needed
 - A **published GitHub Release**, created from a tag already validated in staging, means *"staging confirmed it, ship to production."* Publishing it is the deliberate, auditable approval gate between staging and production — no extra tooling needed
 - **Hotfixes** branch from the current `production` ref once it exists (until then, branch from `staging`, which is the only environment live today), flow through a PR + tag through the same pipeline, and **must be cherry-picked back into `main`** afterwards so the fix survives the next regular release
 
@@ -79,7 +79,7 @@ Every commit on `main` is a merged PR (often squash-merged, so the SHA on `main`
    git push origin vX.Y.Z
    ```
 
-`release-staging.yml` fast-forwards `staging` to `vX.Y.Z` and pushes it; Vercel's Git integration picks up the push and deploys automatically. Use semantic versioning (`vMAJOR.MINOR.PATCH`) so it's obvious at a glance whether a tag is a feature release (`v1.5.0`) or a hotfix (`v1.4.1`).
+`release-staging.yml` fast-forwards `staging` to `vX.Y.Z` and pushes it; App Platform's Autodeploy picks up the push and deploys automatically. Use semantic versioning (`vMAJOR.MINOR.PATCH`) so it's obvious at a glance whether a tag is a feature release (`v1.5.0`) or a hotfix (`v1.4.1`).
 
 The tag still tracks `package.json`'s version — there's just a merge step between bumping it and tagging it, because the squash-merge changes the commit SHA. **Never push a follow-up commit to `main` that changes the version after a tag is created** — that would leave the tagged commit's `package.json` permanently out of sync with its own tag name, and would race with `staging` already having been fast-forwarded to it. If `package.json`'s version and the latest git tag ever drift apart, fix it with a manual one-off sync commit (`chore:`), then resume this sequence for every release after that.
 
@@ -92,9 +92,9 @@ Once the tag has been validated in staging, promotion is a single deliberate act
 3. Paste in that version's section from `CHANGELOG.md` as the release notes (it was already written when the version was bumped — see "Release to staging" above) — no need to regenerate from commits
 4. Click **Publish release**
 
-`release-production.yml` then fast-forwards `production` to that commit; Vercel deploys it automatically.
+`release-production.yml` then fast-forwards `production` to that commit; App Platform deploys it automatically.
 
-> **Currently disabled** — the production Vercel project, `production` branch, and secrets don't exist yet. See "Production status" below for what's needed to enable this.
+> **Currently disabled** — the production App Platform app, `production` branch, and secrets don't exist yet. See "Production status" below for what's needed to enable this.
 
 ### Hotfix flow
 
@@ -150,13 +150,13 @@ The proxy (`src/proxy.ts`) separates marketing pages from the app by hostname. B
 
 Redirects are permanent (301). Localhost and unknown hosts bypass hostname routing so local dev works without any configuration.
 
-**Vercel custom domain setup (production):**
-1. In `comprobify-web-production`, add **both** `comprobify.com` and `app.comprobify.com` as custom domains.
-2. Point the DNS records for each to Vercel as instructed.
+**App Platform custom domain setup (production):**
+1. In the `comprobify-web-production` app's Settings → Domains, add **both** `comprobify.com` and `app.comprobify.com` — both on the same app, not separate apps.
+2. For each, create the DNS record App Platform shows you (typically a CNAME to `<app-name>.ondigitalocean.app`; an apex/root domain needs an ALIAS/ANAME record if your DNS provider supports one, or DO's own nameservers).
 3. No extra env vars are required — the proxy reads the `host` header at runtime.
 
 **Staging:**
-1. In `comprobify-web-staging`, add `staging.comprobify.com` and `app-staging.comprobify.com`.
+1. In `comprobify-web-staging`, add `staging.comprobify.com` and `app-staging.comprobify.com` — same app, both domains.
 2. Same DNS setup, separate CNAME targets from production.
 
 ---
@@ -170,37 +170,38 @@ Redirects are permanent (301). Localhost and unknown hosts bypass hostname routi
 | `.github/workflows/release-staging.yml` | Push of tag `vX.Y.Z` | Fast-forwards `staging` to the tagged commit and pushes it |
 | `.github/workflows/release-production.yml` | *(disabled)* GitHub Release published | Fast-forwards `production` to the released commit and pushes it |
 
-Unlike the API (which runs on Render and needs an explicit `deploy-staging.yml` / `deploy-production.yml` to call a Render deploy hook), Vercel's Git integration watches `staging` and `production` directly — every push to either branch triggers an automatic build and deployment with no additional workflow file required.
+Unlike the API (which runs on a DigitalOcean Droplet and needs an explicit `deploy-staging.yml` / `deploy-production.yml` to build, push to GHCR, and SSH-deploy), DigitalOcean App Platform's Autodeploy setting watches `staging` and `production` directly — every push to either branch triggers an automatic build and deployment with no additional workflow file required.
 
-| Branch | Vercel project | URL |
-|--------|----------------|-----|
+| Branch | App Platform app | URL |
+|--------|-------------------|-----|
 | `staging` | `comprobify-web-staging` | `staging.comprobify.com` + `app-staging.comprobify.com` |
 | `production` | `comprobify-web-production` | `comprobify.com` + `app.comprobify.com` |
 
-### Build settings (both projects)
+### Build settings (both apps)
 
 | Setting | Value |
 |---------|-------|
-| Framework preset | Next.js |
-| Build command | `npm run vercel-build` (Vercel auto-detects the `vercel-build` script in `package.json` and uses it instead of `build`) |
-| Output directory | `.next` (Vercel default) |
-| Install command | `npm ci` |
-| Node.js version | 18.x or 20.x |
+| Source directory | `/` (this is a standalone repo, not a monorepo — nothing to scope) |
+| Autodeploy | On, for the app's watched branch (`staging` or `production`) |
+| Build command | `npm run build:deploy` — **must be set explicitly**; App Platform's Node.js buildpack has no equivalent to Vercel's build-script auto-detection and would otherwise run plain `npm run build` (`next build` only), silently skipping `prisma generate`/`prisma migrate deploy` and most likely failing outright since the Prisma Client wouldn't exist yet |
+| Run command | `npm start` (`next start`) — App Platform's buildpack auto-detects this from `package.json`, no override needed. `next start` reads the `PORT` App Platform injects automatically. |
 
-`vercel-build` runs `prisma generate && prisma migrate deploy && next build` — every deploy applies any pending migrations against `DATABASE_URL` before building. `prisma migrate deploy` only runs migrations not yet recorded in `_prisma_migrations`, so already-applied ones are skipped automatically; it's safe to run on every deploy, including ones with no schema changes.
+`build:deploy` runs `prisma generate && prisma migrate deploy && next build` — every deploy applies any pending migrations against `DATABASE_URL` before building. `prisma migrate deploy` only runs migrations not yet recorded in `_prisma_migrations`, so already-applied ones are skipped automatically; it's safe to run on every deploy, including ones with no schema changes.
+
+**`prisma migrate deploy` does not go through this app's `@prisma/adapter-pg` setup.** It spawns a separate native `schema-engine` binary that connects to `DATABASE_URL` with its own independent Postgres connector — none of `src/lib/db.ts`'s pool/SSL wiring applies to it. Watch this step specifically in the build log on first deploy; if it fails with a certificate error while runtime queries work fine, the fix has to target the schema-engine binary itself, not `DATABASE_SSL`/`DATABASE_SSL_CA`.
 
 ### Pipeline stages (staging)
 
 1. **Tag pushed** (`vX.Y.Z`) — `release-staging.yml` checks out the tag and fast-forward-merges `staging` to it, then pushes
-2. **Push to `staging`** — Vercel's Git integration builds and deploys `comprobify-web-staging` automatically
+2. **Push to `staging`** — App Platform's Autodeploy builds and deploys `comprobify-web-staging` automatically
 
 ### Production status
 
-The production pipeline is **written but disabled** — `release-production.yml` exists in the repo with its trigger commented out and an `if: false` guard on its job, because the production Vercel project, `production` branch, and secrets don't exist yet.
+The production pipeline is **written but disabled** — `release-production.yml` exists in the repo with its trigger commented out and an `if: false` guard on its job, because the production App Platform app, `production` branch, and secrets don't exist yet.
 
 To enable production once it's provisioned:
 1. Create the `production` branch (fast-forwarded only by the automation, same invariant as `staging`)
-2. Create the `comprobify-web-production` Vercel project, with **independent** `AUTH_SECRET` / `ENCRYPTION_KEY` / `CONTEXT_COOKIE_SECRET` / `DATABASE_URL` from staging — never share these between environments
+2. Create the `comprobify-web-production` App Platform app, with **independent** `AUTH_SECRET` / `ENCRYPTION_KEY` / `CONTEXT_COOKIE_SECRET` / `DATABASE_URL` from staging — never share these between environments
 3. In `release-production.yml`: uncomment the `release: types: [published]` trigger and remove the `if: false` guard on the `promote` job
 4. Add branch protection to `production` (restrict who can push to the automation only; no force pushes) — see GitHub repository setup below
 
@@ -242,22 +243,26 @@ Both branches are **automation-owned** — they only move forward via fast-forwa
 |---|---|---|
 | `RELEASE_PUSH_TOKEN` | Repository | `release-staging.yml` / `release-production.yml` — a fine-grained PAT with `Contents: Read and write` on this repo, needed because the default `GITHUB_TOKEN` cannot push to a protected branch |
 
-No Vercel deploy-hook secret is needed — Vercel's Git integration deploys on push without any token from this repo.
+No deploy-hook secret is needed for App Platform either — Autodeploy watches the branch and deploys on push without any token from this repo.
 
-### 5. Connect to Vercel
+### 5. Connect to DigitalOcean App Platform
 
-1. Go to [vercel.com](https://vercel.com) → **Add New Project**
-2. Import the `comprobify-web` GitHub repository
-3. Create **two separate Vercel projects** — one for staging, one for production:
-   - In each project's **Settings → Git**, set the **Production Branch** to `staging` or `production` respectively
-4. Add environment variables to each project (see table below)
-5. Deploy
+1. DigitalOcean console → **Apps → Create App**
+2. Select the `comprobify-web` GitHub repository (authorize DO's GitHub App if not already connected)
+3. Create **two separate App Platform apps** — one for staging, one for production:
+   - Source directory: `/` (standalone repo, not a monorepo)
+   - Branch: `staging` or `production` respectively
+   - Autodeploy: on
+4. Override the **Build Command** to `npm run build:deploy` — see "Build settings" above for why this can't be left on the buildpack's default
+5. Add environment variables to each app (see table below)
+6. Add both the marketing and app custom domains to the same app — see "Domain routing" above
+7. Deploy
 
 ---
 
 ## Environment variables
 
-All variables are required. Set them in each Vercel project under **Settings → Environment Variables**.
+All variables are required. Set them in each App Platform app under **Settings → App-Level Environment Variables**.
 
 | Variable | Required | Description |
 |----------|----------|-------------|
@@ -275,10 +280,10 @@ All variables are required. Set them in each Vercel project under **Settings →
 | `MAILGUN_DOMAIN` | No | Mailgun sending domain (e.g. `mg.your-domain.com`). Required alongside `MAILGUN_API_KEY`. |
 | `MAILGUN_FROM` | No | From address for invite emails (e.g. `Comprobify <no-reply@mg.your-domain.com>`). |
 | `COMPROBIFY_ADMIN_SECRET` | No* | Bearer secret for the Comprobify API's `/admin/*` routes, used by `src/lib/admin-api.ts` for the `/admin` super-admin panel (tenant management, payment-proof review). Must match the API's own `ADMIN_SECRET`. *Required only on the one deployment a super admin actually logs into — normal tenant flows never call `/admin/*`. |
-| `ADMIN_SEED_PASSWORD` | No* | Password for the super admin user created by `prisma/seed.js` (`npm run db:seed`). *Not read at runtime by Next.js* — only needed transiently when running the seed script against an environment's database, not as a persistent Vercel env var. |
+| `ADMIN_SEED_PASSWORD` | No* | Password for the super admin user created by `prisma/seed.js` (`npm run db:seed`). *Not read at runtime by Next.js* — only needed transiently when running the seed script against an environment's database, not as a persistent env var on the app. |
 | `SUPPORT_EMAIL` | No | Contact email shown on `/support` (`mailto:` link) and linked from the sidebar, marketing footer, and login/register screens. |
 | `SUPPORT_PHONE` | No | Contact phone shown on `/support`, used to build a `https://wa.me/` WhatsApp link. Include the country code; non-digit characters are stripped when building the link. |
-| `NEXT_PUBLIC_MARKETING_URL` | No | Public origin of the **marketing** host (`comprobify.com` / `staging.comprobify.com`) — not the app host. Used as the canonical/OG base URL and by `robots.ts`/`sitemap.ts` (`src/lib/seo.ts`). `robots.txt`/`sitemap.xml` only allow indexing when `NEXT_PUBLIC_APP_ENV=production`, so this only matters for the production and staging projects. |
+| `NEXT_PUBLIC_MARKETING_URL` | No | Public origin of the **marketing** host (`comprobify.com` / `staging.comprobify.com`) — not the app host. Used as the canonical/OG base URL and by `robots.ts`/`sitemap.ts` (`src/lib/seo.ts`). `robots.txt`/`sitemap.xml` only allow indexing when `NEXT_PUBLIC_APP_ENV=production`, so this only matters for the production and staging apps. |
 
 > **Staging:** point `COMPROBIFY_API_URL` at the staging Comprobify API. Use a separate `DATABASE_URL` from production — staging users and production users must be isolated.
 
@@ -289,7 +294,7 @@ All variables are required. Set them in each Vercel project under **Settings →
 Staging's Postgres lives on a DigitalOcean Basic-plan cluster (~22 total backend connections) shared with the `comprobify` API's own database — not a dedicated instance, and **not fronted by any server-side connection pooler (PgBouncer or otherwise)**. Every client — this app, the API's API process, the API's worker — connects straight to the cluster's primary and is responsible for capping its own concurrency; there's no intermediary multiplexing connections down. The API side enforces its share the same way: `../comprobify/src/config/database.js` is a plain `new Pool({ ..., max: config.db.poolMax })` against the direct primary connection, no pooler involved, `DB_POOL_MAX` set to 6 (API process) / 3 (worker) — see `../comprobify/docs/deployment.md`. That leaves roughly 13 of the cluster's ~22 for this app plus a few spare for admin/migration access. This app's `DATABASE_URL` carries two things as a result:
 
 1. **The cluster's direct primary connection** — the same endpoint the API connects to, not a separate pooled/PgBouncer endpoint (DigitalOcean's optional "Connection Pools" feature is not in use here).
-2. **`?connection_limit=8`** as a query param — caps how many connections this app's Prisma client will ever open concurrently. Vercel serverless functions can otherwise spike connection demand fast, since each invocation can open a fresh connection with no built-in ceiling of its own, and this app isn't the only thing drawing from the cluster's budget. This is enforced entirely client-side by `pg.Pool`'s own `max` option — the same mechanism as `DB_POOL_MAX` on the API side — and works exactly the same whether or not anything sits in front of Postgres.
+2. **`?connection_limit=8`** as a query param — caps how many connections this app's Prisma client will ever open concurrently. This app runs as a long-lived App Platform instance holding one `pg.Pool` for its whole lifetime, so the cap is per-instance: total connections from this app equal `connection_limit × instance count` if the app is ever scaled to multiple instances/replicas — factor that in before changing either number. Enforced entirely client-side by `pg.Pool`'s own `max` option, the same mechanism as `DB_POOL_MAX` on the API side, and works exactly the same whether or not anything sits in front of Postgres.
 
 **There is deliberately no `pgbouncer=true` param.** That flag — like `connection_limit` as Prisma normally reads it — is part of Prisma's own connection-string convention, understood only by Prisma's Rust query engine. This app uses `@prisma/adapter-pg` instead (see `src/lib/db.ts`), which hands the connection string straight to node-postgres's `pg.Pool` — `pg` never parses either param out of the URL on its own; `src/lib/db.ts` manually parses `connection_limit` back out of `DATABASE_URL` and forwards it as `pg.Pool`'s own `max` option, so that part still works as intended. `pgbouncer=true` has no equivalent to forward, and there's nothing here for it to guard against anyway: it exists only to tell Prisma's query engine not to cache named prepared statements, which break under *transaction-mode PgBouncer pooling* specifically (a later query landing on a different backend connection than the one that prepared it) — and since there's no PgBouncer anywhere in this deployment, that failure mode doesn't apply regardless of the adapter. (`@prisma/adapter-pg` also wouldn't need the flag even if there were one — see the adapter note above.) Do not add `pgbouncer=true` back in "for completeness" — it would be inert, and its presence would incorrectly suggest a pooler sits in the path that doesn't.
 
@@ -322,7 +327,7 @@ If the reserved-connection split above ever changes (e.g. the API reserves more/
 - [ ] `DATABASE_SSL=true` is set (any real managed Postgres provider enforces TLS)
 - [ ] `DATABASE_SSL_CA` is set if the provider uses a private CA (e.g. DigitalOcean) — verify with a real deploy, not just that the var exists, since a missing/wrong CA fails at connection time with `SELF_SIGNED_CERT_IN_CHAIN`
 - [ ] `DATABASE_URL` itself has no `sslmode`/`sslcert`/`sslkey`/`sslrootcert` query param — see the note above on why that would silently override `DATABASE_SSL_CA`
-- [ ] `npx prisma migrate deploy` ran successfully on the first deploy (automatic via `vercel-build` — check the build log)
+- [ ] `npx prisma migrate deploy` ran successfully on the first deploy (automatic via `build:deploy` — check the build log, and separately confirm the `prisma migrate deploy` step itself succeeded, since it runs through a different connector than the app's runtime queries — see the CI/CD pipeline section above)
 - [ ] Production database has backups enabled
 
 **Comprobify API**
@@ -334,12 +339,13 @@ If the reserved-connection split above ever changes (e.g. the API reserves more/
 - [ ] `AUTH_SECRET` is a unique, randomly generated value — never reuse the staging secret (`openssl rand -hex 32`)
 - [ ] No `COMPROBIFY_API_KEY` or `COMPROBIFY_SANDBOX` env vars set — these are removed
 
-**Vercel**
-- [ ] All env vars are set as server-only (no `NEXT_PUBLIC_` prefix on any secret)
-- [ ] Custom domain configured in Vercel and DNS records updated
-- [ ] HTTPS enforced — Vercel handles this automatically for custom domains
+**App Platform**
+- [ ] All env vars are set as server-only (no `NEXT_PUBLIC_` prefix on any secret — a Next.js build-time rule, not platform-specific, but easy to get wrong)
+- [ ] Build Command is explicitly set to `npm run build:deploy` — the buildpack's default (`npm run build`) silently skips migrations
+- [ ] Custom domains configured in App Platform and DNS records updated
+- [ ] HTTPS enforced — App Platform provisions and renews certs automatically for custom domains
 - [ ] `production` branch is protected in GitHub (no force pushes, restricted push access)
-- [ ] Vercel deployment previews are disabled or restricted for the `production` project
+- [ ] Confirm the production app's Autodeploy only watches `production` — not `main` or any other branch — so unreviewed work can't reach it
 
 **Release pipeline**
 - [ ] `RELEASE_PUSH_TOKEN` secret added to the repository
@@ -347,9 +353,9 @@ If the reserved-connection split above ever changes (e.g. the API reserves more/
 - [ ] A tag has been promoted through staging and validated before the first production release
 
 **Sentry**
-- [ ] `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN` set in each Vercel project (same DSN value for both)
-- [ ] `APP_ENV` set to `staging` in the staging project and `production` in the production project
-- [ ] `NEXT_PUBLIC_APP_ENV` set to match `APP_ENV` in each project
+- [ ] `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN` set in each App Platform app (same DSN value for both)
+- [ ] `APP_ENV` set to `staging` in the staging app and `production` in the production app
+- [ ] `NEXT_PUBLIC_APP_ENV` set to match `APP_ENV` in each app
 - [ ] `SENTRY_AUTH_TOKEN` set (obtain from sentry.io → Settings → Auth Tokens) so source maps are uploaded and stack traces show original TypeScript lines
 - [ ] Verified a test error appears in the Sentry dashboard before going live
 
@@ -357,7 +363,7 @@ If the reserved-connection split above ever changes (e.g. the API reserves more/
 
 ## Logs
 
-Application logs are available in the Vercel dashboard under **Deployments → Functions** (server-side) and **Runtime Logs**.
+Application logs are available in the App Platform dashboard under the app → **Runtime Logs** (server-side) and **Build Logs**; **Insights** has aggregated metrics.
 
 Key things to monitor:
 
@@ -365,7 +371,7 @@ Key things to monitor:
 |---------|--------------|
 | All users redirected to `/login` in a loop | `AUTH_SECRET` missing or wrong — session JWTs can't be verified |
 | 500 on login / registration | `DATABASE_URL` misconfigured or migration not applied — run `npx prisma migrate deploy` |
-| Issuer setup fails in onboarding | Comprobify API rejected the registration — check `COMPROBIFY_API_URL` and Render logs on the API side |
+| Issuer setup fails in onboarding | Comprobify API rejected the registration — check `COMPROBIFY_API_URL` and the API's own droplet logs (`journalctl` / `docker compose logs api`, see `../comprobify/docs/terraform-digitalocean-setup.md`) |
 | API calls return 401 after issuer setup | The provisioned API key is invalid or was revoked — re-run setup |
 | Sandbox banner appears for production users | User's `environment` column is still `'sandbox'` — they must use the "Activate production" button in Settings |
 | Invoice status polling stuck | Proxy route `/api/documents/:key/status` can't reach the Comprobify API — check `COMPROBIFY_API_URL` and network access |
