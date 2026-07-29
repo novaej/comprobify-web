@@ -8,6 +8,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Fixed
+- **`terraform.yml` triggered on every push to `main`, but the app's deployed code comes from `staging`, which only catches up via the tagged release process** — a PR changing both `terraform/**` and `package.json` together (e.g. renaming an npm script a `run_command` depends on) would trigger an apply that tries to deploy the new spec against whatever's still on `staging`, several commits behind. This is exactly what caused a chain of failed deployments this session, traced back well after the fact. `terraform.yml` now triggers on `release-staging.yml`'s completion instead of `push: branches: [main]`, guaranteeing `staging` has already been fast-forwarded (and App Platform's own Autodeploy already given a chance to run) before Terraform ever creates/updates the app against it. Gated to only proceed on a successful release run or a manual `workflow_dispatch`, never a failed one.
+- **Spaces state key renamed** from `comprobify-web/staging/terraform.tfstate` to `staging/comprobify-web/terraform.tfstate`, matching the API repo's `staging/comprobify/...` convention. Done via a full destroy-and-recreate rather than a state migration, since nothing in state was worth preserving at the time.
+
 ## [0.9.2] — 2026-07-29
 
 ### Added

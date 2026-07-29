@@ -1,9 +1,23 @@
 name: Terraform
 
 # Applies infrastructure changes under terraform/ - separate from and never triggered by
-# release-staging.yml/release-production.yml (those only fast-forward staging/production
-# for App Platform's own Autodeploy to pick up; this workflow never touches them either).
-# Mirrors comprobify/.github/workflows/terraform.yml's shape.
+# release-staging.yml/release-production.yml themselves (this workflow doesn't touch
+# staging/production branches). Mirrors comprobify/.github/workflows/terraform.yml's shape,
+# with one deliberate difference in the trigger - see below.
+#
+# TRIGGER: runs after release-staging.yml completes, not on every push to main. This repo's
+# digitalocean_app resource couples "infra config" (build/run commands, env vars) with
+# "which branch's code to build" (github.branch) into one resource - Terraform's create/
+# update call blocks waiting for App Platform to actually deploy that code, and fails (
+# tainting the resource) if it can't. If this ran on every push to main, a PR that changes
+# both terraform/** and package.json (e.g. renaming an npm script a run_command depends on)
+# would trigger an apply that tries to deploy the new spec against whatever's still on
+# `staging` - which hasn't caught up yet, since staging only moves via the tagged release
+# process. That's exactly what happened when this was still push-triggered: repeated
+# deployment failures traced back to staging being several commits behind main the whole
+# time. Triggering off release-staging.yml's completion instead guarantees staging has
+# already been fast-forwarded (and App Platform's own Autodeploy already given a chance to
+# pick up that code) before Terraform ever tries to create/update the app against it.
 #
 # All 10 secrets (DO_TOKEN, CLOUDFLARE_TOKEN, and the 8 TF_VAR_* app secrets below) live in
 # the `staging` GitHub Environment (Settings -> Environments -> staging) - dedicated,
@@ -21,15 +35,15 @@ name: Terraform
 # bucket (see terraform/environments/staging/backend.tf) - dedicated to this repo's
 # pipeline, not the API repo's own Spaces key.
 #
-# Manual workflow_dispatch supports both apply (default) and destroy, so a teardown can be
-# run deliberately through this same audited pipeline instead of requiring local Terraform
-# CLI access - still gated behind the staging Environment like every other run. A push to
-# main always applies; destroy is only ever reachable via an explicit manual dispatch.
+# Manual workflow_dispatch supports both apply (default) and destroy, so a teardown - or an
+# ad-hoc apply outside the normal release cadence - can be run deliberately through this
+# same audited pipeline instead of requiring local Terraform CLI access. destroy is only
+# ever reachable via an explicit manual dispatch, never the automatic post-release trigger.
 
 on:
-  push:
-    branches: [main]
-    paths: ['terraform/**']
+  workflow_run:
+    workflows: ["Release to Staging"]
+    types: [completed]
   workflow_dispatch:
     inputs:
       action:
@@ -54,6 +68,10 @@ env:
 
 jobs:
   plan:
+    # Only run for a manual dispatch, or a release-staging.yml run that actually succeeded -
+    # a failed release means staging never got fast-forwarded, so applying now would hit the
+    # exact same stale-staging problem this trigger change exists to prevent.
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     environment: staging
     steps:
@@ -71,6 +89,9 @@ jobs:
 
   apply:
     needs: plan
+    # Same guard as plan - needs: plan already skips this when plan is skipped, but stated
+    # explicitly so the intent isn't left to the implicit skip-cascade alone.
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     environment: staging
     runs-on: ubuntu-latest
     steps:
