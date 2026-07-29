@@ -8,6 +8,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.9.5] — 2026-07-29
+
 ### Fixed
 - **`/login` and `[locale]/layout.tsx` crashed with a 500 (`Cannot read properties of undefined (reading 'id')`) for a session cookie that decodes but has no `user` field** — both read `session.user.id` after only checking `session` (or `!!session`) was truthy, not that `session.user` itself existed. Changed both to check `session?.user`/`session?.user?.id` first. Surfaced by a stale session cookie from earlier manual testing that didn't match the currently deployed session shape — a malformed/incompatible session should fall through to the login form, not crash the page.
 
