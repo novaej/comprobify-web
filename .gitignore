@@ -44,3 +44,14 @@ next-env.d.ts
 .idea/
 
 /src/generated/prisma
+
+# terraform
+# .terraform.lock.hcl is intentionally NOT ignored — it pins provider versions/checksums
+terraform/**/.terraform/
+terraform/**/*.tfstate
+terraform/**/*.tfstate.*
+terraform/**/crash.log
+terraform/**/override.tf
+terraform/**/override.tf.json
+terraform/**/*_override.tf
+terraform/**/*_override.tf.json
