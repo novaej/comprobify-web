@@ -6,10 +6,6 @@ terraform {
 }
 
 resource "digitalocean_app" "this" {
-  # Set at creation, not via a post-hoc digitalocean_project_resources reassignment - that
-  # only ran once deployment succeeded, which left the app stuck in the default project.
-  project_id = data.digitalocean_project.this.id
-
   spec {
     name   = "comprobify-web-${var.environment}"
     region = var.region
@@ -191,6 +187,11 @@ data "digitalocean_project" "this" {
 # API's droplet already live.
 data "digitalocean_vpc" "this" {
   region = var.vpc_datacenter_region
+}
+
+resource "digitalocean_project_resources" "this" {
+  project   = data.digitalocean_project.this.id
+  resources = [digitalocean_app.this.urn]
 }
 
 # comprobify.com's DNS is hosted on Cloudflare - the domain{} blocks above only tell App

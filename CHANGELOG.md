@@ -9,8 +9,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 ## [Unreleased]
 
 ### Fixed
-- **The app kept landing in the account's default project ("Comprobify Infra") instead of "Comprobify Staging"** — the reassignment (`digitalocean_project_resources`) only ran once the app resource finished successfully, which depends on its deployment succeeding; every deployment failure this session left it stuck in the default project with no chance for the reassignment to run. `digitalocean_app` now sets `project_id` directly at creation time (a top-level argument, applied as part of the same create call) instead of reassigning afterward — the app never lands in the wrong project in the first place, regardless of deployment outcome. `digitalocean_project_resources` is removed as redundant.
 - **Both Cloudflare DNS records failed with "Content for CNAME record is invalid"** — `digitalocean_app.this.default_ingress` returns a full URL (e.g. `https://comprobify-web-staging-xxxxx.ondigitalocean.app`), not a bare hostname; a CNAME's target can't include the scheme. `trimprefix()` strips it before use.
+- **The app previously appeared stuck in the account's default project** — confirmed this was a symptom, not a bug: `digitalocean_project_resources` (the reassignment) only runs once the app resource finishes successfully, and every deployment failure this session prevented that. The first deployment that actually succeeded confirmed the existing reassignment logic works correctly on its own — no code change needed here.
 
 ## [0.9.3] — 2026-07-29
 
