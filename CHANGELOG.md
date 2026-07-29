@@ -8,7 +8,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.9.2] — 2026-07-29
+
+### Added
+- **`terraform/` — the staging App Platform app is now Terraform-managed** instead of configured by hand in the App Platform UI, mirroring the comprobify API repo's environment/module split and GitHub Actions plan→apply pipeline. Manages the `digitalocean_app` resource (all env vars at their established type/scope pairings), assigns it to the existing "Comprobify Staging" DO Project, and creates the two Cloudflare CNAME records for its custom domains (`proxied = false` — App Platform re-verifies each domain's CNAME on every deploy and breaks if Cloudflare's proxy sits in front of it, unlike the droplet's own `proxied = true` record). `.github/workflows/terraform.yml` runs `plan`/`apply` on push to `main` (path-filtered to `terraform/**`), plus a `workflow_dispatch` `action` input (`apply`/`destroy`).
+
 ### Fixed
+- **The app had no explicit VPC attachment** — App Platform apps never auto-join a VPC; the spec now sets `vpc.id` via a `data "digitalocean_vpc"` lookup (by datacenter-level region, distinct from App Platform's own metro-level region slug).
 - **`prisma migrate deploy` moved from the build command to the run command** — App Platform's build phase has no network path to the database at all, confirmed empirically: the same public DB endpoint, with Trusted Sources correctly configured for the app and `vpc.id` set on the app spec, was still unreachable from the build step while reachable from a local machine with its own IP trusted. `build:deploy` is now just `prisma generate && next build`; a new `start:deploy` script (`prisma migrate deploy && next start`) runs migrations at process startup instead, mirroring the comprobify API repo's own pattern (`app.js` calls `migrate()` before accepting requests). App Platform's Run Command must now be set explicitly to `npm run start:deploy`, same as the Build Command already had to be for `build:deploy`.
 
 ## [0.9.1] — 2026-07-29
