@@ -239,7 +239,7 @@ export default async function LocaleLayout({
   const isStandaloneRoute = requestHeaders.get('x-standalone-route') === '1';
 
   const [messages, session] = await Promise.all([getMessages(), auth()]);
-  const isAuthenticated = !isMarketingRoute && !isStandaloneRoute && !!session;
+  const isAuthenticated = !isMarketingRoute && !isStandaloneRoute && !!session?.user;
 
   const layoutProps =
     isAuthenticated && isUuid(session.user.id) ? await getLayoutProps(session.user.id) : null;

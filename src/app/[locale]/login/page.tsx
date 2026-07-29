@@ -20,7 +20,7 @@ export default async function LoginPage({
   setRequestLocale(locale);
 
   const session = await auth();
-  if (session && isUuid(session.user.id)) {
+  if (session?.user && isUuid(session.user.id)) {
     const user = await db.user.findUnique({
       where: { id: session.user.id },
       select: { id: true, active: true },
