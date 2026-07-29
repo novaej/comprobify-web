@@ -8,6 +8,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Fixed
+- **`prisma migrate deploy` moved from the build command to the run command** — App Platform's build phase has no network path to the database at all, confirmed empirically: the same public DB endpoint, with Trusted Sources correctly configured for the app and `vpc.id` set on the app spec, was still unreachable from the build step while reachable from a local machine with its own IP trusted. `build:deploy` is now just `prisma generate && next build`; a new `start:deploy` script (`prisma migrate deploy && next start`) runs migrations at process startup instead, mirroring the comprobify API repo's own pattern (`app.js` calls `migrate()` before accepting requests). App Platform's Run Command must now be set explicitly to `npm run start:deploy`, same as the Build Command already had to be for `build:deploy`.
+
 ## [0.9.1] — 2026-07-29
 
 ### Fixed

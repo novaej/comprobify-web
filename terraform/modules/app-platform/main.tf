@@ -37,10 +37,15 @@ resource "digitalocean_app" "this" {
 
       source_dir    = var.source_dir
       build_command = var.build_command
-      # run_command intentionally omitted - leaves it on the buildpack's auto-detected
-      # `npm start` (`next start`, reads the PORT App Platform injects automatically).
-      # See docs/deployment.md's Build settings table for why this one is safe to leave
-      # alone while build_command is not.
+      run_command   = var.run_command
+      # run_command must be explicit now too: prisma migrate deploy moved out of the build
+      # command (build:deploy) into here (start:deploy), since App Platform's build phase
+      # has no network path to the database at all - confirmed empirically (Trusted
+      # Sources correctly configured for the app, using the public DB endpoint, still
+      # unreachable from the build step, while the same endpoint worked fine from a local
+      # machine with its own IP trusted). The running service, once actually started, does
+      # have network access - matches the same pattern the comprobify API repo already
+      # uses (migrations run at process startup, not at build/CI time).
 
       env {
         key   = "DATABASE_URL"

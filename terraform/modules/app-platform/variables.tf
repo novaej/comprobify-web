@@ -39,9 +39,15 @@ variable "source_dir" {
 }
 
 variable "build_command" {
-  description = "Must stay explicit - the buildpack's auto-detected default (`npm run build`) silently skips `prisma generate`/`prisma migrate deploy`. See docs/deployment.md's Build settings table."
+  description = "Must stay explicit - the buildpack's auto-detected default (`npm run build`) silently skips `prisma generate`. See docs/deployment.md's Build settings table."
   type        = string
   default     = "npm run build:deploy"
+}
+
+variable "run_command" {
+  description = "Must stay explicit - runs `prisma migrate deploy` before `next start`. The build phase has no network path to the database (confirmed empirically), so migrations run at process startup instead, matching the comprobify API repo's own pattern."
+  type        = string
+  default     = "npm run start:deploy"
 }
 
 variable "domain_primary" {
