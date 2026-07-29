@@ -8,6 +8,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-07-28
+
 ### Fixed
 - **Notification preference toggles on `/settings/notifications` were about to break outright** — comprobify's PR #132 (ADR-024) changed `GET`/`PATCH /v1/notifications/preferences` from one row per `type` to one row per `(type, channel)`, with `channel` being `IN_APP` or `EMAIL`. `notification-preferences.tsx` now renders one toggle per channel a type actually supports (`TYPE_CHANNELS`, mirroring the API's `notification-catalog.js`) instead of a single toggle per type, and `updatePreferencesAction` sends `channel` on every call. See CLAUDE.md Common Mistake #44.
 - **`[locale]/layout.tsx`'s `BILLING_NOTIFICATION_TYPES` (hides billing notifications from roles that can't reach `/settings/billing`) never had `PRICE_CHANGE_ANNOUNCED` added** — a gap from the previous price-history sync, caught and fixed alongside adding `SUBSCRIPTION_PAST_DUE_WARNING` below.
