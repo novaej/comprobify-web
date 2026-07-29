@@ -2,7 +2,7 @@
 # (see .github/workflows/terraform.yml) - never add a secret value to this file.
 
 region             = "nyc"
-instance_size_slug = "REPLACE_ME" # run `doctl apps tier instance-size list` before first apply
+instance_size_slug = "basic-xxs" # cheapest tier, $5/mo - doctl apps tier instance-size list
 
 github_repo    = "novaej/comprobify-web"
 domain_primary = "staging.comprobify.com"
@@ -21,6 +21,11 @@ next_public_app_env = "staging"
 next_public_marketing_url = "https://staging.comprobify.com"
 next_public_app_url       = "https://app-staging.comprobify.com"
 
-# sentry_dsn / next_public_sentry_dsn / mailgun_domain / mailgun_from / support_email /
-# support_phone left at their empty-string defaults - fill in if/when those integrations
-# are actually configured for staging.
+sentry_dsn             = ""
+next_public_sentry_dsn = ""
+
+mailgun_domain = ""
+mailgun_from   = ""
+
+support_email = ""
+support_phone = ""
