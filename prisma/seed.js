@@ -16,6 +16,20 @@ const bcrypt = require('bcryptjs');
 
 const ADMIN_EMAIL = 'support@comprobify.com';
 
+// Mirrors src/lib/db.ts — see there for why these aren't just query params on DATABASE_URL.
+function poolSizeFromUrl(databaseUrl) {
+  const value = new URL(databaseUrl).searchParams.get('connection_limit');
+  return value ? Number(value) : undefined;
+}
+
+function sslConfig() {
+  if (process.env.DATABASE_SSL !== 'true') return undefined;
+  return {
+    rejectUnauthorized: true,
+    ...(process.env.DATABASE_SSL_CA ? { ca: process.env.DATABASE_SSL_CA } : {}),
+  };
+}
+
 async function main() {
   const password = process.env.ADMIN_SEED_PASSWORD;
   if (!password) {
@@ -23,7 +37,12 @@ async function main() {
     process.exit(1);
   }
 
-  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+  const connectionString = process.env.DATABASE_URL;
+  const adapter = new PrismaPg({
+    connectionString,
+    max: poolSizeFromUrl(connectionString),
+    ssl: sslConfig(),
+  });
   const prisma = new PrismaClient({ adapter });
 
   try {

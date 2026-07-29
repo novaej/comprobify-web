@@ -261,7 +261,7 @@ All variables are required. Set them in each Vercel project under **Settings →
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `DATABASE_URL` | Yes | PostgreSQL connection string for the frontend users table. Use a separate database from the Comprobify API DB. Recommended: [Neon](https://neon.tech) — provision as an independent Neon account (not via Vercel Storage integration). |
+| `DATABASE_URL` | Yes | PostgreSQL connection string for the frontend users table. Use a separate logical database from the Comprobify API DB — on staging/production this app and the API share one DigitalOcean Postgres cluster with no server-side pooler in front of it, so connect to the cluster's direct primary connection (same as the API does) and append `?connection_limit=N` (see below) so this app's client-side pool stays within its share of the cluster's connection budget. |
 | `COMPROBIFY_API_URL` | Yes | Base URL of the Comprobify API — no trailing slash (e.g. `https://api.comprobify.com`) |
 | `AUTH_SECRET` | Yes | Random 32+ character string used to sign Auth.js JWTs. Generate: `openssl rand -hex 32`. Use a **different value** per environment. |
 | `ENCRYPTION_KEY` | Yes | 32-byte hex string used to encrypt `TenantApiKey` values at rest (AES-256-GCM). Generate: `openssl rand -hex 32`. Use a **different value** per environment. |
@@ -284,6 +284,26 @@ All variables are required. Set them in each Vercel project under **Settings →
 
 > **Production:** point `COMPROBIFY_API_URL` at the production Comprobify API. Generate a fresh `AUTH_SECRET` — never reuse the staging value.
 
+#### `DATABASE_URL` connection budget on a shared cluster
+
+Staging's Postgres lives on a DigitalOcean Basic-plan cluster (~22 total backend connections) shared with the `comprobify` API's own database — not a dedicated instance, and **not fronted by any server-side connection pooler (PgBouncer or otherwise)**. Every client — this app, the API's API process, the API's worker — connects straight to the cluster's primary and is responsible for capping its own concurrency; there's no intermediary multiplexing connections down. The API side enforces its share the same way: `../comprobify/src/config/database.js` is a plain `new Pool({ ..., max: config.db.poolMax })` against the direct primary connection, no pooler involved, `DB_POOL_MAX` set to 6 (API process) / 3 (worker) — see `../comprobify/docs/deployment.md`. That leaves roughly 13 of the cluster's ~22 for this app plus a few spare for admin/migration access. This app's `DATABASE_URL` carries two things as a result:
+
+1. **The cluster's direct primary connection** — the same endpoint the API connects to, not a separate pooled/PgBouncer endpoint (DigitalOcean's optional "Connection Pools" feature is not in use here).
+2. **`?connection_limit=8`** as a query param — caps how many connections this app's Prisma client will ever open concurrently. Vercel serverless functions can otherwise spike connection demand fast, since each invocation can open a fresh connection with no built-in ceiling of its own, and this app isn't the only thing drawing from the cluster's budget. This is enforced entirely client-side by `pg.Pool`'s own `max` option — the same mechanism as `DB_POOL_MAX` on the API side — and works exactly the same whether or not anything sits in front of Postgres.
+
+**There is deliberately no `pgbouncer=true` param.** That flag — like `connection_limit` as Prisma normally reads it — is part of Prisma's own connection-string convention, understood only by Prisma's Rust query engine. This app uses `@prisma/adapter-pg` instead (see `src/lib/db.ts`), which hands the connection string straight to node-postgres's `pg.Pool` — `pg` never parses either param out of the URL on its own; `src/lib/db.ts` manually parses `connection_limit` back out of `DATABASE_URL` and forwards it as `pg.Pool`'s own `max` option, so that part still works as intended. `pgbouncer=true` has no equivalent to forward, and there's nothing here for it to guard against anyway: it exists only to tell Prisma's query engine not to cache named prepared statements, which break under *transaction-mode PgBouncer pooling* specifically (a later query landing on a different backend connection than the one that prepared it) — and since there's no PgBouncer anywhere in this deployment, that failure mode doesn't apply regardless of the adapter. (`@prisma/adapter-pg` also wouldn't need the flag even if there were one — see the adapter note above.) Do not add `pgbouncer=true` back in "for completeness" — it would be inert, and its presence would incorrectly suggest a pooler sits in the path that doesn't.
+
+If the reserved-connection split above ever changes (e.g. the API reserves more/fewer connections, or the cluster is upgraded to a larger plan), update `connection_limit` deliberately to match — it is not derived from anything automatically.
+
+#### `DATABASE_URL` and TLS: `DATABASE_SSL` / `DATABASE_SSL_CA`
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_SSL` | Yes (staging/production) | `"true"` to connect over TLS — required by any real managed Postgres provider, including DigitalOcean and Neon. Leave unset locally (plain Postgres, no TLS). |
+| `DATABASE_SSL_CA` | No | Full PEM content of the provider's CA certificate. Required only when the provider uses a private, cluster-specific CA rather than a publicly-trusted one — DigitalOcean managed Postgres is one (download from the cluster's Connection Details page); omit for a publicly-trusted chain (e.g. Neon), where `rejectUnauthorized: true` alone already verifies correctly. Without it against a private-CA provider, connections fail with `SELF_SIGNED_CERT_IN_CHAIN`. Mirrors `DB_SSL_CA` in the comprobify API repo (`../comprobify/docs/deployment.md`) — same shape, same reasoning, different apps hitting the same DigitalOcean cluster. |
+
+**These are deliberately separate env vars, not query params on `DATABASE_URL`** — unlike `connection_limit` (a harmless no-op if misused), an `sslmode`/`sslcert`/`sslkey`/`sslrootcert` param in the URL is actively dangerous here. node-postgres's `ConnectionParameters` constructor does `Object.assign({}, config, parse(connectionString))` (`node_modules/pg/lib/connection-parameters.js`) — whatever the connection string's own query params produce **overwrites** any explicit config passed alongside it for the same key. Since `src/lib/db.ts` passes an explicit `ssl: { rejectUnauthorized: true, ca }` object into `PrismaPg`'s config, an `sslmode` living in `DATABASE_URL` would silently replace that object with an effectively-empty one — the same outcome as not setting `DATABASE_SSL_CA` at all, but harder to notice since it'd look configured. Set TLS only through `DATABASE_SSL`/`DATABASE_SSL_CA`; never add `sslmode` (or the `sslcert`/`sslkey`/`sslrootcert` trio) back into `DATABASE_URL`.
+
 ### Removed variables (no longer needed)
 
 | Variable | Reason removed |
@@ -298,6 +318,10 @@ All variables are required. Set them in each Vercel project under **Settings →
 
 **Database**
 - [ ] `DATABASE_URL` points to a production PostgreSQL instance (separate from staging)
+- [ ] If production shares a connection budget with another service (see "DATABASE_URL connection budget on a shared cluster" above), `connection_limit` on `DATABASE_URL` is set deliberately to match the reserved split, not left unset or copied blindly from staging
+- [ ] `DATABASE_SSL=true` is set (any real managed Postgres provider enforces TLS)
+- [ ] `DATABASE_SSL_CA` is set if the provider uses a private CA (e.g. DigitalOcean) — verify with a real deploy, not just that the var exists, since a missing/wrong CA fails at connection time with `SELF_SIGNED_CERT_IN_CHAIN`
+- [ ] `DATABASE_URL` itself has no `sslmode`/`sslcert`/`sslkey`/`sslrootcert` query param — see the note above on why that would silently override `DATABASE_SSL_CA`
 - [ ] `npx prisma migrate deploy` ran successfully on the first deploy (automatic via `vercel-build` — check the build log)
 - [ ] Production database has backups enabled
 
@@ -349,3 +373,5 @@ Key things to monitor:
 | API calls fail with `Unexpected token '<' ... is not valid JSON` | `COMPROBIFY_API_URL` has a trailing slash, producing a double slash (`...com//v1/...`) that the API's router doesn't match — it falls through to a generic HTML 404 instead of a JSON error. Remove the trailing slash and redeploy. |
 | Build fails source map upload with `Project not found` | `org` in `next.config.ts`'s `withSentryConfig()` call is the numeric ID from the DSN hostname (`o<id>.ingest...`) instead of the organization **slug** — find the slug under Sentry → Settings → General Settings. |
 | Onboarding fails with a generic internal-error message, nothing in Sentry | If the catch block doesn't call `Sentry.captureException` (see CLAUDE.md Common Mistake #23), check `ENCRYPTION_KEY` first — it must be exactly 64 hex characters (`openssl rand -hex 32`); a base64 value throws inside `encrypt()` before any DB write is attempted. |
+| Every DB query fails at startup with `SELF_SIGNED_CERT_IN_CHAIN` | `DATABASE_SSL=true` is set but `DATABASE_SSL_CA` is missing (or wrong) for a provider with a private CA, e.g. DigitalOcean managed Postgres — download the cluster's CA certificate from its Connection Details page and set the full PEM content as `DATABASE_SSL_CA`. |
+| DB connections fail entirely, or TLS verification behaves unexpectedly despite `DATABASE_SSL_CA` being set correctly | `DATABASE_URL` has an `sslmode`/`sslcert`/`sslkey`/`sslrootcert` query param on it — node-postgres's connection-string parsing overwrites the explicit `ssl` config `src/lib/db.ts` builds from `DATABASE_SSL_CA`, silently undoing it. Remove any ssl-related param from the URL itself. |
