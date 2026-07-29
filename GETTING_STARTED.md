@@ -277,6 +277,6 @@ comprobify-web/
 | `AUTH_SECRET` | Auth.js JWT signing secret — any random 32+ char string | Yes |
 | `ENCRYPTION_KEY` | 32-byte hex — AES-256-GCM key for encrypting tenant API keys at rest | Yes |
 | `CONTEXT_COOKIE_SECRET` | 32-byte hex — HMAC key for signing the issuer-selection cookie | Yes |
-| `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` | Sentry DSN for error monitoring — **leave unset locally**; Sentry is intentionally disabled in dev | No (set in Vercel only) |
-| `APP_ENV` / `NEXT_PUBLIC_APP_ENV` | Tags errors with the environment (`staging` / `production`) — **leave unset locally** | No (set in Vercel only) |
-| `NEXT_PUBLIC_MARKETING_URL` | Public origin of the **marketing** host (`comprobify.com` / `staging.comprobify.com`, not the app host) — canonical/OG base URL, `robots.txt`, `sitemap.xml` | No (defaults to `localhost:3000`; set per environment in Vercel) |
+| `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` | Sentry DSN for error monitoring — **leave unset locally**; Sentry is intentionally disabled in dev | No (set on the deploy platform only) |
+| `APP_ENV` / `NEXT_PUBLIC_APP_ENV` | Tags errors with the environment (`staging` / `production`) — **leave unset locally** | No (set on the deploy platform only) |
+| `NEXT_PUBLIC_MARKETING_URL` | Public origin of the **marketing** host (`comprobify.com` / `staging.comprobify.com`, not the app host) — canonical/OG base URL, `robots.txt`, `sitemap.xml` | No (defaults to `localhost:3000`; set per environment on the deploy platform) |
