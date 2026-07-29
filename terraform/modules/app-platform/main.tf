@@ -6,6 +6,15 @@ terraform {
 }
 
 resource "digitalocean_app" "this" {
+  # Set at creation time, not via a separate digitalocean_project_resources reassignment
+  # afterward - that approach only runs once the app resource itself finishes successfully,
+  # which depends on its deployment succeeding. Every deployment failure this session left
+  # the app sitting in the account's default project ("Comprobify Infra") with no chance for
+  # a reassignment to ever run. project_id is a top-level argument on this resource (outside
+  # spec{}), applied as part of the same create call - the app never lands in the wrong
+  # project in the first place, regardless of deployment outcome.
+  project_id = data.digitalocean_project.this.id
+
   spec {
     name   = "comprobify-web-${var.environment}"
     region = var.region
@@ -187,11 +196,6 @@ data "digitalocean_project" "this" {
 # API's droplet already live.
 data "digitalocean_vpc" "this" {
   region = var.vpc_datacenter_region
-}
-
-resource "digitalocean_project_resources" "this" {
-  project   = data.digitalocean_project.this.id
-  resources = [digitalocean_app.this.urn]
 }
 
 # comprobify.com's DNS is hosted on Cloudflare - the domain{} blocks above only tell App
