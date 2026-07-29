@@ -21,11 +21,11 @@ next_public_app_env = "staging"
 next_public_marketing_url = "https://staging.comprobify.com"
 next_public_app_url       = "https://app-staging.comprobify.com"
 
-sentry_dsn             = ""
-next_public_sentry_dsn = ""
+sentry_dsn             = "https://dda17234977e8471d407795aaa6672e1@o4511524451385344.ingest.us.sentry.io/4511524532256768"
+next_public_sentry_dsn = "https://dda17234977e8471d407795aaa6672e1@o4511524451385344.ingest.us.sentry.io/4511524532256768"
 
-mailgun_domain = ""
-mailgun_from   = ""
+mailgun_domain = "mg.comprobify.com"
+mailgun_from   = "Comprobify <no-reply@mg.comprobify.com>"
 
-support_email = ""
-support_phone = ""
+support_email = "support@comprobify.com"
+support_phone = "+593 963839195"
