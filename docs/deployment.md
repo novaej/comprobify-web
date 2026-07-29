@@ -150,14 +150,11 @@ The proxy (`src/proxy.ts`) separates marketing pages from the app by hostname. B
 
 Redirects are permanent (301). Localhost and unknown hosts bypass hostname routing so local dev works without any configuration.
 
-**App Platform custom domain setup (production):**
-1. In the `comprobify-web-production` app's Settings → Domains, add **both** `comprobify.com` and `app.comprobify.com` — both on the same app, not separate apps.
-2. For each, create the DNS record App Platform shows you (typically a CNAME to `<app-name>.ondigitalocean.app`; an apex/root domain needs an ALIAS/ANAME record if your DNS provider supports one, or DO's own nameservers).
-3. No extra env vars are required — the proxy reads the `host` header at runtime.
+**Staging:** fully Terraform-managed (see "Terraform-managed infrastructure" below) — `terraform/modules/app-platform/main.tf` attaches both `staging.comprobify.com` and `app-staging.comprobify.com` to the one app via `domain {}` blocks, and creates the matching Cloudflare CNAME records (`proxied = false` — see the module for why). Nothing to do by hand. No extra env vars are required either way — the proxy reads the `host` header at runtime.
 
-**Staging:**
-1. In `comprobify-web-staging`, add `staging.comprobify.com` and `app-staging.comprobify.com` — same app, both domains.
-2. Same DNS setup, separate CNAME targets from production.
+**Production custom domain setup** *(manual for now — no `terraform/environments/production` exists yet; once it does, this should be Terraform-managed the same way staging is)*:
+1. In the `comprobify-web-production` app's Settings → Domains, add **both** `comprobify.com` and `app.comprobify.com` — both on the same app, not separate apps.
+2. For each, create the DNS record App Platform shows you (typically a CNAME to `<app-name>.ondigitalocean.app`; an apex/root domain needs an ALIAS/ANAME record if your DNS provider supports one, or DO's own nameservers) — **keep Cloudflare's proxy off (DNS-only, grey cloud)** for these records; App Platform re-verifies each domain's CNAME on every deploy and breaks if Cloudflare's proxy sits in front of it.
 
 ---
 
@@ -169,6 +166,7 @@ Redirects are permanent (301). Localhost and unknown hosts bypass hostname routi
 |------|---------|--------|
 | `.github/workflows/release-staging.yml` | Push of tag `vX.Y.Z` | Fast-forwards `staging` to the tagged commit and pushes it |
 | `.github/workflows/release-production.yml` | *(disabled)* GitHub Release published | Fast-forwards `production` to the released commit and pushes it |
+| `.github/workflows/terraform.yml` | `release-staging.yml` completing successfully, or manual `workflow_dispatch` | Runs `terraform plan`/`apply` (or `destroy`) against `terraform/environments/staging` — see "Terraform-managed infrastructure" below |
 
 Unlike the API (which runs on a DigitalOcean Droplet and needs an explicit `deploy-staging.yml` / `deploy-production.yml` to build, push to GHCR, and SSH-deploy), DigitalOcean App Platform's Autodeploy setting watches `staging` and `production` directly — every push to either branch triggers an automatic build and deployment with no additional workflow file required.
 
@@ -194,6 +192,17 @@ Unlike the API (which runs on a DigitalOcean Droplet and needs an explicit `depl
 
 1. **Tag pushed** (`vX.Y.Z`) — `release-staging.yml` checks out the tag and fast-forward-merges `staging` to it, then pushes
 2. **Push to `staging`** — App Platform's Autodeploy builds and deploys `comprobify-web-staging` automatically
+3. **`release-staging.yml` completes** — `terraform.yml` runs `plan`→`apply` against `terraform/environments/staging`, reconciling the app's Terraform-managed config (env vars, domains, DO Project assignment, Cloudflare DNS records) — see "Terraform-managed infrastructure" below for why this has to come *after* `staging` is already caught up, not on every push to `main`
+
+### Terraform-managed infrastructure
+
+The staging App Platform app itself — not just its runtime env vars, but the `digitalocean_app` resource, its DO Project assignment, and its two Cloudflare DNS records — is provisioned by Terraform (`terraform/environments/staging` → `terraform/modules/app-platform`), mirroring the comprobify API repo's own `terraform/environments/staging` → `terraform/modules/droplet` split. There is no manual App Platform console setup anymore; see "5. Provision via Terraform" below for the one-time bootstrap.
+
+**Why `terraform.yml` triggers off `release-staging.yml` completing, not `push: branches: [main]`:** this app's Terraform resource couples "infra config" (build/run commands, env vars, domains) with "which branch's code to build" (`github.branch = "staging"`) into one `digitalocean_app` resource. Terraform's create/update call blocks waiting for App Platform to actually deploy that code, and fails — tainting the resource — if it can't. If this ran on every push to `main`, a PR changing both `terraform/**` and `package.json` together (e.g. renaming an npm script a `run_command` depends on) would trigger an apply that tries to deploy the new spec against whatever's still on `staging` — which hasn't caught up yet, since `staging` only moves via the tagged release process. This is exactly what caused a chain of failed deployments during this app's initial Terraform rollout, traced back well after the fact. Triggering off `release-staging.yml`'s completion instead (gated to only proceed on a successful run, or a manual `workflow_dispatch`) guarantees `staging` has already been fast-forwarded — and App Platform's own Autodeploy already given a chance to run — before Terraform ever creates/updates the app against it.
+
+**State backend:** the same `comprobify-terraform-state` DigitalOcean Spaces bucket the API repo uses, under key `staging/comprobify-web/terraform.tfstate` (the API repo uses `staging/comprobify/...`) — one bucket, independent state per key, with a Spaces access key dedicated to this repo's pipeline rather than reused from the API repo's.
+
+**Manual runs:** `workflow_dispatch` on `terraform.yml` supports both `apply` (re-run the normal reconciliation on demand, e.g. after changing `terraform.tfvars`) and `destroy` (tear everything down through the same audited pipeline, rather than deleting resources by hand in the DO/Cloudflare consoles). `destroy` is only ever reachable via this explicit manual dispatch, never the automatic post-release trigger.
 
 ### Production status
 
@@ -242,21 +251,18 @@ Both branches are **automation-owned** — they only move forward via fast-forwa
 | Secret | Scope | Used by |
 |---|---|---|
 | `RELEASE_PUSH_TOKEN` | Repository | `release-staging.yml` / `release-production.yml` — a fine-grained PAT with `Contents: Read and write` on this repo, needed because the default `GITHUB_TOKEN` cannot push to a protected branch |
+| `TERRAFORM_SPACES_ACCESS_KEY_ID` / `TERRAFORM_SPACES_SECRET_ACCESS_KEY` | Repository | `terraform.yml` — a Spaces access key scoped to the shared `comprobify-terraform-state` bucket, dedicated to this repo's pipeline (not the API repo's own key) |
 
-No deploy-hook secret is needed for App Platform either — Autodeploy watches the branch and deploys on push without any token from this repo.
+No deploy-hook secret is needed for App Platform code deploys — Autodeploy watches the branch and deploys on push without any token from this repo. Provisioning the app *itself* does need credentials — see the next step.
 
-### 5. Connect to DigitalOcean App Platform
+### 5. Provision via Terraform
 
-1. DigitalOcean console → **Apps → Create App**
-2. Select the `comprobify-web` GitHub repository (authorize DO's GitHub App if not already connected)
-3. Create **two separate App Platform apps** — one for staging, one for production:
-   - Source directory: `/` (standalone repo, not a monorepo)
-   - Branch: `staging` or `production` respectively
-   - Autodeploy: on
-4. Override the **Build Command** to `npm run build:deploy` and the **Run Command** to `npm run start:deploy` — see "Build settings" above for why neither can be left on the buildpack's defaults
-5. Add environment variables to each app (see table below)
-6. Add both the marketing and app custom domains to the same app — see "Domain routing" above
-7. Deploy
+The App Platform app is created and configured entirely by `terraform.yml` — there is no manual App Platform console setup. One-time bootstrap:
+
+1. Create the `staging` GitHub Environment (Settings → Environments → New environment), and populate it with 10 Environment secrets: `DO_TOKEN` (DigitalOcean token — Apps Read/Write, Projects Read/Write, VPC Read scopes only — dedicated to this repo, not the API repo's token), `CLOUDFLARE_TOKEN` (scoped to the `comprobify.com` zone, also dedicated to this repo), and the 8 app secrets (`DATABASE_URL`, `AUTH_SECRET`, `ENCRYPTION_KEY`, `CONTEXT_COOKIE_SECRET`, `DATABASE_SSL_CA`, `SENTRY_AUTH_TOKEN`, `MAILGUN_API_KEY`, `COMPROBIFY_ADMIN_SECRET`) — see "Environment variables" below for what each holds.
+2. Fill in `terraform/environments/staging/terraform.tfvars` with the non-secret values (region, domains, `cloudflare_zone_id`, etc.) — in particular, confirm `instance_size_slug` against `doctl apps tier instance-size list` before the first apply; don't trust a stale hardcoded value.
+3. Merge to `main`, then either wait for the next tagged release (which will trigger `terraform.yml` automatically per "Terraform-managed infrastructure" above), or run `workflow_dispatch` → `action: apply` manually to provision immediately.
+4. First apply creates the app (triggering its first deployment — watch this closely, since App Platform apps have no default VPC/network access and need `vpc.id`, Trusted Sources, and a database endpoint the build/runtime phase can actually reach; see "Build settings" above), the DO Project assignment, and both Cloudflare DNS records.
 
 ---
 
