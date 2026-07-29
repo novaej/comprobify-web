@@ -4,6 +4,12 @@
 # sharing a bucket. Use a Spaces access key dedicated to this repo's pipeline, not the API
 # repo's - that's the real credential-isolation boundary, not the bucket choice.
 #
+# NOTE: a rename to staging/comprobify-web/... (matching the API repo's planned move to
+# staging/comprobify/...) is intentionally deferred - doing it now, mid-debugging of the
+# app's first real deploy, would either orphan whatever's already in state or force a
+# needless delete+recreate. Do the rename later, once the app is running, via a proper
+# `terraform init -migrate-state` with real credentials - not a bare key edit.
+#
 # skip_requesting_account_id/skip_s3_checksum/etc. are required against DO Spaces (or any
 # non-AWS S3-compatible store) - see comprobify/terraform/environments/staging/backend.tf
 # for why each flag exists (403s / checksum-header incompatibilities otherwise).

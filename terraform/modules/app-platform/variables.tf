@@ -17,6 +17,11 @@ variable "instance_size_slug" {
   type        = string
 }
 
+variable "vpc_datacenter_region" {
+  description = "Datacenter-level region slug for the VPC lookup (e.g. \"nyc1\") - distinct from `region` above, which is App Platform's own metro-level slug (\"nyc\"). Must match the datacenter the database and the API's droplet actually live in, or the app has no private route to the database."
+  type        = string
+}
+
 variable "github_repo" {
   description = "owner/repo for the GitHub source, e.g. \"novaej/comprobify-web\""
   type        = string

@@ -17,14 +17,15 @@ provider "cloudflare" {
 module "staging" {
   source = "../../modules/app-platform"
 
-  environment        = "staging"
-  region             = var.region
-  instance_size_slug = var.instance_size_slug
-  github_repo        = var.github_repo
-  branch             = "staging"
-  domain_primary     = var.domain_primary
-  domain_alias       = var.domain_alias
-  cloudflare_zone_id = var.cloudflare_zone_id
+  environment           = "staging"
+  region                = var.region
+  vpc_datacenter_region = var.vpc_datacenter_region
+  instance_size_slug    = var.instance_size_slug
+  github_repo           = var.github_repo
+  branch                = "staging"
+  domain_primary        = var.domain_primary
+  domain_alias          = var.domain_alias
+  cloudflare_zone_id    = var.cloudflare_zone_id
 
   database_ssl              = var.database_ssl
   comprobify_api_url        = var.comprobify_api_url

@@ -21,6 +21,12 @@ variable "instance_size_slug" {
   type        = string
 }
 
+variable "vpc_datacenter_region" {
+  description = "Datacenter-level region for the default VPC lookup - must match where the database and the API's droplet actually live"
+  type        = string
+  default     = "nyc1"
+}
+
 variable "github_repo" {
   type    = string
   default = "novaej/comprobify-web"

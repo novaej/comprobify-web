@@ -10,6 +10,10 @@ resource "digitalocean_app" "this" {
     name   = "comprobify-web-${var.environment}"
     region = var.region
 
+    vpc {
+      id = data.digitalocean_vpc.this.id
+    }
+
     domain {
       name = var.domain_primary
       type = "PRIMARY"
@@ -168,6 +172,16 @@ resource "digitalocean_app" "this" {
 # the real, shared project on any config drift. "Comprobify Staging" already exists.
 data "digitalocean_project" "this" {
   name = "Comprobify ${title(var.environment)}"
+}
+
+# App Platform apps never auto-join a VPC - the spec's vpc.id must be set explicitly, or
+# the app has no private-network route to the database at all (confirmed against DO's own
+# docs: "App Platform apps do not automatically join a VPC"). Specifying just `region`
+# (the datacenter-level slug, e.g. "nyc1" - distinct from var.region's App-Platform-level
+# "nyc" metro slug) returns that region's default VPC, which is where the database and the
+# API's droplet already live.
+data "digitalocean_vpc" "this" {
+  region = var.vpc_datacenter_region
 }
 
 resource "digitalocean_project_resources" "this" {
