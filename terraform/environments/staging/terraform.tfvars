@@ -1,8 +1,9 @@
 # Non-secret values only. Secrets are supplied exclusively via TF_VAR_* in CI
 # (see .github/workflows/terraform.yml) - never add a secret value to this file.
 
-region             = "nyc"
-instance_size_slug = "basic-xxs" # cheapest tier, $5/mo - doctl apps tier instance-size list
+region                = "nyc"
+vpc_datacenter_region = "nyc1"      # where the database and the API's droplet actually live
+instance_size_slug    = "basic-xxs" # cheapest tier, $5/mo - doctl apps tier instance-size list
 
 github_repo    = "novaej/comprobify-web"
 domain_primary = "staging.comprobify.com"
