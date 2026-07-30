@@ -8,6 +8,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.9.7] — 2026-07-29
+
 ### Fixed
 - **`prisma.user.findUnique()` (and every other query) failed at runtime with `self-signed certificate in certificate chain`, even though `prisma migrate deploy` connected fine at startup** — migrations use Prisma's own engine, which trusts the connection based on `DATABASE_URL`'s `sslmode` alone (no CA verification). The app's own client (`src/lib/db.ts`, `@prisma/adapter-pg`) sets `rejectUnauthorized: true` and needs a matching `ca`, but `DATABASE_SSL_CA` is stored as one line with literal `\n` sequences (a raw multi-line PEM breaks in some deploy pipelines), and the app never reconstructed them into real newlines the way the API's `config/index.js` already does. Added the same `.replace(/\\n/g, '\n')` step to `db.ts` and `prisma/seed.js`.
 
