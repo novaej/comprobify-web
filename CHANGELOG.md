@@ -8,6 +8,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Fixed
+- **`/settings`'s "Documentos legales" card showed dead "Ver" links (`AGREEMENT_NOT_FOUND`) on any environment where no admin had published agreement templates yet** — the card was gated only on `canManageTenant`, with no check for whether there was anything to actually view. Now gated on the API's new `ApiAgreementStatus.hasPublishedAgreements` field, which distinguishes "nothing published yet" from "already accepted" — both previously looked identical as `needsAcceptance: false`.
+
 ## [0.9.7] — 2026-07-29
 
 ### Fixed

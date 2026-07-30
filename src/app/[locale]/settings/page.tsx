@@ -141,7 +141,7 @@ export default async function SettingsPage({
           <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
         </Link>
 
-        {canManageTenant && (
+        {canManageTenant && agreementStatus?.hasPublishedAgreements && (
           <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
             <h2 className="text-sm font-semibold">{t('legalDocs.title')}</h2>
             <p className="mt-1 text-xs text-muted-foreground">{t('legalDocs.description')}</p>

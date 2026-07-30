@@ -774,6 +774,11 @@ export interface ApiOutdatedAgreement {
 export interface ApiAgreementStatus {
   needsAcceptance: boolean;
   outdated: ApiOutdatedAgreement[];
+  // Distinct from needsAcceptance: false, which is also true once every
+  // published template has been accepted — this is what tells "nothing
+  // published yet" (hide the legal docs section) apart from "all caught up"
+  // (show it, links work). See comprobify/tenant-agreement.service.js#getStatus.
+  hasPublishedAgreements: boolean;
 }
 
 // Verified against: ../comprobify/src/routes/tenants.routes.js → GET /v1/tenants/agreements
