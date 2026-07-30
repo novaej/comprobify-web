@@ -26,7 +26,9 @@ function sslConfig() {
   if (process.env.DATABASE_SSL !== 'true') return undefined;
   return {
     rejectUnauthorized: true,
-    ...(process.env.DATABASE_SSL_CA ? { ca: process.env.DATABASE_SSL_CA } : {}),
+    ...(process.env.DATABASE_SSL_CA
+      ? { ca: process.env.DATABASE_SSL_CA.replace(/\\n/g, '\n') }
+      : {}),
   };
 }
 
