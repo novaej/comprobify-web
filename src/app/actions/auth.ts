@@ -13,6 +13,8 @@ import { pingApiHealth } from '@/lib/api';
 import { sendMail } from '@/lib/mailgun';
 import type { PaidTier, BillingInterval } from '@/lib/subscription-tiers';
 import * as Sentry from '@sentry/nextjs';
+import { confirmEmailVerification } from '@/lib/public-api';
+import { ApiError } from '@/lib/errors';
 
 const PASSWORD_RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
 
@@ -295,6 +297,24 @@ export async function resetPasswordAction(token: string, password: string): Prom
   }
 
   return postLoginRedirect(user.email, locale);
+}
+
+/**
+ * The consuming half of email verification — only ever called from an
+ * explicit user click (the "Confirmar mi correo" button on /verify-email),
+ * never from page render. This is what makes the flow safe against email
+ * link-scanners that prefetch the link with an automated GET: their prefetch
+ * only ever reaches the read-only check, never this action.
+ */
+export async function confirmEmailVerificationAction(token: string): Promise<{ error?: string }> {
+  try {
+    const { email } = await confirmEmailVerification(token);
+    await db.user.updateMany({ where: { email }, data: { emailVerified: true } });
+    return {};
+  } catch (err) {
+    if (!(err instanceof ApiError)) throw err;
+    return { error: err.code };
+  }
 }
 
 export async function registerAction(

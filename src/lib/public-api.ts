@@ -174,10 +174,26 @@ export async function recoverAccount(
   };
 }
 
-export async function verifyEmailToken(token: string): Promise<{ email: string }> {
-  const data = await publicRequest<{ ok: true; email: string }>(
-    `/v1/verify-email?token=${encodeURIComponent(token)}`,
+// Read-only, non-consuming check — safe for an email link-scanner (Microsoft
+// Defender/Safe Links etc.) to prefetch without burning the token. Call this
+// on page load; only confirmEmailVerification() (an explicit user action)
+// should actually consume the token.
+export async function checkEmailVerificationToken(
+  token: string,
+): Promise<{ valid: boolean; email?: string }> {
+  return publicRequest<{ valid: boolean; email?: string }>(
+    `/v1/verify-email/check?token=${encodeURIComponent(token)}`,
   );
+}
+
+// The actual consuming action — POST-only so an automated GET prefetch can
+// never trigger it. Call this only from an explicit user click.
+export async function confirmEmailVerification(token: string): Promise<{ email: string }> {
+  const data = await publicRequest<{ ok: true; email: string }>('/v1/verify-email', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token }),
+  });
   return { email: data.email };
 }
 
