@@ -15,7 +15,11 @@ function sslConfig() {
   if (process.env.DATABASE_SSL !== 'true') return undefined;
   return {
     rejectUnauthorized: true,
-    ...(process.env.DATABASE_SSL_CA ? { ca: process.env.DATABASE_SSL_CA } : {}),
+    // Stored as a single line with literal \n sequences, not real newlines (same
+    // reason as the API's DB_SSL_CA) — reconstructed into real newlines here.
+    ...(process.env.DATABASE_SSL_CA
+      ? { ca: process.env.DATABASE_SSL_CA.replace(/\\n/g, '\n') }
+      : {}),
   };
 }
 
