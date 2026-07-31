@@ -45,32 +45,32 @@ Use this section as the baseline configuration for the staging web app. It is fu
 
 ### Environment variables
 
-See `terraform/environments/staging/terraform.tfvars` (non-secret values) and the `staging` GitHub Environment's secrets (`TF_VAR_*`, consumed by `terraform.yml`) — not the App Platform console directly. See `docs/deployment.md`'s "Environment variables" section for what each one does.
+Source of truth for each value is split in two, by design (see `docs/terraform-digitalocean-setup.md`'s "Provider setup"/"CI/CD" sections): non-secret values are committed in `terraform/environments/staging/terraform.tfvars` and shown below as-is; secret values exist only as `TF_VAR_*` entries in the `staging` GitHub Environment and are deliberately **not** reproduced here. Nothing here is set by hand in the App Platform console — Terraform owns all of it. See `docs/deployment.md`'s "Environment variables" section for what each one does.
 
-| Variable | Value |
-|---|---|
-| `DATABASE_URL` | |
-| `DATABASE_SSL` | |
-| `DATABASE_SSL_CA` | |
-| `COMPROBIFY_API_URL` | |
-| `AUTH_SECRET` | |
-| `ENCRYPTION_KEY` | |
-| `CONTEXT_COOKIE_SECRET` | |
-| `NEXT_PUBLIC_APP_URL` | |
-| `NEXT_PUBLIC_MARKETING_URL` | |
-| `APP_ENV` | |
-| `NEXT_PUBLIC_APP_ENV` | |
-| `SENTRY_DSN` | |
-| `NEXT_PUBLIC_SENTRY_DSN` | |
-| `SENTRY_AUTH_TOKEN` | |
-| `MAILGUN_API_KEY` | |
-| `MAILGUN_DOMAIN` | |
-| `MAILGUN_FROM` | |
-| `COMPROBIFY_ADMIN_SECRET` | |
-| `SUPPORT_EMAIL` | |
-| `SUPPORT_PHONE` | |
+| Variable | Terraform value (`terraform.tfvars`) | Value |
+|---|---|---|
+| `DATABASE_URL` | *(secret — `staging` GitHub Environment)* | |
+| `DATABASE_SSL` | `true` | |
+| `DATABASE_SSL_CA` | *(secret — `staging` GitHub Environment)* | |
+| `COMPROBIFY_API_URL` | `https://api-staging.comprobify.com` | |
+| `AUTH_SECRET` | *(secret — `staging` GitHub Environment)* | |
+| `ENCRYPTION_KEY` | *(secret — `staging` GitHub Environment)* | |
+| `CONTEXT_COOKIE_SECRET` | *(secret — `staging` GitHub Environment)* | |
+| `NEXT_PUBLIC_APP_URL` | `https://app-staging.comprobify.com` | |
+| `NEXT_PUBLIC_MARKETING_URL` | `https://staging.comprobify.com` | |
+| `APP_ENV` | `staging` | |
+| `NEXT_PUBLIC_APP_ENV` | `staging` | |
+| `SENTRY_DSN` | `https://dda17234977e8471d407795aaa6672e1@o4511524451385344.ingest.us.sentry.io/4511524532256768` | |
+| `NEXT_PUBLIC_SENTRY_DSN` | same value as `SENTRY_DSN` | |
+| `SENTRY_AUTH_TOKEN` | *(secret — `staging` GitHub Environment)* | |
+| `MAILGUN_API_KEY` | *(secret — `staging` GitHub Environment)* | |
+| `MAILGUN_DOMAIN` | `mg.comprobify.com` | |
+| `MAILGUN_FROM` | `Comprobify <no-reply@mg.comprobify.com>` | |
+| `COMPROBIFY_ADMIN_SECRET` | *(secret — `staging` GitHub Environment)* | |
+| `SUPPORT_EMAIL` | `support@comprobify.com` | |
+| `SUPPORT_PHONE` | `+593 963839195` | |
 
-`ADMIN_SEED_PASSWORD` is not in this list — it's only needed transiently when running `npm run db:seed` against this environment's database, not read at runtime by Next.js, so it doesn't belong as a persistent App Platform variable.
+The `true`/fixed-string values above are read straight from `terraform.tfvars` — safe to commit since none of them are credential-shaped (the file's own header comment confirms this is a deliberate non-secret-only file). The `*(secret)*` rows have no fixed value to record here at all — each is threaded through `terraform.yml` as a `TF_VAR_*` env var, sourced from the corresponding `staging` GitHub Environment secret, and never appears in a tracked file. `ADMIN_SEED_PASSWORD` is not in this list at all — it's only needed transiently when running `npm run db:seed` against this environment's database, not read at runtime by Next.js, so it doesn't belong as a persistent App Platform variable and isn't a Terraform-managed value either.
 
 ## Database setup
 
