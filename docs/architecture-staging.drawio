@@ -10,7 +10,7 @@
         </mxCell>
 
         <mxCell id="web-cicd-wrapper" parent="1" style="text;html=1;align=left;verticalAlign=top;fontSize=11;fontStyle=1;strokeColor=#cccccc;fillColor=#f9f9f9;dashed=1;spacingLeft=8;spacingTop=6;" value="CI / CD" vertex="1">
-          <mxGeometry height="165" width="800" x="55" y="520" as="geometry" />
+          <mxGeometry height="290" width="840" x="55" y="520" as="geometry" />
         </mxCell>
 
         <mxCell id="web-ext-wrapper" parent="1" style="text;html=1;align=left;verticalAlign=top;fontSize=11;fontStyle=1;strokeColor=#cccccc;fillColor=#f9f9f9;dashed=1;spacingLeft=8;spacingTop=6;" value="External Services" vertex="1">
@@ -21,24 +21,24 @@
           <mxGeometry height="70" width="170" x="60" y="195" as="geometry" />
         </mxCell>
 
-        <mxCell id="web-cf-dns" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d6b656;" value="&lt;b&gt;Cloudflare DNS&lt;/b&gt;&lt;br/&gt;staging.comprobify.com&lt;br/&gt;app-staging.comprobify.com&lt;br/&gt;CNAME → Vercel, DNS only (no proxy)" vertex="1">
-          <mxGeometry height="95" width="230" x="300" y="180" as="geometry" />
+        <mxCell id="web-cf-dns" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d6b656;" value="&lt;b&gt;Cloudflare DNS&lt;/b&gt;&lt;br/&gt;staging.comprobify.com&lt;br/&gt;app-staging.comprobify.com&lt;br/&gt;CNAME → App Platform ingress, DNS only (no proxy — App Platform terminates its own TLS/cert)" vertex="1">
+          <mxGeometry height="105" width="230" x="300" y="175" as="geometry" />
         </mxCell>
 
-        <mxCell id="web-vercel" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;Vercel — comprobify-web-staging&lt;/b&gt;&lt;br&gt;Next.js 16 · Turbopack&lt;br&gt;Branch: staging&lt;br&gt;vercel-build: prisma migrate deploy + next build&lt;br&gt;proxy.ts routes marketing vs. app host" vertex="1">
-          <mxGeometry height="110" width="270" x="600" y="170" as="geometry" />
+        <mxCell id="web-platform" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;spacingLeft=8;" value="&lt;b&gt;DigitalOcean App Platform&lt;/b&gt;&lt;br/&gt;comprobify-web-staging&lt;br/&gt;Next.js 16 · watches branch: staging&lt;br/&gt;build: prisma generate &amp;&amp; next build&lt;br/&gt;run: prisma migrate deploy &amp;&amp; next start&lt;br/&gt;region nyc (VPC: nyc1) · instance basic-xxs&lt;br/&gt;proxy.ts routes marketing vs. app host" vertex="1">
+          <mxGeometry height="140" width="270" x="600" y="160" as="geometry" />
         </mxCell>
 
-        <mxCell id="web-neon" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="&lt;b&gt;Neon&lt;/b&gt;&lt;br/&gt;PostgreSQL&lt;br/&gt;users · tenants · tenant_api_keys&lt;br/&gt;issuers · notifications · webhooks" vertex="1">
-          <mxGeometry height="85" width="190" x="1185" y="120" as="geometry" />
+        <mxCell id="web-db" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="&lt;b&gt;DigitalOcean Managed PostgreSQL&lt;/b&gt;&lt;br/&gt;Basic-plan cluster, shared with the&lt;br/&gt;Comprobify API (no pooler) — each&lt;br/&gt;consumer caps its own pool via&lt;br/&gt;?connection_limit on DATABASE_URL&lt;br/&gt;users · tenants · issuers · notifications" vertex="1">
+          <mxGeometry height="105" width="190" x="1185" y="95" as="geometry" />
         </mxCell>
 
-        <mxCell id="web-api" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;" value="&lt;b&gt;Comprobify API (staging)&lt;/b&gt;&lt;br/&gt;api-staging.comprobify.com&lt;br/&gt;Bearer token (decrypted TenantApiKey)" vertex="1">
-          <mxGeometry height="80" width="190" x="1185" y="235" as="geometry" />
+        <mxCell id="web-api" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;" value="&lt;b&gt;Comprobify API (staging)&lt;/b&gt;&lt;br/&gt;api-staging.comprobify.com&lt;br/&gt;DigitalOcean Droplet (project comprobify-staging)&lt;br/&gt;Bearer token (decrypted TenantApiKey)" vertex="1">
+          <mxGeometry height="90" width="190" x="1185" y="220" as="geometry" />
         </mxCell>
 
         <mxCell id="web-sentry" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" value="&lt;b&gt;Sentry&lt;/b&gt;&lt;br&gt;Error monitoring&lt;br&gt;environment: staging&lt;br&gt;org: novaej" vertex="1">
-          <mxGeometry height="80" width="190" x="1185" y="350" as="geometry" />
+          <mxGeometry height="80" width="190" x="1185" y="335" as="geometry" />
         </mxCell>
 
         <mxCell id="web-dev" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="&lt;b&gt;Developer&lt;/b&gt;" vertex="1">
@@ -53,43 +53,46 @@
           <mxGeometry height="110" width="360" x="520" y="535" as="geometry" />
         </mxCell>
 
+        <mxCell id="web-terraform" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=left;spacingLeft=10;fontSize=10;" value="&lt;b&gt;Terraform&lt;/b&gt; (terraform.yml)&lt;br/&gt;&lt;br/&gt;Triggers on push to staging (path: terraform/**)&lt;br/&gt;terraform/environments/staging → modules/app-platform&lt;br/&gt;State: DigitalOcean Spaces (comprobify-terraform-state)&lt;br/&gt;Provisions: App Platform app spec + Cloudflare DNS records" vertex="1">
+          <mxGeometry height="110" width="360" x="520" y="685" as="geometry" />
+        </mxCell>
+
         <mxCell id="web-e1" edge="1" parent="1" source="web-browser" style="edgeStyle=orthogonalEdgeStyle;html=1;" target="web-cf-dns" value="HTTPS">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
 
-        <mxCell id="web-e2" edge="1" parent="1" source="web-cf-dns" style="edgeStyle=orthogonalEdgeStyle;html=1;" target="web-vercel" value="CNAME (DNS only)">
+        <mxCell id="web-e2" edge="1" parent="1" source="web-cf-dns" style="edgeStyle=orthogonalEdgeStyle;html=1;" target="web-platform" value="CNAME (DNS only)">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
 
-        <mxCell id="web-e3" edge="1" parent="1" source="web-vercel" style="edgeStyle=orthogonalEdgeStyle;html=1;" target="web-neon" value="PostgreSQL / SSL">
+        <mxCell id="web-e3" edge="1" parent="1" source="web-platform" style="edgeStyle=orthogonalEdgeStyle;html=1;" target="web-db" value="PostgreSQL / SSL, shared cluster">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="950" y="160" />
+              <mxPoint x="950" y="147" />
             </Array>
           </mxGeometry>
         </mxCell>
 
-        <mxCell id="web-e4" edge="1" parent="1" source="web-vercel" style="edgeStyle=orthogonalEdgeStyle;html=1;" target="web-api" value="HTTPS, Bearer token">
+        <mxCell id="web-e4" edge="1" parent="1" source="web-platform" style="edgeStyle=orthogonalEdgeStyle;html=1;" target="web-api" value="HTTPS, Bearer token">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="950" y="275" />
+              <mxPoint x="950" y="255" />
             </Array>
           </mxGeometry>
         </mxCell>
 
-        <mxCell id="web-e5" edge="1" parent="1" source="web-api" style="edgeStyle=orthogonalEdgeStyle;html=1;dashed=1;" target="web-vercel" value="webhook (HMAC-SHA256, notifications)">
+        <mxCell id="web-e5" edge="1" parent="1" source="web-api" style="edgeStyle=orthogonalEdgeStyle;html=1;dashed=1;" target="web-platform" value="webhook (HMAC-SHA256, notifications)">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="1000" y="300" />
-              <mxPoint x="1000" y="330" />
+              <mxPoint x="950" y="285" />
             </Array>
           </mxGeometry>
         </mxCell>
 
-        <mxCell id="web-e6" edge="1" parent="1" source="web-vercel" style="edgeStyle=orthogonalEdgeStyle;html=1;dashed=1;" target="web-sentry" value="captured + uncaught exceptions">
+        <mxCell id="web-e6" edge="1" parent="1" source="web-platform" style="edgeStyle=orthogonalEdgeStyle;html=1;dashed=1;" target="web-sentry" value="captured + uncaught exceptions">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="1000" y="420" />
+              <mxPoint x="1000" y="375" />
             </Array>
           </mxGeometry>
         </mxCell>
@@ -110,15 +113,39 @@
           </mxGeometry>
         </mxCell>
 
-        <mxCell id="web-e10" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.3;entryY=1;entryDx=0;entryDy=0;" target="web-vercel" value="Vercel Git integration auto-deploys (no deploy hook)">
+        <mxCell id="web-e10" edge="1" parent="1" source="web-github" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.15;entryDx=0;entryDy=0;" target="web-platform" value="App Platform Autodeploy watches staging branch — builds &amp; deploys on push (no deploy hook)">
           <mxGeometry relative="1" as="geometry">
-            <mxPoint x="355" y="560" as="sourcePoint" />
-            <mxPoint x="681" y="280" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="355" y="130" />
+              <mxPoint x="600" y="130" />
+            </Array>
           </mxGeometry>
         </mxCell>
 
-        <mxCell id="web-legend" parent="1" style="text;html=1;strokeColor=#cccccc;fillColor=#ffffff;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=10;spacingLeft=8;" value="&lt;b&gt;Legend&lt;/b&gt;   ─── request / data flow     - - -  async / background" vertex="1">
-          <mxGeometry height="36" width="370" x="60" y="710" as="geometry" />
+        <mxCell id="web-e11" edge="1" parent="1" source="web-actions" style="edgeStyle=orthogonalEdgeStyle;html=1;" target="web-terraform" value="push to staging (path terraform/**)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="web-e12" edge="1" parent="1" source="web-terraform" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=1;exitY=0.2;exitDx=0;exitDy=0;entryX=1;entryY=0.6;entryDx=0;entryDy=0;" target="web-platform" value="plan/apply: creates/updates app spec (build &amp; run commands, env vars, domains)">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="960" y="707" />
+              <mxPoint x="960" y="244" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="web-e13" edge="1" parent="1" source="web-terraform" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=0;exitY=0.2;exitDx=0;exitDy=0;entryX=0.74;entryY=1;entryDx=0;entryDy=0;" target="web-cf-dns" value="plan/apply: provisions Cloudflare CNAME records">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="470" y="707" />
+              <mxPoint x="470" y="280" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="web-legend" parent="1" style="text;html=1;strokeColor=#cccccc;fillColor=#ffffff;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=10;spacingLeft=8;" value="&lt;b&gt;Legend&lt;/b&gt;   ─── request / data flow · deploy     - - -  async / background" vertex="1">
+          <mxGeometry height="36" width="400" x="60" y="825" as="geometry" />
         </mxCell>
 
       </root>
