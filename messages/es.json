@@ -954,6 +954,10 @@
     "noResults": "Sin resultados"
   },
   "verifyEmail": {
+    "confirmTitle": "Confirma tu correo electrónico",
+    "confirmDescription": "Haz clic en el botón para completar la verificación de tu cuenta.",
+    "confirmButton": "Confirmar mi correo",
+    "confirming": "Confirmando...",
     "successTitle": "¡Correo verificado!",
     "successDescription": "Tu correo electrónico ha sido verificado. Ya puedes activar el ambiente de producción desde configuración.",
     "errorTitle": "Enlace inválido o expirado",

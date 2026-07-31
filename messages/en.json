@@ -854,6 +854,10 @@
     "noResults": "No results"
   },
   "verifyEmail": {
+    "confirmTitle": "Confirm your email",
+    "confirmDescription": "Click the button below to complete your account verification.",
+    "confirmButton": "Confirm my email",
+    "confirming": "Confirming...",
     "successTitle": "Email verified!",
     "successDescription": "Your email address has been verified. You can now activate the production environment from Settings.",
     "errorTitle": "Invalid or expired link",
