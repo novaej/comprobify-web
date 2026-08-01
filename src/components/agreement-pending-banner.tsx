@@ -2,20 +2,21 @@
 
 import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import { Link } from '@/i18n/navigation';
+import { Link, usePathname } from '@/i18n/navigation';
 import { AlertTriangle, X } from 'lucide-react';
 import { getAgreementStatusAction } from '@/app/actions/agreements';
 
 export function AgreementPendingBanner() {
   const t = useTranslations('agreementBanner');
+  const pathname = usePathname();
   const [pending, setPending] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
     getAgreementStatusAction().then((result) => {
-      if (!('error' in result) && result.needsAcceptance) setPending(true);
+      setPending(!('error' in result) && result.needsAcceptance);
     });
-  }, []);
+  }, [pathname]);
 
   if (!pending || dismissed) return null;
 
