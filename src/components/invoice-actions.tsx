@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useTransition } from 'react';
+import { useState, useEffect, useRef, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Send, Download, Mail, Loader2, Hammer, FileMinus, MoreVertical, Eye, EyeOff } from 'lucide-react';
@@ -20,8 +20,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { sendToSriAction, getDocumentStatusAction, resendEmailAction } from '@/app/actions/document';
-import type { DocumentStatus } from '@/lib/api';
+import { sendToSriAction, getDocumentStatusAction, resendEmailAction, retrySendAction } from '@/app/actions/document';
+import type { DocumentStatus, DocumentDispatchStatus } from '@/lib/api';
 import { toastApiError } from '@/lib/api-error-toast';
 import { Link, useRouter } from '@/i18n/navigation';
 import { InvoicePdfPreview } from '@/components/invoice-pdf-preview-lazy';
@@ -29,7 +29,7 @@ import { InvoicePdfPreview } from '@/components/invoice-pdf-preview-lazy';
 const POLL_INTERVAL_MS = 5_000;
 const TIMEOUT_MS = 2 * 60 * 1_000;
 
-type Phase = 'idle' | 'sending' | 'polling';
+type Phase = 'idle' | 'sending' | 'polling' | 'timedOut';
 
 interface InvoiceActionsProps {
   accessKey: string;
@@ -54,6 +54,15 @@ export function InvoiceActions({ accessKey, status, documentType, from, canManag
   const [previewOpen, setPreviewOpen] = useState(false);
   const [phase, setPhase] = useState<Phase>('idle');
   const [resendPending, startResendTransition] = useTransition();
+  const [retryPending, startRetryTransition] = useTransition();
+  // Bumped to restart the polling effect below from a fresh clock — either
+  // after a successful manual retry, or after deciding to just wait longer —
+  // even though `status` itself hasn't changed (still PENDING_SEND).
+  const [pollGeneration, setPollGeneration] = useState(0);
+  // Latest known dispatch info from the polling loop below, read (not reacted
+  // to) by handleRetry to decide what a click should actually do. A ref, not
+  // state, since updating it on every 5s tick shouldn't itself re-render.
+  const dispatchRef = useRef<DocumentDispatchStatus | undefined>(undefined);
 
   // Auto-resumes polling whenever the document is (or becomes) PENDING_SEND —
   // covers a manual send below, the best-effort send-after-signing on creation
@@ -66,30 +75,53 @@ export function InvoiceActions({ accessKey, status, documentType, from, canManag
     const interval = setInterval(async () => {
       if (Date.now() - startedAt >= TIMEOUT_MS) {
         clearInterval(interval);
-        setPhase('idle');
-        router.refresh();
+        setPhase('timedOut');
         return;
       }
       try {
         const pollResult = await getDocumentStatusAction(accessKey);
-        if ('status' in pollResult && pollResult.status !== 'PENDING_SEND') {
-          clearInterval(interval);
-          router.refresh();
+        if ('status' in pollResult) {
+          dispatchRef.current = pollResult.dispatch;
+          if (pollResult.status !== 'PENDING_SEND') {
+            clearInterval(interval);
+            router.refresh();
+          }
         }
       } catch {
         // transient network blip; next tick retries until TIMEOUT_MS
       }
     }, POLL_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [status, accessKey, router]);
+  }, [status, accessKey, router, pollGeneration]);
 
   // Once router.refresh() delivers a status that isn't PENDING_SEND anymore
   // (RECEIVED/RETURNED), drop back to idle so the buttons for the new status render.
   useEffect(() => {
-    if (status !== 'PENDING_SEND' && phase === 'polling') {
+    if (status !== 'PENDING_SEND' && (phase === 'polling' || phase === 'timedOut')) {
       setPhase('idle');
     }
   }, [status, phase]);
+
+  // A single "Reintentar" click means two different things depending on what
+  // the last poll saw: if the automatic send attempt is still PENDING/
+  // DISPATCHED (most likely — reconciliation spaces attempts 5 min apart, far
+  // longer than this 2-minute frontend timeout), calling the retry endpoint
+  // would just 409 NOTHING_TO_RETRY, so instead this purely restarts the local
+  // poll for another 2 minutes, giving the backend more time — no server call
+  // beyond the same GET it already does every 5s. Only once dispatch.status is
+  // actually FAILED does this call retrySendAction (POST .../send/retry).
+  function handleRetry() {
+    startRetryTransition(async () => {
+      if (dispatchRef.current?.status === 'FAILED') {
+        const result = await retrySendAction(accessKey);
+        if ('error' in result) {
+          toastApiError(result.error, tError);
+          return;
+        }
+      }
+      setPollGeneration((g) => g + 1);
+    });
+  }
 
   async function handleSend() {
     setConfirmOpen(false);
@@ -118,7 +150,7 @@ export function InvoiceActions({ accessKey, status, documentType, from, canManag
     });
   }
 
-  const isProcessing = phase !== 'idle';
+  const isProcessing = phase === 'sending' || phase === 'polling';
 
   return (
     <>
@@ -140,7 +172,15 @@ export function InvoiceActions({ accessKey, status, documentType, from, canManag
         </DialogContent>
       </Dialog>
 
-      {isProcessing ? (
+      {phase === 'timedOut' ? (
+        <div className="flex items-center gap-3 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800 dark:border-yellow-500/30 dark:bg-yellow-500/10 dark:text-yellow-300">
+          <p className="flex-1">{t('polling.timeout')}</p>
+          <Button size="sm" variant="outline" disabled={retryPending} onClick={handleRetry}>
+            {retryPending && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
+            {t('actions.retry')}
+          </Button>
+        </div>
+      ) : isProcessing ? (
         <div className="flex items-center gap-2 rounded-lg border p-3 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
           {phase === 'sending' ? t('actions.sending') : t('polling.waiting')}

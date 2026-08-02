@@ -63,6 +63,17 @@ export type EmailStatus =
   | 'DELIVERED'
   | 'COMPLAINED';
 
+// Only present when status is PENDING_SEND/RECEIVED (an SRI_SEND/SRI_AUTHORIZE
+// effect is actively in flight); entirely absent once the document settles.
+// Lets a polling client tell "still auto-retrying" (PENDING/DISPATCHED) apart
+// from "exhausted all 5 automatic attempts" (FAILED — the only case where
+// POST /:accessKey/send/retry will succeed instead of 409 NOTHING_TO_RETRY).
+export interface DocumentDispatchStatus {
+  status: 'PENDING' | 'DISPATCHED' | 'FAILED';
+  attemptCount: number;
+  lastError: string | null;
+}
+
 export interface Document {
   accessKey: string;
   documentType: string;
@@ -86,6 +97,7 @@ export interface Document {
     sentAt?: string;
     error?: string;
   };
+  dispatch?: DocumentDispatchStatus;
 }
 
 export interface DocumentEvent {
@@ -341,8 +353,12 @@ async function request<T>(
 
   if (!res.ok) {
     // Guard against proxy/gateway error pages (e.g. Cloudflare 522) that return HTML instead of JSON.
+    // Checks for 'json' generically (not 'application/json' specifically) because the API's own error
+    // responses use RFC 7807's 'application/problem+json' (see error-handler.js), which doesn't contain
+    // 'application/json' as a substring — a stricter check here silently misreports every real API error
+    // as API_UNREACHABLE, discarding its actual code/detail.
     const contentType = res.headers.get('content-type') ?? '';
-    if (!contentType.includes('application/json')) {
+    if (!contentType.includes('json')) {
       const body = await res.text().catch(() => '');
       throw new ApiError({
         type: 'about:blank',
@@ -390,6 +406,8 @@ export async function getDocumentStats(ctx: ApiCtx): Promise<DocumentStats> {
   return result.stats;
 }
 
+// Verified against: ../comprobify/src/services/document-query.service.js → getByAccessKey()
+// `dispatch` is attached only while status is PENDING_SEND/RECEIVED — see DocumentDispatchStatus.
 export async function getDocument(ctx: ApiCtx, accessKey: string): Promise<Document> {
   const result = await request<{ ok: true; document: Document }>(
     `/v1/documents/${accessKey}`,
@@ -433,6 +451,21 @@ export async function checkAuthorization(ctx: ApiCtx, accessKey: string): Promis
   const result = await request<{ ok: true; document: Document }>(
     `/v1/documents/${accessKey}/authorize`,
     ctx,
+  );
+  return result.document;
+}
+
+// Recovers a document whose SRI send/authorize dispatch exhausted its 5 automatic
+// attempts and got stuck (still PENDING_SEND or RECEIVED long after sendToSri()/
+// checkAuthorization() were queued) — resets the failed attempt and re-dispatches
+// immediately. 409 NOTHING_TO_RETRY (via ApiError) if nothing is actually FAILED
+// for this document, e.g. it's still in progress or already resolved.
+// Verified against: ../comprobify/src/controllers/documents.controller.js → retrySend()
+export async function retrySend(ctx: ApiCtx, accessKey: string): Promise<Document> {
+  const result = await request<{ ok: true; document: Document }>(
+    `/v1/documents/${accessKey}/send/retry`,
+    ctx,
+    { method: 'POST' }
   );
   return result.document;
 }
@@ -806,6 +839,20 @@ export async function acceptAgreements(
     { apiKey: ctx.apiKey },
     { method: 'POST', body: JSON.stringify({ termsVersion }), headers: extraHeaders },
   );
+}
+
+// Bulk variant of retrySend() — recovers every stuck document (failed SRI send/
+// authorize) across all of the tenant's issuers/branches in one call, no
+// X-Issuer-Id needed. Best-effort per document; `retried` is how many actually
+// had a failed attempt and got re-queued — 0 is a valid response, not an error.
+// Verified against: ../comprobify/src/controllers/tenant.controller.js → retryFailedDocuments()
+export async function retryAllFailedDocuments(ctx: ApiCtx): Promise<number> {
+  const result = await request<{ ok: true; retried: number }>(
+    '/v1/tenants/retry-failed-documents',
+    { apiKey: ctx.apiKey },
+    { method: 'POST' },
+  );
+  return result.retried;
 }
 
 // ── Tenant promotion ──────────────────────────────────────────────────────────

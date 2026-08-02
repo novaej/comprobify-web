@@ -202,6 +202,11 @@
     "viewList": "View documents",
     "createNew": "New",
     "noTypes": "No document types are configured for your issuer.",
+    "retryFailed": {
+      "button": "Retry failed documents",
+      "success": "Retried {count, plural, one {# document} other {# documents}}.",
+      "none": "No documents are pending retry."
+    },
     "stats": {
       "period": "This month",
       "total": "issued",
@@ -511,6 +516,7 @@
       "sending": "Sending to SRI...",
       "authorize": "Check authorization",
       "authorizing": "Checking...",
+      "retry": "Retry",
       "rebuild": "Fix",
       "createCreditNote": "Create credit note",
       "downloadXml": "Download XML",
@@ -711,6 +717,7 @@
     "DOCUMENT_TYPE_NOT_ENABLED": "That document type is not enabled for this issuer.",
     "DOCUMENT_TYPE_NOT_SUPPORTED": "Document type not supported by the system.",
     "INVALID_STATE_TRANSITION": "This operation is not valid for the document's current status.",
+    "NOTHING_TO_RETRY": "There's no failed send attempt to retry. The document may already be in progress or completed.",
     "DOCUMENT_NOT_AUTHORIZED": "The document is not yet authorized. This operation requires an authorized document.",
     "CREDIT_NOTE_EXCEEDS_REMAINING": "The credit note amount exceeds the original invoice's remaining balance.",
     "CERTIFICATE_INVALID": "The P12 file is invalid or corrupted.",

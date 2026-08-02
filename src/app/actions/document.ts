@@ -2,7 +2,8 @@
 
 import { getLocale } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
-import { sendToSri, checkAuthorization, getDocument, retrySingleEmail } from '@/lib/api';
+import { sendToSri, checkAuthorization, getDocument, retrySingleEmail, retrySend, retryAllFailedDocuments } from '@/lib/api';
+import type { DocumentDispatchStatus } from '@/lib/api';
 import { ApiError } from '@/lib/errors';
 import { requirePermission } from '@/lib/context';
 
@@ -27,15 +28,19 @@ export async function sendToSriAction(
 
 // Lightweight status read used while polling for a PENDING_SEND → RECEIVED/RETURNED
 // or RECEIVED → AUTHORIZED/NOT_AUTHORIZED transition — unlike checkAuthorization(),
-// this never queues anything, it just reads the current row.
+// this never queues anything, it just reads the current row. `dispatch` (present
+// only while status is PENDING_SEND/RECEIVED) lets the caller decide, once its
+// own polling times out, whether a manual retry click should actually call
+// retrySendAction (dispatch.status === 'FAILED') or just keep waiting on the
+// automatic retries (PENDING/DISPATCHED) — see InvoiceActions/InvoicePolling.
 export async function getDocumentStatusAction(
   accessKey: string,
-): Promise<{ status: string } | { error: string }> {
+): Promise<{ status: string; dispatch?: DocumentDispatchStatus } | { error: string }> {
   const ctx = await requirePermission('documents.read');
   const apiCtx = { apiKey: ctx.apiKey, issuerId: ctx.issuer.apiIssuerId };
   try {
     const doc = await getDocument(apiCtx, accessKey);
-    return { status: doc.status };
+    return { status: doc.status, dispatch: doc.dispatch };
   } catch (err) {
     if (err instanceof ApiError) return { error: err.code };
     throw err;
@@ -68,6 +73,40 @@ export async function tryAuthorizeAction(
   try {
     const doc = await checkAuthorization(apiCtx, accessKey);
     return { status: doc.status };
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.code };
+    throw err;
+  }
+}
+
+// Recovers a document stuck in PENDING_SEND or RECEIVED after its automatic
+// send/authorize retries were exhausted — see retrySend()'s doc comment.
+// Non-redirecting like sendToSriAction: the caller (InvoiceActions/InvoicePolling)
+// already handles refresh/polling for the resulting status transition.
+export async function retrySendAction(
+  accessKey: string,
+): Promise<{ status: string } | { error: string }> {
+  const ctx = await requirePermission('documents.manage');
+  const apiCtx = { apiKey: ctx.apiKey, issuerId: ctx.issuer.apiIssuerId };
+  try {
+    const doc = await retrySend(apiCtx, accessKey);
+    return { status: doc.status };
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.code };
+    throw err;
+  }
+}
+
+// Bulk variant of retrySendAction — recovers every stuck document across all of
+// the tenant's issuers/branches in one call. skipIssuer: true because the
+// underlying endpoint is tenant-wide (no X-Issuer-Id), unlike every other action
+// in this file — a multi-branch outage shouldn't require switching issuers to
+// recover each one individually.
+export async function retryFailedDocumentsAction(): Promise<{ retried: number } | { error: string }> {
+  const ctx = await requirePermission('documents.manage', { skipIssuer: true });
+  try {
+    const retried = await retryAllFailedDocuments({ apiKey: ctx.apiKey });
+    return { retried };
   } catch (err) {
     if (err instanceof ApiError) return { error: err.code };
     throw err;

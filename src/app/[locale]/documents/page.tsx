@@ -2,6 +2,7 @@ import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { PageHeader } from '@/components/page-header';
 import { buttonVariants } from '@/components/ui/button';
+import { RetryFailedDocumentsButton } from '@/components/retry-failed-documents-button';
 import { listDocuments, listIssuerDocumentTypes } from '@/lib/api';
 import { requirePermission } from '@/lib/context';
 import { cn } from '@/lib/utils';
@@ -66,6 +67,7 @@ export default async function DocumentsPage({
 
   const ctx = await requirePermission('documents.read');
   const canCreate = ctx.permissions.has('documents.create');
+  const canManage = ctx.permissions.has('documents.manage');
   const apiCtx: ApiCtx = { apiKey: ctx.apiKey, issuerId: ctx.issuer.apiIssuerId };
 
   let docTypes: string[] = [];
@@ -85,7 +87,11 @@ export default async function DocumentsPage({
 
   return (
     <div>
-      <PageHeader title={t('title')} description={t('description')} />
+      <PageHeader
+        title={t('title')}
+        description={t('description')}
+        action={canManage && <RetryFailedDocumentsButton />}
+      />
 
       {fetchError ? (
         <p className="text-sm text-destructive">{t('list.error')}</p>

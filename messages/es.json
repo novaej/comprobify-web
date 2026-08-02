@@ -202,6 +202,11 @@
     "viewList": "Ver documentos",
     "createNew": "Nuevo",
     "noTypes": "No hay tipos de comprobante configurados para tu emisor.",
+    "retryFailed": {
+      "button": "Reintentar comprobantes fallidos",
+      "success": "Se reintentó {count, plural, one {# comprobante} other {# comprobantes}}.",
+      "none": "No hay comprobantes pendientes de reintento."
+    },
     "stats": {
       "period": "Este mes",
       "total": "emitidos",
@@ -511,6 +516,7 @@
       "sending": "Enviando al SRI...",
       "authorize": "Verificar autorización",
       "authorizing": "Verificando...",
+      "retry": "Reintentar",
       "rebuild": "Corregir",
       "createCreditNote": "Crear nota de crédito",
       "downloadXml": "Descargar XML",
@@ -711,6 +717,7 @@
     "DOCUMENT_TYPE_NOT_ENABLED": "Ese tipo de comprobante no está habilitado para este emisor.",
     "DOCUMENT_TYPE_NOT_SUPPORTED": "Tipo de comprobante no soportado por el sistema.",
     "INVALID_STATE_TRANSITION": "La operación no es válida para el estado actual del comprobante.",
+    "NOTHING_TO_RETRY": "No hay ningún envío fallido para reintentar. Es posible que el comprobante ya esté en proceso o completado.",
     "DOCUMENT_NOT_AUTHORIZED": "El comprobante aún no está autorizado. Esta operación requiere un comprobante autorizado.",
     "CREDIT_NOTE_EXCEEDS_REMAINING": "El valor de la nota de crédito supera el saldo disponible de la factura original.",
     "CERTIFICATE_INVALID": "El archivo P12 no es válido o está dañado.",
