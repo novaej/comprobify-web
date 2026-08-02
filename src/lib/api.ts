@@ -341,8 +341,12 @@ async function request<T>(
 
   if (!res.ok) {
     // Guard against proxy/gateway error pages (e.g. Cloudflare 522) that return HTML instead of JSON.
+    // Checks for 'json' generically (not 'application/json' specifically) because the API's own error
+    // responses use RFC 7807's 'application/problem+json' (see error-handler.js), which doesn't contain
+    // 'application/json' as a substring — a stricter check here silently misreports every real API error
+    // as API_UNREACHABLE, discarding its actual code/detail.
     const contentType = res.headers.get('content-type') ?? '';
-    if (!contentType.includes('application/json')) {
+    if (!contentType.includes('json')) {
       const body = await res.text().catch(() => '');
       throw new ApiError({
         type: 'about:blank',

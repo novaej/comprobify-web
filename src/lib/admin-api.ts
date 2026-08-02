@@ -116,8 +116,11 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   if (!res.ok) {
     // Guard against proxy/gateway error pages that return HTML instead of JSON.
+    // Checks for 'json' generically, not 'application/json' specifically — the API's own error
+    // responses use RFC 7807's 'application/problem+json' (see error-handler.js), which doesn't
+    // contain 'application/json' as a substring. See the matching fix in src/lib/api.ts.
     const contentType = res.headers.get('content-type') ?? '';
-    if (!contentType.includes('application/json')) {
+    if (!contentType.includes('json')) {
       const body = await res.text().catch(() => '');
       throw new ApiError({
         type: 'about:blank',
