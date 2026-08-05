@@ -8,6 +8,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.9.8] — 2026-08-04
+
 ### Fixed
 - **`/settings`'s "Documentos legales" card showed dead "Ver" links (`AGREEMENT_NOT_FOUND`) on any environment where no admin had published agreement templates yet** — the card was gated only on `canManageTenant`, with no check for whether there was anything to actually view. Now gated on the API's new `ApiAgreementStatus.hasPublishedAgreements` field, which distinguishes "nothing published yet" from "already accepted" — both previously looked identical as `needsAcceptance: false`.
 - **First-time email verification showed "Enlace inválido o expirado" even on the user's very first, genuine click** — `/verify-email` called the token-consuming `GET /v1/verify-email` as a side effect of just rendering the page, so an email link-scanner's automated prefetch (e.g. Microsoft Defender Safe Links, common on Outlook addresses) silently consumed the single-use token before the user ever clicked it. Split the flow to match the new API endpoints: `checkEmailVerificationToken()` (`GET /v1/verify-email/check`, read-only, safe to prefetch) runs at page load, and the actual consuming call, `confirmEmailVerification()` (`POST /v1/verify-email`), only fires from an explicit "Confirmar mi correo" button click in the new `VerifyEmailConfirm` client component — never from page render.
