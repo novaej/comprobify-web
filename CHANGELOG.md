@@ -8,6 +8,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.9.9] — 2026-08-06
+
 ### Added
 - **Forward the real visitor IP to the Comprobify API on BFF-proxied public calls** (`src/lib/client-forwarding.ts`) — `acceptAgreementsAction`, `bootstrapTenantAction`, `recoverAccountAction`, and both resend-verification actions now send `X-Forwarded-Visitor-Ip` + `X-Internal-Service-Secret` alongside the existing `User-Agent` forwarding, so the API can use the real visitor's IP instead of App Platform's shared egress IP for `registrationLimiter` and the `tenant_agreements` legal consent audit trail. Matches the trust mechanism the Comprobify API shipped in `src/middleware/trusted-forwarded-ip.js`. Inactive until `INTERNAL_SERVICE_SECRET` (wired through Terraform, default `""`) is set to match the API's own value on both sides — see NEXT_STEPS.md #1.
 
