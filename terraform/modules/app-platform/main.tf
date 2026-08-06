@@ -153,6 +153,14 @@ resource "digitalocean_app" "this" {
         scope = "RUN_AND_BUILD_TIME"
       }
       env {
+        # Only read inside Server Actions at request time (src/lib/client-forwarding.ts),
+        # never at build time - same scope reasoning as database_ssl_ca.
+        key   = "INTERNAL_SERVICE_SECRET"
+        value = var.internal_service_secret
+        type  = "SECRET"
+        scope = "RUN_TIME"
+      }
+      env {
         key   = "SUPPORT_EMAIL"
         value = var.support_email
         type  = "GENERAL"

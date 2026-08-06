@@ -228,9 +228,14 @@ resource "digitalocean_app" "this" {
                                           # defaults (`npm run build` / `npm start`) would
                                           # silently skip `prisma generate`/migrations
 
-      env { key = "DATABASE_URL" ... }   # one env{} block per variable — ~19 total,
+      env { key = "DATABASE_URL" ... }   # one env{} block per variable — ~21 total,
       env { key = "AUTH_SECRET" ... }    # see modules/app-platform/main.tf for the full list
       # ...
+
+      health_check {
+        http_path = "/api/health"        # NOT "/" — the default would render the full
+      }                                  # marketing landing page on every probe, see
+                                          # CLAUDE.md's "App Platform health check" entry
     }
   }
 }
@@ -239,7 +244,7 @@ resource "digitalocean_app" "this" {
 **VPC is not automatic.** App Platform apps do not auto-join a VPC — without an explicit `vpc.id`, the app has no private network route to the database at all. `data "digitalocean_vpc" { region = var.vpc_datacenter_region }` looks up the *default* VPC for a datacenter-level region (`nyc1`), which is where the database and the API's droplet already live — this must stay in sync with wherever those actually are, or the app silently loses its private route to the database.
 
 **Every env var is its own `env {}` block**, each with a `type` (`SECRET` vs `GENERAL`) and a `scope` (`RUN_AND_BUILD_TIME` / `RUN_TIME` / `BUILD_TIME`):
-- `type = "SECRET"` — encrypted at rest by App Platform, write-only in the console after creation (same UX tradeoff as GitHub Actions Secrets — see the API repo's doc for the reasoning). Used for `DATABASE_URL`, `AUTH_SECRET`, `ENCRYPTION_KEY`, `CONTEXT_COOKIE_SECRET`, `DATABASE_SSL_CA`, `SENTRY_AUTH_TOKEN`, `MAILGUN_API_KEY`, `COMPROBIFY_ADMIN_SECRET`.
+- `type = "SECRET"` — encrypted at rest by App Platform, write-only in the console after creation (same UX tradeoff as GitHub Actions Secrets — see the API repo's doc for the reasoning). Used for `DATABASE_URL`, `AUTH_SECRET`, `ENCRYPTION_KEY`, `CONTEXT_COOKIE_SECRET`, `DATABASE_SSL_CA`, `SENTRY_AUTH_TOKEN`, `MAILGUN_API_KEY`, `COMPROBIFY_ADMIN_SECRET`, `INTERNAL_SERVICE_SECRET` (optional — defaults to `""`/inactive, see CLAUDE.md's "Forwarding the real visitor IP on BFF-proxied public calls").
 - `type = "GENERAL"` — plain text, for values with no real secrecy benefit (`DATABASE_SSL`, `COMPROBIFY_API_URL`, `SENTRY_DSN`/`NEXT_PUBLIC_SENTRY_DSN` — DSNs are write-only credential-*adjacent* values, not full credentials — `APP_ENV`, `NEXT_PUBLIC_APP_ENV`, `MAILGUN_DOMAIN`, `MAILGUN_FROM`, `SUPPORT_EMAIL`, `SUPPORT_PHONE`, `NEXT_PUBLIC_MARKETING_URL`, `NEXT_PUBLIC_APP_URL`).
 - `scope` matters because App Platform actually enforces it: `SENTRY_AUTH_TOKEN` is `BUILD_TIME` only (used solely by the Sentry Turbopack plugin during `next build`, never read at runtime — no reason to expose it to the running process). `DATABASE_SSL`/`DATABASE_SSL_CA` are `RUN_TIME` only (migrations and the app's own DB client both run at process startup/request time, never during the build, which has no network path to the database at all — see `docs/deployment.md`). Almost everything else is `RUN_AND_BUILD_TIME` — including `DATABASE_URL` itself, even though nothing actually *connects* to the database at build time: `prisma generate` only reads `schema.prisma`, and the schema's `datasource` block references `env("DATABASE_URL")`, so Prisma's generate step needs the variable to exist as a string, even though it never uses the value. `next_public_app_env` is `RUN_AND_BUILD_TIME` specifically because it's inlined into the client bundle at build time **and** read server-side at request time by `src/lib/seo.ts`'s `robots.ts`/`sitemap.ts` — getting the scope wrong there would silently break one or the other.
 
@@ -278,7 +283,8 @@ App Platform re-verifies each custom domain's CNAME on every deploy as part of i
    # every other TF_VAR_* the module needs (see modules/app-platform/variables.tf's
    # "secret app-level env vars" section) — database_url, auth_secret, encryption_key,
    # context_cookie_secret, database_ssl_ca, sentry_auth_token, mailgun_api_key,
-   # comprobify_admin_secret
+   # comprobify_admin_secret, internal_service_secret (optional — leave unset/empty
+   # unless actually turning on visitor-IP forwarding, see CLAUDE.md)
    ```
 5. `terraform init` — downloads providers, connects to remote state.
 6. `terraform plan` — review before applying. First run should show a full "create" plan for the app, project assignment, and both DNS records. **Read this output before typing yes.**
@@ -326,7 +332,7 @@ jobs:
     steps: [checkout, setup-terraform, init, apply -auto-approve (or destroy -auto-approve)]
 ```
 
-**All 10 secrets** (`DO_TOKEN`, `CLOUDFLARE_TOKEN`, and the 8 `TF_VAR_*` app secrets) live in the `staging` GitHub Environment — dedicated, freshly-minted credentials for this repo's pipeline, not reused from the API repo's own tokens.
+**All 11 secrets** (`DO_TOKEN`, `CLOUDFLARE_TOKEN`, and the 9 `TF_VAR_*` app secrets) live in the `staging` GitHub Environment — dedicated, freshly-minted credentials for this repo's pipeline, not reused from the API repo's own tokens.
 
 **`TERRAFORM_SPACES_ACCESS_KEY_ID`/`TERRAFORM_SPACES_SECRET_ACCESS_KEY` are repository secrets, not Environment secrets** — there's only one correct value (this repo's dedicated Spaces key), and every job needs it regardless of which Environment it declares.
 

@@ -1,6 +1,6 @@
 # Comprobify Web Deployment Reference (Staging)
 
-Last updated: 2026-07-30
+Last updated: 2026-08-06
 
 This reference describes the staging deployment setup for `comprobify-web`, including infrastructure, required configuration, deployment steps, and post-deployment checks. For the step-by-step guide on how this is set up (and *why*, in detail), see `docs/deployment.md` — this file is the quick-reference sheet of concrete project names and values for the environment that's actually running.
 
@@ -42,6 +42,7 @@ Use this section as the baseline configuration for the staging web app. It is fu
 | Region | `nyc` (App Platform metro slug); VPC lookup pinned to `nyc1` datacenter, where the database and the API's droplet live |
 | Instance size | `basic-xxs` (cheapest tier, ~$5/mo) |
 | VPC | Explicit `vpc.id` set in the Terraform spec — App Platform apps do not auto-join a VPC |
+| Health check | `GET /api/health` (`http_path` in the Terraform spec) — a dedicated no-op route, not the App Platform default of `/`, which would render the marketing landing page and call the Comprobify API on every probe |
 
 ### Environment variables
 
@@ -67,6 +68,7 @@ Source of truth for each value is split in two, by design (see `docs/terraform-d
 | `MAILGUN_DOMAIN` | `mg.comprobify.com` | |
 | `MAILGUN_FROM` | `Comprobify <no-reply@mg.comprobify.com>` | |
 | `COMPROBIFY_ADMIN_SECRET` | *(secret — `staging` GitHub Environment)* | |
+| `INTERNAL_SERVICE_SECRET` | *(secret — `staging` GitHub Environment)* | |
 | `SUPPORT_EMAIL` | `support@comprobify.com` | |
 | `SUPPORT_PHONE` | `+593 963839195` | |
 
@@ -110,6 +112,7 @@ Staging's database is **DigitalOcean Managed Postgres, shared with the Comprobif
 | `SENTRY_AUTH_TOKEN` | |
 | `MAILGUN_API_KEY` | |
 | `COMPROBIFY_ADMIN_SECRET` | |
+| `INTERNAL_SERVICE_SECRET` | |
 
 ## DNS (Cloudflare)
 
@@ -137,7 +140,7 @@ None. This is a standard Next.js/Node app with no native binary dependencies. XM
 4. `release-staging.yml` fast-forwards `staging`; App Platform's Autodeploy picks up the push and builds/deploys automatically. If the same push touches `terraform/**`, `terraform.yml` also reconciles the app's Terraform-managed config.
 5. Monitor the build/runtime logs in the App Platform dashboard — the `start:deploy` runtime log confirms `prisma migrate deploy` ran (migrations run at startup, not in the build log).
 
-Current version as of this writing: **v0.9.7**.
+Current version as of this writing: **v0.9.8**.
 
 ## Post-deployment checks
 

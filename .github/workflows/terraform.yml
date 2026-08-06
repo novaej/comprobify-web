@@ -20,7 +20,7 @@ name: Terraform
 # couldn't path-filter at all, so it ran on every release regardless of whether
 # terraform/** changed).
 #
-# All 10 secrets (DO_TOKEN, CLOUDFLARE_TOKEN, and the 8 TF_VAR_* app secrets below) live in
+# All 11 secrets (DO_TOKEN, CLOUDFLARE_TOKEN, and the 9 TF_VAR_* app secrets below) live in
 # the `staging` GitHub Environment (Settings -> Environments -> staging) - dedicated,
 # freshly-minted credentials for this repo's pipeline, not reused from the comprobify API
 # repo's own tokens. Unlike the API repo, there's no separate deploy workflow here to split
@@ -64,6 +64,7 @@ env:
   TF_VAR_sentry_auth_token: ${{ secrets.SENTRY_AUTH_TOKEN }}
   TF_VAR_mailgun_api_key: ${{ secrets.MAILGUN_API_KEY }}
   TF_VAR_comprobify_admin_secret: ${{ secrets.COMPROBIFY_ADMIN_SECRET }}
+  TF_VAR_internal_service_secret: ${{ secrets.INTERNAL_SERVICE_SECRET }}
   AWS_ACCESS_KEY_ID: ${{ secrets.TERRAFORM_SPACES_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.TERRAFORM_SPACES_SECRET_ACCESS_KEY }}
 

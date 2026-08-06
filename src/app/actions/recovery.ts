@@ -1,8 +1,10 @@
 'use server';
 
+import { headers } from 'next/headers';
 import { db } from '@/lib/db';
 import { recoverAccount } from '@/lib/public-api';
 import { listTenantApiKeys } from '@/lib/api';
+import { extractForwardedIp } from '@/lib/client-forwarding';
 import { encrypt, lastFour } from '@/lib/crypto';
 import { ApiError } from '@/lib/errors';
 import * as Sentry from '@sentry/nextjs';
@@ -30,7 +32,10 @@ export async function recoverAccountAction(formData: FormData): Promise<RecoverA
 
   let result;
   try {
-    result = await recoverAccount(email, p12Buffer, certPassword);
+    const reqHeaders = await headers();
+    result = await recoverAccount(email, p12Buffer, certPassword, {
+      forwardedIp: extractForwardedIp(reqHeaders),
+    });
   } catch (err) {
     if (err instanceof ApiError) return { error: err.code };
     throw err;

@@ -4,6 +4,7 @@ import { headers } from 'next/headers';
 import { requireContext } from '@/lib/context';
 import { getAgreementStatus, acceptAgreements } from '@/lib/api';
 import { listAgreements } from '@/lib/public-api';
+import { extractForwardedIp } from '@/lib/client-forwarding';
 import { ApiError } from '@/lib/errors';
 import { revalidatePath } from 'next/cache';
 
@@ -28,18 +29,21 @@ export async function acceptAgreementsAction(): Promise<{ error: string } | null
     // Get the current TERMS version — required by POST /v1/tenants/agreements for audit trail.
     // listAgreements() is public; if nothing is published yet, validateTermsVersion is a no-op
     // on the API side but we still need a non-empty string for the validator.
-    // Forward the browser's User-Agent so the API stores the real client identity
-    // rather than Node's fetch default. In the BFF pattern the actual HTTP request
-    // to the Comprobify API originates from our server, so without this the API
-    // would record the server's UA string ("node") instead of the browser's.
+    // Forward the browser's User-Agent (and, once the API trusts it, the real
+    // visitor IP) so the API stores the real client identity rather than Node's
+    // fetch default / App Platform's own egress IP. In the BFF pattern the actual
+    // HTTP request to the Comprobify API originates from our server, so without
+    // this the API would record the server's UA string ("node") instead of the
+    // browser's — see src/lib/client-forwarding.ts.
     const reqHeaders = await headers();
     const userAgent = reqHeaders.get('user-agent') ?? undefined;
+    const forwardedIp = extractForwardedIp(reqHeaders);
 
     const published = await listAgreements();
     const termsDoc = published.find((d) => d.documentType === 'TERMS');
     const termsVersion = termsDoc?.version ?? 'pre-launch';
 
-    await acceptAgreements(ctx, termsVersion, { userAgent });
+    await acceptAgreements(ctx, termsVersion, { userAgent, forwardedIp });
     revalidatePath('/', 'layout');
     return null;
   } catch (err) {

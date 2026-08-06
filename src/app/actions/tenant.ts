@@ -1,9 +1,11 @@
 'use server';
 
+import { headers } from 'next/headers';
 import { db } from '@/lib/db';
 import { requirePermission, requireContext, type MinimalContext } from '@/lib/context';
 import { promoteTenant, listTenantApiKeys, updateTenantLanguage } from '@/lib/api';
 import { resendVerificationEmail as publicResendVerificationEmail } from '@/lib/public-api';
+import { extractForwardedIp } from '@/lib/client-forwarding';
 import { encrypt, lastFour } from '@/lib/crypto';
 import { isValidIdleTimeoutMinutes } from '@/lib/session-timeout';
 import { revalidatePath } from 'next/cache';
@@ -150,7 +152,10 @@ export async function resendVerificationAction(): Promise<VerificationResult> {
   const ctx = await requireContext({ skipIssuer: true });
   if (ctx.user.emailVerified) return { verified: true };
   try {
-    await publicResendVerificationEmail(ctx.user.email);
+    const reqHeaders = await headers();
+    await publicResendVerificationEmail(ctx.user.email, undefined, {
+      forwardedIp: extractForwardedIp(reqHeaders),
+    });
   } catch (err) {
     if (err instanceof ApiError) return { error: err.code };
     throw err;
