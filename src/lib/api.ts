@@ -320,19 +320,6 @@ function getApiUrl(): string {
   return apiUrl;
 }
 
-// Verified against: ../comprobify/src/controllers/health.controller.js → check()
-// Unauthenticated GET /health (mounted before the /v1 router in server.js, no
-// Bearer token). Best-effort wake-up ping for the free-tier API instance,
-// which spins down after a period of inactivity — errors and slow cold starts
-// are expected and intentionally swallowed rather than surfaced to the caller.
-export async function pingApiHealth(): Promise<void> {
-  try {
-    await fetch(`${getApiUrl()}/health`, { cache: 'no-store', signal: AbortSignal.timeout(10_000) });
-  } catch {
-    // Ignored — this is a fire-and-forget wake-up call, not a health check the UI depends on.
-  }
-}
-
 async function request<T>(
   path: string,
   ctx: ApiCtx,

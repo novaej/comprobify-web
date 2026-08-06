@@ -47,6 +47,15 @@ resource "digitalocean_app" "this" {
       # have network access - matches the same pattern the comprobify API repo already
       # uses (migrations run at process startup, not at build/CI time).
 
+      # Without this block, App Platform defaults to probing "/" - which renders the
+      # full marketing landing page (locale routing -> (marketing)/page.tsx), which
+      # calls listTiers() server-side, cascading every liveness check into an API
+      # call. /api/health is a dedicated route that returns 200 with no DB query and
+      # no Comprobify API call, so the probe stays local to this service.
+      health_check {
+        http_path = "/api/health"
+      }
+
       env {
         key   = "DATABASE_URL"
         value = var.database_url
