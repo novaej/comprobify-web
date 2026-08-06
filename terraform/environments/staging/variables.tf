@@ -151,3 +151,9 @@ variable "comprobify_admin_secret" {
   sensitive = true
   default   = ""
 }
+
+variable "internal_service_secret" {
+  type      = string
+  sensitive = true
+  default   = ""
+}

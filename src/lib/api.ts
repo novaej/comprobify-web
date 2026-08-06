@@ -1,5 +1,6 @@
 import 'server-only';
 import { ApiError, ProblemDetails } from './errors';
+import { buildClientForwardingHeaders, type ClientForwardingInfo } from './client-forwarding';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // IMPORTANT — READ BEFORE ADDING OR MODIFYING ANY FUNCTION
@@ -318,19 +319,6 @@ function getApiUrl(): string {
   const apiUrl = process.env.COMPROBIFY_API_URL;
   if (!apiUrl) throw new Error('COMPROBIFY_API_URL is not set');
   return apiUrl;
-}
-
-// Verified against: ../comprobify/src/controllers/health.controller.js → check()
-// Unauthenticated GET /health (mounted before the /v1 router in server.js, no
-// Bearer token). Best-effort wake-up ping for the free-tier API instance,
-// which spins down after a period of inactivity — errors and slow cold starts
-// are expected and intentionally swallowed rather than surfaced to the caller.
-export async function pingApiHealth(): Promise<void> {
-  try {
-    await fetch(`${getApiUrl()}/health`, { cache: 'no-store', signal: AbortSignal.timeout(10_000) });
-  } catch {
-    // Ignored — this is a fire-and-forget wake-up call, not a health check the UI depends on.
-  }
 }
 
 async function request<T>(
@@ -824,20 +812,19 @@ export async function getAgreementStatus(ctx: ApiCtx): Promise<ApiAgreementStatu
 }
 
 // Verified against: ../comprobify/src/routes/tenants.routes.js → POST /v1/tenants/agreements
-// clientHeaders.userAgent: forwarded from the incoming browser request so the API records
-// the real browser UA rather than the Node fetch default. The BFF pattern means the actual
-// outbound request originates from our server, not the browser, so we have to pass it explicitly.
+// clientHeaders: forwarded from the incoming browser request so the API records the real
+// browser UA / visitor IP (once it trusts the latter, see client-forwarding.ts) rather than
+// the Node fetch default / App Platform's own egress IP. The BFF pattern means the actual
+// outbound request originates from our server, not the browser, so we have to pass these explicitly.
 export async function acceptAgreements(
   ctx: ApiCtx,
   termsVersion: string,
-  clientHeaders?: { userAgent?: string },
+  clientHeaders?: ClientForwardingInfo,
 ): Promise<void> {
-  const extraHeaders: Record<string, string> = {};
-  if (clientHeaders?.userAgent) extraHeaders['User-Agent'] = clientHeaders.userAgent;
   await request<{ ok: true }>(
     '/v1/tenants/agreements',
     { apiKey: ctx.apiKey },
-    { method: 'POST', body: JSON.stringify({ termsVersion }), headers: extraHeaders },
+    { method: 'POST', body: JSON.stringify({ termsVersion }), headers: buildClientForwardingHeaders(clientHeaders ?? {}) },
   );
 }
 

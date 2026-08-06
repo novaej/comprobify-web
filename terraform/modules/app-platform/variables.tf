@@ -178,6 +178,17 @@ variable "comprobify_admin_secret" {
   default   = ""
 }
 
+# Must match the Comprobify API's own INTERNAL_SERVICE_SECRET (src/config/index.js
+# there) exactly - lets src/lib/client-forwarding.ts's forwarded-visitor-IP headers
+# actually be trusted instead of silently ignored. Optional/no-op default, same
+# reasoning as comprobify_admin_secret above - see CLAUDE.md's "Forwarding the real
+# visitor IP on BFF-proxied public calls" entry.
+variable "internal_service_secret" {
+  type      = string
+  sensitive = true
+  default   = ""
+}
+
 # ADMIN_SEED_PASSWORD is deliberately NOT a variable here - it's never read at runtime by
 # Next.js, only passed inline when running prisma/seed.js manually. Adding it as a
 # persistent App Platform env var would be a regression from the current (correct) setup.

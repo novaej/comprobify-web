@@ -1,4 +1,5 @@
 import { ApiError, ProblemDetails } from './errors';
+import { buildClientForwardingHeaders, type ClientForwardingInfo } from './client-forwarding';
 
 // Public (unauthenticated) Comprobify API calls.
 // Safe to import in Server Components and Server Actions that don't need an API key.
@@ -56,6 +57,7 @@ export async function registerTenant(
   verificationRedirectUrl?: string,
   logoBuffer?: Buffer,
   logoType?: string,
+  clientHeaders?: ClientForwardingInfo,
 ): Promise<RegisterTenantResult> {
   const form = new FormData();
   form.append('email', email);
@@ -97,7 +99,11 @@ export async function registerTenant(
     tenant: { id: string; email: string; status: string };
     issuer: { id: string; ruc: string };
     apiKey: string;
-  }>('/v1/register', { method: 'POST', body: form });
+  }>('/v1/register', {
+    method: 'POST',
+    body: form,
+    headers: buildClientForwardingHeaders(clientHeaders ?? {}),
+  });
 
   return {
     tenantId: result.tenant.id,
@@ -134,6 +140,7 @@ export async function recoverAccount(
   email: string,
   p12Buffer: Buffer,
   p12Password: string,
+  clientHeaders?: ClientForwardingInfo,
 ): Promise<RecoverAccountResult> {
   const form = new FormData();
   form.append('email', email);
@@ -159,7 +166,11 @@ export async function recoverAccount(
     };
     apiKey?: string;
     environment?: 'sandbox' | 'production';
-  }>('/v1/recover', { method: 'POST', body: form });
+  }>('/v1/recover', {
+    method: 'POST',
+    body: form,
+    headers: buildClientForwardingHeaders(clientHeaders ?? {}),
+  });
 
   if (!result.apiKey || !result.tenant || !result.issuer || !result.environment) {
     return { matched: false };
@@ -200,10 +211,11 @@ export async function confirmEmailVerification(token: string): Promise<{ email: 
 export async function resendVerificationEmail(
   email: string,
   verificationRedirectUrl?: string,
+  clientHeaders?: ClientForwardingInfo,
 ): Promise<void> {
   await publicRequest('/v1/resend-verification', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...buildClientForwardingHeaders(clientHeaders ?? {}) },
     body: JSON.stringify({ email, ...(verificationRedirectUrl && { verificationRedirectUrl }) }),
   });
 }

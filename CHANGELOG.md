@@ -8,6 +8,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Added
+- **Forward the real visitor IP to the Comprobify API on BFF-proxied public calls** (`src/lib/client-forwarding.ts`) — `acceptAgreementsAction`, `bootstrapTenantAction`, `recoverAccountAction`, and both resend-verification actions now send `X-Forwarded-Visitor-Ip` + `X-Internal-Service-Secret` alongside the existing `User-Agent` forwarding, so the API can use the real visitor's IP instead of App Platform's shared egress IP for `registrationLimiter` and the `tenant_agreements` legal consent audit trail. Matches the trust mechanism the Comprobify API shipped in `src/middleware/trusted-forwarded-ip.js`. Inactive until `INTERNAL_SERVICE_SECRET` (wired through Terraform, default `""`) is set to match the API's own value on both sides — see NEXT_STEPS.md #1.
+
+### Fixed
+- **DigitalOcean App Platform's default health check probe (`GET /`) rendered the full marketing landing page on every check, cascading into a recurring, session-less `GET /v1/tiers` call to the Comprobify API.** Added a dedicated `src/app/api/health/route.ts` (`{ ok: true }`, no DB/API calls) and pointed `terraform/modules/app-platform/main.tf`'s `health_check.http_path` at it. Also removed the login-time `pingApiHealth()` wake-up ping, which compensated for the Comprobify API's old Render free-tier spin-down and no longer applies now that it runs on a DigitalOcean Droplet.
+
 ## [0.9.8] — 2026-08-04
 
 ### Fixed

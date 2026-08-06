@@ -48,4 +48,5 @@ module "staging" {
   sentry_auth_token       = var.sentry_auth_token
   mailgun_api_key         = var.mailgun_api_key
   comprobify_admin_secret = var.comprobify_admin_secret
+  internal_service_secret = var.internal_service_secret
 }

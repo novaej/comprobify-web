@@ -1,9 +1,11 @@
 'use server';
 
+import { headers } from 'next/headers';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
 import { registerTenant, resendVerificationEmail } from '@/lib/public-api';
 import { listTenantApiKeys, getCurrentTenant, listTenantIssuers, createTenantApiKey } from '@/lib/api';
+import { extractForwardedIp } from '@/lib/client-forwarding';
 import { encrypt, lastFour } from '@/lib/crypto';
 import { writeCtxCookie } from '@/lib/context-cookie';
 import { getLocale } from 'next-intl/server';
@@ -63,6 +65,9 @@ export async function bootstrapTenantAction(formData: FormData): Promise<Onboard
   const appUrl = process.env.NEXT_PUBLIC_APP_URL;
   const verificationRedirectUrl = appUrl ? `${appUrl}/${locale}/verify-email` : undefined;
 
+  const reqHeaders = await headers();
+  const clientHeaders = { forwardedIp: extractForwardedIp(reqHeaders) };
+
   let apiTenantId: string;
   let apiIssuerId: string;
   let plainApiKey: string;
@@ -89,6 +94,7 @@ export async function bootstrapTenantAction(formData: FormData): Promise<Onboard
       verificationRedirectUrl,
       logoBuffer,
       logoFile?.type,
+      clientHeaders,
     );
     apiTenantId = result.tenantId;
     apiIssuerId = result.issuerId;
@@ -320,7 +326,8 @@ export async function resendVerificationForLinkingAction(email: string): Promise
   if (!session?.user?.id || !isUuid(session.user.id)) return { error: 'UNAUTHORIZED' };
 
   try {
-    await resendVerificationEmail(email);
+    const reqHeaders = await headers();
+    await resendVerificationEmail(email, undefined, { forwardedIp: extractForwardedIp(reqHeaders) });
   } catch (err) {
     if (err instanceof ApiError) return { error: err.code };
     throw err;
