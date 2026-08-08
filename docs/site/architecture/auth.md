@@ -52,7 +52,7 @@ requireContext()
   4. db.issuer.findUnique(issuerId) — verify issuer belongs to tenant
      • Wrong tenant or not in UserIssuerAccess whitelist → clear cookie + redirect
   5. db.tenantApiKey.findFirst({ isActive: true }) → decrypt(encryptedKey)
-     • None → redirect /api-keys?missing=1
+     • None → redirect /settings/api-keys?missing=1
   6. Return Context { user, tenant, issuer, permissions, apiKey }
 ```
 

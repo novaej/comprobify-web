@@ -215,9 +215,9 @@ comprobify-web/
         clients/            Client catalog (tenant-scoped)
         catalog/            Product catalog (tenant-scoped)
         issuers/            Issuer management — branches, document types
-        api-keys/           API key list/create/revoke
         users/              User invite/role/remove management
         settings/           Tenant settings — environment badge + promotion
+        settings/api-keys/  API key list/create/revoke, per-key daily usage chart
         verify-email/       Email token verification (public, no session required)
       api/
         auth/[...nextauth]/ Auth.js route handler

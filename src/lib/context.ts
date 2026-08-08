@@ -105,7 +105,7 @@ export async function requireContext(opts?: { skipIssuer?: boolean }): Promise<C
   if (opts?.skipIssuer) {
     const keyRow = await findAppApiKeyRow(tenant.id, tenantCtx.environment);
     if (!keyRow) {
-      redirect({ href: '/api-keys?missing=1', locale });
+      redirect({ href: '/settings/api-keys?missing=1', locale });
       return null as never;
     }
     return { user: userCtx, tenant: tenantCtx, permissions, apiKey: decrypt(keyRow.encryptedKey) };
@@ -159,7 +159,7 @@ export async function requireContext(opts?: { skipIssuer?: boolean }): Promise<C
   // 6. Resolve active API key (see findAppApiKeyRow — environment-matched, deterministic)
   const keyRow = await findAppApiKeyRow(tenant.id, tenantCtx.environment);
   if (!keyRow) {
-    redirect({ href: '/api-keys?missing=1', locale });
+    redirect({ href: '/settings/api-keys?missing=1', locale });
     return null as never;
   }
 

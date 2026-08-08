@@ -2,7 +2,7 @@
 
 import { db } from '@/lib/db';
 import { requirePermission } from '@/lib/context';
-import { createTenantApiKey, revokeTenantApiKey } from '@/lib/api';
+import { createTenantApiKey, revokeTenantApiKey, getTenantApiKeyUsage, type ApiKeyDailyUsage } from '@/lib/api';
 import { encrypt, lastFour } from '@/lib/crypto';
 import { findAppApiKeyRow } from '@/lib/tenant-api-key';
 import { ApiError } from '@/lib/errors';
@@ -10,6 +10,7 @@ import { revalidatePath } from 'next/cache';
 
 export type ApiKeyResult = { error: string } | null;
 export type CreateApiKeyResult = { error: string } | { key: string; label: string } | null;
+export type ApiKeyUsageResult = { error: string } | { usage: ApiKeyDailyUsage[] };
 
 export async function createTenantApiKeyAction(label: string): Promise<CreateApiKeyResult> {
   await requirePermission('apikeys.manage', { skipIssuer: true });
@@ -44,7 +45,7 @@ export async function createTenantApiKeyAction(label: string): Promise<CreateApi
     },
   });
 
-  revalidatePath('/api-keys');
+  revalidatePath('/settings/api-keys');
   return { key: created.key, label: created.label };
 }
 
@@ -75,6 +76,22 @@ export async function revokeTenantApiKeyAction(id: string): Promise<ApiKeyResult
     data: { isActive: false, revokedAt: new Date() },
   });
 
-  revalidatePath('/api-keys');
+  revalidatePath('/settings/api-keys');
   return null;
+}
+
+export async function getTenantApiKeyUsageAction(id: string, days?: number): Promise<ApiKeyUsageResult> {
+  await requirePermission('apikeys.read', { skipIssuer: true });
+  const ctx = await (await import('@/lib/context')).requireContext({ skipIssuer: true });
+
+  const keyRow = await db.tenantApiKey.findUnique({ where: { id } });
+  if (!keyRow || keyRow.tenantId !== ctx.tenant.id) return { error: 'NOT_FOUND' };
+
+  try {
+    const usage = await getTenantApiKeyUsage({ apiKey: ctx.apiKey }, keyRow.apiKeyId, days);
+    return { usage };
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.code };
+    throw err;
+  }
 }

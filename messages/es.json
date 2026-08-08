@@ -1125,7 +1125,10 @@
       "environment": "Ambiente",
       "lastFour": "Últimos 4",
       "status": "Estado",
-      "created": "Creada"
+      "created": "Creada",
+      "lastUsed": "Últ. uso",
+      "requests": "Solicitudes",
+      "neverUsed": "Nunca"
     },
     "status": {
       "active": "Activa",
@@ -1145,6 +1148,13 @@
       "curl": "Ejemplo con curl",
       "keyPlaceholder": "TU_API_KEY",
       "docsLink": "Ver la documentación de la API"
+    },
+    "usageChart": {
+      "title": "Uso diario",
+      "viewUsage": "Ver uso",
+      "rangeDays": "{days} d",
+      "empty": "Sin actividad en este rango.",
+      "requestsLabel": "{count, plural, one {# solicitud} other {# solicitudes}}"
     }
   },
   "users": {

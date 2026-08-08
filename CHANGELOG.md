@@ -8,6 +8,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Added
+- **Per-key API usage on `/settings/api-keys`** — the key table now shows lifetime "Últ. uso"/"Solicitudes" columns (from the API's `GET /v1/keys`, added alongside comprobify's new `api_key_daily_usage` tracking) and a "Ver uso" toggle per row that expands a Recharts daily-request bar chart (`GET /v1/keys/:id/usage`, 7/30/90-day range). The chart drops zero-filled days before the key's own `createdAt`, since the API always back-fills the full requested range regardless of when the key was created.
+
+### Changed
+- **Moved the API keys screen from `/api-keys` to `/settings/api-keys`**, and switched it to the fluid (no `max-w-3xl`) content-width cluster — the settings-form cap it previously inherited made the new usage table cramped, and content width should follow content type (table vs. form), not which route a page sits under.
+
 ## [0.9.9] — 2026-08-06
 
 ### Added
