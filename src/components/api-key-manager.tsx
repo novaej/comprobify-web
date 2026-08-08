@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { Fragment, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { createTenantApiKeyAction, revokeTenantApiKeyAction } from '@/app/actions/apiKeys';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { AlertTriangle, Check, Copy, Eye, EyeOff, ExternalLink, Key, Lock, Plus } from 'lucide-react';
+import { AlertTriangle, BarChart3, Check, ChevronDown, ChevronUp, Copy, Eye, EyeOff, ExternalLink, Key, Lock, Plus } from 'lucide-react';
 import { toastApiError } from '@/lib/api-error-toast';
+import { ApiKeyUsageChart } from '@/components/api-key-usage-chart';
 
 const API_DOCS_URL = 'https://docs.comprobify.com/';
 
@@ -18,6 +19,8 @@ interface ApiKeyRow {
   lastFour: string;
   isActive: boolean;
   createdAt: string;
+  lastUsedAt: string | null;
+  requestCount: number;
 }
 
 export function ApiKeyManager({
@@ -44,6 +47,7 @@ export function ApiKeyManager({
   const [createdKey, setCreatedKey] = useState<{ key: string; label: string } | null>(null);
   const [showKey, setShowKey] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   function copy(value: string, slot: string) {
     navigator.clipboard.writeText(value);
@@ -163,16 +167,22 @@ export function ApiKeyManager({
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('table.lastFour')}</th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('table.status')}</th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('table.created')}</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('table.lastUsed')}</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('table.requests')}</th>
+                  <th className="px-4 py-3" />
                   {canManage && <th className="px-4 py-3" />}
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {keys.map((k) => {
                   const isAppKey = k.id === appKeyId;
+                  const isExpanded = expandedId === k.id;
+                  const columnCount = 8 + (canManage ? 1 : 0);
                   return (
-                    <tr key={k.id} className={k.isActive ? '' : 'opacity-50'}>
+                    <Fragment key={k.id}>
+                    <tr className={k.isActive ? '' : 'opacity-50'}>
                       <td className="px-4 py-3 font-medium">
-                        <span className="flex items-center gap-2">
+                        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
                           <Key className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                           {k.label}
                           {isAppKey && (
@@ -199,6 +209,23 @@ export function ApiKeyManager({
                       <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
                         {new Date(k.createdAt).toLocaleDateString('es-EC')}
                       </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
+                        {k.lastUsedAt ? new Date(k.lastUsedAt).toLocaleDateString('es-EC') : t('table.neverUsed')}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
+                        {k.requestCount.toLocaleString('es-EC')}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedId((id) => (id === k.id ? null : k.id))}
+                          className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                        >
+                          <BarChart3 className="h-3.5 w-3.5" />
+                          {t('usageChart.viewUsage')}
+                          {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                        </button>
+                      </td>
                       {canManage && (
                         <td className="px-4 py-3 text-right">
                           {k.isActive &&
@@ -216,6 +243,14 @@ export function ApiKeyManager({
                         </td>
                       )}
                     </tr>
+                    {isExpanded && (
+                      <tr className={k.isActive ? '' : 'opacity-50'}>
+                        <td colSpan={columnCount} className="bg-muted/10 px-4 py-3">
+                          <ApiKeyUsageChart keyId={k.id} createdAt={k.createdAt} />
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   );
                 })}
               </tbody>

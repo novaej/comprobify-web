@@ -223,7 +223,7 @@ export default async function SettingsPage({
 
         {canReadApiKeys && (
           <Link
-            href="/api-keys"
+            href="/settings/api-keys"
             className="flex items-center justify-between rounded-xl border border-border bg-card p-6 shadow-sm transition-colors hover:bg-accent"
           >
             <div className="flex items-center gap-3">

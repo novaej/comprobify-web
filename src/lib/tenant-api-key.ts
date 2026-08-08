@@ -17,7 +17,7 @@ import { db } from '@/lib/db';
  *    has no ordering, so once a user mints a second key for Postman the app
  *    could silently start signing its own requests with it. Pinning to the
  *    oldest matching key keeps self-service key creation from ever hijacking
- *    the app's own authentication — and lets `/api-keys` mark exactly which
+ *    the app's own authentication — and lets `/settings/api-keys` mark exactly which
  *    row the app is using (the API refuses to revoke the key that authenticates
  *    the revoke request itself: `SELF_REVOCATION_FORBIDDEN`).
  */

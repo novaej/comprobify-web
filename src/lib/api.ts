@@ -295,14 +295,23 @@ export interface ApiIssuerSequential {
 
 // ── API key types ─────────────────────────────────────────────────────────────
 
-// Shape returned by GET /v1/keys (the API serializes bigint id as a JSON string).
+// Shape returned by GET /v1/keys.
+// Verified against: ../comprobify/src/services/api-key.service.js → formatKey()
 export interface ApiKeyInfo {
-  id: string;           // bigint → serialized as string by pg/JSON
+  id: string;            // api_keys.id is UUID
   label: string | null;
   environment: string;
-  active: boolean;      // field is 'active', not 'isActive'
+  active: boolean;       // field is 'active', not 'isActive'
   createdAt: string;
   revokedAt: string | null;
+  lastUsedAt: string | null; // null if the key has never authenticated a request
+  requestCount: number;      // lifetime total, not windowed
+}
+
+// Verified against: ../comprobify/src/services/api-key.service.js → getDailyUsage()
+export interface ApiKeyDailyUsage {
+  date: string;          // YYYY-MM-DD
+  requestCount: number;
 }
 
 // Normalized shape returned by createTenantApiKey.
@@ -1163,6 +1172,22 @@ export async function revokeTenantApiKey(ctx: ApiCtx, id: string): Promise<void>
     { apiKey: ctx.apiKey },
     { method: 'DELETE' },
   );
+}
+
+// Verified against: ../comprobify/src/controllers/api-key.controller.js → usage()
+// Zero-filled daily series (always exactly `days` entries, oldest first, inclusive of
+// today). `id` can belong to an already-revoked key — ownership, not `active` state,
+// grants access, so a revoked key's history stays queryable.
+export async function getTenantApiKeyUsage(
+  ctx: ApiCtx,
+  id: string,
+  days: number = 30,
+): Promise<ApiKeyDailyUsage[]> {
+  const result = await request<{ ok: true; usage: ApiKeyDailyUsage[] }>(
+    `/v1/keys/${id}/usage?days=${days}`,
+    { apiKey: ctx.apiKey },
+  );
+  return result.usage;
 }
 
 // ── Notification types ────────────────────────────────────────────────────────

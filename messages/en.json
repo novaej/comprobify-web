@@ -1025,7 +1025,10 @@
       "environment": "Environment",
       "lastFour": "Last 4",
       "status": "Status",
-      "created": "Created"
+      "created": "Created",
+      "lastUsed": "Last used",
+      "requests": "Requests",
+      "neverUsed": "Never"
     },
     "status": {
       "active": "Active",
@@ -1045,6 +1048,13 @@
       "curl": "curl example",
       "keyPlaceholder": "YOUR_API_KEY",
       "docsLink": "Read the API documentation"
+    },
+    "usageChart": {
+      "title": "Daily usage",
+      "viewUsage": "View usage",
+      "rangeDays": "{days}d",
+      "empty": "No activity in this range.",
+      "requestsLabel": "{count, plural, one {# request} other {# requests}}"
     }
   },
   "users": {
