@@ -21,25 +21,27 @@ interface ApiKeyRow {
   createdAt: string;
   lastUsedAt: string | null;
   requestCount: number;
+  /** True for the app's own master key or a per-role key — cannot be revoked. */
+  isManaged: boolean;
+  /** Set only on a narrower per-role key; null for the master key and self-service keys. */
+  managedRole: string | null;
 }
 
 export function ApiKeyManager({
   keys,
   canManage,
   missingKey,
-  appKeyId,
   environment,
   apiBaseUrl,
 }: {
   keys: ApiKeyRow[];
   canManage: boolean;
   missingKey: boolean;
-  /** Row the web app itself authenticates with — cannot be revoked. */
-  appKeyId: string | null;
   environment: string;
   apiBaseUrl: string;
 }) {
   const t = useTranslations('apiKeys');
+  const tRole = useTranslations('users');
   const tError = useTranslations('apiError');
   const [isPending, startTransition] = useTransition();
   const [newLabel, setNewLabel] = useState('');
@@ -175,7 +177,6 @@ export function ApiKeyManager({
               </thead>
               <tbody className="divide-y divide-border">
                 {keys.map((k) => {
-                  const isAppKey = k.id === appKeyId;
                   const isExpanded = expandedId === k.id;
                   const columnCount = 8 + (canManage ? 1 : 0);
                   return (
@@ -185,10 +186,10 @@ export function ApiKeyManager({
                         <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
                           <Key className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                           {k.label}
-                          {isAppKey && (
+                          {k.isManaged && (
                             <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-normal text-muted-foreground">
                               <Lock className="h-3 w-3" />
-                              {t('appKeyBadge')}
+                              {k.managedRole ? t('appKeyBadgeRole', { role: tRole(`role.${k.managedRole}`) }) : t('appKeyBadge')}
                             </span>
                           )}
                         </span>
@@ -229,7 +230,7 @@ export function ApiKeyManager({
                       {canManage && (
                         <td className="px-4 py-3 text-right">
                           {k.isActive &&
-                            (isAppKey ? (
+                            (k.isManaged ? (
                               <span className="text-xs text-muted-foreground">{t('appKeyLocked')}</span>
                             ) : (
                               <button

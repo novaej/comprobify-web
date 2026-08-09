@@ -64,10 +64,27 @@ model TenantApiKey {
   encryptedKey String    @map("encrypted_key")
   lastFour     String    @map("last_four") @db.VarChar(4)
   isActive     Boolean   @default(true) @map("is_active")
+  // isManaged marks a key this app mints/owns for its own authentication (the
+  // single full-access "master" key, or a narrower per-role key — see
+  // resolveApiKeyForRole in src/lib/tenant-api-key.ts). false for ordinary
+  // user-created self-service integration keys.
+  isManaged    Boolean   @default(false) @map("is_managed")
+  // Set only on a narrower per-role key (e.g. "BillingOperator"); null for
+  // the master key and for self-service keys.
+  managedRole  String?   @map("managed_role")
+  // Scopes actually granted by the API at creation time, mirrored locally so
+  // scope drift (a future ROLE_API_SCOPES edit) can be detected without an
+  // extra API round-trip.
+  scopes       String[]  @default([]) @map("scopes")
   createdAt    DateTime  @default(now()) @map("created_at")
   revokedAt    DateTime? @map("revoked_at")
   tenant       Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
+  // A partial unique index on (tenantId, environment, managedRole) WHERE
+  // isActive AND managedRole IS NOT NULL also exists in the DB — added via
+  // raw SQL in the migration since Prisma's @@unique can't express a WHERE
+  // clause. Not declared here; don't add a conflicting @@unique for these
+  // columns.
   @@index([tenantId, isActive])
   @@map("tenant_api_keys")
 }

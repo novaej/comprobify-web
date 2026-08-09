@@ -4,7 +4,6 @@ import { db } from '@/lib/db';
 import { requirePermission } from '@/lib/context';
 import { createTenantApiKey, revokeTenantApiKey, getTenantApiKeyUsage, type ApiKeyDailyUsage } from '@/lib/api';
 import { encrypt, lastFour } from '@/lib/crypto';
-import { findAppApiKeyRow } from '@/lib/tenant-api-key';
 import { ApiError } from '@/lib/errors';
 import { revalidatePath } from 'next/cache';
 
@@ -42,6 +41,7 @@ export async function createTenantApiKeyAction(label: string): Promise<CreateApi
       encryptedKey: encrypt(created.key),
       lastFour: lastFour(created.key),
       isActive: true,
+      scopes: created.scopes,
     },
   });
 
@@ -57,12 +57,14 @@ export async function revokeTenantApiKeyAction(id: string): Promise<ApiKeyResult
   if (!keyRow || keyRow.tenantId !== ctx.tenant.id) return { error: 'NOT_FOUND' };
   if (!keyRow.isActive) return { error: 'ALREADY_REVOKED' };
 
-  // The key this app authenticates with can't be revoked: the API refuses to
-  // revoke the key that signed the revoke request (SELF_REVOCATION_FORBIDDEN),
-  // and revoking it would leave the whole web app unable to reach the API.
-  // The UI already disables that row's button — this is the action-side gate.
-  const appKey = await findAppApiKeyRow(ctx.tenant.id, ctx.tenant.environment);
-  if (appKey?.id === keyRow.id) return { error: 'SELF_REVOCATION_FORBIDDEN' };
+  // Any key this app manages for its own authentication — the tenant's
+  // single full-access "master" key, or a narrower per-role key (see
+  // resolveApiKeyForRole) — can't be revoked here: the API refuses to revoke
+  // the key that signed the revoke request itself (SELF_REVOCATION_FORBIDDEN),
+  // and revoking any of them would leave that role's users unable to reach
+  // the API. The UI already disables these rows' buttons — this is the
+  // action-side gate.
+  if (keyRow.isManaged) return { error: 'SELF_REVOCATION_FORBIDDEN' };
 
   try {
     await revokeTenantApiKey({ apiKey: ctx.apiKey }, keyRow.apiKeyId);

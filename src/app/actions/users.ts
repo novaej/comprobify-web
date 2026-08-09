@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { sendMail } from '@/lib/mailgun';
 import * as Sentry from '@sentry/nextjs';
+import { resolveApiKeyForRole } from '@/lib/tenant-api-key';
 import type { Role } from '@/lib/rbac';
 
 export type UsersResult = { error: string } | null;
@@ -15,6 +16,25 @@ function assertCanGrantRole(role: Role, callerRole: Role): UsersResult {
     return { error: 'ONLY_OWNER_CAN_GRANT_OWNER' };
   }
   return null;
+}
+
+/**
+ * Mints (or reuses) the role's API key up front, at role-assignment time,
+ * instead of leaving it to be created lazily on that user's first login —
+ * see src/lib/tenant-api-key.ts's resolveApiKeyForRole. Best-effort: a
+ * transient failure here (e.g. the Comprobify API being briefly unreachable)
+ * must not block inviting or re-roling a user — requireContext()'s own call
+ * into the same function is the fallback.
+ */
+async function ensureRoleApiKeyBestEffort(tenantId: string, environment: string, role: Role) {
+  try {
+    await resolveApiKeyForRole(tenantId, environment, role);
+  } catch (err) {
+    // Sentry is a no-op locally (no DSN), so log too — otherwise this
+    // failure is invisible in dev.
+    console.error('[users] ensureRoleApiKeyBestEffort failed', { tenantId, environment, role, err });
+    Sentry.captureException(err, { extra: { tenantId, environment, role } });
+  }
 }
 
 /** Best-effort invite email — a delivery failure must not block the invite itself. */
@@ -67,6 +87,7 @@ export async function inviteUserAction(email: string, role: Role): Promise<Users
     });
   }
 
+  await ensureRoleApiKeyBestEffort(ctx.tenant.id, ctx.tenant.environment, role);
   await sendInviteEmail(normalizedEmail, ctx.tenant.businessName);
 
   revalidatePath('/users');
@@ -98,6 +119,7 @@ export async function updateUserRoleAction(userId: string, role: Role): Promise<
   if (!user || user.tenantId !== ctx.tenant.id) return { error: 'USER_NOT_FOUND' };
 
   await db.user.update({ where: { id: userId }, data: { role } });
+  await ensureRoleApiKeyBestEffort(ctx.tenant.id, ctx.tenant.environment, role);
   revalidatePath('/users');
   return null;
 }
@@ -191,6 +213,10 @@ export async function updateUserAction(
   }
 
   await db.user.update({ where: { id: userId }, data: userUpdate });
+
+  if (userUpdate.role !== undefined) {
+    await ensureRoleApiKeyBestEffort(ctx.tenant.id, ctx.tenant.environment, userUpdate.role as Role);
+  }
 
   if (data.issuerIds !== undefined) {
     if (data.issuerIds.length > 0) {

@@ -13,6 +13,7 @@ import { redirect } from '@/i18n/navigation';
 import { revalidatePath } from 'next/cache';
 import { ApiError } from '@/lib/errors';
 import { parseIntendedPlan } from '@/lib/subscription-tiers';
+import { ALL_API_SCOPES } from '@/lib/role-api-scopes';
 import { isUuid } from '@/lib/utils';
 import * as Sentry from '@sentry/nextjs';
 
@@ -135,6 +136,13 @@ export async function bootstrapTenantAction(formData: FormData): Promise<Onboard
           encryptedKey: encrypt(plainApiKey),
           lastFour: lastFour(plainApiKey),
           isActive: true,
+          // The very first key for a brand-new tenant — registration.service.js's
+          // register() grants it every scope, so it becomes this tenant's
+          // "master" key (see resolveApiKeyForRole in tenant-api-key.ts).
+          // Without isManaged: true here, findMasterApiKeyRow finds nothing
+          // and no request from this tenant can ever authenticate.
+          isManaged: true,
+          scopes: keyRecord.scopes,
         },
       });
 
@@ -223,10 +231,16 @@ export async function linkExistingTenantAction(formData: FormData): Promise<Onbo
 
   let newKey: Awaited<ReturnType<typeof createTenantApiKey>>;
   try {
+    // Explicit ALL_API_SCOPES rather than relying on the "omit scopes ->
+    // clone the pasted key's own" default: this freshly minted key becomes
+    // this tenant's "master" key (see resolveApiKeyForRole in
+    // tenant-api-key.ts) and must be full-access regardless of what the
+    // pasted key itself happened to be scoped to.
     newKey = await createTenantApiKey(
       { apiKey: pastedApiKey },
       'Comprobify Web',
       tenantInfo.sandbox ? 'sandbox' : 'production',
+      ALL_API_SCOPES,
     );
   } catch (err) {
     if (err instanceof ApiError) {
@@ -268,6 +282,10 @@ export async function linkExistingTenantAction(formData: FormData): Promise<Onbo
           encryptedKey: encrypt(newKey.key),
           lastFour: lastFour(newKey.key),
           isActive: true,
+          // See the comment above createTenantApiKey() — minted with
+          // ALL_API_SCOPES explicitly, so this becomes the tenant's master key.
+          isManaged: true,
+          scopes: newKey.scopes,
         },
       });
 

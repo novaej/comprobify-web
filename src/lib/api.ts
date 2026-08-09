@@ -1,6 +1,7 @@
 import 'server-only';
 import { ApiError, ProblemDetails } from './errors';
 import { buildClientForwardingHeaders, type ClientForwardingInfo } from './client-forwarding';
+import type { ApiKeyScope } from './role-api-scopes';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // IMPORTANT — READ BEFORE ADDING OR MODIFYING ANY FUNCTION
@@ -301,6 +302,7 @@ export interface ApiKeyInfo {
   id: string;            // api_keys.id is UUID
   label: string | null;
   environment: string;
+  scopes: string[];       // 9-value vocabulary, see src/lib/role-api-scopes.ts
   active: boolean;       // field is 'active', not 'isActive'
   createdAt: string;
   revokedAt: string | null;
@@ -319,6 +321,7 @@ export interface CreatedApiKey {
   id: string;
   label: string;
   environment: string;
+  scopes: string[];
   key: string;
 }
 
@@ -1140,20 +1143,35 @@ export async function createTenantApiKey(
   ctx: ApiCtx,
   label: string,
   environment?: 'sandbox' | 'production',
+  scopes?: ApiKeyScope[],
 ): Promise<CreatedApiKey> {
-  // POST /v1/keys returns only the plain token string, not the key's id/label.
-  const createResult = await request<{ ok: true; apiKey: string }>(
+  // POST /v1/keys returns the plain token and the scopes actually granted,
+  // but not the key's id/label — ctx's own scopes must be a superset of
+  // `scopes` or the API rejects with 403 SCOPE_ESCALATION_FORBIDDEN
+  // (../comprobify/src/services/api-key.service.js → createKey()). Omitting
+  // `scopes` clones ctx's own scopes rather than defaulting to full access.
+  const createResult = await request<{ ok: true; apiKey: string; scopes: string[] }>(
     '/v1/keys',
     ctx,
-    { method: 'POST', body: JSON.stringify({ label, environment }) },
+    { method: 'POST', body: JSON.stringify({ label, environment, scopes }) },
   );
   const plainKey = createResult.apiKey;
 
-  // Authenticate with the new token to fetch its metadata (id, label, environment).
-  // Keys are ordered newest-first so [0] is the one we just created.
+  // Fetch the new key's id (never returned by POST itself — see CLAUDE.md
+  // Common Mistake #18) via GET /v1/keys, which is gated by `keys:manage`.
+  // Authenticate with `ctx` (the key that just created this one) rather than
+  // the brand-new token itself — `ctx` is guaranteed to have `keys:manage`
+  // (required to reach POST /v1/keys at all), but the key we just minted
+  // might not (e.g. a per-role key deliberately scoped without it, see
+  // src/lib/role-api-scopes.ts's ROLE_API_SCOPES for Viewer/BillingOperator).
+  // Using the new token here would make every such key fail to resolve its
+  // own id with INSUFFICIENT_SCOPE — confirmed happening in practice.
+  // GET /v1/keys is tenant-wide regardless of which authorized key calls it,
+  // so this returns the identical list either way. Keys are ordered
+  // newest-first so [0] is the one we just created.
   const listResult = await request<{ ok: true; keys: ApiKeyInfo[] }>(
     '/v1/keys',
-    { apiKey: plainKey },
+    ctx,
   );
   const keyRecord = listResult.keys[0];
   if (!keyRecord) throw new Error('KEY_METADATA_MISSING');
@@ -1162,6 +1180,7 @@ export async function createTenantApiKey(
     id: keyRecord.id,
     label: keyRecord.label ?? label,
     environment: keyRecord.environment,
+    scopes: createResult.scopes,
     key: plainKey,
   };
 }
