@@ -3,8 +3,8 @@ import { requirePermission } from '@/lib/context';
 import { db } from '@/lib/db';
 import { PageHeader } from '@/components/page-header';
 import { ApiKeyManager } from '@/components/api-key-manager';
-import { findAppApiKeyRow } from '@/lib/tenant-api-key';
 import { listTenantApiKeys } from '@/lib/api';
+import { computeApiScopesForRole } from '@/lib/role-api-scopes';
 
 export default async function ApiKeysPage({
   params,
@@ -18,12 +18,11 @@ export default async function ApiKeysPage({
 
   const ctx = await requirePermission('apikeys.read', { skipIssuer: true });
 
-  const [keys, appKey, apiKeyInfos] = await Promise.all([
+  const [keys, apiKeyInfos] = await Promise.all([
     db.tenantApiKey.findMany({
       where: { tenantId: ctx.tenant.id },
       orderBy: { createdAt: 'desc' },
     }),
-    findAppApiKeyRow(ctx.tenant.id, ctx.tenant.environment),
     // Lifetime lastUsedAt/requestCount live only on the API side — the local
     // TenantApiKey mirror has no columns for them.
     listTenantApiKeys({ apiKey: ctx.apiKey }),
@@ -51,12 +50,15 @@ export default async function ApiKeysPage({
           createdAt: k.createdAt.toISOString(),
           lastUsedAt: usageByApiKeyId.get(k.apiKeyId)?.lastUsedAt ?? null,
           requestCount: usageByApiKeyId.get(k.apiKeyId)?.requestCount ?? 0,
+          isManaged: k.isManaged,
+          managedRole: k.managedRole,
+          scopes: k.scopes,
         }))}
         canManage={canManage}
         missingKey={!hasActiveKey}
-        appKeyId={appKey?.id ?? null}
         environment={ctx.tenant.environment}
         apiBaseUrl={process.env.COMPROBIFY_API_URL ?? ''}
+        callerScopes={computeApiScopesForRole(ctx.user.role)}
       />
     </div>
   );

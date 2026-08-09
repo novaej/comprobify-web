@@ -6,6 +6,8 @@ import { revalidatePath } from 'next/cache';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { sendMail } from '@/lib/mailgun';
 import * as Sentry from '@sentry/nextjs';
+import { resolveApiKeyForRole } from '@/lib/tenant-api-key';
+import { issueVerificationToken } from '@/lib/verification-token';
 import type { Role } from '@/lib/rbac';
 
 export type UsersResult = { error: string } | null;
@@ -17,15 +19,26 @@ function assertCanGrantRole(role: Role, callerRole: Role): UsersResult {
   return null;
 }
 
+/** Mints the role's key eagerly on role assignment — best-effort, requireContext() is the fallback. */
+async function ensureRoleApiKeyBestEffort(tenantId: string, environment: string, role: Role) {
+  try {
+    await resolveApiKeyForRole(tenantId, environment, role);
+  } catch (err) {
+    // Sentry is a no-op locally — log too so this isn't invisible in dev.
+    console.error('[users] ensureRoleApiKeyBestEffort failed', { tenantId, environment, role, err });
+    Sentry.captureException(err, { extra: { tenantId, environment, role } });
+  }
+}
+
 /** Best-effort invite email — a delivery failure must not block the invite itself. */
-async function sendInviteEmail(email: string, businessName: string) {
+async function sendInviteEmail(email: string, businessName: string, token: string) {
   try {
     const locale = await getLocale();
     const t = await getTranslations({ locale, namespace: 'email.invite' });
     const appUrl = process.env.NEXT_PUBLIC_APP_URL;
     if (!appUrl) throw new Error('NEXT_PUBLIC_APP_URL not configured');
 
-    const link = `${appUrl}/${locale}/complete-registration?email=${encodeURIComponent(email)}`;
+    const link = `${appUrl}/${locale}/complete-registration?token=${token}`;
     const subject = t('subject', { businessName });
     const text = `${t('greeting', { businessName })}\n\n${t('cta')}\n\n${link}`;
     const html = `<p>${t('greeting', { businessName })}</p><p>${t('cta')}</p><p><a href="${link}">${link}</a></p>`;
@@ -45,18 +58,20 @@ export async function inviteUserAction(email: string, role: Role): Promise<Users
 
   const normalizedEmail = email.trim().toLowerCase();
   const existing = await db.user.findUnique({ where: { email: normalizedEmail } });
+  let userId: string;
   if (existing) {
     if (existing.tenantId && existing.tenantId !== ctx.tenant.id) {
       return { error: 'USER_BELONGS_TO_ANOTHER_TENANT' };
     }
     if (existing.tenantId === ctx.tenant.id) return { error: 'USER_ALREADY_IN_TENANT' };
-    // Existing user with no tenant — link them
+    // Existing user with no tenant — link them (hygiene: clear any stale passwordHash).
     await db.user.update({
       where: { id: existing.id },
-      data: { tenantId: ctx.tenant.id, role, inviteStatus: 'INVITED', invitedAt: new Date() },
+      data: { tenantId: ctx.tenant.id, role, inviteStatus: 'INVITED', invitedAt: new Date(), passwordHash: null },
     });
+    userId = existing.id;
   } else {
-    await db.user.create({
+    const created = await db.user.create({
       data: {
         email: normalizedEmail,
         tenantId: ctx.tenant.id,
@@ -65,9 +80,12 @@ export async function inviteUserAction(email: string, role: Role): Promise<Users
         invitedAt: new Date(),
       },
     });
+    userId = created.id;
   }
 
-  await sendInviteEmail(normalizedEmail, ctx.tenant.businessName);
+  await ensureRoleApiKeyBestEffort(ctx.tenant.id, ctx.tenant.environment, role);
+  const token = await issueVerificationToken(userId, 'INVITE');
+  await sendInviteEmail(normalizedEmail, ctx.tenant.businessName, token);
 
   revalidatePath('/users');
   return null;
@@ -81,7 +99,14 @@ export async function resendInviteAction(userId: string): Promise<UsersResult> {
   if (!user || user.tenantId !== ctx.tenant.id) return { error: 'USER_NOT_FOUND' };
   if (user.inviteStatus !== 'INVITED') return { error: 'USER_ALREADY_IN_TENANT' };
 
-  await sendInviteEmail(user.email, ctx.tenant.businessName);
+  // Hygiene only — completion no longer gates on this field, just inviteStatus.
+  if (user.passwordHash) {
+    await db.user.update({ where: { id: userId }, data: { passwordHash: null } });
+  }
+
+  // Supersedes any prior unconsumed invite token, so the old link stops working.
+  const token = await issueVerificationToken(user.id, 'INVITE');
+  await sendInviteEmail(user.email, ctx.tenant.businessName, token);
   return null;
 }
 
@@ -98,6 +123,7 @@ export async function updateUserRoleAction(userId: string, role: Role): Promise<
   if (!user || user.tenantId !== ctx.tenant.id) return { error: 'USER_NOT_FOUND' };
 
   await db.user.update({ where: { id: userId }, data: { role } });
+  await ensureRoleApiKeyBestEffort(ctx.tenant.id, ctx.tenant.environment, role);
   revalidatePath('/users');
   return null;
 }
@@ -153,13 +179,13 @@ export async function setUserIssuerAccessAction(
   return null;
 }
 
-async function sendPasswordResetEmail(email: string, businessName: string) {
+async function sendPasswordResetEmail(email: string, businessName: string, token: string) {
   try {
     const locale = await getLocale();
     const t = await getTranslations({ locale, namespace: 'email.passwordReset' });
     const appUrl = process.env.NEXT_PUBLIC_APP_URL;
     if (!appUrl) throw new Error('NEXT_PUBLIC_APP_URL not configured');
-    const link = `${appUrl}/${locale}/complete-registration?email=${encodeURIComponent(email)}`;
+    const link = `${appUrl}/${locale}/complete-registration?token=${token}`;
     const subject = t('subject');
     const text = `${t('greeting', { businessName })}\n\n${t('cta')}\n\n${link}`;
     const html = `<p>${t('greeting', { businessName })}</p><p>${t('cta')}</p><p><a href="${link}">${link}</a></p>`;
@@ -191,6 +217,10 @@ export async function updateUserAction(
   }
 
   await db.user.update({ where: { id: userId }, data: userUpdate });
+
+  if (userUpdate.role !== undefined) {
+    await ensureRoleApiKeyBestEffort(ctx.tenant.id, ctx.tenant.environment, userUpdate.role as Role);
+  }
 
   if (data.issuerIds !== undefined) {
     if (data.issuerIds.length > 0) {
@@ -249,6 +279,9 @@ export async function resetUserPasswordAction(userId: string): Promise<UsersResu
     data: { passwordHash: null, inviteStatus: 'INVITED' },
   });
 
-  await sendPasswordResetEmail(user.email, ctx.tenant.businessName);
+  // This flow routes through /complete-registration (same as a first-time
+  // invite, not /reset-password), so it needs an 'INVITE'-purpose token.
+  const token = await issueVerificationToken(userId, 'INVITE');
+  await sendPasswordResetEmail(user.email, ctx.tenant.businessName, token);
   return null;
 }

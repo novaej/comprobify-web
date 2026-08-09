@@ -69,14 +69,25 @@ export async function promoteTenantAction(
     throw err;
   }
 
-  // The promote endpoint returns { label, apiKey } but no key ID.
-  // Fetch all active keys using one of the new production tokens to get the IDs.
-  let keyIdByLabel: Record<string, string> = {};
+  // The promote endpoint returns { label, apiKey } but no key ID or scopes.
+  // Fetch all active keys using one of the new production tokens to get them.
+  let keyInfoByLabel: Record<string, { id: string; scopes: string[] }> = {};
   if (result.apiKeys.length > 0) {
     const listedKeys = await listTenantApiKeys({ apiKey: result.apiKeys[0].apiKey }).catch(() => []);
     for (const k of listedKeys) {
-      if (k.label) keyIdByLabel[k.label] = k.id;
+      if (k.label) keyInfoByLabel[k.label] = { id: k.id, scopes: k.scopes };
     }
+  }
+
+  // comprobify mirrors each sandbox key's scopes into its production equivalent
+  // by label; carry isManaged/managedRole over the same way so per-role keys
+  // keep their self-revocation protection after promotion.
+  const existingSandboxKeys = await db.tenantApiKey.findMany({
+    where: { tenantId: ctx.tenant.id, isActive: true },
+  });
+  const managedByLabel: Record<string, { isManaged: boolean; managedRole: string | null }> = {};
+  for (const row of existingSandboxKeys) {
+    managedByLabel[row.label] = { isManaged: row.isManaged, managedRole: row.managedRole };
   }
 
   await db.$transaction(async (tx) => {
@@ -88,17 +99,21 @@ export async function promoteTenantAction(
 
     // Insert new production keys
     for (const key of result.apiKeys) {
-      const apiKeyId = keyIdByLabel[key.label];
-      if (!apiKeyId) continue; // skip if we couldn't resolve the ID
+      const keyInfo = keyInfoByLabel[key.label];
+      if (!keyInfo) continue; // skip if we couldn't resolve the ID
+      const managed = managedByLabel[key.label] ?? { isManaged: false, managedRole: null };
       await tx.tenantApiKey.create({
         data: {
           tenantId: ctx.tenant.id,
-          apiKeyId,
+          apiKeyId: keyInfo.id,
           label: key.label ?? 'production',
           environment: 'production',
           encryptedKey: encrypt(key.apiKey),
           lastFour: lastFour(key.apiKey),
           isActive: true,
+          isManaged: managed.isManaged,
+          managedRole: managed.managedRole,
+          scopes: keyInfo.scopes,
         },
       });
     }

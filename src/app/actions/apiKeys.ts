@@ -4,15 +4,15 @@ import { db } from '@/lib/db';
 import { requirePermission } from '@/lib/context';
 import { createTenantApiKey, revokeTenantApiKey, getTenantApiKeyUsage, type ApiKeyDailyUsage } from '@/lib/api';
 import { encrypt, lastFour } from '@/lib/crypto';
-import { findAppApiKeyRow } from '@/lib/tenant-api-key';
 import { ApiError } from '@/lib/errors';
 import { revalidatePath } from 'next/cache';
+import type { ApiKeyScope } from '@/lib/role-api-scopes';
 
 export type ApiKeyResult = { error: string } | null;
 export type CreateApiKeyResult = { error: string } | { key: string; label: string } | null;
 export type ApiKeyUsageResult = { error: string } | { usage: ApiKeyDailyUsage[] };
 
-export async function createTenantApiKeyAction(label: string): Promise<CreateApiKeyResult> {
+export async function createTenantApiKeyAction(label: string, scopes?: ApiKeyScope[]): Promise<CreateApiKeyResult> {
   await requirePermission('apikeys.manage', { skipIssuer: true });
   const ctx = await (await import('@/lib/context')).requireContext({ skipIssuer: true });
 
@@ -26,6 +26,7 @@ export async function createTenantApiKeyAction(label: string): Promise<CreateApi
       { apiKey: ctx.apiKey },
       label.trim() || 'default',
       ctx.tenant.environment,
+      scopes,
     );
   } catch (err) {
     if (err instanceof ApiError) return { error: err.code };
@@ -42,6 +43,7 @@ export async function createTenantApiKeyAction(label: string): Promise<CreateApi
       encryptedKey: encrypt(created.key),
       lastFour: lastFour(created.key),
       isActive: true,
+      scopes: created.scopes,
     },
   });
 
@@ -57,12 +59,9 @@ export async function revokeTenantApiKeyAction(id: string): Promise<ApiKeyResult
   if (!keyRow || keyRow.tenantId !== ctx.tenant.id) return { error: 'NOT_FOUND' };
   if (!keyRow.isActive) return { error: 'ALREADY_REVOKED' };
 
-  // The key this app authenticates with can't be revoked: the API refuses to
-  // revoke the key that signed the revoke request (SELF_REVOCATION_FORBIDDEN),
-  // and revoking it would leave the whole web app unable to reach the API.
-  // The UI already disables that row's button — this is the action-side gate.
-  const appKey = await findAppApiKeyRow(ctx.tenant.id, ctx.tenant.environment);
-  if (appKey?.id === keyRow.id) return { error: 'SELF_REVOCATION_FORBIDDEN' };
+  // App-managed keys (master or per-role) can't be revoked — the API itself
+  // refuses SELF_REVOCATION_FORBIDDEN, and it'd cut that role off from the API.
+  if (keyRow.isManaged) return { error: 'SELF_REVOCATION_FORBIDDEN' };
 
   try {
     await revokeTenantApiKey({ apiKey: ctx.apiKey }, keyRow.apiKeyId);

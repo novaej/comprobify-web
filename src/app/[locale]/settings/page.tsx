@@ -33,6 +33,7 @@ export default async function SettingsPage({
   const canReadBilling = ctx.permissions.has('billing.read');
   const canReadApiKeys = ctx.permissions.has('apikeys.read');
   const canManageTenant = ctx.permissions.has('tenant.manage');
+  const canPromoteTenant = ctx.permissions.has('tenant.promote');
 
   const activeIssuers = await db.issuer.findMany({
     where: { tenantId, active: true },
@@ -40,7 +41,7 @@ export default async function SettingsPage({
   });
   const hasIssuer = activeIssuers.length > 0;
 
-  const issuersForPromotion = environment === 'sandbox'
+  const issuersForPromotion = environment === 'sandbox' && canPromoteTenant
     ? await Promise.all(
         activeIssuers.map(async (issuer) => ({
           id: issuer.id,
@@ -53,13 +54,13 @@ export default async function SettingsPage({
       )
     : [];
 
-  const intendedPlan = environment === 'sandbox'
+  const intendedPlan = environment === 'sandbox' && canPromoteTenant
     ? await db.tenant.findUnique({
         where: { id: tenantId },
         select: { intendedTier: true, intendedBillingInterval: true },
       })
     : null;
-  const tiers = environment === 'sandbox' ? await listTiers().catch(() => []) : [];
+  const tiers = environment === 'sandbox' && canPromoteTenant ? await listTiers().catch(() => []) : [];
 
   // A subscription may already be ACTIVE from POST /v1/subscriptions, started
   // while still in sandbox via /settings/billing — promote() ignores tier/
@@ -67,7 +68,7 @@ export default async function SettingsPage({
   // agreementsAccepted: false only when agreements are published AND the tenant
   // hasn't accepted them yet; pre-launch (no templates) always returns true.
   const [activeSubscription, agreementStatus] = await Promise.all([
-    environment === 'sandbox'
+    environment === 'sandbox' && canPromoteTenant
       ? getMySubscriptions({ apiKey: ctx.apiKey })
           .then((subs) => subs.find((s) => s.status !== 'CANCELLED' && s.status !== 'EXPIRED') ?? null)
           .catch(() => null)
@@ -109,7 +110,7 @@ export default async function SettingsPage({
                 </span>
               </div>
             </div>
-            {environment === 'sandbox' && (
+            {environment === 'sandbox' && canPromoteTenant && (
               <div className="mt-5 pt-5 border-t border-border">
                 <ProductionPromotion
                   issuers={issuersForPromotion}

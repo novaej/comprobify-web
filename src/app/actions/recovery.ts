@@ -93,6 +93,8 @@ export async function recoverAccountAction(formData: FormData): Promise<RecoverA
           encryptedKey: encrypt(result.apiKey),
           lastFour: lastFour(result.apiKey),
           isActive: true,
+          isManaged: true, // updateMany above revoked every other key, so this becomes the new master key
+          scopes: keyRecord.scopes,
         },
       }),
     ]);

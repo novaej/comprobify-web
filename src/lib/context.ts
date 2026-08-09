@@ -3,7 +3,7 @@ import { auth } from '@/auth';
 import { db } from '@/lib/db';
 import { decrypt } from '@/lib/crypto';
 import { readCtxCookie } from '@/lib/context-cookie';
-import { findAppApiKeyRow } from '@/lib/tenant-api-key';
+import { resolveApiKeyForRole } from '@/lib/tenant-api-key';
 import { ROLE_PERMISSIONS } from '@/lib/rbac';
 import { getLocale } from 'next-intl/server';
 import { notFound, redirect as nextRedirect } from 'next/navigation';
@@ -103,7 +103,7 @@ export async function requireContext(opts?: { skipIssuer?: boolean }): Promise<C
 
   // 3. skipIssuer — return MinimalContext with just the active API key
   if (opts?.skipIssuer) {
-    const keyRow = await findAppApiKeyRow(tenant.id, tenantCtx.environment);
+    const keyRow = await resolveApiKeyForRole(tenant.id, tenantCtx.environment, role);
     if (!keyRow) {
       redirect({ href: '/settings/api-keys?missing=1', locale });
       return null as never;
@@ -156,8 +156,8 @@ export async function requireContext(opts?: { skipIssuer?: boolean }): Promise<C
     }
   }
 
-  // 6. Resolve active API key (see findAppApiKeyRow — environment-matched, deterministic)
-  const keyRow = await findAppApiKeyRow(tenant.id, tenantCtx.environment);
+  // 6. Resolve active API key (see resolveApiKeyForRole — role-scoped, environment-matched, deterministic)
+  const keyRow = await resolveApiKeyForRole(tenant.id, tenantCtx.environment, role);
   if (!keyRow) {
     redirect({ href: '/settings/api-keys?missing=1', locale });
     return null as never;

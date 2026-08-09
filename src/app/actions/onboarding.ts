@@ -13,6 +13,7 @@ import { redirect } from '@/i18n/navigation';
 import { revalidatePath } from 'next/cache';
 import { ApiError } from '@/lib/errors';
 import { parseIntendedPlan } from '@/lib/subscription-tiers';
+import { ALL_API_SCOPES } from '@/lib/role-api-scopes';
 import { isUuid } from '@/lib/utils';
 import * as Sentry from '@sentry/nextjs';
 
@@ -135,6 +136,8 @@ export async function bootstrapTenantAction(formData: FormData): Promise<Onboard
           encryptedKey: encrypt(plainApiKey),
           lastFour: lastFour(plainApiKey),
           isActive: true,
+          isManaged: true, // this becomes the tenant's master key — see resolveApiKeyForRole
+          scopes: keyRecord.scopes,
         },
       });
 
@@ -223,10 +226,12 @@ export async function linkExistingTenantAction(formData: FormData): Promise<Onbo
 
   let newKey: Awaited<ReturnType<typeof createTenantApiKey>>;
   try {
+    // Explicit ALL_API_SCOPES — this becomes the tenant's master key, full-access regardless of the pasted key's own scopes.
     newKey = await createTenantApiKey(
       { apiKey: pastedApiKey },
       'Comprobify Web',
       tenantInfo.sandbox ? 'sandbox' : 'production',
+      ALL_API_SCOPES,
     );
   } catch (err) {
     if (err instanceof ApiError) {
@@ -268,6 +273,8 @@ export async function linkExistingTenantAction(formData: FormData): Promise<Onbo
           encryptedKey: encrypt(newKey.key),
           lastFour: lastFour(newKey.key),
           isActive: true,
+          isManaged: true, // minted with ALL_API_SCOPES above — the tenant's master key
+          scopes: newKey.scopes,
         },
       });
 

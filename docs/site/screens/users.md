@@ -31,7 +31,7 @@ Six columns rendered by `<UserManager>` (`src/components/user-manager.tsx`):
 
 ## Invite user
 
-A form at the top: email + role. Calls `inviteUserAction` → creates a `User` row with `inviteStatus: 'INVITED'` and sends an invite email. The invited user sets their password via `/complete-registration`.
+A form at the top: email + role. Calls `inviteUserAction` → creates a `User` row with `inviteStatus: 'INVITED'`, mints a single-use invite token (`issueVerificationToken`, see `docs/site/screens/forgot-password.md` for the shared token mechanism) and emails a link containing it, and — best-effort — mints that role's own Comprobify API key up front (`ensureRoleApiKeyBestEffort` → `resolveApiKeyForRole`, see CLAUDE.md → "Per-role API key scopes") so it's ready before the invitee's first login. The invited user sets their password via `/complete-registration?token=...`.
 
 ---
 
@@ -40,7 +40,7 @@ A form at the top: email + role. Calls `inviteUserAction` → creates a `User` r
 Opens on any row (scope of editable fields depends on whether editing self or another user):
 
 - **Name fields** (`firstName`, `lastName`) — always editable for any user
-- **Role select** — shown only when editing another user; switching to/from Owner or Admin resets the issuer selection (those roles have implicit full access)
+- **Role select** — shown only when editing another user; switching to/from Owner or Admin resets the issuer selection (those roles have implicit full access). Changing role also mints the new role's Comprobify API key up front, same as inviting (see above)
 - **Issuer checkboxes** — shown for roles other than Owner/Admin; the list shows all active issuers in the tenant; selecting none is valid (user sees `/no-issuer-assigned` until assigned)
 - **Reset password** — shown only when editing another user; opens a confirm sub-dialog; sets `passwordHash = null`, marks `inviteStatus = 'INVITED'`, sends a password-reset email
 

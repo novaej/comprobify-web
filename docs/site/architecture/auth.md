@@ -45,14 +45,14 @@ requireContext()
      • tenantId === null → redirect /onboarding/tenant
      • inviteStatus !== 'ACTIVE' → redirect /complete-registration
      • role === null → redirect /login
-  3a. opts.skipIssuer === true → fetch active TenantApiKey, return MinimalContext
+  3a. opts.skipIssuer === true → resolveApiKeyForRole(tenantId, environment, role), return MinimalContext
   3b. Read comprobify_ctx cookie → issuerId
      • Missing + exactly 1 accessible issuer → auto-set cookie + continue
      • Missing + 0 or >1 → redirect /issuer/select
   4. db.issuer.findUnique(issuerId) — verify issuer belongs to tenant
      • Wrong tenant or not in UserIssuerAccess whitelist → clear cookie + redirect
-  5. db.tenantApiKey.findFirst({ isActive: true }) → decrypt(encryptedKey)
-     • None → redirect /settings/api-keys?missing=1
+  5. resolveApiKeyForRole(tenantId, environment, role) → decrypt(encryptedKey)
+     • None resolvable → redirect /settings/api-keys?missing=1
   6. Return Context { user, tenant, issuer, permissions, apiKey }
 ```
 
@@ -68,9 +68,11 @@ hasContextPermission('issuers.manage') // → boolean (non-throwing, for conditi
 
 ## API key handling
 
-Tenant API keys are stored encrypted in the `TenantApiKey` table using AES-256-GCM (`src/lib/crypto.ts`). `requireContext()` decrypts the active key and returns it as `ctx.apiKey`. All `src/lib/api.ts` functions take `ApiCtx { apiKey: string; issuerId?: number }` and add `X-Issuer-Id` to requests when `issuerId` is present.
+Tenant API keys are stored encrypted in the `TenantApiKey` table using AES-256-GCM (`src/lib/crypto.ts`). `requireContext()` decrypts the resolved key and returns it as `ctx.apiKey`. All `src/lib/api.ts` functions take `ApiCtx { apiKey: string; issuerId?: string }` (a UUID string, never coerced — see ADR-007) and add `X-Issuer-Id` to requests when `issuerId` is present.
 
 **Critical:** Never add `apiKey` to session callbacks, component props, or Server Action return values.
+
+**Not one shared key per tenant.** `requireContext()` doesn't resolve a single tenant-wide "app key" — `resolveApiKeyForRole()` (`src/lib/tenant-api-key.ts`) resolves a key scoped to the signed-in user's `Role`, using comprobify's 9-value scope vocabulary (`ApiKeyScope` in `src/lib/role-api-scopes.ts`: `documents:read`/`write`, `issuers:read`/`write`, `keys:manage`, `billing:manage`, `webhooks:manage`, `tenant:manage`, `tenant:promote`). Owner and Admin both need every scope and share the tenant's single full-access **master key** (`findMasterApiKeyRow()`); BillingOperator/Viewer/Developer each get a distinct, narrower key (`TenantApiKey.managedRole` set to the role name) minted through the master key — comprobify's own privilege-containment rule means only a key holding every scope can mint a narrower one. A missed `requirePermission()` gate elsewhere in the app now degrades to an API-level 403 instead of silently keeping full access underneath, since the underlying key genuinely doesn't have the broader scopes. Keys are minted both eagerly (`inviteUserAction`/`updateUserRoleAction`/`updateUserAction` in `src/app/actions/users.ts`, on role assignment) and lazily (`requireContext()` itself, as a fallback). See CLAUDE.md → "Per-role API key scopes" for the full minting/reconciliation/locking details.
 
 ---
 
@@ -107,6 +109,18 @@ model TenantApiKey {
   lastFour     String                  // display only
   isActive     Boolean  @default(true)
   revokedAt    DateTime?
+  isManaged    Boolean  @default(false) // true for the master key or a per-role key
+  managedRole  String?                  // set only on a per-role key (e.g. "Viewer")
+  scopes       String[] @default([])   // comprobify's 9-value scope vocabulary
+}
+
+model VerificationToken {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  userId     String    @db.Uuid
+  purpose    String                     // 'INVITE' | 'PASSWORD_RESET'
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
 }
 
 model Issuer {
@@ -177,10 +191,13 @@ All finer-grained access control (tenant check, issuer check, permissions) is en
 
 Invited users have `inviteStatus = 'INVITED'` and `passwordHash = null`. Because `authorize()` returns `null` for users without a password, `signIn()` throws `AuthError` — they cannot log in normally.
 
-`loginAction` checks `inviteStatus` and `passwordHash` **before** calling `signIn()`. If the user is INVITED with no password, it redirects to `/complete-registration?email=...`.
+`loginAction` checks `inviteStatus` and `passwordHash` **before** calling `signIn()`. If the user is INVITED with no password, it mints a fresh invite token (`issueVerificationToken(userId, 'INVITE')` — supersedes any earlier unconsumed one) and redirects to `/complete-registration?token=...`. The link is **not** keyed by email — `inviteUserAction`/`resendInviteAction` (`src/app/actions/users.ts`) mint the same kind of token when sending the invite email. The old `?email=<address>` link format let anyone who knew or guessed a pending invitee's address complete their registration themselves; see CLAUDE.md Common Mistake #50.
 
-`completeRegistrationAction` (Server Action):
-1. Verifies the user is still INVITED with no `passwordHash` (guards against double-submit)
-2. Hashes the password and updates `inviteStatus` → `'ACTIVE'`
-3. Calls `signIn('credentials', ...)` to create the session
-4. Calls `postLoginRedirect()` → routes to onboarding, dashboard, or issuer select
+`checkInviteToken(token)` (read-only, called at page load by `complete-registration/page.tsx`) resolves the target email for display without consuming the token — the same check/consume split used for email verification (Common Mistake #47) and password reset, all now backed by the same `VerificationToken` table/`src/lib/verification-token.ts` module.
+
+`completeRegistrationAction(token, password)` (Server Action):
+1. Consumes the token (`consumeVerificationToken(token, 'INVITE')`, single-use) to resolve the `userId` — this, not the client-supplied email, is the actual proof of authorization
+2. Checks `inviteStatus === 'INVITED'` as a sanity check (deliberately not `passwordHash` — a stale password left by another write path shouldn't block an otherwise-valid token, see Common Mistake #50)
+3. Hashes the password and updates `inviteStatus` → `'ACTIVE'`
+4. Calls `signIn('credentials', ...)` to create the session
+5. Calls `postLoginRedirect()` → routes to onboarding, dashboard, or issuer select

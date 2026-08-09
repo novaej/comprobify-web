@@ -8,10 +8,11 @@ import { Label } from '@/components/ui/label';
 import { completeRegistrationAction } from '@/app/actions/auth';
 
 interface CompleteRegistrationFormProps {
-  prefillEmail?: string;
+  token: string;
+  email: string;
 }
 
-export function CompleteRegistrationForm({ prefillEmail }: CompleteRegistrationFormProps) {
+export function CompleteRegistrationForm({ token, email }: CompleteRegistrationFormProps) {
   const t = useTranslations('completeRegistration');
   const tAuth = useTranslations('auth');
   const tError = useTranslations('completeRegistrationError');
@@ -21,7 +22,6 @@ export function CompleteRegistrationForm({ prefillEmail }: CompleteRegistrationF
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = e.currentTarget;
-    const email = (form.elements.namedItem('email') as HTMLInputElement).value.trim();
     const password = (form.elements.namedItem('password') as HTMLInputElement).value;
     const confirm = (form.elements.namedItem('confirm') as HTMLInputElement).value;
 
@@ -32,7 +32,7 @@ export function CompleteRegistrationForm({ prefillEmail }: CompleteRegistrationF
 
     setError(null);
     startTransition(async () => {
-      const result = await completeRegistrationAction(email, password);
+      const result = await completeRegistrationAction(token, password);
       if (result?.error) {
         const key = result.error as Parameters<typeof tError>[0];
         setError(tError.has(key) ? tError(key) : t('unexpectedError'));
@@ -44,17 +44,9 @@ export function CompleteRegistrationForm({ prefillEmail }: CompleteRegistrationF
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-1.5">
         <Label htmlFor="email">{tAuth('fields.email')}</Label>
-        <Input
-          id="email"
-          name="email"
-          type="email"
-          autoComplete="email"
-          defaultValue={prefillEmail}
-          required
-          disabled={isPending}
-          // Read-only visually when prefilled (still editable as a fallback).
-          className={prefillEmail ? 'bg-muted/60' : ''}
-        />
+        {/* Display-only — identity comes from the token, not this field, so
+            it's never submitted and can't be edited to target another account. */}
+        <Input id="email" type="email" value={email} disabled readOnly className="bg-muted/60" />
       </div>
 
       <div className="space-y-1.5">

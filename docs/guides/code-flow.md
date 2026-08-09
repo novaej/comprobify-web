@@ -171,29 +171,34 @@ Example: team member clicks email invite link and opens the app.
 ```
 1. Owner invites user via /users screen → inviteUserAction
    │  • db.user.create({ inviteStatus: 'INVITED', passwordHash: null })
-   │  • Comprobify API sends invite email with link
+   │  • issueVerificationToken(userId, 'INVITE') — single-use, 7-day TTL
+   │  • sendInviteEmail() (this app's own Mailgun sender, not the Comprobify API)
+   │    with link /complete-registration?token=<raw token>
    │
-2. User clicks link → Browser GET /es/complete-registration?email=alice@example.com
+2. User clicks link → Browser GET /es/complete-registration?token=<token>
    │
 3. src/proxy.ts — complete-registration is in PUBLIC_ROUTES, no auth redirect
    │
 4. complete-registration/page.tsx (Server Component)
-   │  • Reads ?email= from searchParams
+   │  • checkInviteToken(token) — read-only, does not consume; resolves email for display
    │  • Authenticated user → redirect /dashboard (already registered)
-   │  • Renders <CompleteRegistrationForm email={email} />
+   │  • Invalid/expired/missing token → "invalid link" state, no form rendered
+   │  • Renders <CompleteRegistrationForm token={token} email={email} />
    │
 5. User fills password + confirm, clicks submit
    │
-6. completeRegistrationAction('alice@example.com', 'password')
+6. completeRegistrationAction(token, 'password')
    │  'use server'
-   │  • db.user.findUnique({ email }) — verifies INVITED + no passwordHash
+   │  • consumeVerificationToken(token, 'INVITE') — single-use, resolves userId
+   │  • checks inviteStatus === 'INVITED' (not passwordHash — see CLAUDE.md #50)
    │  • bcrypt.hash(password) → db.user.update({ passwordHash, inviteStatus: 'ACTIVE' })
-   │  • signIn('credentials', { email, password })
+   │  • signIn('credentials', { email: user.email, password })
    │  • postLoginRedirect() → /onboarding/tenant | /dashboard | /issuer/select
    │
 7. Login flow (returning invited user — has password now)
    │  • loginAction pre-checks inviteStatus before signIn
-   │  • INVITED + no passwordHash → redirect /complete-registration
+   │  • INVITED + no passwordHash → mints a fresh invite token, redirects to
+   │    /complete-registration?token=... (supersedes any earlier unconsumed token)
    │  • ACTIVE → normal signIn → postLoginRedirect
 ```
 
@@ -226,6 +231,6 @@ Browser request
 | Status polling | `invoice-polling.tsx` (client) → `app/api/.../route.ts` → `context.ts` → Comprobify API |
 | Webhook receive | `app/api/webhooks/receive/route.ts` → HMAC verify → `db.notification.upsert` → fan-out reads |
 | Notifications (catch-up) | `notification-sync.tsx` (client) → `catchUpNotificationsAction` → `GET /api/notifications` → upsert |
-| Complete registration | `complete-registration/page.tsx` → `CompleteRegistrationForm` → `completeRegistrationAction` → `signIn` |
+| Complete registration | `verification-token.ts` (`issueVerificationToken`) → email link → `complete-registration/page.tsx` (`checkInviteToken`) → `CompleteRegistrationForm` → `completeRegistrationAction` (`consumeVerificationToken`) → `signIn` |
 | Navigation | `@/i18n/navigation` (Link, redirect, usePathname) |
 | Translations | `getTranslations()` (server) / `useTranslations()` (client) |

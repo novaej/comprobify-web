@@ -86,7 +86,9 @@
     "submit": "Activate account",
     "submitting": "Activating...",
     "passwordMismatch": "Passwords do not match.",
-    "unexpectedError": "An unexpected error occurred. Please try again."
+    "unexpectedError": "An unexpected error occurred. Please try again.",
+    "invalidLinkMessage": "This invitation link is invalid, has already been used, or has expired. Ask your administrator to resend the invitation.",
+    "backToLogin": "Back to login"
   },
   "completeRegistrationError": {
     "INVALID_OR_EXPIRED_INVITE": "This invitation link is no longer valid. Ask your administrator to re-invite you."
@@ -706,6 +708,8 @@
     "NOT_FOUND": "The requested resource does not exist.",
     "FORBIDDEN": "You do not have permission to perform this action.",
     "UNAUTHORIZED": "Unauthorized. Please verify your API key is valid.",
+    "INSUFFICIENT_SCOPE": "This API key does not have permission to perform this action.",
+    "SCOPE_ESCALATION_FORBIDDEN": "You cannot create an API key with more permissions than your own.",
     "CONFLICT": "A record with that data already exists (RUC or email). If you already registered before, use the account recovery page.",
     "TOO_MANY_REQUESTS": "Too many requests. Please try again in a moment.",
     "QUOTA_EXCEEDED": "Monthly document quota reached. Please upgrade your plan.",
@@ -1007,6 +1011,7 @@
     "show": "Show key",
     "hide": "Hide key",
     "appKeyBadge": "Used by the app",
+    "appKeyBadgeRole": "Used by the app ({role})",
     "appKeyLocked": "Not revocable",
     "createKey": "New API key",
     "labelPlaceholder": "Label (e.g. production)",
@@ -1014,7 +1019,8 @@
     "create": "Create",
     "cancel": "Cancel",
     "revoke": "Revoke",
-    "confirmRevoke": "Revoke this API key? This action cannot be undone.",
+    "confirmRevokeTitle": "Revoke this API key?",
+    "confirmRevokeDescription": "This action cannot be undone. Any system using this key will stop being able to authenticate.",
     "copy": "Copy key",
     "dismiss": "Dismiss",
     "createdSuccess": "API key \"{label}\" created successfully.",
@@ -1028,7 +1034,8 @@
       "created": "Created",
       "lastUsed": "Last used",
       "requests": "Requests",
-      "neverUsed": "Never"
+      "neverUsed": "Never",
+      "scopes": "Scopes"
     },
     "status": {
       "active": "Active",
@@ -1036,6 +1043,20 @@
     },
     "revokeSuccess": "API key revoked successfully.",
     "createSuccess": "API key \"{label}\" created. Copy it now — you won't be able to see it again.",
+    "selectScopes": "New key's scopes",
+    "scopesRequired": "Select at least one scope.",
+    "fullAccess": "Full access",
+    "scopeLabels": {
+      "documents:read": "Read documents",
+      "documents:write": "Create documents",
+      "issuers:read": "Read issuers",
+      "issuers:write": "Manage issuers",
+      "keys:manage": "Manage API keys",
+      "billing:manage": "Manage billing",
+      "webhooks:manage": "Manage webhooks",
+      "tenant:manage": "Manage company settings",
+      "tenant:promote": "Promote to production"
+    },
     "environmentNames": {
       "sandbox": "sandbox",
       "production": "production"

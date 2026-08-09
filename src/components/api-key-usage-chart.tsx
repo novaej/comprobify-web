@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { toastApiError } from '@/lib/api-error-toast';
 
-const RANGE_OPTIONS = [7, 30, 90] as const;
+const RANGE_OPTIONS = [7, 14, 30] as const;
 
 // "YYYY-MM-DD" parsed as local calendar date — `new Date(str)` would parse it as
 // UTC midnight and can shift a day off in negative-UTC timezones (e.g. Ecuador).
@@ -35,11 +35,11 @@ function integerTicks(maxValue: number): number[] {
   return ticks;
 }
 
-export function ApiKeyUsageChart({ keyId, createdAt }: { keyId: string; createdAt: string }) {
+export function ApiKeyUsageChart({ keyId }: { keyId: string }) {
   const t = useTranslations('apiKeys.usageChart');
   const tError = useTranslations('apiError');
   const locale = useLocale();
-  const [days, setDays] = useState<(typeof RANGE_OPTIONS)[number]>(30);
+  const [days, setDays] = useState<(typeof RANGE_OPTIONS)[number]>(14);
   const [usage, setUsage] = useState<ApiKeyDailyUsage[] | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -62,15 +62,8 @@ export function ApiKeyUsageChart({ keyId, createdAt }: { keyId: string; createdA
   }, [keyId, days]);
 
   const dateFormatter = new Intl.DateTimeFormat(locale, { day: '2-digit', month: '2-digit' });
-  // The API zero-fills the entire requested range regardless of when the key was
-  // created — drop days before the key existed so a recently-created key doesn't
-  // show a wall of empty bars for history it couldn't possibly have.
-  const createdDateStr = createdAt.slice(0, 10);
-  const usageSinceCreation = usage?.filter((d) => d.date >= createdDateStr) ?? null;
-  const totalRequests = usageSinceCreation?.reduce((sum, d) => sum + d.requestCount, 0) ?? 0;
-  const maxRequestCount = usageSinceCreation
-    ? Math.max(0, ...usageSinceCreation.map((d) => d.requestCount))
-    : 0;
+  const totalRequests = usage?.reduce((sum, d) => sum + d.requestCount, 0) ?? 0;
+  const maxRequestCount = usage ? Math.max(0, ...usage.map((d) => d.requestCount)) : 0;
   const yAxisTicks = integerTicks(maxRequestCount);
   // Widen the axis to fit the longest tick label (e.g. 4-digit counts need more
   // room than the single-digit case this was originally sized for).
@@ -100,7 +93,7 @@ export function ApiKeyUsageChart({ keyId, createdAt }: { keyId: string; createdA
       </div>
 
       <div className="mt-3 h-40">
-        {isPending || usageSinceCreation === null ? (
+        {isPending || usage === null ? (
           <Skeleton className="h-full w-full" />
         ) : totalRequests === 0 ? (
           <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
@@ -108,7 +101,7 @@ export function ApiKeyUsageChart({ keyId, createdAt }: { keyId: string; createdA
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={usageSinceCreation} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+            <BarChart data={usage} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
               <CartesianGrid vertical={false} stroke="var(--border)" />
               <XAxis
                 dataKey="date"

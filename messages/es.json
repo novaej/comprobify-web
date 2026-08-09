@@ -86,7 +86,9 @@
     "submit": "Activar cuenta",
     "submitting": "Activando...",
     "passwordMismatch": "Las contraseñas no coinciden.",
-    "unexpectedError": "Ocurrió un error inesperado. Inténtalo de nuevo."
+    "unexpectedError": "Ocurrió un error inesperado. Inténtalo de nuevo.",
+    "invalidLinkMessage": "Este enlace de invitación no es válido, ya se usó o expiró. Pide a tu administrador que te reenvíe la invitación.",
+    "backToLogin": "Volver a iniciar sesión"
   },
   "completeRegistrationError": {
     "INVALID_OR_EXPIRED_INVITE": "Este enlace de invitación ya no es válido. Pide a tu administrador que te reenvíe la invitación."
@@ -706,6 +708,8 @@
     "NOT_FOUND": "El recurso solicitado no existe.",
     "FORBIDDEN": "No tiene permisos para realizar esta acción.",
     "UNAUTHORIZED": "No autorizado. Verifique que su API key sea válida.",
+    "INSUFFICIENT_SCOPE": "Esta API key no tiene permiso para realizar esta acción.",
+    "SCOPE_ESCALATION_FORBIDDEN": "No puede crear una API key con más permisos de los que tiene la suya propia.",
     "CONFLICT": "Ya existe un registro con esos datos (RUC o correo electrónico). Si ya te registraste antes, usa la página de recuperación de cuenta.",
     "TOO_MANY_REQUESTS": "Demasiadas solicitudes. Intente nuevamente en un momento.",
     "QUOTA_EXCEEDED": "Ha alcanzado el límite mensual de comprobantes. Actualice su plan.",
@@ -1107,6 +1111,7 @@
     "show": "Mostrar clave",
     "hide": "Ocultar clave",
     "appKeyBadge": "En uso por la app",
+    "appKeyBadgeRole": "En uso por la app ({role})",
     "appKeyLocked": "No revocable",
     "createKey": "Nueva API key",
     "labelPlaceholder": "Etiqueta (ej. producción)",
@@ -1114,7 +1119,8 @@
     "create": "Crear",
     "cancel": "Cancelar",
     "revoke": "Revocar",
-    "confirmRevoke": "¿Revocar esta API key? Esta acción es irreversible.",
+    "confirmRevokeTitle": "¿Revocar esta API key?",
+    "confirmRevokeDescription": "Esta acción es irreversible. Cualquier sistema que use esta clave dejará de poder autenticarse.",
     "copy": "Copiar clave",
     "dismiss": "Cerrar",
     "createdSuccess": "API key «{label}» creada exitosamente.",
@@ -1128,7 +1134,8 @@
       "created": "Creada",
       "lastUsed": "Últ. uso",
       "requests": "Solicitudes",
-      "neverUsed": "Nunca"
+      "neverUsed": "Nunca",
+      "scopes": "Permisos"
     },
     "status": {
       "active": "Activa",
@@ -1136,6 +1143,20 @@
     },
     "revokeSuccess": "API key revocada correctamente.",
     "createSuccess": "API key «{label}» creada. Cópiala ahora, no podrás verla de nuevo.",
+    "selectScopes": "Permisos de la nueva llave",
+    "scopesRequired": "Selecciona al menos un permiso.",
+    "fullAccess": "Acceso total",
+    "scopeLabels": {
+      "documents:read": "Leer comprobantes",
+      "documents:write": "Crear comprobantes",
+      "issuers:read": "Leer emisores",
+      "issuers:write": "Administrar emisores",
+      "keys:manage": "Administrar API keys",
+      "billing:manage": "Administrar facturación",
+      "webhooks:manage": "Administrar webhooks",
+      "tenant:manage": "Administrar configuración de la empresa",
+      "tenant:promote": "Promover a producción"
+    },
     "environmentNames": {
       "sandbox": "pruebas",
       "production": "producción"
