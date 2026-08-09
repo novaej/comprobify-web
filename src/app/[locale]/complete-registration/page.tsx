@@ -1,6 +1,7 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { auth } from '@/auth';
-import { redirect } from '@/i18n/navigation';
+import { redirect, Link } from '@/i18n/navigation';
+import { checkInviteToken } from '@/app/actions/auth';
 import { CompleteRegistrationForm } from '@/components/complete-registration-form';
 import { LocaleSwitcher } from '@/components/locale-switcher';
 import { LogoLockupStacked } from '@/components/logo';
@@ -11,9 +12,9 @@ export default async function CompleteRegistrationPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ email?: string }>;
+  searchParams: Promise<{ token?: string }>;
 }) {
-  const { locale } = await params;
+  const [{ locale }, { token }] = await Promise.all([params, searchParams]);
   setRequestLocale(locale);
   const t = await getTranslations('completeRegistration');
 
@@ -23,7 +24,11 @@ export default async function CompleteRegistrationPage({
     redirect({ href: '/dashboard', locale });
   }
 
-  const { email } = await searchParams;
+  // Checked here (not just deferred to submit) so a missing, already-used,
+  // or expired token shows the accurate "invalid link" state immediately on
+  // page load — mirrors /reset-password's pattern. Read-only: does not
+  // consume the token (see CLAUDE.md Common Mistake #47).
+  const invite = token ? await checkInviteToken(token) : null;
 
   return (
     <div className="min-h-screen bg-muted/40 flex flex-col">
@@ -42,7 +47,21 @@ export default async function CompleteRegistrationPage({
           </div>
 
           <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-            <CompleteRegistrationForm prefillEmail={email} />
+            {invite && token ? (
+              <CompleteRegistrationForm token={token} email={invite.email} />
+            ) : (
+              <div className="space-y-4">
+                <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  {t('invalidLinkMessage')}
+                </p>
+                <Link
+                  href="/login"
+                  className="block text-center text-sm font-medium text-primary hover:underline underline-offset-4"
+                >
+                  {t('backToLogin')}
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </div>

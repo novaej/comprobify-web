@@ -1,7 +1,6 @@
 'use server';
 
 import bcrypt from 'bcryptjs';
-import { randomBytes, createHash } from 'crypto';
 import { signIn, signOut } from '@/auth';
 import { db } from '@/lib/db';
 import { AuthError } from 'next-auth';
@@ -9,16 +8,11 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
 import { writeCtxCookie, clearCtxCookie } from '@/lib/context-cookie';
 import { sendMail } from '@/lib/mailgun';
+import { issueVerificationToken, checkVerificationToken, consumeVerificationToken } from '@/lib/verification-token';
 import type { PaidTier, BillingInterval } from '@/lib/subscription-tiers';
 import * as Sentry from '@sentry/nextjs';
 import { confirmEmailVerification } from '@/lib/public-api';
 import { ApiError } from '@/lib/errors';
-
-const PASSWORD_RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
-
-function hashResetToken(token: string): string {
-  return createHash('sha256').update(token).digest('hex');
-}
 
 export type AuthResult = { error: string } | null;
 
@@ -30,13 +24,18 @@ export async function loginAction(email: string, password: string): Promise<Auth
   // their password before we even attempt a credential check.
   const preCheck = await db.user.findUnique({
     where: { email },
-    select: { inviteStatus: true, passwordHash: true, active: true },
+    select: { id: true, inviteStatus: true, passwordHash: true, active: true },
   });
   if (preCheck && !preCheck.active) {
     return { error: 'ACCOUNT_DISABLED' };
   }
   if (preCheck?.inviteStatus === 'INVITED' && !preCheck.passwordHash) {
-    const params = new URLSearchParams({ email });
+    // Mint a fresh invite token rather than assuming the original emailed one
+    // is still valid (it may have expired, or already been superseded by a
+    // resend) — issueVerificationToken supersedes any prior unconsumed one,
+    // so this is always safe to call.
+    const token = await issueVerificationToken(preCheck.id, 'INVITE');
+    const params = new URLSearchParams({ token });
     redirect({ href: `/complete-registration?${params}`, locale });
     return null;
   }
@@ -126,20 +125,43 @@ async function postLoginRedirect(email: string, locale: string): Promise<null> {
 }
 
 /**
+ * Read-only check for whether an invite token currently resolves to a
+ * pending invite — used by /complete-registration to decide what to render
+ * on page load, and to display the target email (never trusted from the
+ * client), mirroring checkResetTokenValid's page-load pattern. Does not
+ * consume the token — see CLAUDE.md Common Mistake #47.
+ */
+export async function checkInviteToken(token: string): Promise<{ email: string } | null> {
+  const result = await checkVerificationToken(token, 'INVITE');
+  if (!result) return null;
+  const user = await db.user.findUnique({
+    where: { id: result.userId },
+    select: { email: true, inviteStatus: true, passwordHash: true },
+  });
+  if (!user || user.inviteStatus !== 'INVITED' || user.passwordHash) return null;
+  return { email: user.email };
+}
+
+/**
  * Complete the registration of an invited user.
- * - Validates the user exists with inviteStatus === 'INVITED' and no password.
+ * - Consumes the invite token to resolve identity (never trusts a
+ *   client-supplied email — the token is the only proof of ownership).
+ * - Validates the user still has inviteStatus === 'INVITED' and no password.
  * - Hashes and saves the password, marks the account ACTIVE.
  * - Signs the user in and redirects to the appropriate page.
  */
 export async function completeRegistrationAction(
-  email: string,
+  token: string,
   password: string,
 ): Promise<AuthResult> {
   const locale = await getLocale();
 
+  const consumed = await consumeVerificationToken(token, 'INVITE');
+  if (!consumed) return { error: 'INVALID_OR_EXPIRED_INVITE' };
+
   const user = await db.user.findUnique({
-    where: { email },
-    select: { id: true, inviteStatus: true, passwordHash: true },
+    where: { id: consumed.userId },
+    select: { id: true, email: true, inviteStatus: true, passwordHash: true },
   });
 
   if (!user || user.inviteStatus !== 'INVITED' || user.passwordHash) {
@@ -158,15 +180,15 @@ export async function completeRegistrationAction(
   });
 
   try {
-    await signIn('credentials', { email, password, redirect: false });
+    await signIn('credentials', { email: user.email, password, redirect: false });
   } catch (err) {
     // Should not happen — we just set the password. Fall back to login page.
-    Sentry.captureException(err, { extra: { email } });
+    Sentry.captureException(err, { extra: { email: user.email } });
     redirect({ href: '/login', locale });
     return null;
   }
 
-  return postLoginRedirect(email, locale);
+  return postLoginRedirect(user.email, locale);
 }
 
 /**
@@ -211,14 +233,7 @@ export async function requestPasswordResetAction(email: string): Promise<AuthRes
   // and a disabled account shouldn't be reachable via self-service at all.
   // None of this is ever surfaced in the response.
   if (user && user.passwordHash && user.active && user.inviteStatus === 'ACTIVE') {
-    const rawToken = randomBytes(32).toString('hex');
-    await db.user.update({
-      where: { id: user.id },
-      data: {
-        passwordResetTokenHash: hashResetToken(rawToken),
-        passwordResetTokenExpiresAt: new Date(Date.now() + PASSWORD_RESET_TOKEN_TTL_MS),
-      },
-    });
+    const rawToken = await issueVerificationToken(user.id, 'PASSWORD_RESET');
     await sendPasswordResetRequestEmail(normalizedEmail, rawToken);
   }
 
@@ -234,49 +249,37 @@ export async function requestPasswordResetAction(email: string): Promise<AuthRes
  * regardless, so this is purely a rendering decision, not the security check.
  */
 export async function checkResetTokenValid(token: string): Promise<boolean> {
-  const user = await db.user.findUnique({
-    where: { passwordResetTokenHash: hashResetToken(token) },
-    select: { active: true, passwordResetTokenExpiresAt: true },
-  });
-  return Boolean(
-    user &&
-    user.active &&
-    user.passwordResetTokenExpiresAt &&
-    user.passwordResetTokenExpiresAt >= new Date(),
-  );
+  const result = await checkVerificationToken(token, 'PASSWORD_RESET');
+  if (!result) return false;
+  const user = await db.user.findUnique({ where: { id: result.userId }, select: { active: true } });
+  return Boolean(user?.active);
 }
 
 /**
  * Complete a self-service password reset.
- * - Validates the token hashes to a non-expired match.
- * - Hashes and saves the new password, clears the token.
+ * - Consumes the token to resolve identity.
+ * - Hashes and saves the new password.
  * - Signs the user in and redirects to the appropriate page.
  */
 export async function resetPasswordAction(token: string, password: string): Promise<AuthResult> {
   const locale = await getLocale();
 
+  const consumed = await consumeVerificationToken(token, 'PASSWORD_RESET');
+  if (!consumed) return { error: 'INVALID_OR_EXPIRED_RESET_TOKEN' };
+
   const user = await db.user.findUnique({
-    where: { passwordResetTokenHash: hashResetToken(token) },
-    select: { id: true, email: true, active: true, passwordResetTokenExpiresAt: true },
+    where: { id: consumed.userId },
+    select: { id: true, email: true, active: true },
   });
 
-  if (
-    !user ||
-    !user.active ||
-    !user.passwordResetTokenExpiresAt ||
-    user.passwordResetTokenExpiresAt < new Date()
-  ) {
+  if (!user || !user.active) {
     return { error: 'INVALID_OR_EXPIRED_RESET_TOKEN' };
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
   await db.user.update({
     where: { id: user.id },
-    data: {
-      passwordHash,
-      passwordResetTokenHash: null,
-      passwordResetTokenExpiresAt: null,
-    },
+    data: { passwordHash },
   });
 
   try {

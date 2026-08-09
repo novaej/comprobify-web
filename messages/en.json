@@ -86,7 +86,9 @@
     "submit": "Activate account",
     "submitting": "Activating...",
     "passwordMismatch": "Passwords do not match.",
-    "unexpectedError": "An unexpected error occurred. Please try again."
+    "unexpectedError": "An unexpected error occurred. Please try again.",
+    "invalidLinkMessage": "This invitation link is invalid, has already been used, or has expired. Ask your administrator to resend the invitation.",
+    "backToLogin": "Back to login"
   },
   "completeRegistrationError": {
     "INVALID_OR_EXPIRED_INVITE": "This invitation link is no longer valid. Ask your administrator to re-invite you."
