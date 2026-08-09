@@ -6,9 +6,11 @@ import { toast } from 'sonner';
 import { createTenantApiKeyAction, revokeTenantApiKeyAction } from '@/app/actions/apiKeys';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertTriangle, BarChart3, Check, ChevronDown, ChevronUp, Copy, Eye, EyeOff, ExternalLink, Key, Lock, Plus } from 'lucide-react';
 import { toastApiError } from '@/lib/api-error-toast';
 import { ApiKeyUsageChart } from '@/components/api-key-usage-chart';
+import { ALL_API_SCOPES, type ApiKeyScope } from '@/lib/role-api-scopes';
 
 const API_DOCS_URL = 'https://docs.comprobify.com/';
 
@@ -25,6 +27,7 @@ interface ApiKeyRow {
   isManaged: boolean;
   /** Set only on a narrower per-role key; null for the master key and self-service keys. */
   managedRole: string | null;
+  scopes: string[];
 }
 
 export function ApiKeyManager({
@@ -33,12 +36,15 @@ export function ApiKeyManager({
   missingKey,
   environment,
   apiBaseUrl,
+  callerScopes,
 }: {
   keys: ApiKeyRow[];
   canManage: boolean;
   missingKey: boolean;
   environment: string;
   apiBaseUrl: string;
+  /** Scopes the current user's own key holds — bounds what a new key can be created with. */
+  callerScopes: ApiKeyScope[];
 }) {
   const t = useTranslations('apiKeys');
   const tRole = useTranslations('users');
@@ -46,10 +52,12 @@ export function ApiKeyManager({
   const [isPending, startTransition] = useTransition();
   const [newLabel, setNewLabel] = useState('');
   const [showCreate, setShowCreate] = useState(false);
+  const [selectedScopes, setSelectedScopes] = useState<Set<ApiKeyScope>>(() => new Set(callerScopes));
   const [createdKey, setCreatedKey] = useState<{ key: string; label: string } | null>(null);
   const [showKey, setShowKey] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [revokeTarget, setRevokeTarget] = useState<ApiKeyRow | null>(null);
 
   function copy(value: string, slot: string) {
     navigator.clipboard.writeText(value);
@@ -57,14 +65,28 @@ export function ApiKeyManager({
     setTimeout(() => setCopied((c) => (c === slot ? null : c)), 2000);
   }
 
+  function toggleScope(scope: ApiKeyScope) {
+    setSelectedScopes((prev) => {
+      const next = new Set(prev);
+      if (next.has(scope)) next.delete(scope);
+      else next.add(scope);
+      return next;
+    });
+  }
+
   function handleCreate() {
+    if (selectedScopes.size === 0) {
+      toast.error(t('scopesRequired'));
+      return;
+    }
     startTransition(async () => {
-      const result = await createTenantApiKeyAction(newLabel || 'default');
+      const result = await createTenantApiKeyAction(newLabel || 'default', Array.from(selectedScopes));
       if (result && 'error' in result) {
         toastApiError(result.error, tError);
       } else if (result && 'key' in result) {
         setCreatedKey(result);
         setNewLabel('');
+        setSelectedScopes(new Set(callerScopes));
         setShowCreate(false);
         setShowKey(false);
         toast.success(t('createSuccess', { label: result.label }));
@@ -72,8 +94,9 @@ export function ApiKeyManager({
     });
   }
 
-  function handleRevoke(id: string) {
-    if (!confirm(t('confirmRevoke'))) return;
+  function handleRevoke() {
+    if (!revokeTarget) return;
+    const id = revokeTarget.id;
     startTransition(async () => {
       const result = await revokeTenantApiKeyAction(id);
       if (result?.error) {
@@ -81,6 +104,7 @@ export function ApiKeyManager({
       } else {
         toast.success(t('revokeSuccess'));
       }
+      setRevokeTarget(null);
     });
   }
 
@@ -132,7 +156,7 @@ export function ApiKeyManager({
 
       {canManage &&
         (showCreate ? (
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="space-y-3 rounded-xl border border-border bg-card p-4 shadow-sm">
             <Input
               placeholder={t('labelPlaceholder')}
               value={newLabel}
@@ -140,6 +164,25 @@ export function ApiKeyManager({
               disabled={isPending}
               className="sm:max-w-xs"
             />
+
+            <div>
+              <p className="text-xs font-medium text-muted-foreground">{t('selectScopes')}</p>
+              <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                {callerScopes.map((scope) => (
+                  <label key={scope} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={selectedScopes.has(scope)}
+                      onChange={() => toggleScope(scope)}
+                      disabled={isPending}
+                      className="h-4 w-4 rounded border-border"
+                    />
+                    {t(`scopeLabels.${scope}`)}
+                  </label>
+                ))}
+              </div>
+            </div>
+
             <div className="flex items-center gap-2">
               <Button size="sm" onClick={handleCreate} disabled={isPending}>
                 {isPending ? t('creating') : t('create')}
@@ -161,10 +204,11 @@ export function ApiKeyManager({
       ) : (
         <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-max text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('table.label')}</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('table.scopes')}</th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('table.environment')}</th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('table.lastFour')}</th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('table.status')}</th>
@@ -178,21 +222,45 @@ export function ApiKeyManager({
               <tbody className="divide-y divide-border">
                 {keys.map((k) => {
                   const isExpanded = expandedId === k.id;
-                  const columnCount = 8 + (canManage ? 1 : 0);
+                  const columnCount = 9 + (canManage ? 1 : 0);
+                  const isFullAccess = ALL_API_SCOPES.every((s) => k.scopes.includes(s));
                   return (
                     <Fragment key={k.id}>
                     <tr className={k.isActive ? '' : 'opacity-50'}>
                       <td className="px-4 py-3 font-medium">
-                        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                          <Key className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                          {k.label}
+                        <div className="flex flex-col gap-1">
+                          <span className="flex items-center gap-2">
+                            <Key className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                            {k.label}
+                          </span>
                           {k.isManaged && (
-                            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-normal text-muted-foreground">
+                            <span className="inline-flex w-fit items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-normal text-muted-foreground">
                               <Lock className="h-3 w-3" />
                               {k.managedRole ? t('appKeyBadgeRole', { role: tRole(`role.${k.managedRole}`) }) : t('appKeyBadge')}
                             </span>
                           )}
-                        </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        {k.scopes.length === 0 ? (
+                          <span className="text-muted-foreground">—</span>
+                        ) : isFullAccess ? (
+                          <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                            {t('fullAccess')}
+                          </span>
+                        ) : (
+                          <span className="flex flex-wrap gap-1">
+                            {k.scopes.map((scope) => (
+                              <span
+                                key={scope}
+                                title={t.has(`scopeLabels.${scope}`) ? t(`scopeLabels.${scope}` as never) : undefined}
+                                className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground"
+                              >
+                                {scope}
+                              </span>
+                            ))}
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">{k.environment}</td>
                       <td className="px-4 py-3 font-mono text-muted-foreground">••••{k.lastFour}</td>
@@ -234,7 +302,7 @@ export function ApiKeyManager({
                               <span className="text-xs text-muted-foreground">{t('appKeyLocked')}</span>
                             ) : (
                               <button
-                                onClick={() => handleRevoke(k.id)}
+                                onClick={() => setRevokeTarget(k)}
                                 disabled={isPending}
                                 className="text-xs text-destructive hover:underline disabled:opacity-50"
                               >
@@ -247,7 +315,7 @@ export function ApiKeyManager({
                     {isExpanded && (
                       <tr className={k.isActive ? '' : 'opacity-50'}>
                         <td colSpan={columnCount} className="bg-muted/10 px-4 py-3">
-                          <ApiKeyUsageChart keyId={k.id} createdAt={k.createdAt} />
+                          <ApiKeyUsageChart keyId={k.id} />
                         </td>
                       </tr>
                     )}
@@ -310,6 +378,26 @@ export function ApiKeyManager({
           <ExternalLink className="h-3 w-3" />
         </a>
       </div>
+
+      <Dialog open={!!revokeTarget} onOpenChange={(open) => { if (!open) setRevokeTarget(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('confirmRevokeTitle')}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">{t('confirmRevokeDescription')}</p>
+          {revokeTarget && (
+            <p className="text-sm font-medium">{revokeTarget.label} · ••••{revokeTarget.lastFour}</p>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRevokeTarget(null)} disabled={isPending}>
+              {t('cancel')}
+            </Button>
+            <Button variant="destructive" onClick={handleRevoke} disabled={isPending}>
+              {t('revoke')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -6,12 +6,13 @@ import { createTenantApiKey, revokeTenantApiKey, getTenantApiKeyUsage, type ApiK
 import { encrypt, lastFour } from '@/lib/crypto';
 import { ApiError } from '@/lib/errors';
 import { revalidatePath } from 'next/cache';
+import type { ApiKeyScope } from '@/lib/role-api-scopes';
 
 export type ApiKeyResult = { error: string } | null;
 export type CreateApiKeyResult = { error: string } | { key: string; label: string } | null;
 export type ApiKeyUsageResult = { error: string } | { usage: ApiKeyDailyUsage[] };
 
-export async function createTenantApiKeyAction(label: string): Promise<CreateApiKeyResult> {
+export async function createTenantApiKeyAction(label: string, scopes?: ApiKeyScope[]): Promise<CreateApiKeyResult> {
   await requirePermission('apikeys.manage', { skipIssuer: true });
   const ctx = await (await import('@/lib/context')).requireContext({ skipIssuer: true });
 
@@ -25,6 +26,7 @@ export async function createTenantApiKeyAction(label: string): Promise<CreateApi
       { apiKey: ctx.apiKey },
       label.trim() || 'default',
       ctx.tenant.environment,
+      scopes,
     );
   } catch (err) {
     if (err instanceof ApiError) return { error: err.code };

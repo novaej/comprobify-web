@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { PageHeader } from '@/components/page-header';
 import { ApiKeyManager } from '@/components/api-key-manager';
 import { listTenantApiKeys } from '@/lib/api';
+import { computeApiScopesForRole } from '@/lib/role-api-scopes';
 
 export default async function ApiKeysPage({
   params,
@@ -51,11 +52,13 @@ export default async function ApiKeysPage({
           requestCount: usageByApiKeyId.get(k.apiKeyId)?.requestCount ?? 0,
           isManaged: k.isManaged,
           managedRole: k.managedRole,
+          scopes: k.scopes,
         }))}
         canManage={canManage}
         missingKey={!hasActiveKey}
         environment={ctx.tenant.environment}
         apiBaseUrl={process.env.COMPROBIFY_API_URL ?? ''}
+        callerScopes={computeApiScopesForRole(ctx.user.role)}
       />
     </div>
   );

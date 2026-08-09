@@ -1119,7 +1119,8 @@
     "create": "Crear",
     "cancel": "Cancelar",
     "revoke": "Revocar",
-    "confirmRevoke": "¿Revocar esta API key? Esta acción es irreversible.",
+    "confirmRevokeTitle": "¿Revocar esta API key?",
+    "confirmRevokeDescription": "Esta acción es irreversible. Cualquier sistema que use esta clave dejará de poder autenticarse.",
     "copy": "Copiar clave",
     "dismiss": "Cerrar",
     "createdSuccess": "API key «{label}» creada exitosamente.",
@@ -1133,7 +1134,8 @@
       "created": "Creada",
       "lastUsed": "Últ. uso",
       "requests": "Solicitudes",
-      "neverUsed": "Nunca"
+      "neverUsed": "Nunca",
+      "scopes": "Permisos"
     },
     "status": {
       "active": "Activa",
@@ -1141,6 +1143,20 @@
     },
     "revokeSuccess": "API key revocada correctamente.",
     "createSuccess": "API key «{label}» creada. Cópiala ahora, no podrás verla de nuevo.",
+    "selectScopes": "Permisos de la nueva llave",
+    "scopesRequired": "Selecciona al menos un permiso.",
+    "fullAccess": "Acceso total",
+    "scopeLabels": {
+      "documents:read": "Leer comprobantes",
+      "documents:write": "Crear comprobantes",
+      "issuers:read": "Leer emisores",
+      "issuers:write": "Administrar emisores",
+      "keys:manage": "Administrar API keys",
+      "billing:manage": "Administrar facturación",
+      "webhooks:manage": "Administrar webhooks",
+      "tenant:manage": "Administrar configuración de la empresa",
+      "tenant:promote": "Promover a producción"
+    },
     "environmentNames": {
       "sandbox": "pruebas",
       "production": "producción"

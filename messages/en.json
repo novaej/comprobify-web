@@ -1019,7 +1019,8 @@
     "create": "Create",
     "cancel": "Cancel",
     "revoke": "Revoke",
-    "confirmRevoke": "Revoke this API key? This action cannot be undone.",
+    "confirmRevokeTitle": "Revoke this API key?",
+    "confirmRevokeDescription": "This action cannot be undone. Any system using this key will stop being able to authenticate.",
     "copy": "Copy key",
     "dismiss": "Dismiss",
     "createdSuccess": "API key \"{label}\" created successfully.",
@@ -1033,7 +1034,8 @@
       "created": "Created",
       "lastUsed": "Last used",
       "requests": "Requests",
-      "neverUsed": "Never"
+      "neverUsed": "Never",
+      "scopes": "Scopes"
     },
     "status": {
       "active": "Active",
@@ -1041,6 +1043,20 @@
     },
     "revokeSuccess": "API key revoked successfully.",
     "createSuccess": "API key \"{label}\" created. Copy it now — you won't be able to see it again.",
+    "selectScopes": "New key's scopes",
+    "scopesRequired": "Select at least one scope.",
+    "fullAccess": "Full access",
+    "scopeLabels": {
+      "documents:read": "Read documents",
+      "documents:write": "Create documents",
+      "issuers:read": "Read issuers",
+      "issuers:write": "Manage issuers",
+      "keys:manage": "Manage API keys",
+      "billing:manage": "Manage billing",
+      "webhooks:manage": "Manage webhooks",
+      "tenant:manage": "Manage company settings",
+      "tenant:promote": "Promote to production"
+    },
     "environmentNames": {
       "sandbox": "sandbox",
       "production": "production"
