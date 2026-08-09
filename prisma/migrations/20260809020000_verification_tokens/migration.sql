@@ -1,8 +1,5 @@
--- Generic single-use, expiring, hashed token table — see
--- src/lib/verification-token.ts. Replaces User's hand-rolled
--- passwordResetTokenHash/passwordResetTokenExpiresAt columns and backs the
--- new invite-token flow, so both share one mechanism instead of two
--- separately-implemented ones.
+-- Generic single-use token table — see src/lib/verification-token.ts.
+-- Replaces User's hand-rolled password-reset-only token columns.
 
 CREATE TABLE "verification_tokens" (
   "id"          UUID PRIMARY KEY,
@@ -17,9 +14,7 @@ CREATE TABLE "verification_tokens" (
 CREATE INDEX "verification_tokens_user_id_purpose_idx"
   ON "verification_tokens" ("user_id", "purpose");
 
--- Carry over any currently in-flight password reset request so an
--- already-emailed link keeps working after this migration, instead of
--- silently breaking it.
+-- Carry over any in-flight password reset so its link keeps working.
 INSERT INTO "verification_tokens" (id, user_id, purpose, token_hash, expires_at)
 SELECT gen_random_uuid(), id, 'PASSWORD_RESET', "password_reset_token_hash", "password_reset_token_expires_at"
 FROM "users"

@@ -57,13 +57,8 @@ export async function revokeTenantApiKeyAction(id: string): Promise<ApiKeyResult
   if (!keyRow || keyRow.tenantId !== ctx.tenant.id) return { error: 'NOT_FOUND' };
   if (!keyRow.isActive) return { error: 'ALREADY_REVOKED' };
 
-  // Any key this app manages for its own authentication — the tenant's
-  // single full-access "master" key, or a narrower per-role key (see
-  // resolveApiKeyForRole) — can't be revoked here: the API refuses to revoke
-  // the key that signed the revoke request itself (SELF_REVOCATION_FORBIDDEN),
-  // and revoking any of them would leave that role's users unable to reach
-  // the API. The UI already disables these rows' buttons — this is the
-  // action-side gate.
+  // App-managed keys (master or per-role) can't be revoked — the API itself
+  // refuses SELF_REVOCATION_FORBIDDEN, and it'd cut that role off from the API.
   if (keyRow.isManaged) return { error: 'SELF_REVOCATION_FORBIDDEN' };
 
   try {

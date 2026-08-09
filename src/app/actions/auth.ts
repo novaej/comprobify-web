@@ -30,10 +30,7 @@ export async function loginAction(email: string, password: string): Promise<Auth
     return { error: 'ACCOUNT_DISABLED' };
   }
   if (preCheck?.inviteStatus === 'INVITED' && !preCheck.passwordHash) {
-    // Mint a fresh invite token rather than assuming the original emailed one
-    // is still valid (it may have expired, or already been superseded by a
-    // resend) — issueVerificationToken supersedes any prior unconsumed one,
-    // so this is always safe to call.
+    // Mint a fresh token — safe even if the original is still valid, since issuing supersedes it.
     const token = await issueVerificationToken(preCheck.id, 'INVITE');
     const params = new URLSearchParams({ token });
     redirect({ href: `/complete-registration?${params}`, locale });
@@ -124,31 +121,23 @@ async function postLoginRedirect(email: string, locale: string): Promise<null> {
   return null;
 }
 
-/**
- * Read-only check for whether an invite token currently resolves to a
- * pending invite — used by /complete-registration to decide what to render
- * on page load, and to display the target email (never trusted from the
- * client), mirroring checkResetTokenValid's page-load pattern. Does not
- * consume the token — see CLAUDE.md Common Mistake #47.
- */
+/** Read-only page-load check for /complete-registration — doesn't consume the token. */
 export async function checkInviteToken(token: string): Promise<{ email: string } | null> {
   const result = await checkVerificationToken(token, 'INVITE');
   if (!result) return null;
   const user = await db.user.findUnique({
     where: { id: result.userId },
-    select: { email: true, inviteStatus: true, passwordHash: true },
+    select: { email: true, inviteStatus: true },
   });
-  if (!user || user.inviteStatus !== 'INVITED' || user.passwordHash) return null;
+  if (!user || user.inviteStatus !== 'INVITED') return null;
   return { email: user.email };
 }
 
 /**
- * Complete the registration of an invited user.
- * - Consumes the invite token to resolve identity (never trusts a
- *   client-supplied email — the token is the only proof of ownership).
- * - Validates the user still has inviteStatus === 'INVITED' and no password.
- * - Hashes and saves the password, marks the account ACTIVE.
- * - Signs the user in and redirects to the appropriate page.
+ * Complete the registration of an invited user. The token (single-use,
+ * already consumed below) is the real authorization; inviteStatus is just a
+ * sanity check, not passwordHash — a stale passwordHash left by another
+ * write path shouldn't block an otherwise-valid token.
  */
 export async function completeRegistrationAction(
   token: string,
@@ -161,10 +150,10 @@ export async function completeRegistrationAction(
 
   const user = await db.user.findUnique({
     where: { id: consumed.userId },
-    select: { id: true, email: true, inviteStatus: true, passwordHash: true },
+    select: { id: true, email: true, inviteStatus: true },
   });
 
-  if (!user || user.inviteStatus !== 'INVITED' || user.passwordHash) {
+  if (!user || user.inviteStatus !== 'INVITED') {
     return { error: 'INVALID_OR_EXPIRED_INVITE' };
   }
 

@@ -29,14 +29,9 @@ model User {
   @@map("users")
 }
 
-/// Generic single-use, expiring, hashed token — see src/lib/verification-token.ts.
-/// Replaces the old per-purpose hand-rolled columns (e.g. User's former
-/// passwordResetTokenHash/passwordResetTokenExpiresAt) with one reusable
-/// mechanism, parameterized by `purpose` ('INVITE' | 'PASSWORD_RESET' today).
-/// issueVerificationToken() deletes any prior unconsumed token of the same
-/// (userId, purpose) before creating a new one, so re-issuing (e.g. resending
-/// an invite) supersedes any earlier still-valid link rather than leaving two
-/// simultaneously valid.
+/// Generic single-use, expiring, hashed token, parameterized by `purpose` —
+/// see src/lib/verification-token.ts. Replaces User's old hand-rolled
+/// password-reset-only token columns.
 model VerificationToken {
   id         String    @id @default(uuid(7)) @db.Uuid
   userId     String    @map("user_id") @db.Uuid
@@ -85,27 +80,16 @@ model TenantApiKey {
   encryptedKey String    @map("encrypted_key")
   lastFour     String    @map("last_four") @db.VarChar(4)
   isActive     Boolean   @default(true) @map("is_active")
-  // isManaged marks a key this app mints/owns for its own authentication (the
-  // single full-access "master" key, or a narrower per-role key — see
-  // resolveApiKeyForRole in src/lib/tenant-api-key.ts). false for ordinary
-  // user-created self-service integration keys.
-  isManaged    Boolean   @default(false) @map("is_managed")
-  // Set only on a narrower per-role key (e.g. "BillingOperator"); null for
-  // the master key and for self-service keys.
-  managedRole  String?   @map("managed_role")
-  // Scopes actually granted by the API at creation time, mirrored locally so
-  // scope drift (a future ROLE_API_SCOPES edit) can be detected without an
-  // extra API round-trip.
+  isManaged    Boolean   @default(false) @map("is_managed") // true for the master key or a per-role key; false for self-service keys
+  managedRole  String?   @map("managed_role") // set only on a per-role key
   scopes       String[]  @default([]) @map("scopes")
   createdAt    DateTime  @default(now()) @map("created_at")
   revokedAt    DateTime? @map("revoked_at")
   tenant       Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  // A partial unique index on (tenantId, environment, managedRole) WHERE
-  // isActive AND managedRole IS NOT NULL also exists in the DB — added via
-  // raw SQL in the migration since Prisma's @@unique can't express a WHERE
-  // clause. Not declared here; don't add a conflicting @@unique for these
-  // columns.
+  // Partial unique index on (tenantId, environment, managedRole) WHERE isActive
+  // AND managedRole IS NOT NULL also exists in the DB, added via raw SQL migration
+  // — Prisma's @@unique can't express a WHERE clause, so it's not declared here.
   @@index([tenantId, isActive])
   @@map("tenant_api_keys")
 }

@@ -79,13 +79,9 @@ export async function promoteTenantAction(
     }
   }
 
-  // comprobify mirrors each sandbox key's own scopes into its production
-  // equivalent by label (see tenant.service.js's promote()) — so any
-  // per-role key (see resolveApiKeyForRole) survives promotion with the same
-  // scopes. Look up isManaged/managedRole from the sandbox rows being
-  // replaced, by label, so the new production rows carry them over too —
-  // otherwise a promoted tenant's per-role keys would look like ordinary
-  // self-service keys and lose their self-revocation protection.
+  // comprobify mirrors each sandbox key's scopes into its production equivalent
+  // by label; carry isManaged/managedRole over the same way so per-role keys
+  // keep their self-revocation protection after promotion.
   const existingSandboxKeys = await db.tenantApiKey.findMany({
     where: { tenantId: ctx.tenant.id, isActive: true },
   });

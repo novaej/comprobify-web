@@ -19,20 +19,12 @@ function assertCanGrantRole(role: Role, callerRole: Role): UsersResult {
   return null;
 }
 
-/**
- * Mints (or reuses) the role's API key up front, at role-assignment time,
- * instead of leaving it to be created lazily on that user's first login —
- * see src/lib/tenant-api-key.ts's resolveApiKeyForRole. Best-effort: a
- * transient failure here (e.g. the Comprobify API being briefly unreachable)
- * must not block inviting or re-roling a user — requireContext()'s own call
- * into the same function is the fallback.
- */
+/** Mints the role's key eagerly on role assignment — best-effort, requireContext() is the fallback. */
 async function ensureRoleApiKeyBestEffort(tenantId: string, environment: string, role: Role) {
   try {
     await resolveApiKeyForRole(tenantId, environment, role);
   } catch (err) {
-    // Sentry is a no-op locally (no DSN), so log too — otherwise this
-    // failure is invisible in dev.
+    // Sentry is a no-op locally — log too so this isn't invisible in dev.
     console.error('[users] ensureRoleApiKeyBestEffort failed', { tenantId, environment, role, err });
     Sentry.captureException(err, { extra: { tenantId, environment, role } });
   }
@@ -72,12 +64,7 @@ export async function inviteUserAction(email: string, role: Role): Promise<Users
       return { error: 'USER_BELONGS_TO_ANOTHER_TENANT' };
     }
     if (existing.tenantId === ctx.tenant.id) return { error: 'USER_ALREADY_IN_TENANT' };
-    // Existing user with no tenant — link them. passwordHash is reset even
-    // though it may already be null (e.g. this user previously completed
-    // registration elsewhere, then got removed via removeUserAction, which
-    // clears tenantId/role but not passwordHash) — otherwise
-    // completeRegistrationAction's `user.passwordHash` check rejects this
-    // legitimate re-invite as INVALID_OR_EXPIRED_INVITE.
+    // Existing user with no tenant — link them (hygiene: clear any stale passwordHash).
     await db.user.update({
       where: { id: existing.id },
       data: { tenantId: ctx.tenant.id, role, inviteStatus: 'INVITED', invitedAt: new Date(), passwordHash: null },
@@ -112,9 +99,12 @@ export async function resendInviteAction(userId: string): Promise<UsersResult> {
   if (!user || user.tenantId !== ctx.tenant.id) return { error: 'USER_NOT_FOUND' };
   if (user.inviteStatus !== 'INVITED') return { error: 'USER_ALREADY_IN_TENANT' };
 
-  // issueVerificationToken supersedes any prior unconsumed invite token for
-  // this user, so the original invite link stops working the moment this
-  // one is sent.
+  // Hygiene only — completion no longer gates on this field, just inviteStatus.
+  if (user.passwordHash) {
+    await db.user.update({ where: { id: userId }, data: { passwordHash: null } });
+  }
+
+  // Supersedes any prior unconsumed invite token, so the old link stops working.
   const token = await issueVerificationToken(user.id, 'INVITE');
   await sendInviteEmail(user.email, ctx.tenant.businessName, token);
   return null;

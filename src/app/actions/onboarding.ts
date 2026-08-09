@@ -136,12 +136,7 @@ export async function bootstrapTenantAction(formData: FormData): Promise<Onboard
           encryptedKey: encrypt(plainApiKey),
           lastFour: lastFour(plainApiKey),
           isActive: true,
-          // The very first key for a brand-new tenant — registration.service.js's
-          // register() grants it every scope, so it becomes this tenant's
-          // "master" key (see resolveApiKeyForRole in tenant-api-key.ts).
-          // Without isManaged: true here, findMasterApiKeyRow finds nothing
-          // and no request from this tenant can ever authenticate.
-          isManaged: true,
+          isManaged: true, // this becomes the tenant's master key — see resolveApiKeyForRole
           scopes: keyRecord.scopes,
         },
       });
@@ -231,11 +226,7 @@ export async function linkExistingTenantAction(formData: FormData): Promise<Onbo
 
   let newKey: Awaited<ReturnType<typeof createTenantApiKey>>;
   try {
-    // Explicit ALL_API_SCOPES rather than relying on the "omit scopes ->
-    // clone the pasted key's own" default: this freshly minted key becomes
-    // this tenant's "master" key (see resolveApiKeyForRole in
-    // tenant-api-key.ts) and must be full-access regardless of what the
-    // pasted key itself happened to be scoped to.
+    // Explicit ALL_API_SCOPES — this becomes the tenant's master key, full-access regardless of the pasted key's own scopes.
     newKey = await createTenantApiKey(
       { apiKey: pastedApiKey },
       'Comprobify Web',
@@ -282,9 +273,7 @@ export async function linkExistingTenantAction(formData: FormData): Promise<Onbo
           encryptedKey: encrypt(newKey.key),
           lastFour: lastFour(newKey.key),
           isActive: true,
-          // See the comment above createTenantApiKey() — minted with
-          // ALL_API_SCOPES explicitly, so this becomes the tenant's master key.
-          isManaged: true,
+          isManaged: true, // minted with ALL_API_SCOPES above — the tenant's master key
           scopes: newKey.scopes,
         },
       });

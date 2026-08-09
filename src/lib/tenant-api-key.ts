@@ -6,17 +6,7 @@ import { computeApiScopesForRole, isFullAccessScopeSet, sameScopes } from '@/lib
 import type { Role } from '@/lib/rbac';
 import type { TenantApiKey } from '@prisma/client';
 
-/**
- * Resolves the tenant's full-access ("master") key row — the one every
- * tenant already had before per-role keys existed, and the only key ever
- * used to mint a narrower per-role key (the API's own privilege-containment
- * rule requires the minting key to itself be a superset of what it grants,
- * see resolveApiKeyForRole below).
- *
- * Selection is deterministic — oldest active `isManaged` row with no
- * `managedRole` — same ordering the pre-per-role-keys `findAppApiKeyRow`
- * used, so this is a drop-in replacement for tenants that predate this file.
- */
+/** The tenant's full-access key — used directly by Owner/Admin, and as the minting authority for narrower per-role keys. */
 export function findMasterApiKeyRow(tenantId: string, environment: string) {
   return db.tenantApiKey.findFirst({
     where: { tenantId, environment, isActive: true, isManaged: true, managedRole: null },
@@ -24,16 +14,7 @@ export function findMasterApiKeyRow(tenantId: string, environment: string) {
   });
 }
 
-/**
- * Resolves (minting or reconciling as needed) the API key a given role
- * should authenticate with. Idempotent and self-healing — safe to call both
- * eagerly (on role assignment, src/app/actions/users.ts) and lazily as a
- * fallback (every requireContext() call, src/lib/context.ts).
- *
- * Owner and Admin both compute to every scope that exists, so they share the
- * master key directly rather than getting their own row — only
- * BillingOperator/Viewer/Developer ever get a distinct, narrower key.
- */
+/** Finds, mints, or reconciles the key a role should authenticate with. Idempotent — safe to call eagerly on role assignment or lazily from requireContext(). */
 export async function resolveApiKeyForRole(
   tenantId: string,
   environment: string,
@@ -71,9 +52,7 @@ async function revokeStaleManagedKey(
     try {
       await revokeTenantApiKey({ apiKey: decrypt(master.encryptedKey) }, row.apiKeyId);
     } catch {
-      // Best-effort — if the API-side revoke fails, still stop using the
-      // stale local row below; a dangling API-side key with old scopes is
-      // strictly narrower than a full-access key, not a security regression.
+      // Best-effort — still deactivate the local row below either way.
     }
   }
   await db.tenantApiKey.update({
@@ -92,22 +71,14 @@ async function mintManagedKey(
   if (!master) return null;
   const masterApiKey = decrypt(master.encryptedKey);
 
-  // A Postgres advisory lock, scoped to this transaction and keyed on
-  // (tenantId, environment, role), serializes concurrent first-requests for
-  // the same role's key *before* any of them calls the real Comprobify API.
-  // Without this, the partial unique index below still guarantees only one
-  // *local* row survives, but every losing concurrent caller has already
-  // minted a real, orphaned key at the API by the time it loses that race —
-  // confirmed happening in practice (8 live "App — Viewer" keys at the API
-  // for what should have been 1). Two int4 hashtext() args avoid needing to
-  // compute a bigint key in JS; the first is a fixed namespace so this can't
-  // collide with any other advisory lock this app might use in the future.
+  // Advisory lock keyed on (tenantId, environment, role) — serializes
+  // concurrent mint attempts before any of them calls the real API, so a
+  // race can't mint multiple orphaned real keys (confirmed happening without this).
   return db.$transaction(
     async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('tenant_api_key_mint'), hashtext(${`${tenantId}:${environment}:${role}`}))`;
 
-      // Re-check inside the lock — a concurrent call may have already minted
-      // and committed this role's key while we were waiting for the lock.
+      // Re-check inside the lock in case a concurrent call already won.
       const existing = await tx.tenantApiKey.findFirst({
         where: { tenantId, environment, isActive: true, isManaged: true, managedRole: role },
         orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
@@ -136,9 +107,6 @@ async function mintManagedKey(
         },
       });
     },
-    // Default Prisma transaction timeout (5s) is tight for two sequential
-    // external HTTP calls to the Comprobify API (POST /v1/keys, then the
-    // follow-up GET to resolve the new key's id) — give it real headroom.
-    { timeout: 15000 },
+    { timeout: 15000 }, // default 5s is tight for 2 sequential external API calls
   );
 }

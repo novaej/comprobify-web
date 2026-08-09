@@ -93,14 +93,7 @@ export async function recoverAccountAction(formData: FormData): Promise<RecoverA
           encryptedKey: encrypt(result.apiKey),
           lastFour: lastFour(result.apiKey),
           isActive: true,
-          // The updateMany above just revoked every active key this tenant
-          // had in this environment (including any per-role keys — that's
-          // POST /v1/recover's own revoke-everything-in-env behavior), so
-          // this recovered key is now the only one left. registration.service.js's
-          // recover() grants it every scope, so it becomes the new master key
-          // (see resolveApiKeyForRole in tenant-api-key.ts) — narrower per-role
-          // keys get re-minted from it afterward, eagerly or lazily.
-          isManaged: true,
+          isManaged: true, // updateMany above revoked every other key, so this becomes the new master key
           scopes: keyRecord.scopes,
         },
       }),
