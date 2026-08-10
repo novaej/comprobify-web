@@ -8,11 +8,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.9.10] — 2026-08-10
+
 ### Added
 - **Per-key API usage on `/settings/api-keys`** — the key table now shows lifetime "Últ. uso"/"Solicitudes" columns (from the API's `GET /v1/keys`, added alongside comprobify's new `api_key_daily_usage` tracking) and a "Ver uso" toggle per row that expands a Recharts daily-request bar chart (`GET /v1/keys/:id/usage`, 7/30/90-day range). The chart drops zero-filled days before the key's own `createdAt`, since the API always back-fills the full requested range regardless of when the key was created.
+- **Per-role Comprobify API keys** — each user role now authenticates against a key scoped to what that role can actually do (comprobify's 9-value scope vocabulary), instead of every request sharing one full-access key, so a missed permission gate now degrades to an API-level 403 instead of silently keeping full access underneath. Owner/Admin share the tenant's existing full-access key; BillingOperator/Viewer/Developer get narrower keys minted through it, eagerly on role assignment and lazily as a `requireContext()` fallback. `/settings/api-keys` also shows each key's granted scopes and lets a new key's scopes be picked (bounded to the caller's own role).
 
 ### Changed
 - **Moved the API keys screen from `/api-keys` to `/settings/api-keys`**, and switched it to the fluid (no `max-w-3xl`) content-width cluster — the settings-form cap it previously inherited made the new usage table cramped, and content width should follow content type (table vs. form), not which route a page sits under.
+- **`/settings/api-keys` usability** — the usage chart's range options shortened to 7/14/30 days (was 7/30/90, default 14); revoke confirmation is now an in-app dialog instead of the browser's native `confirm()`.
+
+### Security
+- **Invite links are now token-based instead of email-keyed** — `/complete-registration?email=<address>` had no secret component (the email field was even editable on the public form), so anyone who knew or guessed a pending invitee's address could set that account's password themselves. Invite and self-service password-reset links now both carry a single-use, expiring, hashed token (`VerificationToken`); issuing a new one invalidates any prior unconsumed token of the same purpose, so resending an invite genuinely supersedes the old link.
 
 ## [0.9.9] — 2026-08-06
 
