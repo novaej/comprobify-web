@@ -8,6 +8,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.9.11] — 2026-08-10
+
+### Added
+- **Per-item additional details on invoices and credit notes** — `InvoiceForm`/`CreditNoteForm` line items now have a "Detalles" toggle exposing up to 3 free-form name/value pairs per item (SRI `detallesAdicionales`, added in comprobify's per-item details feature), rendered in the RIDE PDF via the API's own XML parsing. Distinct from the existing document-level "Campos adicionales".
+
 ## [0.9.10] — 2026-08-10
 
 ### Added
