@@ -19,9 +19,10 @@ function toJson(v: Record<string, unknown> | null | undefined): Prisma.InputJson
  *   2. Look up the tenant's WebhookEndpoint row to get the decrypted secret.
  *   3. Verify HMAC-SHA256 signature (reject if invalid or timestamp > 5 min old).
  *   4. Deduplicate by deliveryId (idempotent — retries reuse the same deliveryId).
- *   5. Upsert Notification by (tenantId, apiNotificationId).
- *   6. Fan out NotificationRead rows to eligible users.
- *   7. Return 200 immediately.
+ *   5. Upsert Notification by (tenantId, apiNotificationId). Visibility and read
+ *      state are resolved at query time, not written here — see
+ *      src/app/actions/notifications.ts's visibleNotificationOr().
+ *   6. Return 200 immediately.
  *
  * The payload shape matches docs/site/endpoints/webhooks.md → Payload format.
  */
@@ -128,10 +129,15 @@ export async function POST(request: NextRequest): Promise<Response> {
   //    For now, upsert is idempotent — processing the same deliveryId twice
   //    produces the same row state, which satisfies the idempotency requirement.
 
-  // 5. Upsert Notification by (tenantId, apiNotificationId).
-  let notificationId: string;
+  // 5. Upsert Notification by (tenantId, apiNotificationId). Visibility (who can
+  //    see an issuer-scoped notification) and read state are resolved at query
+  //    time in src/app/actions/notifications.ts — nothing is written to
+  //    NotificationRead here. This used to eagerly fan out NotificationRead rows
+  //    to every "eligible" user right after the upsert, which marked the
+  //    notification read before anyone had actually seen it — see CLAUDE.md
+  //    Common Mistake #51.
   try {
-    const notification = await db.notification.upsert({
+    await db.notification.upsert({
       where: {
         tenantId_apiNotificationId: {
           tenantId: tenant.id,
@@ -162,14 +168,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         apiReadAt: data.readAt ? new Date(data.readAt) : null,
         expiresAt: data.expiresAt ? new Date(data.expiresAt) : null,
       },
-      include: { reads: { select: { userId: true } } },
     });
-    notificationId = notification.id;
-
-    // 6. Fan out NotificationRead rows to all eligible users who don't yet have one.
-    //    Eligible = Owner/Admin (all notifications) + users with access to the
-    //    specific issuer when issuerId is set.
-    await fanOutReads(tenant.id, notificationId, notification.issuerId, notification.reads.map((r: { userId: string }) => r.userId));
   } catch (err) {
     console.error('[webhook] upsert error', err);
     return new Response('Internal error', { status: 500 });
@@ -178,55 +177,4 @@ export async function POST(request: NextRequest): Promise<Response> {
   void deliveryId; // acknowledged — full dedup table is a future enhancement
 
   return new Response('ok', { status: 200 });
-}
-
-async function fanOutReads(
-  tenantId: string,
-  notificationId: string,
-  /** API-side issuer id (BIGSERIAL), not a local Issuer.id — see Common Mistake #20. */
-  issuerId: string | null,
-  alreadyReadUserIds: string[],
-): Promise<void> {
-  // Find all eligible users who haven't read this notification yet.
-  let eligibleUserIds: string[];
-
-  if (issuerId === null) {
-    // Tenant-level notification → all active users in the tenant.
-    const users = await db.user.findMany({
-      where: { tenantId, inviteStatus: 'ACTIVE' },
-      select: { id: true },
-    });
-    eligibleUserIds = users.map((u) => u.id);
-  } else {
-    // Issuer-scoped notification → Owner/Admin roles + users with explicit access.
-    const adminUsers = await db.user.findMany({
-      where: { tenantId, role: { in: ['Owner', 'Admin'] }, inviteStatus: 'ACTIVE' },
-      select: { id: true },
-    });
-    // UserIssuerAccess.issuerId is the local UUID FK, so the API-side issuerId
-    // has to be resolved through Issuer.apiIssuerId before it can be matched.
-    const localIssuer = await db.issuer.findFirst({
-      where: { tenantId, apiIssuerId: issuerId },
-      select: { id: true },
-    });
-    const accessUsers = localIssuer
-      ? await db.userIssuerAccess.findMany({
-          where: { tenantId, issuerId: localIssuer.id },
-          select: { userId: true },
-        })
-      : [];
-    const adminIds = adminUsers.map((u) => u.id);
-    const accessIds = accessUsers.map((a) => a.userId);
-    eligibleUserIds = [...new Set([...adminIds, ...accessIds])];
-  }
-
-  // Filter out users who already have a read row.
-  const newUserIds = eligibleUserIds.filter((id) => !alreadyReadUserIds.includes(id));
-  if (newUserIds.length === 0) return;
-
-  // Create NotificationRead rows using createMany (skip duplicates for safety).
-  await db.notificationRead.createMany({
-    data: newUserIds.map((userId) => ({ notificationId, userId })),
-    skipDuplicates: true,
-  });
 }

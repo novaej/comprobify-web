@@ -124,12 +124,16 @@ export async function catchUpNotificationsAction(): Promise<{ upserted: number }
 
   if (notifications.length === 0) return { upserted: 0 };
 
-  // Upsert each notification.
+  // Upsert each notification. Visibility (who can see an issuer-scoped
+  // notification) and read state are resolved at query time in
+  // listNotificationsAction/getUnreadCountAction — nothing is written to
+  // NotificationRead here. See Common Mistake #51 in CLAUDE.md: this used to
+  // eagerly fan out NotificationRead rows to every eligible user right here,
+  // which marked the notification "read" before anyone had actually seen it.
   let upserted = 0;
   for (const n of notifications) {
-    let existing;
     try {
-      existing = await db.notification.upsert({
+      await db.notification.upsert({
         where: {
           tenantId_apiNotificationId: { tenantId, apiNotificationId: n.id },
         },
@@ -155,7 +159,6 @@ export async function catchUpNotificationsAction(): Promise<{ upserted: number }
           apiReadAt: n.readAt ? new Date(n.readAt) : null,
           expiresAt: n.expiresAt ? new Date(n.expiresAt) : null,
         },
-        include: { reads: { select: { userId: true } } },
       });
     } catch (err) {
       // Concurrent catchUp calls can both attempt to INSERT the same notification.
@@ -164,10 +167,6 @@ export async function catchUpNotificationsAction(): Promise<{ upserted: number }
         continue;
       }
       throw err;
-    }
-    // Fan out reads for newly created notifications.
-    if (existing) {
-      await fanOutReads(tenantId, existing.id, existing.issuerId, existing.reads.map((r: { userId: string }) => r.userId));
     }
     upserted++;
   }
@@ -184,20 +183,24 @@ export async function getUnreadCountAction(): Promise<number> {
   const ctx = await requireContext({ skipIssuer: true });
   const userId = ctx.user.id;
   const tenantId = ctx.tenant.id;
+  const canSeeBilling = ctx.user.role === 'Owner' || ctx.user.role === 'Admin';
+  const visibility = await visibleNotificationOr(tenantId, userId, ctx.user.role);
 
   // Count notifications where:
   //   - belongs to this tenant
   //   - not expired
   //   - not marked read at API level
+  //   - visible to this user (tenant-level, or issuer-scoped with access)
   //   - this user has NOT read it (no NotificationRead row)
   const count = await db.notification.count({
     where: {
       tenantId,
       apiReadAt: null,
-      OR: [
-        { expiresAt: null },
-        { expiresAt: { gt: new Date() } },
+      AND: [
+        { OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+        ...(visibility ? [{ OR: visibility }] : []),
       ],
+      ...(!canSeeBilling ? { type: { notIn: BILLING_NOTIFICATION_TYPES } } : {}),
       reads: {
         none: { userId },
       },
@@ -237,13 +240,14 @@ export async function listNotificationsAction(): Promise<{
   });
   const joinedAt = userDates?.acceptedAt ?? userDates?.invitedAt;
   const canSeeBilling = ctx.user.role === 'Owner' || ctx.user.role === 'Admin';
+  const visibility = await visibleNotificationOr(tenantId, userId, ctx.user.role);
 
   const notifications = await db.notification.findMany({
     where: {
       tenantId,
-      OR: [
-        { expiresAt: null },
-        { expiresAt: { gt: new Date() } },
+      AND: [
+        { OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+        ...(visibility ? [{ OR: visibility }] : []),
       ],
       ...(joinedAt ? { apiCreatedAt: { gte: joinedAt } } : {}),
       ...(!canSeeBilling ? { type: { notIn: BILLING_NOTIFICATION_TYPES } } : {}),
@@ -317,8 +321,8 @@ export async function updatePreferencesAction(
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
 /**
- * Maps an API-side issuer id (Notification.issuerId, a BIGSERIAL integer) to the
- * local Issuer.id UUID. UserIssuerAccess.issuerId is a local FK, so the two are
+ * Maps an API-side issuer id (Notification.issuerId, a UUID) to the local
+ * Issuer.id UUID. UserIssuerAccess.issuerId is a local FK, so the two are
  * never directly comparable — see CLAUDE.md Common Mistake #20.
  */
 async function resolveLocalIssuerId(tenantId: string, apiIssuerId: string): Promise<string | null> {
@@ -329,43 +333,35 @@ async function resolveLocalIssuerId(tenantId: string, apiIssuerId: string): Prom
   return issuer?.id ?? null;
 }
 
-async function fanOutReads(
+/**
+ * Query-time visibility filter for Notification.findMany/count: Owner/Admin see
+ * every notification (returns undefined — no restriction needed); every other
+ * role only sees tenant-level notifications (issuerId null) plus issuer-scoped
+ * ones for issuers they have explicit UserIssuerAccess to. Returns a Prisma `OR`
+ * array to embed in the caller's `where`, or undefined when unrestricted.
+ *
+ * This replaces the notification system's original design of pre-writing a
+ * NotificationRead row for every "eligible" user at creation time (both here and
+ * in the webhook receiver) — see CLAUDE.md Common Mistake #51 for why that broke
+ * the unread badge for every eligible user and leaked visibility to ineligible
+ * ones. Read state and recipient scoping are different concerns: this function
+ * only answers "can this user see it," never touches NotificationRead.
+ */
+async function visibleNotificationOr(
   tenantId: string,
-  notificationId: string,
-  /** API-side issuer id, not a local Issuer.id. */
-  issuerId: string | null,
-  alreadyReadUserIds: string[],
-): Promise<void> {
-  let eligibleUserIds: string[];
+  userId: string,
+  role: string,
+): Promise<Prisma.NotificationWhereInput[] | undefined> {
+  if (role === 'Owner' || role === 'Admin') return undefined;
 
-  if (issuerId === null) {
-    const users = await db.user.findMany({
-      where: { tenantId, inviteStatus: 'ACTIVE' },
-      select: { id: true },
-    });
-    eligibleUserIds = users.map((u) => u.id);
-  } else {
-    const adminUsers = await db.user.findMany({
-      where: { tenantId, role: { in: ['Owner', 'Admin'] }, inviteStatus: 'ACTIVE' },
-      select: { id: true },
-    });
-    const localIssuerId = await resolveLocalIssuerId(tenantId, issuerId);
-    const accessUsers = localIssuerId
-      ? await db.userIssuerAccess.findMany({
-          where: { tenantId, issuerId: localIssuerId },
-          select: { userId: true },
-        })
-      : [];
-    const adminIds = adminUsers.map((u) => u.id);
-    const accessIds = accessUsers.map((a) => a.userId);
-    eligibleUserIds = [...new Set([...adminIds, ...accessIds])];
-  }
-
-  const newUserIds = eligibleUserIds.filter((id) => !alreadyReadUserIds.includes(id));
-  if (newUserIds.length === 0) return;
-
-  await db.notificationRead.createMany({
-    data: newUserIds.map((userId) => ({ notificationId, userId })),
-    skipDuplicates: true,
+  const access = await db.userIssuerAccess.findMany({
+    where: { tenantId, userId },
+    select: { issuer: { select: { apiIssuerId: true } } },
   });
+  const apiIssuerIds = access.map((a) => a.issuer.apiIssuerId);
+
+  return [
+    { issuerId: null },
+    ...(apiIssuerIds.length > 0 ? [{ issuerId: { in: apiIssuerIds } }] : []),
+  ];
 }
