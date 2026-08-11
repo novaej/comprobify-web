@@ -8,6 +8,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Fixed
+- **The notification bell never showed a new notification as unread, even though the `Notification` row existed in the database.** Both `fanOutReads()` implementations (the webhook receiver and the catch-up poll) wrote a `NotificationRead` row for every "eligible" user immediately after a notification was created — marking it read before anyone had actually opened it, so `getUnreadCountAction`'s unread filter excluded it from the very first fetch. As a side effect, users who were *not* in that eager fan-out (e.g. no access to the notification's issuer) never got a read row and incorrectly saw the notification as unread and visible, regardless of access. Removed both `fanOutReads()` functions; visibility is now resolved at query time (`visibleNotificationOr()`), and `NotificationRead` is only ever written by an explicit user action (`markNotificationReadAction`).
+
 ## [0.9.11] — 2026-08-10
 
 ### Added
