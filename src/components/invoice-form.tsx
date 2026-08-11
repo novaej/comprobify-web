@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition, useEffect, useMemo } from 'react';
-import { useForm, useFieldArray, useWatch, Controller } from 'react-hook-form';
+import { useForm, useFieldArray, useWatch, Controller, type UseFormReturn, type FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useTranslations } from 'next-intl';
@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
   DialogClose,
@@ -29,8 +30,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { createInvoiceAction, rebuildInvoiceAction, type InvoiceFormData } from '@/app/actions/invoice';
-import type { CreateInvoicePayload } from '@/lib/api';
+import type { CreateInvoicePayload, CatalogTaxRate } from '@/lib/api';
 import { ProductSearch } from '@/components/product-search';
+import type { CatalogProduct } from '@/app/actions/catalog';
 import {
   saveInvoiceTemplateAction,
   deleteInvoiceTemplateAction,
@@ -78,6 +80,16 @@ const invoiceSchema = z.object({
         unitPrice: decimalString,
         discount: z.string().optional(),
         taxOption: z.string().min(3),
+        // SRI detallesAdicionales — up to 3 free-form name/value pairs per line item.
+        additionalDetails: z
+          .array(
+            z.object({
+              name: z.string().min(1, 'Requerido').max(300),
+              value: z.string().min(1, 'Requerido').max(300),
+            })
+          )
+          .max(3)
+          .optional(),
       })
     )
     .min(1),
@@ -127,6 +139,7 @@ function toInvoiceFormData(data: InvoiceFormValues): InvoiceFormData {
       unitPrice: item.unitPrice,
       discount: item.discount || undefined,
       taxOption: item.taxOption as TaxOption,
+      additionalDetails: item.additionalDetails?.filter((d) => d.name && d.value) ?? [],
     })),
     payments: data.payments.map((p) => ({
       method: p.method,
@@ -156,6 +169,7 @@ function templateToFormValues(data: InvoiceFormData): InvoiceFormValues {
       unitPrice: item.unitPrice,
       discount: item.discount ?? '',
       taxOption: item.taxOption,
+      additionalDetails: item.additionalDetails ?? [],
     })),
     payments: data.payments.map((p) => ({
       method: p.method,
@@ -189,6 +203,7 @@ function requestPayloadToFormValues(payload: CreateInvoicePayload): InvoiceFormV
       unitPrice: item.unitPrice,
       discount: item.discount ?? '',
       taxOption: `${item.taxes[0].code}-${item.taxes[0].rateCode}`,
+      additionalDetails: item.additionalDetails ?? [],
     })),
     payments: payload.payments.map((p) => ({
       method: p.method,
@@ -247,6 +262,189 @@ function TotalsRow({ label, value }: { label: string; value: number }) {
   );
 }
 
+// Item row + its optional expandable "additional details" panel (SRI
+// detallesAdicionales, up to 3 name/value pairs per line item). Split out of the
+// items table's .map() because each row needs its own nested useFieldArray, which
+// can only be called from its own component (rules of hooks).
+const ITEM_TABLE_COLUMNS = 10;
+
+function ItemRow({
+  form,
+  index,
+  item,
+  errors,
+  ivaRates,
+  defaultTaxOption,
+  products,
+  canRemove,
+  onRemove,
+  t,
+}: {
+  form: UseFormReturn<InvoiceFormValues>;
+  index: number;
+  item: InvoiceFormValues['items'][number] | undefined;
+  errors: FieldErrors<InvoiceFormValues>;
+  ivaRates: CatalogTaxRate[];
+  defaultTaxOption: string;
+  products: CatalogProduct[];
+  canRemove: boolean;
+  onRemove: () => void;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  const { fields: detailFields, append: appendDetail, remove: removeDetail, replace: replaceDetails } = useFieldArray({
+    control: form.control,
+    name: `items.${index}.additionalDetails`,
+  });
+  const [showDetails, setShowDetails] = useState(detailFields.length > 0);
+
+  const qty = parseFloat(item?.quantity || '0') || 0;
+  const price = parseFloat(item?.unitPrice || '0') || 0;
+  const disc = parseFloat(item?.discount || '0') || 0;
+
+  return (
+    <>
+      <tr className="border-b last:border-0">
+        <td className="py-2 pr-2">
+          <ProductSearch
+            value={item?.mainCode ?? ''}
+            onChange={(v) => form.setValue(`items.${index}.mainCode`, v, { shouldValidate: true })}
+            onSelect={(p) => {
+              form.setValue(`items.${index}.mainCode`, p.mainCode, { shouldValidate: true });
+              form.setValue(`items.${index}.auxCode`, p.auxCode ?? '');
+              form.setValue(`items.${index}.description`, p.description, { shouldValidate: true });
+              form.setValue(`items.${index}.unitPrice`, Number(p.unitPrice).toFixed(2), { shouldValidate: true });
+              form.setValue(`items.${index}.taxOption`, p.taxOption);
+            }}
+            products={products}
+            className="h-8 w-24"
+            aria-invalid={!!errors.items?.[index]?.mainCode}
+          />
+        </td>
+        <td className="py-2 pr-2">
+          <Input {...form.register(`items.${index}.auxCode`)} className="h-8 w-20" />
+        </td>
+        <td className="py-2 pr-2">
+          <Input {...form.register(`items.${index}.quantity`)} className="h-8 w-16" />
+        </td>
+        <td className="py-2 pr-2">
+          <Input {...form.register(`items.${index}.description`)} className="h-8 min-w-[140px]" aria-invalid={!!errors.items?.[index]?.description} />
+        </td>
+        <td className="py-2 pr-2">
+          <Input {...form.register(`items.${index}.unitPrice`)} className="h-8 w-24" />
+        </td>
+        <td className="py-2 pr-2">
+          <Controller
+            name={`items.${index}.taxOption`}
+            control={form.control}
+            render={({ field: f }) => (
+              <Select<string>
+                value={f.value}
+                onValueChange={(v: string | null) => f.onChange(v ?? defaultTaxOption)}
+              >
+                <SelectTrigger className="h-8 w-32">
+                  <SelectValue>
+                    {(v: string | null) => {
+                      const r = ivaRates.find((x) => `2-${x.rateCode}` === v);
+                      if (!r) return v;
+                      return Number(r.rate) > 0 ? `IVA ${fmt(Number(r.rate))}%` : r.description;
+                    }}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent className="w-auto min-w-(--anchor-width)">
+                  {ivaRates.map((r) => {
+                    const label = Number(r.rate) > 0 ? `IVA ${fmt(Number(r.rate))}%` : r.description;
+                    return (
+                      <SelectItem key={r.rateCode} value={`2-${r.rateCode}`}>
+                        {label}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            )}
+          />
+        </td>
+        <td className="py-2 pr-2">
+          <Input {...form.register(`items.${index}.discount`)} className="h-8 w-20" placeholder="0.00" />
+        </td>
+        <td className="py-2 pr-2 font-mono text-sm whitespace-nowrap">
+          ${fmt(qty * price - disc)}
+        </td>
+        <td className="py-2 pr-2">
+          <Switch
+            size="sm"
+            checked={showDetails}
+            onCheckedChange={(checked) => {
+              setShowDetails(checked);
+              if (checked && detailFields.length === 0) {
+                appendDetail({ name: '', value: '' });
+              } else if (!checked) {
+                replaceDetails([]);
+              }
+            }}
+            aria-label={t('items.additionalDetails.toggle')}
+          />
+        </td>
+        <td className="py-2">
+          {canRemove && (
+            <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={onRemove}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </td>
+      </tr>
+      {showDetails && (
+        <tr className="border-b bg-muted/30 last:border-0">
+          <td colSpan={ITEM_TABLE_COLUMNS} className="px-2 py-3">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-muted-foreground">
+                  {t('items.additionalDetails.title')} ({detailFields.length}/3)
+                </p>
+                {detailFields.length < 3 && (
+                  <Button type="button" variant="outline" size="sm" onClick={() => appendDetail({ name: '', value: '' })}>
+                    <Plus className="mr-1 h-3.5 w-3.5" />
+                    {t('items.additionalDetails.add')}
+                  </Button>
+                )}
+              </div>
+              <div className="space-y-2">
+                {detailFields.map((field, detailIndex) => (
+                  <div key={field.id} className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <Input
+                      {...form.register(`items.${index}.additionalDetails.${detailIndex}.name`)}
+                      placeholder={t('items.additionalDetails.name')}
+                      className="h-8 sm:flex-1"
+                      maxLength={300}
+                      aria-invalid={!!errors.items?.[index]?.additionalDetails?.[detailIndex]?.name}
+                    />
+                    <Input
+                      {...form.register(`items.${index}.additionalDetails.${detailIndex}.value`)}
+                      placeholder={t('items.additionalDetails.value')}
+                      className="h-8 sm:flex-1"
+                      maxLength={300}
+                      aria-invalid={!!errors.items?.[index]?.additionalDetails?.[detailIndex]?.value}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0 text-destructive hover:text-destructive"
+                      onClick={() => removeDetail(detailIndex)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 interface RebuildSource {
@@ -296,7 +494,7 @@ export function InvoiceForm({ catalogs, defaultValues, rebuildFrom, backHref, fr
     defaultValues: rebuildDefaultValues ?? defaultValues ?? {
       guiaRemision: '',
       buyer: { idType: '05', id: '', name: '', email: '', address: '' },
-      items: [{ mainCode: '', auxCode: '', description: '', quantity: '1', unitPrice: '0.00', discount: '0.00', taxOption: defaultTaxOption }],
+      items: [{ mainCode: '', auxCode: '', description: '', quantity: '1', unitPrice: '0.00', discount: '0.00', taxOption: defaultTaxOption, additionalDetails: [] }],
       payments: [{ method: '01', total: '0.00', term: '', termUnit: '' }],
       additionalInfo: [],
     },
@@ -591,7 +789,7 @@ export function InvoiceForm({ catalogs, defaultValues, rebuildFrom, backHref, fr
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[680px] text-sm">
+                <table className="w-full min-w-[760px] text-sm">
                   <thead>
                     <tr className="border-b text-left text-xs text-muted-foreground">
                       <th className="pb-2 pr-2 font-medium">{t('items.mainCode')}</th>
@@ -602,92 +800,26 @@ export function InvoiceForm({ catalogs, defaultValues, rebuildFrom, backHref, fr
                       <th className="pb-2 pr-2 font-medium">{t('items.tax')}</th>
                       <th className="pb-2 pr-2 font-medium">{t('items.discount')} $</th>
                       <th className="pb-2 pr-2 font-medium">{t('items.lineTotal')}</th>
+                      <th className="pb-2 pr-2 font-medium">{t('items.additionalDetails.columnLabel')}</th>
                       <th className="pb-2 w-8"></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {itemFields.map((field, index) => {
-                      const qty = parseFloat(watchedItems?.[index]?.quantity || '0') || 0;
-                      const price = parseFloat(watchedItems?.[index]?.unitPrice || '0') || 0;
-                      const disc = parseFloat(watchedItems?.[index]?.discount || '0') || 0;
-                      return (
-                        <tr key={field.id} className="border-b last:border-0">
-                          <td className="py-2 pr-2">
-                            <ProductSearch
-                              value={watchedItems?.[index]?.mainCode ?? ''}
-                              onChange={(v) => form.setValue(`items.${index}.mainCode`, v, { shouldValidate: true })}
-                              onSelect={(p) => {
-                                form.setValue(`items.${index}.mainCode`, p.mainCode, { shouldValidate: true });
-                                form.setValue(`items.${index}.auxCode`, p.auxCode ?? '');
-                                form.setValue(`items.${index}.description`, p.description, { shouldValidate: true });
-                                form.setValue(`items.${index}.unitPrice`, Number(p.unitPrice).toFixed(2), { shouldValidate: true });
-                                form.setValue(`items.${index}.taxOption`, p.taxOption);
-                              }}
-                              products={catalogs.products}
-                              className="h-8 w-24"
-                              aria-invalid={!!errors.items?.[index]?.mainCode}
-                            />
-                          </td>
-                          <td className="py-2 pr-2">
-                            <Input {...form.register(`items.${index}.auxCode`)} className="h-8 w-20" />
-                          </td>
-                          <td className="py-2 pr-2">
-                            <Input {...form.register(`items.${index}.quantity`)} className="h-8 w-16" />
-                          </td>
-                          <td className="py-2 pr-2">
-                            <Input {...form.register(`items.${index}.description`)} className="h-8 min-w-[140px]" aria-invalid={!!errors.items?.[index]?.description} />
-                          </td>
-                          <td className="py-2 pr-2">
-                            <Input {...form.register(`items.${index}.unitPrice`)} className="h-8 w-24" />
-                          </td>
-                          <td className="py-2 pr-2">
-                            <Controller
-                              name={`items.${index}.taxOption`}
-                              control={form.control}
-                              render={({ field: f }) => (
-                                <Select<string>
-                                  value={f.value}
-                                  onValueChange={(v: string | null) => f.onChange(v ?? defaultTaxOption)}
-                                >
-                                  <SelectTrigger className="h-8 w-32">
-                                    <SelectValue>
-                                      {(v: string | null) => {
-                                        const r = ivaRates.find((x) => `2-${x.rateCode}` === v);
-                                        if (!r) return v;
-                                        return Number(r.rate) > 0 ? `IVA ${fmt(Number(r.rate))}%` : r.description;
-                                      }}
-                                    </SelectValue>
-                                  </SelectTrigger>
-                                  <SelectContent className="w-auto min-w-(--anchor-width)">
-                                    {ivaRates.map((r) => {
-                                      const label = Number(r.rate) > 0 ? `IVA ${fmt(Number(r.rate))}%` : r.description;
-                                      return (
-                                        <SelectItem key={r.rateCode} value={`2-${r.rateCode}`}>
-                                          {label}
-                                        </SelectItem>
-                                      );
-                                    })}
-                                  </SelectContent>
-                                </Select>
-                              )}
-                            />
-                          </td>
-                          <td className="py-2 pr-2">
-                            <Input {...form.register(`items.${index}.discount`)} className="h-8 w-20" placeholder="0.00" />
-                          </td>
-                          <td className="py-2 pr-2 font-mono text-sm whitespace-nowrap">
-                            ${fmt(qty * price - disc)}
-                          </td>
-                          <td className="py-2">
-                            {itemFields.length > 1 && (
-                              <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => removeItem(index)}>
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {itemFields.map((field, index) => (
+                      <ItemRow
+                        key={field.id}
+                        form={form}
+                        index={index}
+                        item={watchedItems?.[index]}
+                        errors={errors}
+                        ivaRates={ivaRates}
+                        defaultTaxOption={defaultTaxOption}
+                        products={catalogs.products}
+                        canRemove={itemFields.length > 1}
+                        onRemove={() => removeItem(index)}
+                        t={t}
+                      />
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -695,7 +827,7 @@ export function InvoiceForm({ catalogs, defaultValues, rebuildFrom, backHref, fr
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => appendItem({ mainCode: '', auxCode: '', description: '', quantity: '1', unitPrice: '0.00', discount: '0.00', taxOption: defaultTaxOption })}
+                onClick={() => appendItem({ mainCode: '', auxCode: '', description: '', quantity: '1', unitPrice: '0.00', discount: '0.00', taxOption: defaultTaxOption, additionalDetails: [] })}
               >
                 <Plus className="mr-1 h-3.5 w-3.5" />
                 {t('items.add')}

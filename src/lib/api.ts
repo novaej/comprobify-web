@@ -209,6 +209,10 @@ export interface InvoiceItem {
   unitPrice: string;
   discount?: string;
   taxes: InvoiceTax[];
+  // SRI detallesAdicionales/detAdicional — up to 3 free-form name/value pairs per
+  // line item (comprobify-web CLAUDE.md rule 15: verified against
+  // ../comprobify/src/validators/invoice.validator.js and credit-note.validator.js).
+  additionalDetails?: Array<{ name: string; value: string }>;
 }
 
 export interface InvoicePayment {

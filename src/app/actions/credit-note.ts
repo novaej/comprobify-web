@@ -46,6 +46,7 @@ export interface CreditNoteFormData {
     unitPrice: string;
     discount?: string;
     taxOption: '2-4' | '2-0' | '2-5' | '2-6' | '2-7';
+    additionalDetails?: Array<{ name: string; value: string }>;
   }>;
   additionalInfo?: Array<{ name: string; value: string }>;
 }
@@ -125,6 +126,9 @@ function buildCreditNotePayload(data: CreditNoteFormData): CreateCreditNotePaylo
       unitPrice: item.unitPrice,
       ...(item.discount && item.discount !== '' && item.discount !== '0' ? { discount: item.discount } : {}),
       taxes: [TAX_MAP[item.taxOption]],
+      ...(item.additionalDetails && item.additionalDetails.length > 0
+        ? { additionalDetails: item.additionalDetails }
+        : {}),
     })),
     ...(data.additionalInfo && data.additionalInfo.length > 0
       ? { additionalInfo: data.additionalInfo }
