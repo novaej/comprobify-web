@@ -350,7 +350,15 @@
       "discount": "Discount",
       "tax": "Rate",
       "lineTotal": "Total",
-      "empty": "No items added"
+      "empty": "No items added",
+      "additionalDetails": {
+        "columnLabel": "Details",
+        "toggle": "Additional item details",
+        "title": "Additional details",
+        "add": "Add detail",
+        "name": "Name",
+        "value": "Value"
+      }
     },
     "taxOptions": {
       "2-4": "VAT 15%",
@@ -474,7 +482,15 @@
       "unitPrice": "Unit price",
       "discount": "Discount",
       "tax": "Rate",
-      "lineTotal": "Total"
+      "lineTotal": "Total",
+      "additionalDetails": {
+        "columnLabel": "Details",
+        "toggle": "Additional item details",
+        "title": "Additional details",
+        "add": "Add detail",
+        "name": "Name",
+        "value": "Value"
+      }
     },
     "motivo": {
       "title": "Reason",

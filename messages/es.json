@@ -350,7 +350,15 @@
       "discount": "Descuento",
       "tax": "Tarifa",
       "lineTotal": "Valor total",
-      "empty": "No existen productos"
+      "empty": "No existen productos",
+      "additionalDetails": {
+        "columnLabel": "Detalles",
+        "toggle": "Detalles adicionales del ítem",
+        "title": "Detalles adicionales",
+        "add": "Agregar detalle",
+        "name": "Nombre",
+        "value": "Valor"
+      }
     },
     "taxOptions": {
       "2-4": "IVA 15%",
@@ -474,7 +482,15 @@
       "unitPrice": "P. unitario",
       "discount": "Descuento",
       "tax": "Tarifa",
-      "lineTotal": "Valor total"
+      "lineTotal": "Valor total",
+      "additionalDetails": {
+        "columnLabel": "Detalles",
+        "toggle": "Detalles adicionales del ítem",
+        "title": "Detalles adicionales",
+        "add": "Agregar detalle",
+        "name": "Nombre",
+        "value": "Valor"
+      }
     },
     "motivo": {
       "title": "Motivo",

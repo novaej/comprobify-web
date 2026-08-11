@@ -31,6 +31,7 @@ export interface InvoiceFormData {
     unitPrice: string;
     discount?: string;
     taxOption: TaxOption;
+    additionalDetails?: Array<{ name: string; value: string }>;
   }>;
   payments: Array<{
     method: string;
@@ -70,6 +71,9 @@ function buildCreateDocumentPayload(data: InvoiceFormData): CreateInvoicePayload
       unitPrice: item.unitPrice,
       ...(item.discount && item.discount !== '' && item.discount !== '0' ? { discount: item.discount } : {}),
       taxes: [TAX_MAP[item.taxOption]],
+      ...(item.additionalDetails && item.additionalDetails.length > 0
+        ? { additionalDetails: item.additionalDetails }
+        : {}),
     })),
     payments: data.payments.map((p) => ({
       method: p.method,
