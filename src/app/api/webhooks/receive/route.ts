@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from 'crypto';
 import { Prisma } from '@prisma/client';
 import { db } from '@/lib/db';
 import { decrypt } from '@/lib/crypto';
+import { revalidatePath } from 'next/cache';
 import type { NextRequest } from 'next/server';
 
 function toJson(v: Record<string, unknown> | null | undefined): Prisma.InputJsonValue | undefined {
@@ -22,7 +23,13 @@ function toJson(v: Record<string, unknown> | null | undefined): Prisma.InputJson
  *   5. Upsert Notification by (tenantId, apiNotificationId). Visibility and read
  *      state are resolved at query time, not written here — see
  *      src/app/actions/notifications.ts's visibleNotificationOr().
- *   6. Return 200 immediately.
+ *   6. revalidatePath('/', 'layout') — without this, the layout's server-rendered
+ *      initialUnreadCount/initialNotifications props (consumed by NotificationBell)
+ *      stay frozen at whatever they were on the last hard reload; shared layouts
+ *      are not refetched on soft navigation unless explicitly invalidated (see
+ *      CLAUDE.md rule 12). The bell's own 60s poll still covers the no-navigation
+ *      case independently.
+ *   7. Return 200 immediately.
  *
  * The payload shape matches docs/site/endpoints/webhooks.md → Payload format.
  */
@@ -173,6 +180,10 @@ export async function POST(request: NextRequest): Promise<Response> {
     console.error('[webhook] upsert error', err);
     return new Response('Internal error', { status: 500 });
   }
+
+  // 6. Bust the layout's cached RSC payload so the next navigation (soft or hard)
+  //    picks up the new notification instead of waiting for the bell's 60s poll.
+  revalidatePath('/', 'layout');
 
   void deliveryId; // acknowledged — full dedup table is a future enhancement
 

@@ -8,6 +8,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Fixed
+- **The notification bell only ever updated on a full page reload, even after the previous fan-out fix.** The webhook receiver upserted `Notification` rows but never called `revalidatePath`, so the layout's server-rendered `initialUnreadCount`/`initialNotifications` props stayed frozen at whatever they were on the last hard reload — Next.js doesn't refetch a shared layout on soft navigation unless explicitly invalidated. Separately, `NotificationBell` seeded its state from those props via `useState()` only on first mount and never re-synced, so even a freshly revalidated prop value was ignored by the already-mounted bell. Fixed both: the webhook route now calls `revalidatePath('/', 'layout')` after a successful upsert, and `NotificationBell` re-applies its props to state via a `useEffect`.
+
 ## [0.9.12] — 2026-08-11
 
 ### Fixed
