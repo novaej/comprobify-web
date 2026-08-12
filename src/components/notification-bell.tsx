@@ -40,6 +40,19 @@ export function NotificationBell({ initialUnreadCount, initialNotifications }: N
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
+  // Adopt freshly server-rendered notifications/unread count whenever the parent
+  // layout re-renders with new props (e.g. after a navigation following
+  // `revalidatePath` from catchUpNotificationsAction/markNotificationReadAction).
+  // `useState(initialUnreadCount)` above only seeds state on first mount — this
+  // component stays mounted across client-side navigation (it lives in the
+  // persistent Nav/TopBar shell), so without this effect a fresher server render
+  // is silently ignored and the badge only ever updates via the 60s poll below
+  // or a full page reload.
+  useEffect(() => {
+    setNotifications(initialNotifications);
+    setUnreadCount(initialUnreadCount);
+  }, [initialNotifications, initialUnreadCount]);
+
   function handleToggle() {
     if (!open && buttonRef.current) {
       const r = buttonRef.current.getBoundingClientRect();
