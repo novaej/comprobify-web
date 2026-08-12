@@ -8,6 +8,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.9.13] — 2026-08-12
+
 ### Added
 - **A "your subscription is activating" notice on `/settings/billing`** for the gap between a payment showing "Verificado" in the payment history and the plan/quota actually switching over — payment verification and subscription activation are two separate, sequential admin steps on the API side (`reviewPayment` then a follow-up `linkInvoice` once the self-billed invoice exists and authorizes), so a tenant could see their payment marked verified for a while with nothing else changing, which read as broken.
 
