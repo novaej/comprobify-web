@@ -8,6 +8,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Added
+- **A "your subscription is activating" notice on `/settings/billing`** for the gap between a payment showing "Verificado" in the payment history and the plan/quota actually switching over — payment verification and subscription activation are two separate, sequential admin steps on the API side (`reviewPayment` then a follow-up `linkInvoice` once the self-billed invoice exists and authorizes), so a tenant could see their payment marked verified for a while with nothing else changing, which read as broken.
+
 ### Fixed
 - **The notification bell only ever updated on a full page reload, even after the previous fan-out fix.** The webhook receiver upserted `Notification` rows but never called `revalidatePath`, so the layout's server-rendered `initialUnreadCount`/`initialNotifications` props stayed frozen at whatever they were on the last hard reload — Next.js doesn't refetch a shared layout on soft navigation unless explicitly invalidated. Separately, `NotificationBell` seeded its state from those props via `useState()` only on first mount and never re-synced, so even a freshly revalidated prop value was ignored by the already-mounted bell. Fixed both: the webhook route now calls `revalidatePath('/', 'layout')` after a successful upsert, and `NotificationBell` re-applies its props to state via a `useEffect`.
 
