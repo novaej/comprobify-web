@@ -191,7 +191,7 @@ resource "digitalocean_ssh_key" "infra" {
 resource "digitalocean_droplet" "this" {
   name        = "comprobify-web-${var.environment}"
   region      = var.region       # "nyc1" — same datacenter as the shared database
-  size        = var.droplet_size # "s-1vcpu-512mb-10gb" for staging
+  size        = var.droplet_size # "s-1vcpu-1gb" for staging
   image       = var.image_slug   # plain "ubuntu-24-04-x64" — see note below
   ssh_keys    = [digitalocean_ssh_key.infra.id]
   resize_disk = false            # a resize that grows disk can never shrink back

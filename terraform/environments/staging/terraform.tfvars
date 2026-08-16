@@ -2,7 +2,7 @@
 # (see .github/workflows/terraform.yml) - never add a secret value to this file.
 
 region       = "nyc1" # where the shared database and the API's own droplet actually live
-droplet_size = "s-1vcpu-512mb-10gb" # cheapest tier, ~$4/mo - validate here before resizing
+droplet_size = "s-1vcpu-1gb" # resized from s-1vcpu-512mb-10gb after SSH connection resets under load
 
 # Paste the PUBLIC half's content of a dedicated, staging-only SSH key
 # (ssh-keygen -t ed25519 -C "comprobify-web-deploy-staging" -f ~/.ssh/comprobify_web_deploy_staging).
