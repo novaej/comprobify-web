@@ -8,6 +8,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.9.15] — 2026-08-16
+
+### Fixed
+- **Deploy pipeline fixes following the 0.9.14 droplet migration** — `DATABASE_URL` is now passed as a Docker build arg (`next build`'s page-data collection imports `src/lib/db.ts`, which parses it eagerly, even though nothing connects to the database during the build); the staging droplet was resized to `s-1vcpu-1gb` after the cheaper starting tier reset SSH connections under load.
+
 ## [0.9.14] — 2026-08-16
 
 ### Security
