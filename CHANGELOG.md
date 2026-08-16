@@ -8,6 +8,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.9.14] — 2026-08-16
+
+### Security
+- **Moved hosting from DigitalOcean App Platform to a DigitalOcean droplet**, so `staging.comprobify.com`/`app-staging.comprobify.com` can finally be proxied through Cloudflare. App Platform re-verifies each custom domain's CNAME on every deploy as part of its own cert issuance, and a Cloudflare proxy in front breaks that verification — so those two domains had to stay DNS-only, getting none of Cloudflare's WAF/DDoS/bot-mitigation layer, unlike the Comprobify API's own droplet-hosted `api-staging.comprobify.com`. A droplet has no such constraint (and exposes no default public ingress a request could use to bypass Cloudflare the way App Platform's `*.ondigitalocean.app` hostname could), so both domains are now fully proxied. See `docs/adr/008-app-platform-to-droplet-migration.md` for the full decision record.
+
 ## [0.9.13] — 2026-08-12
 
 ### Added
