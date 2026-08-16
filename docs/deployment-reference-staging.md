@@ -7,7 +7,7 @@ This reference describes the staging deployment setup for `comprobify-web`, incl
 ## Architecture
 
 - **GitHub Actions** manages two independent pipelines: the release pipeline (`release-staging.yml`, fast-forwarding the `staging` branch on a tag push) and the app deploy pipeline (`deploy-staging.yml`, triggered by that push — builds a Docker image, pushes it to GHCR, and SSHes into the droplet to restart the containers).
-- **DigitalOcean Droplet** hosts the Next.js 16 app (`comprobify-web-staging` droplet, `s-1vcpu-512mb-10gb`) behind a Caddy reverse proxy. The build command is `npm run build:deploy` (`prisma generate && next build`, run inside `Dockerfile`'s build stage); the run command is `npm run start:deploy` (`prisma migrate deploy && next start`) — migrations run at container startup, not at image-build time (the GitHub Actions runner building the image has no network route to the database).
+- **DigitalOcean Droplet** hosts the Next.js 16 app (`comprobify-web-staging` droplet, `s-1vcpu-1gb`) behind a Caddy reverse proxy. The build command is `npm run build:deploy` (`prisma generate && next build`, run inside `Dockerfile`'s build stage); the run command is `npm run start:deploy` (`prisma migrate deploy && next start`) — migrations run at container startup, not at image-build time (the GitHub Actions runner building the image has no network route to the database).
 - **Terraform** provisions the droplet itself (`terraform/environments/staging` → `terraform/modules/droplet`) — the droplet, its reserved IP, its Cloudflare-only firewall, its DigitalOcean Project assignment, and its two Cloudflare DNS records. Terraform does **not** set any app secret/env var — those are written directly to the droplet's `.env` file by `deploy-staging.yml` over SSH. `terraform.yml` runs on push to `main` (path-filtered to `terraform/**`), applying against a DigitalOcean Spaces state backend (`comprobify-terraform-state` bucket, key `staging/comprobify-web/terraform.tfstate`).
 - **DigitalOcean Managed PostgreSQL** provides this app's own tables (`users`, `tenants`, `tenant_api_keys`, `issuers`, `notifications`, `notification_reads`, `webhook_endpoints`, `clients`, `products`, `document_templates`, `user_issuer_access`, etc. — see `prisma/schema.prisma`). Staging runs on a **Basic-plan cluster shared with the Comprobify API's own database** — not a dedicated instance, and not fronted by any connection pooler (no PgBouncer). Each consumer (this app, the API process, the API worker) caps its own `pg.Pool` concurrency via `?connection_limit=N` on `DATABASE_URL` to stay within its share of the cluster's ~22 backend connections. The droplet's reserved IP must be added to the cluster's **Trusted Sources** manually (DO dashboard) — not Terraform-managed for either repo.
 - **Comprobify API (staging)** is the upstream REST API this app calls server-side only — never from the browser. It runs on its own **DigitalOcean droplet** (project `comprobify-staging`, provisioned by its own Terraform config) — this app's droplet is a separate resource in the same shared `Comprobify Staging` DO Project, purely for dashboard grouping. API keys are stored encrypted at rest (`ENCRYPTION_KEY`, AES-256-GCM) and decrypted per-request via `requireContext()`.
@@ -19,7 +19,7 @@ This reference describes the staging deployment setup for `comprobify-web`, incl
 
 | Component | Platform | Service / Project name |
 |---|---|---|
-| Web app | DigitalOcean Droplet | `comprobify-web-staging` (provisioned via Terraform, `s-1vcpu-512mb-10gb`) |
+| Web app | DigitalOcean Droplet | `comprobify-web-staging` (provisioned via Terraform, `s-1vcpu-1gb`) |
 | Database | DigitalOcean Managed PostgreSQL | Shared Basic-plan cluster, also used by the Comprobify API — connection string supplied as `DATABASE_URL` via a GitHub Environment secret, written to the droplet's `.env` on every deploy |
 | Error monitoring | Sentry | `comprobify-web` (org slug: `novaej`) |
 | DNS | Cloudflare | Domain: `comprobify.com` — proxied |
@@ -39,7 +39,7 @@ Use this section as the baseline configuration for the staging web app. It is fu
 | Run command (container `CMD`) | `npm run start:deploy` (`prisma migrate deploy && next start`) — migrations run here, at container startup |
 | Migrations | Run automatically on every container start via `start:deploy`, before `next start` — not during image build (the GitHub Actions runner building the image has no DB network access) |
 | Region | `nyc1` — same datacenter as the shared database and the API's own droplet |
-| Droplet size | `s-1vcpu-512mb-10gb` (cheapest tier, ~$4/mo) — watch memory under real load |
+| Droplet size | `s-1vcpu-1gb` (~$6/mo) — resized from the $4/mo tier after SSH connection resets under load |
 | Deploy user | `cpfywebdeploy9x` — unprivileged, docker-group only, no sudo |
 | Firewall | 80/443 restricted to Cloudflare's live IPv4 ranges; 22 open to `0.0.0.0/0` with defense at the identity layer (key-only auth, no root, `fail2ban`) |
 | Health check | `GET /api/health` exists (`src/app/api/health/route.ts`) but isn't wired to any platform-level probe — Caddy/Docker Compose have no application health check today; `restart: unless-stopped` is the container-recovery mechanism |
