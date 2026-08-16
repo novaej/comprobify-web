@@ -1,0 +1,111 @@
+name: Deploy Staging
+
+# Builds the Next.js app into a Docker image and ships it to the staging droplet.
+# comprobify-web had no equivalent of this workflow before the App Platform -> droplet
+# migration - App Platform's own GitHub-source autodeploy watched the `staging` branch
+# directly, so release-staging.yml's fast-forward push was the entire deploy mechanism.
+# Mirrors comprobify/.github/workflows/deploy-staging.yml's shape.
+
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: staging
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # NEXT_PUBLIC_* and SENTRY_AUTH_TOKEN must be present at *build* time - Next.js
+      # inlines NEXT_PUBLIC_* into the bundle during `next build`, and the Sentry
+      # webpack/turbopack plugin only runs during that same build step. Neither is
+      # read again once the container starts (see Dockerfile). Everything else the
+      # app needs lives only in the runtime .env file written below.
+      - name: Build and push image
+        run: |
+          docker build \
+            --build-arg NEXT_PUBLIC_APP_URL="${{ vars.NEXT_PUBLIC_APP_URL }}" \
+            --build-arg NEXT_PUBLIC_MARKETING_URL="${{ vars.NEXT_PUBLIC_MARKETING_URL }}" \
+            --build-arg NEXT_PUBLIC_APP_ENV="${{ vars.NEXT_PUBLIC_APP_ENV }}" \
+            --build-arg NEXT_PUBLIC_SENTRY_DSN="${{ vars.NEXT_PUBLIC_SENTRY_DSN }}" \
+            --build-arg SENTRY_AUTH_TOKEN="${{ secrets.SENTRY_AUTH_TOKEN }}" \
+            -t ghcr.io/${{ github.repository }}:${{ github.sha }} .
+          docker push ghcr.io/${{ github.repository }}:${{ github.sha }}
+
+      # username here must match `deploy_username` in
+      # terraform/environments/staging/terraform.tfvars - the unprivileged user
+      # cloud-init creates on the droplet (docker group only, no sudo, no root login
+      # at all). SSH itself is open to the internet (see terraform/modules/droplet's
+      # firewall rule for port 22) - defense is key-only auth + this privilege
+      # separation + fail2ban, not IP restriction. Same model as the comprobify API
+      # repo's own droplet.
+      - name: Copy compose files to droplet
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DROPLET_IP }}
+          username: cpfywebdeploy9x
+          key: ${{ secrets.INFRA_SSH_PRIVATE_KEY }}
+          source: "deploy/docker-compose.yml,deploy/caddy/Caddyfile"
+          target: /opt/comprobify-web
+          strip_components: 1
+
+      - name: Write env and restart containers
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DROPLET_IP }}
+          username: cpfywebdeploy9x
+          key: ${{ secrets.INFRA_SSH_PRIVATE_KEY }}
+          script: |
+            cat > /opt/comprobify-web/.env <<'EOF'
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
+            DATABASE_SSL=${{ vars.DATABASE_SSL }}
+            DATABASE_SSL_CA=${{ secrets.DATABASE_SSL_CA }}
+            COMPROBIFY_API_URL=${{ vars.COMPROBIFY_API_URL }}
+            AUTH_SECRET=${{ secrets.AUTH_SECRET }}
+            NEXT_PUBLIC_APP_URL=${{ vars.NEXT_PUBLIC_APP_URL }}
+            NEXT_PUBLIC_MARKETING_URL=${{ vars.NEXT_PUBLIC_MARKETING_URL }}
+            ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY }}
+            CONTEXT_COOKIE_SECRET=${{ secrets.CONTEXT_COOKIE_SECRET }}
+            SENTRY_DSN=${{ vars.SENTRY_DSN }}
+            NEXT_PUBLIC_SENTRY_DSN=${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
+            APP_ENV=${{ vars.APP_ENV }}
+            NEXT_PUBLIC_APP_ENV=${{ vars.NEXT_PUBLIC_APP_ENV }}
+            MAILGUN_API_KEY=${{ secrets.MAILGUN_API_KEY }}
+            MAILGUN_DOMAIN=${{ vars.MAILGUN_DOMAIN }}
+            MAILGUN_FROM=${{ vars.MAILGUN_FROM }}
+            COMPROBIFY_ADMIN_SECRET=${{ secrets.COMPROBIFY_ADMIN_SECRET }}
+            INTERNAL_SERVICE_SECRET=${{ secrets.INTERNAL_SERVICE_SECRET }}
+            SUPPORT_EMAIL=${{ vars.SUPPORT_EMAIL }}
+            SUPPORT_PHONE=${{ vars.SUPPORT_PHONE }}
+            EOF
+            chmod 600 /opt/comprobify-web/.env
+            cd /opt/comprobify-web
+            export IMAGE_TAG=${{ github.sha }}
+            export APP_ENV=${{ vars.APP_ENV }}
+            # The docker/login-action step earlier only authenticates the GitHub
+            # Actions runner's own Docker daemon (so it can push) - the droplet's
+            # daemon, pulling over this SSH session, has never logged into GHCR and
+            # needs its own login. Reuses this job's own GITHUB_TOKEN rather than a
+            # separate long-lived PAT - it's re-issued fresh every run anyway.
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            docker compose pull
+            docker compose up -d
+            # docker compose up -d only recreates a container when the service
+            # definition itself changes (image tag, env, volumes list) - Caddyfile
+            # is bind-mounted, so a content-only change on disk is invisible to
+            # Compose and the running caddy container keeps serving whatever config
+            # it loaded at startup. Reload explicitly so a Caddyfile-only change
+            # actually takes effect.
+            docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile

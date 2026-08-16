@@ -1,0 +1,79 @@
+#cloud-config
+users:
+  - name: ${deploy_username}
+    lock_passwd: true
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - ${ssh_public_key}
+
+write_files:
+  - path: /etc/comprobify-web-environment
+    content: |
+      ${environment}
+  # Pinned to "noble" (Ubuntu 24.04) since image_slug is fixed to ubuntu-24-04-x64 -
+  # update both together if the base image ever changes.
+  - path: /etc/apt/sources.list.d/docker.list
+    content: |
+      deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu noble stable
+  # SSH hardening as a drop-in file, loaded via the main sshd_config's own
+  # "Include /etc/ssh/sshd_config.d/*.conf" (standard on Ubuntu/Debian) - avoids
+  # sed-editing the main file, which is brittle against a base image's exact
+  # commented-out defaults. No sudo is granted to deploy_username anywhere in this
+  # file (see AllowUsers below plus the runcmd section) - it can run docker commands
+  # via group membership only, so a compromised key never has a path to root over
+  # SSH. DO's browser Console also goes through sshd under the hood (not a true
+  # out-of-band serial console), so PermitRootLogin no blocks it too - there is no
+  # interactive root path on this box at all. If root access is ever genuinely
+  # needed, edit this file to allow it temporarily and force a droplet replacement
+  # (terraform apply -replace=module.<env>.digitalocean_droplet.this), then revert
+  # and re-apply once done. Mirrors comprobify/terraform/modules/droplet exactly.
+  - path: /etc/ssh/sshd_config.d/99-comprobify-web-hardening.conf
+    content: |
+      PasswordAuthentication no
+      PermitRootLogin no
+      PubkeyAuthentication yes
+      ChallengeResponseAuthentication no
+      UsePAM yes
+      MaxAuthTries 3
+      LoginGraceTime 30
+      AllowUsers ${deploy_username}
+
+runcmd:
+  - mkdir -p /opt/comprobify-web
+  - chown ${deploy_username}:${deploy_username} /opt/comprobify-web
+  # 1G swap from the start, not added after the fact once memory pressure shows up.
+  # The comprobify API droplet's own $4/mo 512MB tier needed a resize plus a
+  # swap file after hitting OOM/swapping under load - a Next.js SSR process plus
+  # Prisma is at least as memory-hungry as that Express API, so this is a
+  # backstop against a transient spike (a burst of concurrent server-rendered
+  # pages, a large PDF preview request) triggering an OOM kill, not a substitute
+  # for right-sizing the droplet once real usage is observed.
+  - fallocate -l 1G /swapfile
+  - chmod 600 /swapfile
+  - mkswap /swapfile
+  - swapon /swapfile
+  - echo '/swapfile none swap sw 0 0' >> /etc/fstab
+  - echo 'vm.swappiness=10' >> /etc/sysctl.conf
+  - sysctl -p
+  # All package installation happens here in runcmd, not via cloud-init's own
+  # package_update/packages directives - those can't be given a lock-wait timeout, so a
+  # background apt-daily timer grabbing the dpkg lock right after boot can make that
+  # module fail outright. Every apt-get call below uses DPkg::Lock::Timeout instead, so
+  # it waits out a lock rather than failing if one is briefly held elsewhere.
+  - apt-get -o DPkg::Lock::Timeout=120 update
+  - apt-get -o DPkg::Lock::Timeout=120 install -y ca-certificates curl
+  - install -m 0755 -d /etc/apt/keyrings
+  # Docker Engine + Compose plugin from Docker's official apt repo - not the
+  # get.docker.com convenience script, which Docker itself advises against for
+  # anything beyond quick local testing.
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+  - chmod a+r /etc/apt/keyrings/docker.asc
+  - apt-get -o DPkg::Lock::Timeout=120 update
+  - apt-get -o DPkg::Lock::Timeout=120 install -y fail2ban unattended-upgrades docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  # The "docker" group is created by the docker-ce package install above, so this
+  # can't happen earlier in the users: block, which runs before runcmd.
+  - usermod -aG docker ${deploy_username}
+  - systemctl enable --now fail2ban
+  - dpkg-reconfigure -f noninteractive unattended-upgrades
+  - systemctl restart ssh
+  - systemctl enable --now docker

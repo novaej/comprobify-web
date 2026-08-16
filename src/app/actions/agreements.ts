@@ -31,7 +31,7 @@ export async function acceptAgreementsAction(): Promise<{ error: string } | null
     // on the API side but we still need a non-empty string for the validator.
     // Forward the browser's User-Agent (and, once the API trusts it, the real
     // visitor IP) so the API stores the real client identity rather than Node's
-    // fetch default / App Platform's own egress IP. In the BFF pattern the actual
+    // fetch default / this app's own droplet egress IP. In the BFF pattern the actual
     // HTTP request to the Comprobify API originates from our server, so without
     // this the API would record the server's UA string ("node") instead of the
     // browser's — see src/lib/client-forwarding.ts.

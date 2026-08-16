@@ -1,8 +1,8 @@
 name: Release to Staging
 
 # Promotes a tagged commit on `main` to the `staging` branch by fast-forwarding
-# it to the tag. Vercel's native Git integration watches `staging` directly and
-# deploys automatically once the push lands — no separate deploy workflow needed.
+# it to the tag. deploy-staging.yml watches `staging` directly and builds/ships
+# the Docker image to the droplet once the push lands.
 #
 # A tag means: "build this, validate it in staging."
 on:

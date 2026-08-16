@@ -11,25 +11,25 @@ variable "cloudflare_token" {
 }
 
 variable "region" {
-  description = "App Platform region slug (metro-level, e.g. \"nyc\") - see modules/app-platform/variables.tf for why this differs from Droplet/Spaces slugs"
-  type        = string
-  default     = "nyc"
-}
-
-variable "instance_size_slug" {
-  description = "Verify via `doctl apps tier instance-size list` before first apply - no default here on purpose, don't guess"
-  type        = string
-}
-
-variable "vpc_datacenter_region" {
-  description = "Datacenter-level region for the default VPC lookup - must match where the database and the API's droplet actually live"
+  description = "DigitalOcean droplet region slug, e.g. \"nyc1\" - must match where the shared database and the comprobify API repo's own droplet actually live"
   type        = string
   default     = "nyc1"
 }
 
-variable "github_repo" {
-  type    = string
-  default = "novaej/comprobify-web"
+variable "droplet_size" {
+  description = "DigitalOcean droplet size slug. Start on the cheapest tier (\"s-1vcpu-512mb-10gb\", ~$4/mo) to validate the migration before resizing - see terraform/modules/droplet/cloud-init.yaml.tftpl for the swap-file mitigation while on this tier."
+  type        = string
+  default     = "s-1vcpu-512mb-10gb"
+}
+
+variable "ssh_public_key" {
+  description = "Public half of this droplet's dedicated infra SSH key, literal OpenSSH-format content - not a path, and not the comprobify API repo's own key. Safe to commit; confers no access alone."
+  type        = string
+}
+
+variable "deploy_username" {
+  description = "Unprivileged Linux deploy user for this droplet - deliberately distinct from the comprobify API repo's own deploy_username."
+  type        = string
 }
 
 variable "domain_primary" {
@@ -45,115 +45,4 @@ variable "domain_alias" {
 variable "cloudflare_zone_id" {
   description = "Cloudflare zone ID for comprobify.com - same zone the API repo's Terraform already uses"
   type        = string
-}
-
-variable "database_ssl" {
-  type    = string
-  default = "true"
-}
-
-variable "comprobify_api_url" {
-  type = string
-}
-
-variable "sentry_dsn" {
-  type    = string
-  default = ""
-}
-
-variable "next_public_sentry_dsn" {
-  type    = string
-  default = ""
-}
-
-variable "app_env" {
-  type    = string
-  default = "staging"
-}
-
-variable "next_public_app_env" {
-  type    = string
-  default = "staging"
-}
-
-variable "mailgun_domain" {
-  type    = string
-  default = ""
-}
-
-variable "mailgun_from" {
-  type    = string
-  default = ""
-}
-
-variable "support_email" {
-  type    = string
-  default = ""
-}
-
-variable "support_phone" {
-  type    = string
-  default = ""
-}
-
-variable "next_public_marketing_url" {
-  type    = string
-  default = "https://staging.comprobify.com"
-}
-
-variable "next_public_app_url" {
-  type    = string
-  default = "https://app-staging.comprobify.com"
-}
-
-# --- secrets, no defaults, sourced only from TF_VAR_ at apply time ---
-
-variable "database_url" {
-  type      = string
-  sensitive = true
-}
-
-variable "auth_secret" {
-  type      = string
-  sensitive = true
-}
-
-variable "encryption_key" {
-  type      = string
-  sensitive = true
-}
-
-variable "context_cookie_secret" {
-  type      = string
-  sensitive = true
-}
-
-variable "database_ssl_ca" {
-  type      = string
-  sensitive = true
-  default   = ""
-}
-
-variable "sentry_auth_token" {
-  type      = string
-  sensitive = true
-  default   = ""
-}
-
-variable "mailgun_api_key" {
-  type      = string
-  sensitive = true
-  default   = ""
-}
-
-variable "comprobify_admin_secret" {
-  type      = string
-  sensitive = true
-  default   = ""
-}
-
-variable "internal_service_secret" {
-  type      = string
-  sensitive = true
-  default   = ""
 }

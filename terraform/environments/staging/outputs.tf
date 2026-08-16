@@ -1,11 +1,13 @@
-output "app_id" {
-  value = module.staging.app_id
+output "droplet_ip" {
+  description = "Ephemeral IP - debugging only, never wire this to DNS or the DROPLET_IP GitHub Secret"
+  value       = module.staging.droplet_ip
 }
 
-output "default_ingress" {
-  value = module.staging.default_ingress
+output "reserved_ip" {
+  description = "Stable IP - use this for the DROPLET_IP GitHub Secret and for manual SSH access"
+  value       = module.staging.reserved_ip
 }
 
-output "live_url" {
-  value = module.staging.live_url
+output "dns_records" {
+  value = module.staging.dns_records
 }

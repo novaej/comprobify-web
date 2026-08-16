@@ -4,7 +4,7 @@
 
 ## Branching strategy
 
-Two long-lived branches map to deployed environments. They are **automation-owned** — promoted forward by tags and GitHub Releases, never by direct or manual pushes. Feature/fix branches are always cut from `main` and merged back via pull request. This mirrors the release model used by the Comprobify API (`../comprobify/docs/deployment.md`), substituting DigitalOcean App Platform's native Autodeploy-on-push for the API's Droplet SSH-based `deploy-staging.yml`/`deploy-production.yml`.
+Two long-lived branches map to deployed environments. They are **automation-owned** — promoted forward by tags and GitHub Releases, never by direct or manual pushes. Feature/fix branches are always cut from `main` and merged back via pull request. This mirrors the release model used by the Comprobify API (`../comprobify/docs/deployment.md`) directly — both repos now run on a DigitalOcean droplet with the same SSH-based `deploy-staging.yml`/`deploy-production.yml` CD pattern (see `docs/terraform-digitalocean-setup.md`). This app ran on DigitalOcean App Platform until that migration; App Platform's own cert-verification requirements meant its Cloudflare DNS records could never be proxied, so this app got none of Cloudflare's WAF/DDoS/bot protection — the droplet closes that gap.
 
 ```
   feature/xyz              main                                   staging                  production
@@ -24,18 +24,18 @@ Two long-lived branches map to deployed environments. They are **automation-owne
       │─────────────────────────────────────────────────────────────────────────────────────▶  │
 ```
 
-Every push to `staging` or `production` (i.e. every fast-forward the release workflows perform) is picked up automatically by DigitalOcean App Platform's Autodeploy setting, which builds and deploys the corresponding app (`comprobify-web-staging` / `comprobify-web-production` — see the CI/CD pipeline section below). No deploy step runs inside this repo's workflows.
+Every push to `staging` or `production` (i.e. every fast-forward the release workflows perform) triggers `deploy-staging.yml` / `deploy-production.yml` (see the CI/CD pipeline section below), which builds a Docker image, pushes it to GHCR, and SSHes into the corresponding droplet to pull and restart the containers.
 
 | Branch | Environment | Promoted by |
 |--------|-------------|-------------|
 | `main` | — (trunk; CI only, no deploy) | PR merge |
-| `staging` | Staging (DigitalOcean App Platform) | `release-staging.yml` — fast-forwarded on tag push `vX.Y.Z` |
-| `production` | Production (DigitalOcean App Platform) — *not yet provisioned, pipeline disabled* | `release-production.yml` — fast-forwarded when a GitHub Release is published |
+| `staging` | Staging (DigitalOcean droplet) | `release-staging.yml` — fast-forwarded on tag push `vX.Y.Z` |
+| `production` | Production (DigitalOcean droplet) — *not yet provisioned, pipeline disabled* | `release-production.yml` — fast-forwarded when a GitHub Release is published |
 
 **Rules:**
 - All development happens in feature/fix branches off `main`, merged via PR (1 approval required)
 - `staging` and `production` are **automation-owned** — never push to them directly; they only move forward via fast-forward merges performed by the release workflows. Branch protection restricts direct pushes
-- A **tag** (`vX.Y.Z`, semantic versioning) means *"build this, validate it in staging."* Pushing it triggers `release-staging.yml`, which fast-forwards `staging`. App Platform's Autodeploy deploys the push automatically — no separate deploy workflow needed
+- A **tag** (`vX.Y.Z`, semantic versioning) means *"build this, validate it in staging."* Pushing it triggers `release-staging.yml`, which fast-forwards `staging`; the push then triggers `deploy-staging.yml`, which builds/ships the image to the droplet
 - A **published GitHub Release**, created from a tag already validated in staging, means *"staging confirmed it, ship to production."* Publishing it is the deliberate, auditable approval gate between staging and production — no extra tooling needed
 - **Hotfixes** branch from the current `production` ref once it exists (until then, branch from `staging`, which is the only environment live today), flow through a PR + tag through the same pipeline, and **must be cherry-picked back into `main`** afterwards so the fix survives the next regular release
 
@@ -79,7 +79,7 @@ Every commit on `main` is a merged PR (often squash-merged, so the SHA on `main`
    git push origin vX.Y.Z
    ```
 
-`release-staging.yml` fast-forwards `staging` to `vX.Y.Z` and pushes it; App Platform's Autodeploy picks up the push and deploys automatically. Use semantic versioning (`vMAJOR.MINOR.PATCH`) so it's obvious at a glance whether a tag is a feature release (`v1.5.0`) or a hotfix (`v1.4.1`).
+`release-staging.yml` fast-forwards `staging` to `vX.Y.Z` and pushes it; `deploy-staging.yml` picks up the push, builds a Docker image, and ships it to the droplet. Use semantic versioning (`vMAJOR.MINOR.PATCH`) so it's obvious at a glance whether a tag is a feature release (`v1.5.0`) or a hotfix (`v1.4.1`).
 
 The tag still tracks `package.json`'s version — there's just a merge step between bumping it and tagging it, because the squash-merge changes the commit SHA. **Never push a follow-up commit to `main` that changes the version after a tag is created** — that would leave the tagged commit's `package.json` permanently out of sync with its own tag name, and would race with `staging` already having been fast-forwarded to it. If `package.json`'s version and the latest git tag ever drift apart, fix it with a manual one-off sync commit (`chore:`), then resume this sequence for every release after that.
 
@@ -92,9 +92,9 @@ Once the tag has been validated in staging, promotion is a single deliberate act
 3. Paste in that version's section from `CHANGELOG.md` as the release notes (it was already written when the version was bumped — see "Release to staging" above) — no need to regenerate from commits
 4. Click **Publish release**
 
-`release-production.yml` then fast-forwards `production` to that commit; App Platform deploys it automatically.
+`release-production.yml` then fast-forwards `production` to that commit; `deploy-production.yml` builds and ships it to the production droplet.
 
-> **Currently disabled** — the production App Platform app, `production` branch, and secrets don't exist yet. See "Production status" below for what's needed to enable this.
+> **Currently disabled** — the production droplet, `production` branch, and secrets don't exist yet. See "Production status" below for what's needed to enable this.
 
 ### Hotfix flow
 
@@ -150,11 +150,9 @@ The proxy (`src/proxy.ts`) separates marketing pages from the app by hostname. B
 
 Redirects are permanent (301). Localhost and unknown hosts bypass hostname routing so local dev works without any configuration.
 
-**Staging:** fully Terraform-managed (see "Terraform-managed infrastructure" below) — `terraform/modules/app-platform/main.tf` attaches both `staging.comprobify.com` and `app-staging.comprobify.com` to the one app via `domain {}` blocks, and creates the matching Cloudflare CNAME records (`proxied = false` — see the module for why). Nothing to do by hand. No extra env vars are required either way — the proxy reads the `host` header at runtime.
+**Staging:** fully Terraform-managed (see "Terraform-managed infrastructure" below) — `terraform/modules/droplet/main.tf` creates two Cloudflare **A** records, `staging.comprobify.com` and `app-staging.comprobify.com`, both pointing at the droplet's reserved IP and both **proxied through Cloudflare** (`proxied = true`) — unlike the old App Platform setup, a droplet has no cert-verification conflict with Cloudflare's proxy, so these domains get the full WAF/DDoS/bot layer, matching the Comprobify API's own `api-staging.comprobify.com`. Nothing to do by hand. No extra env vars are required either way — the proxy reads the `host` header at runtime.
 
-**Production custom domain setup** *(manual for now — no `terraform/environments/production` exists yet; once it does, this should be Terraform-managed the same way staging is)*:
-1. In the `comprobify-web-production` app's Settings → Domains, add **both** `comprobify.com` and `app.comprobify.com` — both on the same app, not separate apps.
-2. For each, create the DNS record App Platform shows you (typically a CNAME to `<app-name>.ondigitalocean.app`; an apex/root domain needs an ALIAS/ANAME record if your DNS provider supports one, or DO's own nameservers) — **keep Cloudflare's proxy off (DNS-only, grey cloud)** for these records; App Platform re-verifies each domain's CNAME on every deploy and breaks if Cloudflare's proxy sits in front of it.
+**Production custom domain setup** *(no `terraform/environments/production` exists yet; once it is provisioned, this is fully Terraform-managed the same way staging is — see `docs/terraform-digitalocean-setup.md`)*: provisioning `environments/production` with the same `droplet` module (own droplet, own reserved IP, own `domain_primary`/`domain_alias` = `comprobify.com`/`app.comprobify.com`) creates both proxied A records automatically — no manual DNS console step, unlike the App Platform era's domain-verification dance.
 
 ---
 
@@ -166,52 +164,59 @@ Redirects are permanent (301). Localhost and unknown hosts bypass hostname routi
 |------|---------|--------|
 | `.github/workflows/release-staging.yml` | Push of tag `vX.Y.Z` | Fast-forwards `staging` to the tagged commit and pushes it |
 | `.github/workflows/release-production.yml` | *(disabled)* GitHub Release published | Fast-forwards `production` to the released commit and pushes it |
-| `.github/workflows/terraform.yml` | Push to `staging` touching `terraform/**`, or manual `workflow_dispatch` | Runs `terraform plan`/`apply` (or `destroy`) against `terraform/environments/staging` — see "Terraform-managed infrastructure" below |
+| `.github/workflows/deploy-staging.yml` | Push to `staging`, or manual `workflow_dispatch` | Builds a Docker image, pushes it to GHCR, and SSHes into the staging droplet to write `.env` and restart the containers — see `docs/terraform-digitalocean-setup.md` |
+| `.github/workflows/deploy-production.yml` | *(not yet created)* | Same shape as `deploy-staging.yml`, once `environments/production` is provisioned |
+| `.github/workflows/terraform.yml` | Push to `main` touching `terraform/**`, or manual `workflow_dispatch` | Runs `terraform plan`/`apply` (or `destroy`) against `terraform/environments/staging` — see "Terraform-managed infrastructure" below |
 
-Unlike the API (which runs on a DigitalOcean Droplet and needs an explicit `deploy-staging.yml` / `deploy-production.yml` to build, push to GHCR, and SSH-deploy), DigitalOcean App Platform's Autodeploy setting watches `staging` and `production` directly — every push to either branch triggers an automatic build and deployment with no additional workflow file required.
+This app now runs on a DigitalOcean droplet, same as the API — App Platform's own Autodeploy-on-push (which used to make this table one row shorter) doesn't apply anymore. Every push to `staging`/`production` needs its own `deploy-*.yml` to actually build and ship the code, same pattern the API repo has always used.
 
-| Branch | App Platform app | URL |
-|--------|-------------------|-----|
+| Branch | Droplet | URL |
+|--------|---------|-----|
 | `staging` | `comprobify-web-staging` | `staging.comprobify.com` + `app-staging.comprobify.com` |
-| `production` | `comprobify-web-production` | `comprobify.com` + `app.comprobify.com` |
+| `production` | `comprobify-web-production` — *not yet provisioned* | `comprobify.com` + `app.comprobify.com` |
 
-### Build settings (both apps)
+### Build settings (both environments)
 
 | Setting | Value |
 |---------|-------|
 | Source directory | `/` (this is a standalone repo, not a monorepo — nothing to scope) |
-| Autodeploy | On, for the app's watched branch (`staging` or `production`) |
-| Build command | `npm run build:deploy` — **must be set explicitly**; App Platform's Node.js buildpack has no equivalent to Vercel's build-script auto-detection and would otherwise run plain `npm run build` (`next build` only), silently skipping `prisma generate` and most likely failing outright since the Prisma Client wouldn't exist yet |
-| Run command | `npm run start:deploy` — **must also be set explicitly**, overriding the buildpack's auto-detected default (`npm start`). See below for why migrations run here instead of in the build command. |
+| Build | `Dockerfile` (repo root) — `.github/workflows/deploy-*.yml` runs `docker build`/`docker push` directly; there is no buildpack involved anymore |
+| Build command (inside the image) | `npm run build:deploy` — runs as the `builder` stage's `RUN` in `Dockerfile`. Must stay `build:deploy`, not plain `build` — the latter (`next build` only) silently skips `prisma generate`, and the Prisma Client wouldn't exist yet |
+| Run command (container `CMD`) | `npm run start:deploy` — same reasoning as under App Platform: migrations run here, at process startup, not in the build command (see below) |
 
-`build:deploy` runs `prisma generate && next build` — `prisma generate` only reads the schema file and writes generated client code, no database connection needed, so it's safe and necessary at build time. `start:deploy` runs `prisma migrate deploy && next start` — **migrations run at process startup, not at build time**, confirmed necessary the hard way: App Platform's build phase has no network path to the database at all, regardless of Trusted Sources configuration or `vpc.id` on the app spec (empirically confirmed — the same public DB endpoint, with Trusted Sources correctly set for the app, was unreachable from the build step while reachable from a local machine with its own IP trusted). This mirrors the comprobify API repo's own pattern (`app.js` calls `migrate()` before accepting requests, for the same underlying reason). `prisma migrate deploy` only runs migrations not yet recorded in `_prisma_migrations`, so already-applied ones are skipped automatically — safe to run on every startup, including instance restarts with no schema changes.
+`build:deploy` runs `prisma generate && next build` — `prisma generate` only reads the schema file and writes generated client code, no database connection needed, so it's safe and necessary at build time. `start:deploy` runs `prisma migrate deploy && next start` — **migrations run at process startup, not at build time**. This was originally confirmed necessary under App Platform (whose build phase had no network path to the database at all, regardless of Trusted Sources/`vpc.id` configuration), and the same constraint still applies for a different reason now: the Docker image is built on a GitHub Actions runner, which is neither on the droplet's DO VPC nor in the database's Trusted Sources list — so the build step genuinely cannot reach the database either way, whatever the underlying platform. This mirrors the comprobify API repo's own pattern (`app.js` calls `migrate()` before accepting requests, for the same underlying reason — its image is also built off-droplet). `prisma migrate deploy` only runs migrations not yet recorded in `_prisma_migrations`, so already-applied ones are skipped automatically — safe to run on every startup, including container restarts with no schema changes.
 
 **`prisma migrate deploy` does not go through this app's `@prisma/adapter-pg` setup.** It spawns a separate native `schema-engine` binary that connects to `DATABASE_URL` with its own independent Postgres connector — none of `src/lib/db.ts`'s pool/SSL wiring applies to it. Watch the runtime logs on first deploy for this step specifically; if it fails with a certificate error while other runtime queries work fine, the fix has to target the schema-engine binary itself, not `DATABASE_SSL`/`DATABASE_SSL_CA`.
 
 ### Pipeline stages (staging)
 
-1. **Tag pushed** (`vX.Y.Z`) — `release-staging.yml` checks out the tag and fast-forward-merges `staging` to it, then pushes
-2. **Push to `staging`** — two independent things react to this same push: App Platform's Autodeploy builds and deploys `comprobify-web-staging` automatically, and (only if the push touched `terraform/**`) `terraform.yml` runs `plan`→`apply` against `terraform/environments/staging`, reconciling the app's Terraform-managed config (env vars, domains, DO Project assignment, Cloudflare DNS records) — see "Terraform-managed infrastructure" below for why this is keyed off `staging` and not `main`
+1. **PR merged to `main`, touching `terraform/**`** — `terraform.yml` runs `plan`→`apply` against `terraform/environments/staging` independently of any release, reconciling the droplet/firewall/DNS config the moment the change lands
+2. **Tag pushed** (`vX.Y.Z`) — `release-staging.yml` checks out the tag and fast-forward-merges `staging` to it, then pushes
+3. **Push to `staging`** — `deploy-staging.yml` builds a Docker image, pushes it to GHCR, and SSHes into the droplet to write `.env` and restart the containers
+
+These two pipelines are fully independent — an infra-only PR (no app code change) ships through step 1 alone; a code-only release ships through steps 2–3 alone with no Terraform involvement at all.
 
 ### Terraform-managed infrastructure
 
-The staging App Platform app itself — not just its runtime env vars, but the `digitalocean_app` resource, its DO Project assignment, and its two Cloudflare DNS records — is provisioned by Terraform (`terraform/environments/staging` → `terraform/modules/app-platform`), mirroring the comprobify API repo's own `terraform/environments/staging` → `terraform/modules/droplet` split. There is no manual App Platform console setup anymore; see "5. Provision via Terraform" below for the one-time bootstrap.
+The staging droplet itself — its `digitalocean_droplet`/`digitalocean_reserved_ip`/`digitalocean_firewall` resources, its DO Project assignment, and its two Cloudflare DNS records — is provisioned by Terraform (`terraform/environments/staging` → `terraform/modules/droplet`), mirroring the comprobify API repo's own `terraform/environments/staging` → `terraform/modules/droplet` split exactly. **Terraform never sets any app secret or env var** — those live only in `deploy-staging.yml`'s runtime `.env` heredoc (see `docs/terraform-digitalocean-setup.md`'s "Env vars" section), the same separation the API repo has always had between its infra and app-deploy pipelines.
 
-**Why `terraform.yml` triggers off a push to `staging`, not `push: branches: [main]`:** this app's Terraform resource couples "infra config" (build/run commands, env vars, domains) with "which branch's code to build" (`github.branch = "staging"`) into one `digitalocean_app` resource. Terraform's create/update call blocks waiting for App Platform to actually deploy that code, and fails — tainting the resource — if it can't. If this ran on every push to `main`, a PR changing both `terraform/**` and `package.json` together (e.g. renaming an npm script a `run_command` depends on) would trigger an apply that tries to deploy the new spec against whatever's still on `staging` — which hasn't caught up yet, since `staging` only moves via the tagged release process. This is exactly what caused a chain of failed deployments during this app's initial Terraform rollout, traced back well after the fact. `release-staging.yml`'s only job ends with `git push origin staging` (nothing after it), so that push succeeding is equivalent to the whole release succeeding — triggering directly on push to `staging` (path-filtered to `terraform/**`, same as the old `main` trigger) guarantees `staging` has already been fast-forwarded before Terraform ever creates/updates the app against it, while still only running when there's actually something under `terraform/**` to apply. (An intermediate version of this fix triggered on `release-staging.yml` completing via `workflow_run` — that guaranteed the same ordering, but `workflow_run` doesn't support path filters, so it ran on every single release regardless of whether `terraform/**` changed.)
+**`terraform.yml` triggers off a push to `main` touching `terraform/**`**, mirroring the API repo's own `terraform.yml` exactly. Terraform here only ever manages the droplet/firewall/DNS — never app code or app secrets, which `deploy-staging.yml` handles independently over SSH — so an infra change can be reviewed and applied the moment it's merged, without waiting for the next tagged release.
 
-**State backend:** the same `comprobify-terraform-state` DigitalOcean Spaces bucket the API repo uses, under key `staging/comprobify-web/terraform.tfstate` (the API repo uses `staging/comprobify/...`) — one bucket, independent state per key, with a Spaces access key dedicated to this repo's pipeline rather than reused from the API repo's.
+**State backend:** unchanged by the droplet migration — the same `comprobify-terraform-state` DigitalOcean Spaces bucket the API repo uses, under key `staging/comprobify-web/terraform.tfstate` (the API repo uses `staging/comprobify/...`).
 
 **Manual runs:** `workflow_dispatch` on `terraform.yml` supports both `apply` (re-run the normal reconciliation on demand, e.g. after changing `terraform.tfvars`) and `destroy` (tear everything down through the same audited pipeline, rather than deleting resources by hand in the DO/Cloudflare consoles). `destroy` is only ever reachable via this explicit manual dispatch, never the automatic post-release trigger.
 
 ### Production status
 
-The production pipeline is **written but disabled** — `release-production.yml` exists in the repo with its trigger commented out and an `if: false` guard on its job, because the production App Platform app, `production` branch, and secrets don't exist yet.
+The production pipeline is **written but disabled** — `release-production.yml` exists in the repo with its trigger commented out and an `if: false` guard on its job, because the production droplet, `production` branch, `deploy-production.yml`, and secrets don't exist yet.
 
 To enable production once it's provisioned:
 1. Create the `production` branch (fast-forwarded only by the automation, same invariant as `staging`)
-2. Create the `comprobify-web-production` App Platform app, with **independent** `AUTH_SECRET` / `ENCRYPTION_KEY` / `CONTEXT_COOKIE_SECRET` / `DATABASE_URL` from staging — never share these between environments
-3. In `release-production.yml`: uncomment the `release: types: [published]` trigger and remove the `if: false` guard on the `promote` job
-4. Add branch protection to `production` (restrict who can push to the automation only; no force pushes) — see GitHub repository setup below
+2. Provision `terraform/environments/production` (own state key, own `terraform.tfvars`, own **dedicated SSH key pair — do not reuse staging's**, see `docs/terraform-digitalocean-setup.md`'s "SSH access model")
+3. Create `.github/workflows/deploy-production.yml`, mirroring `deploy-staging.yml` but triggered on push to `production`
+4. Populate the `production` GitHub Environment with **independent** `AUTH_SECRET` / `ENCRYPTION_KEY` / `CONTEXT_COOKIE_SECRET` / `DATABASE_URL` from staging — never share these between environments
+5. In `release-production.yml`: uncomment the `release: types: [published]` trigger and remove the `if: false` guard on the `promote` job
+6. Add branch protection to `production` (restrict who can push to the automation only; no force pushes) — see GitHub repository setup below
 
 ---
 
@@ -245,29 +250,38 @@ Both branches are **automation-owned** — they only move forward via fast-forwa
 - ✅ Restrict who can push — limit to the automation (e.g. a bot account / fine-grained PAT, or repository admins only as a fallback)
 - ✅ Do not allow force pushes
 
-### 4. Add secrets (Settings → Secrets and variables → Actions)
+### 4. Add secrets and variables (Settings → Secrets and variables → Actions)
 
 | Secret | Scope | Used by |
 |---|---|---|
 | `RELEASE_PUSH_TOKEN` | Repository | `release-staging.yml` / `release-production.yml` — a fine-grained PAT with `Contents: Read and write` on this repo, needed because the default `GITHUB_TOKEN` cannot push to a protected branch |
 | `TERRAFORM_SPACES_ACCESS_KEY_ID` / `TERRAFORM_SPACES_SECRET_ACCESS_KEY` | Repository | `terraform.yml` — a Spaces access key scoped to the shared `comprobify-terraform-state` bucket, dedicated to this repo's pipeline (not the API repo's own key) |
 
-No deploy-hook secret is needed for App Platform code deploys — Autodeploy watches the branch and deploys on push without any token from this repo. Provisioning the app *itself* does need credentials — see the next step.
+Two GitHub **Environments** (not repository-wide) hold everything else, deliberately kept separate — see "5. Provision via Terraform" below and `docs/terraform-digitalocean-setup.md`'s "Env vars" and "CI/CD" sections for the full list and reasoning:
 
-### 5. Provision via Terraform
+- **`staging-infra`** — `DO_TOKEN`/`CLOUDFLARE_TOKEN` only, consumed by `terraform.yml`. This is the actual gate for infra changes: a required-reviewer rule added here doesn't affect app deploys at all.
+- **`staging`** — everything app-related, consumed by `deploy-staging.yml`: `DROPLET_IP`, `INFRA_SSH_PRIVATE_KEY`, plus every app Secret/Variable.
 
-The App Platform app is created and configured entirely by `terraform.yml` — there is no manual App Platform console setup. One-time bootstrap:
+### 5. Provision the droplet via Terraform, then deploy via `deploy-staging.yml`
 
-1. Create the `staging` GitHub Environment (Settings → Environments → New environment), and populate it with 11 Environment secrets: `DO_TOKEN` (DigitalOcean token — Apps Read/Write, Projects Read/Write, VPC Read scopes only — dedicated to this repo, not the API repo's token), `CLOUDFLARE_TOKEN` (scoped to the `comprobify.com` zone, also dedicated to this repo), and the 9 app secrets (`DATABASE_URL`, `AUTH_SECRET`, `ENCRYPTION_KEY`, `CONTEXT_COOKIE_SECRET`, `DATABASE_SSL_CA`, `SENTRY_AUTH_TOKEN`, `MAILGUN_API_KEY`, `COMPROBIFY_ADMIN_SECRET`, `INTERNAL_SERVICE_SECRET`) — see "Environment variables" below for what each holds. `INTERNAL_SERVICE_SECRET` can be left as the Terraform default (`""`, inactive) until it's actually being turned on — it's the one secret here with no urgency to set immediately.
-2. Fill in `terraform/environments/staging/terraform.tfvars` with the non-secret values (region, domains, `cloudflare_zone_id`, etc.) — in particular, confirm `instance_size_slug` against `doctl apps tier instance-size list` before the first apply; don't trust a stale hardcoded value.
-3. Merge to `main`, then either wait for the next tagged release (which will trigger `terraform.yml` automatically per "Terraform-managed infrastructure" above), or run `workflow_dispatch` → `action: apply` manually to provision immediately.
-4. First apply creates the app (triggering its first deployment — watch this closely, since App Platform apps have no default VPC/network access and need `vpc.id`, Trusted Sources, and a database endpoint the build/runtime phase can actually reach; see "Build settings" above), the DO Project assignment, and both Cloudflare DNS records.
+The droplet (and its firewall/DNS) is created entirely by `terraform.yml`; the app itself is then shipped by `deploy-staging.yml` over SSH — two separate pipelines, same split the API repo has always used. One-time bootstrap:
+
+1. Create the `staging-infra` GitHub Environment (Settings → Environments → New environment) and add `DO_TOKEN`/`CLOUDFLARE_TOKEN` as Secrets. Optionally add a required-reviewer protection rule here — declared on both `terraform.yml`'s `plan` and `apply` jobs, so it gates both.
+2. Create the `staging` GitHub Environment (if it doesn't already exist) and populate it with:
+   - **Secrets:** `DROPLET_IP` and `INFRA_SSH_PRIVATE_KEY` (from Terraform's `reserved_ip` output and the dedicated SSH key generated for this droplet, see `docs/terraform-digitalocean-setup.md`), and the app secrets (`DATABASE_URL`, `AUTH_SECRET`, `ENCRYPTION_KEY`, `CONTEXT_COOKIE_SECRET`, `DATABASE_SSL_CA`, `SENTRY_AUTH_TOKEN`, `MAILGUN_API_KEY`, `COMPROBIFY_ADMIN_SECRET`, `INTERNAL_SERVICE_SECRET`).
+   - **Variables:** `APP_ENV`, `NEXT_PUBLIC_APP_ENV`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_MARKETING_URL`, `COMPROBIFY_API_URL`, `DATABASE_SSL`, `MAILGUN_DOMAIN`, `MAILGUN_FROM`, `SUPPORT_EMAIL`, `SUPPORT_PHONE`, `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`.
+3. Fill in `terraform/environments/staging/terraform.tfvars` with `ssh_public_key` (from the key generated for this droplet) and confirm `droplet_size`/`region`/domains.
+4. Merge to `main`, then either wait for the next `terraform/**`-touching change, or run `workflow_dispatch` → `action: apply` manually to provision the droplet immediately.
+5. Add the droplet's reserved IP to the shared database's Trusted Sources (DO dashboard — not Terraform-managed).
+6. Run `deploy-staging.yml` (push to `staging`, or `workflow_dispatch`) to build the image and start the containers.
+
+Full step-by-step, including the SSH key generation and verification checks, lives in `docs/terraform-digitalocean-setup.md`.
 
 ---
 
 ## Environment variables
 
-All variables are required. Managed via Terraform (`terraform/environments/staging/terraform.tfvars` for non-secret values, CI-supplied `TF_VAR_*` for secrets — see `terraform/environments/staging/variables.tf`) rather than set by hand in the App Platform UI.
+All variables are required. Sourced from the `staging` GitHub Environment's Secrets/Variables and written to `/opt/comprobify-web/.env` on the droplet by `deploy-staging.yml` on every deploy (see `docs/terraform-digitalocean-setup.md`'s "Env vars" section) — Terraform itself no longer sets any of these, unlike the App Platform era's `env {}` blocks.
 
 | Variable | Required | Description |
 |----------|----------|-------------|
@@ -286,7 +300,7 @@ All variables are required. Managed via Terraform (`terraform/environments/stagi
 | `MAILGUN_DOMAIN` | No | Mailgun sending domain (e.g. `mg.your-domain.com`). Required alongside `MAILGUN_API_KEY`. |
 | `MAILGUN_FROM` | No | From address for invite emails (e.g. `Comprobify <no-reply@mg.your-domain.com>`). |
 | `COMPROBIFY_ADMIN_SECRET` | No* | Bearer secret for the Comprobify API's `/admin/*` routes, used by `src/lib/admin-api.ts` for the `/admin` super-admin panel (tenant management, payment-proof review). Must match the API's own `ADMIN_SECRET`. *Required only on the one deployment a super admin actually logs into — normal tenant flows never call `/admin/*`. |
-| `INTERNAL_SERVICE_SECRET` | No | Lets the API trust this app's forwarded real-visitor-IP headers on BFF-proxied public calls (register, recover, resend-verification, agreements acceptance) instead of resolving to App Platform's own shared egress IP — see CLAUDE.md's "Forwarding the real visitor IP on BFF-proxied public calls". Must match the API's own `INTERNAL_SERVICE_SECRET` exactly. Unset means the feature is inactive on both sides; no behavior change. |
+| `INTERNAL_SERVICE_SECRET` | No | Lets the API trust this app's forwarded real-visitor-IP headers on BFF-proxied public calls (register, recover, resend-verification, agreements acceptance) instead of resolving to this app's own droplet egress IP — see CLAUDE.md's "Forwarding the real visitor IP on BFF-proxied public calls". Must match the API's own `INTERNAL_SERVICE_SECRET` exactly. Unset means the feature is inactive on both sides; no behavior change. |
 | `ADMIN_SEED_PASSWORD` | No* | Password for the super admin user created by `prisma/seed.js` (`npm run db:seed`). *Not read at runtime by Next.js* — only needed transiently when running the seed script against an environment's database, not as a persistent env var on the app. |
 | `SUPPORT_EMAIL` | No | Contact email shown on `/support` (`mailto:` link) and linked from the sidebar, marketing footer, and login/register screens. |
 | `SUPPORT_PHONE` | No | Contact phone shown on `/support`, used to build a `https://wa.me/` WhatsApp link. Include the country code; non-digit characters are stripped when building the link. |
@@ -301,7 +315,7 @@ All variables are required. Managed via Terraform (`terraform/environments/stagi
 Staging's Postgres lives on a DigitalOcean Basic-plan cluster (~22 total backend connections) shared with the `comprobify` API's own database — not a dedicated instance, and **not fronted by any server-side connection pooler (PgBouncer or otherwise)**. Every client — this app, the API's API process, the API's worker — connects straight to the cluster's primary and is responsible for capping its own concurrency; there's no intermediary multiplexing connections down. The API side enforces its share the same way: `../comprobify/src/config/database.js` is a plain `new Pool({ ..., max: config.db.poolMax })` against the direct primary connection, no pooler involved, `DB_POOL_MAX` set to 6 (API process) / 3 (worker) — see `../comprobify/docs/deployment.md`. That leaves roughly 13 of the cluster's ~22 for this app plus a few spare for admin/migration access. This app's `DATABASE_URL` carries two things as a result:
 
 1. **The cluster's direct primary connection** — the same endpoint the API connects to, not a separate pooled/PgBouncer endpoint (DigitalOcean's optional "Connection Pools" feature is not in use here).
-2. **`?connection_limit=8`** as a query param — caps how many connections this app's Prisma client will ever open concurrently. This app runs as a long-lived App Platform instance holding one `pg.Pool` for its whole lifetime, so the cap is per-instance: total connections from this app equal `connection_limit × instance count` if the app is ever scaled to multiple instances/replicas — factor that in before changing either number. Enforced entirely client-side by `pg.Pool`'s own `max` option, the same mechanism as `DB_POOL_MAX` on the API side, and works exactly the same whether or not anything sits in front of Postgres.
+2. **`?connection_limit=8`** as a query param — caps how many connections this app's Prisma client will ever open concurrently. This app runs as a single long-lived `web` container on the droplet, holding one `pg.Pool` for its whole lifetime, so the cap is per-container: total connections from this app equal `connection_limit × container count` if this is ever scaled to multiple replicas — factor that in before changing either number. Enforced entirely client-side by `pg.Pool`'s own `max` option, the same mechanism as `DB_POOL_MAX` on the API side, and works exactly the same whether or not anything sits in front of Postgres.
 
 **There is deliberately no `pgbouncer=true` param.** That flag — like `connection_limit` as Prisma normally reads it — is part of Prisma's own connection-string convention, understood only by Prisma's Rust query engine. This app uses `@prisma/adapter-pg` instead (see `src/lib/db.ts`), which hands the connection string straight to node-postgres's `pg.Pool` — `pg` never parses either param out of the URL on its own; `src/lib/db.ts` manually parses `connection_limit` back out of `DATABASE_URL` and forwards it as `pg.Pool`'s own `max` option, so that part still works as intended. `pgbouncer=true` has no equivalent to forward, and there's nothing here for it to guard against anyway: it exists only to tell Prisma's query engine not to cache named prepared statements, which break under *transaction-mode PgBouncer pooling* specifically (a later query landing on a different backend connection than the one that prepared it) — and since there's no PgBouncer anywhere in this deployment, that failure mode doesn't apply regardless of the adapter. (`@prisma/adapter-pg` also wouldn't need the flag even if there were one — see the adapter note above.) Do not add `pgbouncer=true` back in "for completeness" — it would be inert, and its presence would incorrectly suggest a pooler sits in the path that doesn't.
 
@@ -346,21 +360,24 @@ If the reserved-connection split above ever changes (e.g. the API reserves more/
 - [ ] `AUTH_SECRET` is a unique, randomly generated value — never reuse the staging secret (`openssl rand -hex 32`)
 - [ ] No `COMPROBIFY_API_KEY` or `COMPROBIFY_SANDBOX` env vars set — these are removed
 
-**App Platform**
+**Droplet**
 - [ ] All env vars are set as server-only (no `NEXT_PUBLIC_` prefix on any secret — a Next.js build-time rule, not platform-specific, but easy to get wrong)
-- [ ] Build Command is explicitly set to `npm run build:deploy` and Run Command to `npm run start:deploy` — the buildpack's defaults (`npm run build` / `npm start`) silently skip `prisma generate`/migrations respectively
-- [ ] Custom domains configured in App Platform and DNS records updated
-- [ ] HTTPS enforced — App Platform provisions and renews certs automatically for custom domains
+- [ ] `Dockerfile`'s `builder` stage runs `npm run build:deploy` and the container's `CMD` is `npm run start:deploy` — verify by checking the built image directly, not just the workflow file, since a typo here fails silently until the container actually starts
+- [ ] A **dedicated, production-only** SSH key pair was generated — never the staging key (see `docs/terraform-digitalocean-setup.md`'s "SSH access model")
+- [ ] Both custom domains resolve through Cloudflare **proxied** (`proxied = true`) to the production droplet's reserved IP
+- [ ] HTTPS enforced — Caddy provisions and renews certs automatically for both custom domains
+- [ ] The production droplet's reserved IP is in the shared database's Trusted Sources
 - [ ] `production` branch is protected in GitHub (no force pushes, restricted push access)
-- [ ] Confirm the production app's Autodeploy only watches `production` — not `main` or any other branch — so unreviewed work can't reach it
+- [ ] Confirm `deploy-production.yml` only triggers on push to `production` — not `main` or any other branch — so unreviewed work can't reach it
 
 **Release pipeline**
 - [ ] `RELEASE_PUSH_TOKEN` secret added to the repository
 - [ ] `production` branch created and the `release-production.yml` trigger uncommented + `if: false` guard removed
+- [ ] `.github/workflows/deploy-production.yml` created (mirrors `deploy-staging.yml`, triggered on push to `production`)
 - [ ] A tag has been promoted through staging and validated before the first production release
 
 **Sentry**
-- [ ] `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN` set in each App Platform app (same DSN value for both)
+- [ ] `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN` set as GitHub Variables in each environment (same DSN value for both)
 - [ ] `APP_ENV` set to `staging` in the staging app and `production` in the production app
 - [ ] `NEXT_PUBLIC_APP_ENV` set to match `APP_ENV` in each app
 - [ ] `SENTRY_AUTH_TOKEN` set (obtain from sentry.io → Settings → Auth Tokens) so source maps are uploaded and stack traces show original TypeScript lines
@@ -370,7 +387,7 @@ If the reserved-connection split above ever changes (e.g. the API reserves more/
 
 ## Logs
 
-Application logs are available in the App Platform dashboard under the app → **Runtime Logs** (server-side) and **Build Logs**; **Insights** has aggregated metrics.
+Application logs are no longer in a platform dashboard — SSH into the droplet and use Docker directly, same as the API repo: `docker compose logs -f web` (runtime/server-side logs) from `/opt/comprobify-web`, or `docker compose logs -f caddy` for reverse-proxy/TLS issues. Build logs live in the GitHub Actions run for `deploy-staging.yml`/`deploy-production.yml`, not on the droplet at all — the droplet never builds anything, it only pulls a pre-built image from GHCR.
 
 Key things to monitor:
 

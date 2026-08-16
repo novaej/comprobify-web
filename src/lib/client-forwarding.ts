@@ -1,7 +1,7 @@
 import 'server-only';
 
 // Headers forwarded to the Comprobify API on BFF-proxied calls, so the API can
-// see the real visitor's IP/UA instead of App Platform's own server-to-server
+// see the real visitor's IP/UA instead of this app's own droplet-to-server
 // request. Verified against ../comprobify/src/middleware/trusted-forwarded-ip.js:
 // it overrides req.ip with X-Forwarded-Visitor-Ip only when X-Internal-Service-Secret
 // matches config.internalServiceSecret (process.env.INTERNAL_SERVICE_SECRET) —
@@ -14,13 +14,17 @@ export interface ClientForwardingInfo {
   userAgent?: string;
 }
 
-// DigitalOcean App Platform's ingress is expected to set X-Forwarded-For (or
-// similar) with the real client IP as the first (leftmost) entry, same
-// convention as any other reverse proxy — not yet empirically confirmed
-// against a live staging deploy (NEXT_STEPS.md #1, step 1). Nothing depends
-// on this being exactly right yet: a wrong/missing value here just means the
-// API keeps resolving req.ip the way it does today (see the secret check
-// above), never a behavior regression.
+// Written under the old App Platform hosting, assuming its ingress set
+// X-Forwarded-For with the real client IP as the first (leftmost) entry —
+// never empirically confirmed even then. Now Caddy sits in front instead
+// (deploy/caddy/Caddyfile) and forwards the resolved client IP as its own
+// X-Real-Client-IP header (same convention the Comprobify API's own
+// Caddy-fronted droplet uses) — X-Forwarded-For behind Caddy may not carry
+// what this function expects at all. Re-verify against Caddy's actual
+// forwarded headers before INTERNAL_SERVICE_SECRET is ever set for real
+// (NEXT_STEPS.md #1). Nothing depends on this being exactly right yet: a
+// wrong/missing value here just means the API keeps resolving req.ip the way
+// it does today (see the secret check above), never a behavior regression.
 export function extractForwardedIp(headers: Headers): string | undefined {
   const raw = headers.get('x-forwarded-for');
   if (!raw) return undefined;
