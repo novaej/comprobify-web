@@ -44,10 +44,11 @@ async function fetchIdleTimeoutMinutes(tenantId: string | null): Promise<number>
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  // Vercel auto-trusted its own deployment host; App Platform doesn't get the same
-  // implicit trust, so this app's two custom domains (marketing + app) need it explicit.
-  // Safe here since App Platform/Cloudflare only route traffic for domains actually
-  // configured on this app - not a blanket "trust any Host header" exposure.
+  // Vercel auto-trusted its own deployment host; this app's droplet (behind Caddy +
+  // Cloudflare) doesn't get the same implicit trust, so its two custom domains
+  // (marketing + app) need it explicit. Safe here since Caddy/Cloudflare only route
+  // traffic for domains actually configured for this app - not a blanket
+  // "trust any Host header" exposure.
   trustHost: true,
   session: { strategy: 'jwt' },
   pages: { signIn: '/login' },

@@ -4,4 +4,7 @@ Ordered backlog for `comprobify-web`. Items are numbered — complete the highes
 
 ---
 
-Nothing tracked right now.
+1. **Re-verify `extractForwardedIp()` (`src/lib/client-forwarding.ts`) against Caddy's actual forwarded headers before ever setting `INTERNAL_SERVICE_SECRET`.** It was written assuming `X-Forwarded-For`'s leftmost entry is the real client, under the old App Platform hosting — never empirically confirmed even then. Now Caddy sits in front (`deploy/caddy/Caddyfile`) and forwards the real client IP as `X-Real-Client-IP`, the same convention the Comprobify API's own Caddy-fronted droplet uses. `INTERNAL_SERVICE_SECRET` ships unset by default, so this is currently a safe no-op, not a live bug — see CLAUDE.md's "Forwarding the real visitor IP" entry.
+2. **Provision `terraform/environments/production`** for comprobify-web (droplet, reserved IP, firewall, DNS) plus `.github/workflows/deploy-production.yml` — see `docs/deployment.md`'s "Production status" section and `docs/terraform-digitalocean-setup.md`'s "What's intentionally still manual". Generate a **separate, dedicated** SSH key pair for it — do not reuse the staging droplet's key.
+3. **Consider `output: "standalone"` in `next.config.ts`** for a leaner Docker image once the App Platform → droplet migration is proven stable. The current `Dockerfile` deliberately copies the full `node_modules` through to minimize new failure surface on the first pass — see `docs/terraform-digitalocean-setup.md`'s "The Dockerfile" section.
+4. **Consider wiring `/api/health` into an actual Docker healthcheck** on the `web` service in `deploy/docker-compose.yml`. Nothing currently probes it since the droplet migration — `restart: unless-stopped` is the only container-recovery mechanism today.

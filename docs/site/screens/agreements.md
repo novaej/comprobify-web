@@ -36,7 +36,7 @@ A minimal centered card (`max-w-2xl`) with no Nav, no SandboxBanner, no CertExpi
 4. The "Aceptar y continuar" submit button is disabled until every checkbox is ticked.
 5. On submit, `acceptAgreementsAction()` calls `POST /v1/tenants/agreements`:
    - Fetches the current TERMS version from `listAgreements()` (public) for the audit trail
-   - Forwards the browser's `User-Agent` and, once `INTERNAL_SERVICE_SECRET` is set, real visitor IP from the incoming request (`src/lib/client-forwarding.ts`) so the API records the real client identity in `tenant_agreements` instead of App Platform's own
+   - Forwards the browser's `User-Agent` and, once `INTERNAL_SERVICE_SECRET` is set, real visitor IP from the incoming request (`src/lib/client-forwarding.ts`) so the API records the real client identity in `tenant_agreements` instead of this app's own droplet egress IP
    - On success: `revalidatePath('/', 'layout')` to clear the gate, then `router.push('/dashboard')`
    - On error: inline error message (generic fallback if code not in `apiError` namespace)
 

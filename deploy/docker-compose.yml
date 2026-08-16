@@ -1,0 +1,38 @@
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    # Directory mount, not a single-file mount: a single-file bind mount pins to
+    # that file's inode at container-start time, so a deploy that replaces the
+    # host file via unlink+recreate (not truncate-in-place) leaves the running
+    # container reading the old, now-unlinked inode forever - invisible to
+    # `caddy reload`, fixable only by recreating the container. A directory mount
+    # reflects the current file on every read. Same reasoning as the comprobify
+    # API repo's own docker-compose.yml.
+    volumes:
+      - ./caddy:/etc/caddy
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+
+  web:
+    image: ghcr.io/novaej/comprobify-web:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    env_file: .env
+    hostname: comprobify-web-${APP_ENV:-local}
+    expose:
+      - "3000"
+    # Conservative for the $4/mo 512MB tier - leaves headroom for the OS, Caddy,
+    # and the 1G swap file cloud-init sets up (see terraform/modules/droplet's
+    # cloud-init.yaml.tftpl). Revisit once real memory usage under load is known -
+    # the comprobify API droplet needed a resize off its own equivalent starting
+    # tier, this one likely will too.
+    mem_limit: 384m
+
+volumes:
+  caddy_data:
+  caddy_config:

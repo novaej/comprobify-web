@@ -830,7 +830,7 @@ export async function getAgreementStatus(ctx: ApiCtx): Promise<ApiAgreementStatu
 // Verified against: ../comprobify/src/routes/tenants.routes.js → POST /v1/tenants/agreements
 // clientHeaders: forwarded from the incoming browser request so the API records the real
 // browser UA / visitor IP (once it trusts the latter, see client-forwarding.ts) rather than
-// the Node fetch default / App Platform's own egress IP. The BFF pattern means the actual
+// the Node fetch default / this app's own droplet egress IP. The BFF pattern means the actual
 // outbound request originates from our server, not the browser, so we have to pass these explicitly.
 export async function acceptAgreements(
   ctx: ApiCtx,

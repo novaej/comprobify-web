@@ -1,49 +1,48 @@
 name: Terraform
 
 # Applies infrastructure changes under terraform/ - mirrors
-# comprobify/.github/workflows/terraform.yml's shape, with one deliberate difference in the
-# trigger - see below.
+# comprobify/.github/workflows/terraform.yml's shape exactly, including the trigger and
+# the staging-infra Environment split.
 #
-# TRIGGER: push to `staging` (path-filtered to terraform/**), not push to `main`. This
-# repo's digitalocean_app resource couples "infra config" (build/run commands, env vars)
-# with "which branch's code to build" (github.branch) into one resource - Terraform's
-# create/update call blocks waiting for App Platform to actually deploy that code, and
-# fails (tainting the resource) if it can't. Triggering on push to main meant a PR changing
-# both terraform/** and package.json together (e.g. renaming an npm script a run_command
-# depends on) would apply the new spec against whatever's still on `staging` - which hadn't
-# caught up yet, since staging only moves via the tagged release process. That's exactly
-# what caused a chain of failed deployments earlier. release-staging.yml's only job ends
-# with `git push origin staging` (nothing after it), so that push succeeding is equivalent
-# to the whole release succeeding - triggering directly on it guarantees staging has
-# already been fast-forwarded before Terraform ever touches the app, while still getting
-# real path filtering back (an intermediate workflow_run-based version of this trigger
-# couldn't path-filter at all, so it ran on every release regardless of whether
-# terraform/** changed).
+# TRIGGER: push to `main` touching terraform/**, or manual workflow_dispatch. Terraform
+# only ever manages the droplet/firewall/DNS here - never app code or app secrets (those
+# are deploy-staging.yml's job, over SSH) - so there's no coupling between "which infra
+# spec is applied" and "which app code is currently deployed" the way there would be for
+# a PaaS's own app-spec resource. An infra change can be reviewed and applied the moment
+# it's merged, without waiting for the next tagged release.
 #
-# All 11 secrets (DO_TOKEN, CLOUDFLARE_TOKEN, and the 9 TF_VAR_* app secrets below) live in
-# the `staging` GitHub Environment (Settings -> Environments -> staging) - dedicated,
-# freshly-minted credentials for this repo's pipeline, not reused from the comprobify API
-# repo's own tokens. Unlike the API repo, there's no separate deploy workflow here to split
-# infra credentials from app secrets across two Environments: Terraform IS what sets this
-# app's secret env vars (via the env{} blocks in modules/app-platform/main.tf), so the same
-# job needs both DO_TOKEN/CLOUDFLARE_TOKEN (to authenticate the providers) and every app
-# secret (to populate those env blocks) in one terraform apply. A single GitHub Actions job
-# can only be tied to one Environment at a time, so splitting these across a second
-# Environment isn't possible without a second, currently-nonexistent workflow to hold it.
+# DO_TOKEN/CLOUDFLARE_TOKEN live in the `staging-infra` GitHub Environment (Settings ->
+# Environments -> staging-infra), unprefixed - same convention deploy-staging.yml uses
+# for its own secrets: one secret name, a different value per Environment, not a name per
+# environment. Deliberately a SEPARATE Environment from `staging` (which deploy-staging.yml
+# uses for app secrets + DROPLET_IP/INFRA_SSH_PRIVATE_KEY) - this is the credential/blast-
+# radius boundary: a required-reviewer rule can be added to staging-infra alone (repo
+# Settings -> Environments -> staging-infra -> Required reviewers) to gate infra changes
+# specifically, without also gating every app deploy.
+#
+# Both `plan` and `apply` declare `environment: staging-infra` - not just `apply`. GitHub
+# only grants a job access to an Environment's secrets if that job declares it, which also
+# means that Environment's protection rules apply to that job too. Declaring it on both
+# means a required-reviewer rule on staging-infra gates `plan` as well as `apply` - you'd
+# approve before seeing the plan's diff, not after reading it. Deliberate trade-off for
+# staying consistent with deploy-staging.yml's single-environment-per-workflow shape,
+# rather than introducing a second, plan-only Environment just to keep `plan` ungated.
 #
 # TERRAFORM_SPACES_ACCESS_KEY_ID/SECRET_ACCESS_KEY are repository secrets, not Environment
 # secrets, holding a Spaces access key scoped to the shared comprobify-terraform-state
 # bucket (see terraform/environments/staging/backend.tf) - dedicated to this repo's
-# pipeline, not the API repo's own Spaces key.
+# pipeline, not the API repo's own Spaces key. They stay repository-scoped because every
+# job needs them regardless of which Environment (staging-infra today, production-infra
+# later) it declares - there's only ever one correct value.
 #
 # Manual workflow_dispatch supports both apply (default) and destroy, so a teardown - or an
-# ad-hoc apply outside the normal release cadence - can be run deliberately through this
+# ad-hoc apply outside the normal push trigger - can be run deliberately through this
 # same audited pipeline instead of requiring local Terraform CLI access. destroy is only
-# ever reachable via an explicit manual dispatch, never the automatic post-release trigger.
+# ever reachable via an explicit manual dispatch, never the automatic push trigger.
 
 on:
   push:
-    branches: [staging]
+    branches: [main]
     paths: ['terraform/**']
   workflow_dispatch:
     inputs:
@@ -56,22 +55,13 @@ on:
 env:
   TF_VAR_do_token: ${{ secrets.DO_TOKEN }}
   TF_VAR_cloudflare_token: ${{ secrets.CLOUDFLARE_TOKEN }}
-  TF_VAR_database_url: ${{ secrets.DATABASE_URL }}
-  TF_VAR_auth_secret: ${{ secrets.AUTH_SECRET }}
-  TF_VAR_encryption_key: ${{ secrets.ENCRYPTION_KEY }}
-  TF_VAR_context_cookie_secret: ${{ secrets.CONTEXT_COOKIE_SECRET }}
-  TF_VAR_database_ssl_ca: ${{ secrets.DATABASE_SSL_CA }}
-  TF_VAR_sentry_auth_token: ${{ secrets.SENTRY_AUTH_TOKEN }}
-  TF_VAR_mailgun_api_key: ${{ secrets.MAILGUN_API_KEY }}
-  TF_VAR_comprobify_admin_secret: ${{ secrets.COMPROBIFY_ADMIN_SECRET }}
-  TF_VAR_internal_service_secret: ${{ secrets.INTERNAL_SERVICE_SECRET }}
   AWS_ACCESS_KEY_ID: ${{ secrets.TERRAFORM_SPACES_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.TERRAFORM_SPACES_SECRET_ACCESS_KEY }}
 
 jobs:
   plan:
     runs-on: ubuntu-latest
-    environment: staging
+    environment: staging-infra
     steps:
       - uses: actions/checkout@v5
       - uses: hashicorp/setup-terraform@v4
@@ -87,7 +77,7 @@ jobs:
 
   apply:
     needs: plan
-    environment: staging
+    environment: staging-infra
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5

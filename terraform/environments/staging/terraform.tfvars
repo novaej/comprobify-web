@@ -1,32 +1,29 @@
 # Non-secret values only. Secrets are supplied exclusively via TF_VAR_* in CI
 # (see .github/workflows/terraform.yml) - never add a secret value to this file.
 
-region                = "nyc"
-vpc_datacenter_region = "nyc1"      # where the database and the API's droplet actually live
-instance_size_slug    = "basic-xxs" # cheapest tier, $5/mo - doctl apps tier instance-size list
+region       = "nyc1" # where the shared database and the API's own droplet actually live
+droplet_size = "s-1vcpu-512mb-10gb" # cheapest tier, ~$4/mo - validate here before resizing
 
-github_repo    = "novaej/comprobify-web"
+# Paste the PUBLIC half's content of a dedicated, staging-only SSH key
+# (ssh-keygen -t ed25519 -C "comprobify-web-deploy-staging" -f ~/.ssh/comprobify_web_deploy_staging).
+# Deliberately per-environment, unlike the comprobify API repo (which reuses one key
+# pair across staging and production - see its terraform-digitalocean-setup.md step
+# 11, "repeat steps 3-10" skips the keygen step). A shared key means a leaked
+# staging INFRA_SSH_PRIVATE_KEY also unlocks production; generate a second,
+# distinct key pair when environments/production is provisioned instead of
+# reusing this one. This is the literal key content, safe to commit - a public
+# key confers no access on its own.
+ssh_public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIKmcrrShvlDi9HBxiBDL9jx8pFG0hcfC/okvEohvprs comprobify-web-deploy-staging"
+
+# Deliberately not a guessable name like "deploy"/"admin"/"ubuntu", and deliberately
+# distinct from the comprobify API repo's own deploy_username ("cpfydeploy9x").
+# Change this before first apply if you'd rather pick your own - just keep
+# .github/workflows/deploy-staging.yml's `username:` fields in sync with it.
+deploy_username = "cpfywebdeploy9x"
+
 domain_primary = "staging.comprobify.com"
 domain_alias   = "app-staging.comprobify.com"
 
 # Same zone the comprobify API repo's Terraform already uses - see its own
 # terraform.tfvars for the value.
 cloudflare_zone_id = "7d75cca935a373030ac39b7f1ba7696c"
-
-database_ssl       = "true"
-comprobify_api_url = "https://api-staging.comprobify.com"
-
-app_env             = "staging"
-next_public_app_env = "staging"
-
-next_public_marketing_url = "https://staging.comprobify.com"
-next_public_app_url       = "https://app-staging.comprobify.com"
-
-sentry_dsn             = "https://dda17234977e8471d407795aaa6672e1@o4511524451385344.ingest.us.sentry.io/4511524532256768"
-next_public_sentry_dsn = "https://dda17234977e8471d407795aaa6672e1@o4511524451385344.ingest.us.sentry.io/4511524532256768"
-
-mailgun_domain = "mg.comprobify.com"
-mailgun_from   = "Comprobify <no-reply@mg.comprobify.com>"
-
-support_email = "support@comprobify.com"
-support_phone = "+593 963839195"
