@@ -32,6 +32,20 @@ ENV NEXT_PUBLIC_APP_ENV=$NEXT_PUBLIC_APP_ENV
 ENV NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN
 ENV SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN
 
+# DATABASE_URL is also needed at build time, even though nothing connects to the
+# database during the build: src/lib/db.ts creates the Prisma client eagerly at
+# module scope (`export const db = ... createPrismaClient()`), which parses
+# DATABASE_URL with `new URL()` to pull out `connection_limit` - and Next's
+# build-time page-data collection statically imports every route module,
+# including ones that transitively import db.ts, so the module executes during
+# `next build` too. A missing DATABASE_URL here fails the build with
+# `TypeError: Invalid URL { input: 'undefined' }` on whichever route happens to
+# import db.ts first - it's not connection-related, purely a "does this string
+# parse as a URL" check. Mirrors the old App Platform setup, which had
+# DATABASE_URL as RUN_AND_BUILD_TIME for the same reason.
+ARG DATABASE_URL
+ENV DATABASE_URL=$DATABASE_URL
+
 # prisma generate before next build - the Prisma client must exist before any route
 # that imports it gets type-checked/bundled. Requires no database connectivity itself,
 # just the schema file, so this works fine in a network-isolated CI build.
