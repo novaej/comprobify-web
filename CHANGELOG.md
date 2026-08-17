@@ -8,6 +8,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.9.16] — 2026-08-16
+
+### Fixed
+- **Sentry stopped tracking releases after the droplet migration** — `.dockerignore` excludes `.git` from the Docker build context, so the Sentry webpack plugin's auto-detection (which worked under App Platform's buildpack build) found nothing to tag builds with. `SENTRY_RELEASE` is now passed as an explicit Docker build arg.
+
 ## [0.9.15] — 2026-08-16
 
 ### Fixed
