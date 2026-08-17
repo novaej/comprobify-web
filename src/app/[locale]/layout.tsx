@@ -21,6 +21,7 @@ import { db } from '@/lib/db';
 import { isUuid } from '@/lib/utils';
 import type { Role } from '@/lib/rbac';
 import { readCtxCookie } from '@/lib/context-cookie';
+import { visibleNotificationOr } from '@/lib/notification-visibility';
 import { resolveIdleTimeoutMinutes } from '@/lib/session-timeout';
 import type { listNotificationsAction } from '@/app/actions/notifications';
 import packageJson from '../../../package.json';
@@ -129,11 +130,16 @@ async function getLayoutProps(userId: string): Promise<LayoutProps | null> {
   const tenantId = user.tenant.id;
   const joinedAt = user.acceptedAt ?? user.invitedAt;
   const canSeeBilling = user.role === 'Owner' || user.role === 'Admin';
+  const activeApiIssuerId = currentIssuer?.apiIssuerId ?? null;
+  const visibility = await visibleNotificationOr(tenantId, userId, user.role ?? '', activeApiIssuerId);
   const notifications = await db.notification
     .findMany({
       where: {
         tenantId,
-        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+        AND: [
+          { OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+          ...(visibility ? [{ OR: visibility }] : []),
+        ],
         ...(joinedAt ? { apiCreatedAt: { gte: joinedAt } } : {}),
         ...(!canSeeBilling ? { type: { notIn: BILLING_NOTIFICATION_TYPES } } : {}),
       },
