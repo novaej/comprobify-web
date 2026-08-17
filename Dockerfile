@@ -26,11 +26,15 @@ ARG NEXT_PUBLIC_MARKETING_URL
 ARG NEXT_PUBLIC_APP_ENV
 ARG NEXT_PUBLIC_SENTRY_DSN
 ARG SENTRY_AUTH_TOKEN
+# .git is excluded via .dockerignore, so Sentry's webpack plugin can't auto-detect
+# a release from git - must be passed explicitly or no release ever gets created.
+ARG SENTRY_RELEASE
 ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 ENV NEXT_PUBLIC_MARKETING_URL=$NEXT_PUBLIC_MARKETING_URL
 ENV NEXT_PUBLIC_APP_ENV=$NEXT_PUBLIC_APP_ENV
 ENV NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN
 ENV SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN
+ENV SENTRY_RELEASE=$SENTRY_RELEASE
 
 # DATABASE_URL is also needed at build time, even though nothing connects to the
 # database during the build: src/lib/db.ts creates the Prisma client eagerly at
