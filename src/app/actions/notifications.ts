@@ -18,6 +18,7 @@ import { db } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 import { ApiError } from '@/lib/errors';
 import * as Sentry from '@sentry/nextjs';
+import { visibleNotificationOr, getActiveApiIssuerId } from '@/lib/notification-visibility';
 
 /** Cast API metadata (unknown JSON object) to Prisma's InputJsonValue. */
 function toJson(v: Record<string, unknown> | null | undefined): Prisma.InputJsonValue | undefined {
@@ -184,7 +185,8 @@ export async function getUnreadCountAction(): Promise<number> {
   const userId = ctx.user.id;
   const tenantId = ctx.tenant.id;
   const canSeeBilling = ctx.user.role === 'Owner' || ctx.user.role === 'Admin';
-  const visibility = await visibleNotificationOr(tenantId, userId, ctx.user.role);
+  const activeApiIssuerId = await getActiveApiIssuerId(tenantId);
+  const visibility = await visibleNotificationOr(tenantId, userId, ctx.user.role, activeApiIssuerId);
 
   // Count notifications where:
   //   - belongs to this tenant
@@ -240,7 +242,8 @@ export async function listNotificationsAction(): Promise<{
   });
   const joinedAt = userDates?.acceptedAt ?? userDates?.invitedAt;
   const canSeeBilling = ctx.user.role === 'Owner' || ctx.user.role === 'Admin';
-  const visibility = await visibleNotificationOr(tenantId, userId, ctx.user.role);
+  const activeApiIssuerId = await getActiveApiIssuerId(tenantId);
+  const visibility = await visibleNotificationOr(tenantId, userId, ctx.user.role, activeApiIssuerId);
 
   const notifications = await db.notification.findMany({
     where: {
@@ -331,37 +334,4 @@ async function resolveLocalIssuerId(tenantId: string, apiIssuerId: string): Prom
     select: { id: true },
   });
   return issuer?.id ?? null;
-}
-
-/**
- * Query-time visibility filter for Notification.findMany/count: Owner/Admin see
- * every notification (returns undefined — no restriction needed); every other
- * role only sees tenant-level notifications (issuerId null) plus issuer-scoped
- * ones for issuers they have explicit UserIssuerAccess to. Returns a Prisma `OR`
- * array to embed in the caller's `where`, or undefined when unrestricted.
- *
- * This replaces the notification system's original design of pre-writing a
- * NotificationRead row for every "eligible" user at creation time (both here and
- * in the webhook receiver) — see CLAUDE.md Common Mistake #51 for why that broke
- * the unread badge for every eligible user and leaked visibility to ineligible
- * ones. Read state and recipient scoping are different concerns: this function
- * only answers "can this user see it," never touches NotificationRead.
- */
-async function visibleNotificationOr(
-  tenantId: string,
-  userId: string,
-  role: string,
-): Promise<Prisma.NotificationWhereInput[] | undefined> {
-  if (role === 'Owner' || role === 'Admin') return undefined;
-
-  const access = await db.userIssuerAccess.findMany({
-    where: { tenantId, userId },
-    select: { issuer: { select: { apiIssuerId: true } } },
-  });
-  const apiIssuerIds = access.map((a) => a.issuer.apiIssuerId);
-
-  return [
-    { issuerId: null },
-    ...(apiIssuerIds.length > 0 ? [{ issuerId: { in: apiIssuerIds } }] : []),
-  ];
 }
