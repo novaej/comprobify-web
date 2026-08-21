@@ -89,7 +89,6 @@ Staging's database is **DigitalOcean Managed Postgres, shared with the Comprobif
 | File | Trigger | Effect |
 |---|---|---|
 | `release-staging.yml` | Push of tag `vX.Y.Z` | Fast-forwards `staging` to the tagged commit and pushes it |
-| `release-production.yml` | *(disabled)* GitHub Release published | Fast-forwards `production` to the released commit and pushes it |
 | `deploy-staging.yml` | Push to `staging`, or manual `workflow_dispatch` | Builds a Docker image, pushes it to `ghcr.io/novaej/comprobify-web`, SCPs `deploy/docker-compose.yml`/`deploy/caddy/Caddyfile` to the droplet, writes `.env` over SSH, restarts the containers |
 | `terraform.yml` | Push to `main` touching `terraform/**`, or manual `workflow_dispatch` | Runs `terraform plan`/`apply` (or `destroy`) against `terraform/environments/staging` — droplet/firewall/DNS only, no app secrets |
 
