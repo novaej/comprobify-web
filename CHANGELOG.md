@@ -8,6 +8,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Added
+- **`ENCRYPTION_KEY` rotation script and runbook** (`scripts/rotate-encryption-key.js`, `docs/guides/encryption-key-rotation.md`) — re-encrypts `TenantApiKey.encryptedKey` and `WebhookEndpoint.encryptedSecret` in one transaction, with `--dry-run` and `--self-test`. Previously, swapping `ENCRYPTION_KEY` alone would have permanently broken both tenant API access and inbound webhook verification, with no documented recovery path.
+- **`docs/guides/database-backups.md`** — how to pull an importable `pg_dump` of this app's own database (a separate logical database on the same shared DigitalOcean Postgres cluster as the Comprobify API) for testing against real data.
+- **`docs/deployment.md`'s "Rotating secrets" section** — documents which of this app's secrets are safe to rotate by swapping the env var and which require a real migration, covering `ENCRYPTION_KEY`, `AUTH_SECRET`, `CONTEXT_COOKIE_SECRET`, `DATABASE_URL`, `COMPROBIFY_ADMIN_SECRET`, `INTERNAL_SERVICE_SECRET`, `MAILGUN_API_KEY`, `SENTRY_AUTH_TOKEN`, and `ADMIN_SEED_PASSWORD`.
+
 ## [0.9.16] — 2026-08-16
 
 ### Fixed

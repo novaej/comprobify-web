@@ -340,6 +340,26 @@ If the reserved-connection split above ever changes (e.g. the API reserves more/
 
 ---
 
+## Rotating secrets (e.g. after a suspected compromise)
+
+Not all of this app's secrets are equally safe to rotate — one of them can cause a real, silent outage if done naively; several others just have a visible-but-harmless side effect (forcing logouts or resetting a cookie); the rest are purely mechanical.
+
+**`ENCRYPTION_KEY` — dangerous, requires a real migration, do not just swap the env var.** This key is the only thing standing between `TenantApiKey.encryptedKey` (decrypted on every server-side API call `requireContext()` makes) and `WebhookEndpoint.encryptedSecret` (decrypted to verify every inbound webhook) and being unreadable garbage. Changing the env var alone, without re-encrypting existing rows first, permanently breaks both at once — every tenant loses API access, and every inbound webhook fails signature verification — a full outage for every already-onboarded tenant, not a gradual degradation. Correct rotation requires: decrypt every affected row with the OLD key, re-encrypt with the NEW key, write it back, *then* cut the env var over — as one script run before the restart, not manually. `scripts/rotate-encryption-key.js` does exactly this — see `docs/guides/encryption-key-rotation.md` for how the script works and the actual commands to run it, locally and on staging/production.
+
+**`AUTH_SECRET` — mechanical, but has a visible side effect: it force-logs-out every active session.** It signs Auth.js's JWT session cookies; nothing in the database is encrypted with it. The moment the new value is live, every existing session cookie fails signature verification and `auth()` treats it as unauthenticated — every logged-in user (across every tenant) is bounced to `/login` on their next request. No data is at risk, but this is disruptive enough to be worth scheduling deliberately (e.g. a maintenance window) rather than rotating casually. Update the value in the `staging`/`production` GitHub Environment's Secrets, then redeploy.
+
+**`CONTEXT_COOKIE_SECRET` — mechanical, smaller side effect than `AUTH_SECRET`.** It only HMAC-*signs* the `comprobify_ctx` issuer-selection cookie (`src/lib/context-cookie.ts`) — it never encrypts anything, and nothing is stored server-side that depends on it. Rotating invalidates existing `comprobify_ctx` cookies; `readCtxCookie()`'s signature check fails, returns `null`, and the affected user is routed back through the issuer picker (or the "no issuer assigned" fallback) on their next request — an inconvenience, not a data loss, and it doesn't log anyone out the way `AUTH_SECRET` does. Update and redeploy same as any other Secret.
+
+**`DATABASE_URL` credentials** — also low-risk. Rotate the password/role at the provider (DigitalOcean Managed Postgres — the same shared cluster the Comprobify API uses, see `docs/guides/database-backups.md`), update the `DATABASE_URL` GitHub Secret, trigger a deploy. No stored data depends on the credential value itself, only on being able to authenticate — a connection-level concern, not a data-level one. Since the cluster is shared, rotating this app's own role/password doesn't affect the API's — they're independent roles even on the same cluster.
+
+**`COMPROBIFY_ADMIN_SECRET` / `INTERNAL_SERVICE_SECRET` — mechanical, but must be coordinated with the API repo, not rotated unilaterally.** Both are bearer secrets compared as plain equality on the Comprobify API side (`authenticate-admin.js` for the first, `trusted-forwarded-ip.js` for the second) — neither encrypts anything stored in this app's own database. But because the *same* value has to match on both sides, rotating only this app's copy (or only the API's) creates a window where every `/admin/*` call 401s (for `COMPROBIFY_ADMIN_SECRET`) or the forwarded-visitor-IP trust silently stops applying (for `INTERNAL_SERVICE_SECRET`, currently unset/inactive by default per `CLAUDE.md` — rotating it while unset is a non-event) until both are updated. Coordinate the redeploy on both repos, or accept a brief mismatch window if the affected surface tolerates it (super-admin panel access for the first; a graceful no-op fallback for the second, see `src/lib/client-forwarding.ts`).
+
+**`MAILGUN_API_KEY` / `SENTRY_AUTH_TOKEN`** — fully mechanical, no coordination needed. Neither is used to encrypt or sign anything this app stores. Regenerate in the respective dashboard (Mailgun / Sentry), update the GitHub Secret, redeploy. `SENTRY_AUTH_TOKEN` is build-time only (source map upload during CI) — rotating it only affects the *next* build, never anything already running.
+
+**`ADMIN_SEED_PASSWORD` — not a live secret at all.** It's read once, transiently, by `prisma/seed.js` to bcrypt-hash and write into the seeded super admin's `passwordHash`; Next.js never reads it at runtime (see the Environment variables table above). Changing this env var does **not** retroactively change the already-seeded admin's live password — that password is a bcrypt hash stored in the `users` row, independent of the env var after seeding. To actually change the live super-admin account's password: use the self-service `/forgot-password` flow (`requestPasswordResetAction` looks up any `User` row by email, not scoped to a tenant, so it works for the super admin too) — the super admin has no `settings/account` page to reach, since `requireContext()` redirects any `isSuperAdmin` user straight to `/admin`. Re-running `npm run db:seed` with a new `ADMIN_SEED_PASSWORD` also works (idempotent upsert on email) but requires direct DB access.
+
+---
+
 ## Production checklist
 
 **Database**
@@ -350,6 +370,7 @@ If the reserved-connection split above ever changes (e.g. the API reserves more/
 - [ ] `DATABASE_URL` itself has no `sslmode`/`sslcert`/`sslkey`/`sslrootcert` query param — see the note above on why that would silently override `DATABASE_SSL_CA`
 - [ ] `npx prisma migrate deploy` ran successfully on the first deploy (automatic via `start:deploy` at process startup, not the build command — check the runtime logs, and separately confirm this step itself succeeded, since it runs through a different connector than the app's other runtime queries — see the CI/CD pipeline section above)
 - [ ] Production database has backups enabled
+- [ ] `scripts/rotate-encryption-key.js` (see "Rotating secrets" above and `docs/guides/encryption-key-rotation.md`) has been dry-run against a restored copy of production-like data before go-live — don't let the first real run be during an actual incident
 
 **Comprobify API**
 - [ ] `COMPROBIFY_API_URL` points to the production Comprobify API (not staging)

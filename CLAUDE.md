@@ -420,12 +420,15 @@ This project runs Next.js **16** (not 13-15). Key differences from older version
 | `docs/adr/` | Architecture Decision Records |
 | `docs/deployment.md` | Branching strategy, env vars, production checklist, release/versioning workflow (`npm version` on a branch + PR, then tag the merge commit — never tag `main` directly, since every commit there is a squash-merged PR) |
 | `docs/terraform-digitalocean-setup.md` | DigitalOcean droplet setup — Terraform module, Docker/Caddy stack, CD workflow, SSH access model; how this app moved off App Platform |
+| `docs/guides/encryption-key-rotation.md` | How to safely rotate `ENCRYPTION_KEY` — running `scripts/rotate-encryption-key.js`, locally and on staging/production |
+| `docs/guides/database-backups.md` | Pulling an importable `pg_dump` of this app's own database (a separate logical database on the same shared DigitalOcean cluster as the Comprobify API) for local testing |
 | `src/lib/api.ts` | Typed Comprobify API client — all API calls go through here; functions take `ApiCtx` |
 | `src/lib/admin-api.ts` | Admin API client (server-only) — all `/v1/admin/*` calls including the tier price draft/publish workflow; uses `COMPROBIFY_ADMIN_SECRET` Bearer token; no `ApiCtx` |
 | `src/lib/admin-context.ts` | `requireSuperAdmin()` — verifies session + `isSuperAdmin` flag; redirects non-admins to `/dashboard` |
 | `src/lib/context.ts` | `requireContext()`, `requirePermission()`, `hasContextPermission()` |
 | `src/lib/context-cookie.ts` | Signed `comprobify_ctx` cookie helpers |
-| `src/lib/crypto.ts` | AES-256-GCM `encrypt`/`decrypt`/`lastFour` for API keys at rest |
+| `src/lib/crypto.ts` | AES-256-GCM `encrypt`/`decrypt`/`lastFour`, used for `TenantApiKey.encryptedKey` and `WebhookEndpoint.encryptedSecret` at rest — both keyed by `ENCRYPTION_KEY`, see `docs/guides/encryption-key-rotation.md` |
+| `scripts/rotate-encryption-key.js` | Self-contained `ENCRYPTION_KEY` rotation — re-encrypts `TenantApiKey.encryptedKey` and `WebhookEndpoint.encryptedSecret` in one transaction; `--dry-run` and `--self-test` flags; see `docs/guides/encryption-key-rotation.md` |
 | `src/lib/verification-token.ts` | `issueVerificationToken()`/`checkVerificationToken()`/`consumeVerificationToken()` — generic single-use, expiring, hashed token, parameterized by `purpose` (`INVITE`/`PASSWORD_RESET`); backs `VerificationToken` in `prisma/schema.prisma` |
 | `src/lib/rbac.ts` | `Role`, `Permission` types + `ROLE_PERMISSIONS` map |
 | `src/lib/role-api-scopes.ts` | `ApiKeyScope` type (comprobify's 9-value scope vocabulary), `ROLE_API_SCOPES`, `computeApiScopesForRole()`, `ALL_API_SCOPES`/`isFullAccessScopeSet()` — the `Role` → API-scope mapping `resolveApiKeyForRole()` mints keys against |
