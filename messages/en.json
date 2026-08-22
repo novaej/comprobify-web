@@ -717,6 +717,7 @@
   },
   "apiError": {
     "UNKNOWN": "An unexpected error occurred.",
+    "PROMOTION_KEY_SYNC_FAILED": "Your account moved to production, but we couldn't sync your API key. Try activating again in a few minutes; if it keeps failing, use \"Recover account\" or contact support.",
     "ADMIN_API_UNREACHABLE": "Could not connect to the admin API. Check that the service is running and COMPROBIFY_ADMIN_SECRET is correct.",
     "API_UNREACHABLE": "Could not connect to the service. Please try again in a few minutes.",
     "APP_URL_NOT_CONFIGURED": "This feature isn't available in this environment.",

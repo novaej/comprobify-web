@@ -14,6 +14,7 @@ import { getLocale } from 'next-intl/server';
 import { ApiError } from '@/lib/errors';
 import type { PaidTier, BillingInterval } from '@/lib/subscription-tiers';
 import type { Prisma } from '@prisma/client';
+import * as Sentry from '@sentry/nextjs';
 
 export type TenantResult = { error: string } | null;
 export type VerificationResult = { error: string } | { verified: true } | null;
@@ -69,16 +70,6 @@ export async function promoteTenantAction(
     throw err;
   }
 
-  // The promote endpoint returns { label, apiKey } but no key ID or scopes.
-  // Fetch all active keys using one of the new production tokens to get them.
-  let keyInfoByLabel: Record<string, { id: string; scopes: string[] }> = {};
-  if (result.apiKeys.length > 0) {
-    const listedKeys = await listTenantApiKeys({ apiKey: result.apiKeys[0].apiKey }).catch(() => []);
-    for (const k of listedKeys) {
-      if (k.label) keyInfoByLabel[k.label] = { id: k.id, scopes: k.scopes };
-    }
-  }
-
   // comprobify mirrors each sandbox key's scopes into its production equivalent
   // by label; carry isManaged/managedRole over the same way so per-role keys
   // keep their self-revocation protection after promotion.
@@ -88,6 +79,46 @@ export async function promoteTenantAction(
   const managedByLabel: Record<string, { isManaged: boolean; managedRole: string | null }> = {};
   for (const row of existingSandboxKeys) {
     managedByLabel[row.label] = { isManaged: row.isManaged, managedRole: row.managedRole };
+  }
+
+  // The promote endpoint returns { label, apiKey } but no key ID or scopes.
+  // Fetch all active keys using one of the new production tokens to get them
+  // — this follow-up call requires `keys:manage`, so it must be authenticated
+  // with the master key's own new token, not just "the first" returned key
+  // (which may be a narrower per-role/self-service key without that scope
+  // and would 403 — see Common Mistake #48).
+  const masterLabel = existingSandboxKeys.find((row) => row.isManaged && !row.managedRole)?.label;
+  const masterProductionKey = result.apiKeys.find((key) => key.label === masterLabel) ?? result.apiKeys[0];
+  let keyInfoByLabel: Record<string, { id: string; scopes: string[] }> = {};
+  if (masterProductionKey) {
+    const listedKeys = await listTenantApiKeys({ apiKey: masterProductionKey.apiKey }).catch(() => []);
+    for (const k of listedKeys) {
+      if (k.label) keyInfoByLabel[k.label] = { id: k.id, scopes: k.scopes };
+    }
+  }
+
+  // The API has already promoted the tenant and revoked its sandbox keys by
+  // this point — that can't be undone from here. But if we couldn't resolve
+  // even the master key's id (e.g. a transient failure on the listTenantApiKeys
+  // follow-up call), inserting zero usable production rows while still
+  // locally revoking the sandbox rows and flipping environment would leave
+  // the tenant with no working key at all, and every subsequent requireContext()
+  // call would loop trying to redirect to /settings/api-keys to fix it — see
+  // the incident this guard was added for. Bail out instead: leave the local
+  // sandbox rows and environment untouched, so a retry (or /recover-account)
+  // has something to work from, and surface a real error instead of a loop.
+  const masterKeyInfo = masterLabel ? keyInfoByLabel[masterLabel] : undefined;
+  if (!masterKeyInfo) {
+    const err = new Error('Promotion could not resolve the new production master key');
+    console.error('[promotion] key resolution failed after promote()', {
+      tenantId: ctx.tenant.id,
+      apiTenantId: ctx.tenant.apiTenantId,
+      labels: result.apiKeys.map((k) => k.label),
+    });
+    Sentry.captureException(err, {
+      extra: { tenantId: ctx.tenant.id, apiTenantId: ctx.tenant.apiTenantId },
+    });
+    return { error: 'PROMOTION_KEY_SYNC_FAILED' };
   }
 
   await db.$transaction(async (tx) => {
