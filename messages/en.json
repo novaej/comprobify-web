@@ -744,6 +744,7 @@
     "CERTIFICATE_PASSWORD_INVALID": "The P12 certificate password is incorrect.",
     "CERTIFICATE_KEY_NOT_FOUND": "Signing key not found inside the P12 file.",
     "CERTIFICATE_EXPIRED": "The signing certificate has expired. Replace it in issuer settings.",
+    "DECRYPTION_FAILED": "The stored signing certificate could not be read. Re-upload the issuer's P12 file.",
     "ACCOUNT_SUSPENDED": "This account is suspended. Please contact support.",
     "ACCOUNT_PAST_DUE": "This account is past due on a subscription renewal. Submit a payment proof or start a new subscription to restore access.",
     "EMAIL_VERIFICATION_REQUIRED": "You must verify your email address before performing this action.",

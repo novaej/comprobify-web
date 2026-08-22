@@ -744,6 +744,7 @@
     "CERTIFICATE_PASSWORD_INVALID": "La contraseña del certificado P12 es incorrecta.",
     "CERTIFICATE_KEY_NOT_FOUND": "No se encontró la clave de firma dentro del archivo P12.",
     "CERTIFICATE_EXPIRED": "El certificado de firma ha expirado. Reemplácelo en la configuración del emisor.",
+    "DECRYPTION_FAILED": "No se pudo leer el certificado de firma almacenado. Vuelva a cargar el archivo P12 del emisor.",
     "ACCOUNT_SUSPENDED": "La cuenta está suspendida. Contacte al soporte.",
     "ACCOUNT_PAST_DUE": "La cuenta está atrasada en el pago de la suscripción. Envía un comprobante de pago o inicia una nueva suscripción para recuperar el acceso.",
     "EMAIL_VERIFICATION_REQUIRED": "Debe verificar su correo electrónico antes de realizar esta acción.",
