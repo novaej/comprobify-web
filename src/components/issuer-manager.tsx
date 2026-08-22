@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Link } from '@/i18n/navigation';
@@ -30,6 +30,7 @@ interface IssuerWithTypes {
   isDefault: boolean;
   active: boolean;
   documentTypes: string[];
+  nextSequentialByType: Record<string, number>;
   certFingerprint: string | null;
   certExpiry: string | null;
 }
@@ -46,10 +47,20 @@ export function IssuerManager({
   allowedDocumentTypes: string[];
 }) {
   const t = useTranslations('issuers');
+  const tSequentials = useTranslations('issuers.sequentials');
   const tError = useTranslations('apiError');
   const [isPending, startTransition] = useTransition();
   const [issuers, setIssuers] = useState<IssuerWithTypes[]>(initialIssuers);
   const [addTarget, setAddTarget] = useState<{ issuerId: string; code: string } | null>(null);
+
+  // addDocumentTypeAction/removeDocumentTypeAction only call revalidatePath —
+  // they don't update this component's own state, so without re-syncing here
+  // the document type list (and the "last type" disabled state derived from
+  // it) would keep showing whatever was true on first mount, ignoring every
+  // later add/remove until a full page reload (see Common Mistake #52).
+  useEffect(() => {
+    setIssuers(initialIssuers);
+  }, [initialIssuers]);
 
   function handleAddType() {
     if (!addTarget) return;
@@ -172,11 +183,17 @@ export function IssuerManager({
                     className="flex items-center gap-1 rounded-md border border-border bg-muted px-2.5 py-1 text-xs font-medium"
                   >
                     {t(`docType.${code}` as Parameters<typeof t>[0])} ({code})
+                    {code in issuer.nextSequentialByType && (
+                      <span className="font-normal text-muted-foreground">
+                        · {tSequentials('next')}: {issuer.nextSequentialByType[code]}
+                      </span>
+                    )}
                     {canManage && issuer.active && (
                       <button
                         onClick={() => handleRemoveType(issuer.id, code)}
-                        disabled={isPending}
-                        className="ml-1 text-muted-foreground hover:text-destructive disabled:opacity-50"
+                        disabled={isPending || issuer.documentTypes.length <= 1}
+                        title={issuer.documentTypes.length <= 1 ? t('cannotRemoveLastDocType') : undefined}
+                        className="ml-1 text-muted-foreground hover:text-destructive disabled:opacity-50 disabled:hover:text-muted-foreground"
                       >
                         <X className="h-3 w-3" />
                       </button>

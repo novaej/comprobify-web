@@ -769,8 +769,9 @@
     "PRICE_NOTICE_TOO_SHORT": "The notice period must be at least 30 days.",
     "INVALID_TENANT_STATUS": "The account status is not valid for this operation.",
     "RUC_MISMATCH": "The RUC does not match the source issuer's RUC.",
-    "LAST_ISSUER_CANNOT_BE_REMOVED": "Cannot remove the only active issue point.",
-    "ISSUER_HAS_DOCUMENTS": "This issue point has already issued documents and cannot be removed.",
+    "LAST_ISSUER_CANNOT_BE_REMOVED": "Cannot deactivate the only active issue point.",
+    "ISSUER_HAS_DOCUMENTS": "This issue point has already issued documents and cannot be deactivated.",
+    "LAST_DOCUMENT_TYPE_CANNOT_BE_REMOVED": "You can't disable the only enabled document type on this issuer.",
     "SEQUENTIAL_CANNOT_DECREASE": "The new sequential must be greater than the current value.",
     "DECRYPTION_FAILED": "Internal error processing encrypted data. Please contact support.",
     "BUILDER_NOT_FOUND": "Internal error: document type not registered. Please contact support.",
@@ -933,6 +934,7 @@
     },
     "addDocTypeSuccess": "Document type enabled.",
     "removeDocTypeSuccess": "Document type disabled.",
+    "cannotRemoveLastDocType": "You can't disable the only enabled document type on this issuer.",
     "confirmAddDocType": {
       "title": "Enable document type?",
       "description": "\"{docType}\" will be enabled for this branch. You'll be able to issue this document type right away.",
@@ -1504,7 +1506,7 @@
       "branches": "Branches",
       "issuePoints": "Issue points per branch",
       "webhooks": "Webhooks",
-      "allowedDocTypes": "Document types",
+      "allowedDocTypes": "Available document types",
       "unlimited": "Unlimited"
     },
     "history": "Payment history",

@@ -1,7 +1,8 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { requirePermission } from '@/lib/context';
 import { db } from '@/lib/db';
-import { listIssuerDocumentTypes, listTenantIssuers, getCurrentTenant } from '@/lib/api';
+import { listIssuerDocumentTypes, listTenantIssuers, getCurrentTenant, getIssuerSequentials } from '@/lib/api';
+import type { ApiIssuerSequential } from '@/lib/api';
 import { listTiers } from '@/lib/public-api';
 import { reconcileTenantStatus } from '@/lib/tenant-status-sync';
 import { PageHeader } from '@/components/page-header';
@@ -43,10 +44,15 @@ export default async function IssuersPage({
   });
   const activeIssuers = issuers.filter((i) => i.active);
 
-  const [documentTypesPerIssuer, apiIssuers, tenantInfo, tiers] = await Promise.all([
+  const [documentTypesPerIssuer, sequentialsPerIssuer, apiIssuers, tenantInfo, tiers] = await Promise.all([
     Promise.all(
       issuers.map((issuer) =>
         listIssuerDocumentTypes({ apiKey: ctx.apiKey }, issuer.apiIssuerId).catch(() => [] as string[])
+      )
+    ),
+    Promise.all(
+      issuers.map((issuer) =>
+        getIssuerSequentials({ apiKey: ctx.apiKey }, issuer.apiIssuerId).catch(() => [] as ApiIssuerSequential[])
       )
     ),
     listTenantIssuers({ apiKey: ctx.apiKey }).catch(() => []),
@@ -62,9 +68,17 @@ export default async function IssuersPage({
 
   const issuersWithTypes = issuers.map((issuer, i) => {
     const apiIssuer = apiIssuers.find((a) => a.id === issuer.apiIssuerId);
+    // Only the tenant's currently active environment has a meaningful "next"
+    // sequential — same environment the edit page's pencil enables (see
+    // IssuerEditForm's canEditSandbox/canEditProduction).
+    const nextSequentialByType: Record<string, number> = {};
+    for (const row of sequentialsPerIssuer[i]) {
+      nextSequentialByType[row.documentType] = row[ctx.tenant.environment].next;
+    }
     return {
       ...issuer,
       documentTypes: documentTypesPerIssuer[i],
+      nextSequentialByType,
       certFingerprint: apiIssuer?.certFingerprint ?? null,
       certExpiry: apiIssuer?.certExpiry ?? null,
     };
