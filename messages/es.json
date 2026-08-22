@@ -717,6 +717,7 @@
   },
   "apiError": {
     "UNKNOWN": "Ha ocurrido un error inesperado.",
+    "PROMOTION_KEY_SYNC_FAILED": "Tu cuenta pasó a producción, pero no pudimos sincronizar tu llave de API. Vuelve a intentar la activación en unos minutos; si el problema persiste, usa \"Recuperar cuenta\" o contacta a soporte.",
     "ADMIN_API_UNREACHABLE": "No se pudo conectar con la API de administración. Verifique que el servicio esté activo y que COMPROBIFY_ADMIN_SECRET sea correcto.",
     "API_UNREACHABLE": "No se pudo conectar con el servicio. Inténtalo de nuevo en unos minutos.",
     "APP_URL_NOT_CONFIGURED": "Esta función no está disponible en este entorno.",
@@ -1512,7 +1513,8 @@
     "history": "Historial de pagos",
     "noHistory": "Aún no tienes pagos registrados.",
     "noProofYet": "Sin comprobante",
-    "billingPeriod": "Periodo: {start} – {end}",
+    "billingPeriod": "Periodo: {start} – {end} · {interval}",
+    "billingPeriodSandbox": "Facturación {interval} — el periodo se activará al pasar a producción",
     "ivaIncluded": "IVA inc.",
     "downgradeScheduled": "Tu plan bajará a {tier} el {date}.",
     "cancellationScheduled": "Tu suscripción será cancelada el {date}. Hasta entonces tendrás acceso a tu plan actual.",

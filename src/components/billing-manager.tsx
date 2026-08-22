@@ -121,12 +121,19 @@ export function BillingManager({
             {t('usage', { count: Number(tenantInfo.documentCount), quota: tenantInfo.documentQuota })}
           </p>
         )}
-        {!isSandbox && latestSubscription?.status === 'ACTIVE' && latestSubscription.current_period_start && latestSubscription.current_period_end && (
+        {latestSubscription?.status === 'ACTIVE' && (
           <p className="mt-1 text-sm text-muted-foreground">
-            {t('billingPeriod', {
-              start: dateFormatter.format(new Date(latestSubscription.current_period_start)),
-              end: dateFormatter.format(new Date(latestSubscription.current_period_end)),
-            })}
+            {isSandbox
+              ? t('billingPeriodSandbox', {
+                  interval: t(`billingInterval.${latestSubscription.billing_interval}`),
+                })
+              : latestSubscription.current_period_start && latestSubscription.current_period_end
+                ? t('billingPeriod', {
+                    start: dateFormatter.format(new Date(latestSubscription.current_period_start)),
+                    end: dateFormatter.format(new Date(latestSubscription.current_period_end)),
+                    interval: t(`billingInterval.${latestSubscription.billing_interval}`),
+                  })
+                : null}
           </p>
         )}
         {pendingDowngradeTier && latestSubscription?.current_period_end && (
