@@ -1504,7 +1504,7 @@
       "branches": "Sucursales",
       "issuePoints": "Puntos de emisión por sucursal",
       "webhooks": "Webhooks",
-      "allowedDocTypes": "Tipos de comprobantes",
+      "allowedDocTypes": "Tipos de comprobantes disponibles",
       "unlimited": "Ilimitados"
     },
     "history": "Historial de pagos",

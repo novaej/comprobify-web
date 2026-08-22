@@ -1504,7 +1504,7 @@
       "branches": "Branches",
       "issuePoints": "Issue points per branch",
       "webhooks": "Webhooks",
-      "allowedDocTypes": "Document types",
+      "allowedDocTypes": "Available document types",
       "unlimited": "Unlimited"
     },
     "history": "Payment history",
