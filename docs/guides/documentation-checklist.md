@@ -147,6 +147,8 @@ See `docs/guides/coding-guidelines.md → "Adding a new API endpoint call"` for 
 | `docs/adr/{NNN}-{name}.md` | Architecture decisions | New architecture decision |
 | `docs/guides/code-flow.md` | Request lifecycle walkthrough | Changing how requests flow |
 | `docs/guides/coding-guidelines.md` | How to build features | New pattern or convention |
+| `docs/guides/encryption-key-rotation.md` | How to rotate `ENCRYPTION_KEY` via `scripts/rotate-encryption-key.js` | The set of columns encrypted with `ENCRYPTION_KEY` changes, or `src/lib/crypto.ts`'s format changes |
+| `docs/guides/database-backups.md` | Pulling an importable dump of this app's own database | Cluster/Trusted-Sources setup changes, or a table gains row-level security |
 | `CLAUDE.md` | Rules for AI assistants | Architecture or pattern change |
 | `CHANGELOG.md` | Release history | Every code change |
 | `NEXT_STEPS.md` | Pending features | Completing a feature |
