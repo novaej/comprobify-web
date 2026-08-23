@@ -6,6 +6,7 @@ import { db } from '@/lib/db';
 import {
   listCatalogIdTypes,
   listCatalogTaxRates,
+  listTenantIssuers,
   getDocument,
   type CatalogIdType,
   type CatalogTaxRate,
@@ -112,7 +113,7 @@ export default async function NewCreditNotePage({
   const backHref = rebuildFrom ? `/invoices/${rebuildFrom.accessKey}` : backTarget.href;
   const backLabel = rebuildFrom ? tCommon('back') : tBack(backTarget.key as Parameters<typeof tBack>[0]);
 
-  const [idTypes, taxRates, productRows, clientRows] = await Promise.all([
+  const [idTypes, taxRates, productRows, clientRows, apiIssuers] = await Promise.all([
     listCatalogIdTypes(apiCtx),
     listCatalogTaxRates(apiCtx),
     db.product.findMany({
@@ -125,10 +126,12 @@ export default async function NewCreditNotePage({
       orderBy: { name: 'asc' },
       select: { id: true, idType: true, idNumber: true, name: true, email: true, address: true },
     }),
+    listTenantIssuers({ apiKey }).catch(() => []),
   ]);
 
   const products: CatalogProduct[] = productRows.map((r) => ({ ...r, unitPrice: r.unitPrice.toString() }));
   const catalogs: CreditNoteCatalogs = { idTypes, taxRates, products, clients: clientRows };
+  const canIssue = apiIssuers.find((a) => a.id === ctx.issuer.apiIssuerId)?.canIssue ?? true;
 
   return (
     <div>
@@ -147,6 +150,7 @@ export default async function NewCreditNotePage({
         backHref={backHref}
         from={backTargetKey}
         issuer={ctx.issuer}
+        canIssue={canIssue}
       />
     </div>
   );

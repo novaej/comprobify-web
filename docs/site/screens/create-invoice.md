@@ -144,6 +144,10 @@ Two buttons, both validating the form (React Hook Form) and opening the same con
 
 Both paths redirect to the Invoice Detail page on success. A `SIGNED` document is not a dead end: that page shows its own "Enviar" button (see `invoice-detail.md`) to send to the SRI whenever the user is ready.
 
+### Paused issuer
+
+If the active issuer has `canIssue: false` (paused via the "Puede emitir" toggle on `/issuers` — see `../comprobify/docs/site/en/endpoints/set-can-issue.md`), the page fetches it live from `GET /v1/issuers` and `InvoiceForm` shows an amber warning banner ("Este emisor tiene pausada la emisión...") above the issuer chip and disables both submit buttons. The guard also sits inside `openConfirmSignAndSend`/`openConfirmSignOnly` themselves (not just the button's `disabled` attribute), so pressing Enter in a field can't bypass it. `canIssue` has no local database mirror — it's read fresh on every page load, matching what the API's own `POST /api/documents`/`POST /:key/rebuild` guard (`ISSUER_ISSUING_PAUSED`) would reject anyway; this is purely the matching UI so the form doesn't let someone fill out the whole thing only to fail at submit.
+
 ## Rebuild mode (`?rebuild=<accessKey>`)
 
 When the page is reached via `/invoices/new?rebuild=<accessKey>` (the "Corregir" button on Invoice Detail, only shown for `RETURNED`/`NOT_AUTHORIZED` documents):

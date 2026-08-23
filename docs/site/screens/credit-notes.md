@@ -114,6 +114,10 @@ Same dual-button / confirmation-dialog mechanism as Create Invoice (see `create-
 
 Both paths redirect to the (shared) Invoice Detail page on success.
 
+### Paused issuer
+
+Same gate as Create Invoice (see `create-invoice.md` → "Paused issuer"): if the active issuer has `canIssue: false`, `CreditNoteForm` shows the same amber warning banner and disables both submit buttons, guarded inside `openConfirmSignAndSend`/`openConfirmSignOnly` so Enter-key submit can't bypass it either. This stacks independently with the remaining-balance disable above — either condition alone is enough to block submission.
+
 ## Rebuild mode (`?rebuild=<accessKey>`)
 
 Same mechanism as Create Invoice's rebuild mode (see `create-invoice.md` → "Rebuild mode"), reached from a `RETURNED`/`NOT_AUTHORIZED` credit note's "Corregir" button on Invoice Detail. The page validates `document.requestPayload.documentType === '04'` before treating it as a credit-note rebuild (so a malformed/foreign `rebuild` param can't accidentally load an invoice payload into this form).

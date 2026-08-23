@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
-import { Trash2, Plus, Search, Send, FolderOpen, Save, ClipboardSignature, Hammer, Building2 } from 'lucide-react';
+import { Trash2, Plus, Search, Send, FolderOpen, Save, ClipboardSignature, Hammer, Building2, AlertTriangle } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -467,9 +467,10 @@ interface Props {
   backHref: string;
   from?: BackTargetKey;
   issuer: IssuerInfo;
+  canIssue: boolean;
 }
 
-export function InvoiceForm({ catalogs, defaultValues, rebuildFrom, backHref, from, issuer }: Props) {
+export function InvoiceForm({ catalogs, defaultValues, rebuildFrom, backHref, from, issuer, canIssue }: Props) {
   const t = useTranslations('invoiceForm');
   const tError = useTranslations('apiError');
   const tCommon = useTranslations('common');
@@ -541,12 +542,14 @@ export function InvoiceForm({ catalogs, defaultValues, rebuildFrom, backHref, fr
   const [submitIntent, setSubmitIntent] = useState<'sign' | 'signAndSend'>('signAndSend');
 
   const openConfirmSignAndSend = form.handleSubmit((data) => {
+    if (!canIssue) return;
     setSubmitIntent('signAndSend');
     setPendingPayload(toInvoiceFormData(data));
     setConfirmOpen(true);
   });
 
   const openConfirmSignOnly = form.handleSubmit((data) => {
+    if (!canIssue) return;
     setSubmitIntent('sign');
     setPendingPayload(toInvoiceFormData(data));
     setConfirmOpen(true);
@@ -654,6 +657,16 @@ export function InvoiceForm({ catalogs, defaultValues, rebuildFrom, backHref, fr
   return (
     <>
     <form onSubmit={onSubmit} className="space-y-6">
+
+      {!canIssue && (
+        <div
+          className="flex items-start gap-3 rounded-lg border border-amber-400/40 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-300"
+          role="alert"
+        >
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          <span>{t('issuingPaused')}</span>
+        </div>
+      )}
 
       {/* Issuer + Templates */}
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1037,12 +1050,12 @@ export function InvoiceForm({ catalogs, defaultValues, rebuildFrom, backHref, fr
       )}
 
       <div className="flex flex-wrap gap-3 pb-6">
-        <Button type="submit" disabled={isPending}>
+        <Button type="submit" disabled={isPending || !canIssue}>
           {isPending && submitIntent === 'signAndSend'
             ? isRebuild ? t('submittingRebuild') : t('submitting')
             : isRebuild ? t('submitRebuild') : t('submit')}
         </Button>
-        <Button type="button" variant="outline" disabled={isPending} onClick={openConfirmSignOnly}>
+        <Button type="button" variant="outline" disabled={isPending || !canIssue} onClick={openConfirmSignOnly}>
           {isPending && submitIntent === 'sign'
             ? isRebuild ? t('signingOnlyRebuild') : t('signingOnly')
             : isRebuild ? t('signOnlyRebuild') : t('signOnly')}

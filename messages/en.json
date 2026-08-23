@@ -275,6 +275,7 @@
   "invoiceForm": {
     "title": "New invoice",
     "rebuildTitle": "Fix invoice",
+    "issuingPaused": "This issuer has new document creation paused. You won't be able to sign or send until it's resumed from Issuers.",
     "submit": "Sign & Send",
     "signOnly": "Sign",
     "submitRebuild": "Fix & Send",
@@ -416,6 +417,7 @@
   "creditNoteForm": {
     "title": "New credit note",
     "rebuildTitle": "Fix credit note",
+    "issuingPaused": "This issuer has new document creation paused. You won't be able to sign or send until it's resumed from Issuers.",
     "submit": "Sign & Send",
     "signOnly": "Sign",
     "submitRebuild": "Fix & Send",
@@ -772,6 +774,7 @@
     "RUC_MISMATCH": "The RUC does not match the source issuer's RUC.",
     "LAST_ISSUER_CANNOT_BE_REMOVED": "Cannot deactivate the only active issue point.",
     "ISSUER_HAS_DOCUMENTS": "This issue point has already issued documents and cannot be deactivated.",
+    "ISSUER_ISSUING_PAUSED": "This issue point has new document creation paused. Resume it from Issuers.",
     "LAST_DOCUMENT_TYPE_CANNOT_BE_REMOVED": "You can't disable the only enabled document type on this issuer.",
     "SEQUENTIAL_CANNOT_DECREASE": "The new sequential must be greater than the current value.",
     "DECRYPTION_FAILED": "Internal error processing encrypted data. Please contact support.",
@@ -972,6 +975,13 @@
     },
     "activateSuccess": "Issue point activated.",
     "removeSuccess": "Issue point deactivated.",
+    "issuing": {
+      "enabled": "Can issue",
+      "paused": "Issuing paused",
+      "pausedBadge": "Issuing paused"
+    },
+    "pauseIssuingSuccess": "New document creation paused.",
+    "resumeIssuingSuccess": "New document creation resumed.",
     "create": {
       "button": "New issuer",
       "title": "New issuer",

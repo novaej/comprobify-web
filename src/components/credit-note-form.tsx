@@ -5,7 +5,7 @@ import { useForm, useFieldArray, useWatch, Controller, type UseFormReturn, type 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useTranslations } from 'next-intl';
-import { Trash2, Plus, Search, Send, ClipboardSignature, Hammer, Loader2, Building2 } from 'lucide-react';
+import { Trash2, Plus, Search, Send, ClipboardSignature, Hammer, Loader2, Building2, AlertTriangle } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -414,6 +414,7 @@ interface Props {
   backHref: string;
   from?: BackTargetKey;
   issuer: IssuerInfo;
+  canIssue: boolean;
 }
 
 export function CreditNoteForm({
@@ -426,6 +427,7 @@ export function CreditNoteForm({
   backHref,
   from,
   issuer,
+  canIssue,
 }: Props) {
   const t = useTranslations('creditNoteForm');
   const tError = useTranslations('apiError');
@@ -516,12 +518,14 @@ export function CreditNoteForm({
   const [submitIntent, setSubmitIntent] = useState<'sign' | 'signAndSend'>('signAndSend');
 
   const openConfirmSignAndSend = form.handleSubmit((data) => {
+    if (!canIssue) return;
     setSubmitIntent('signAndSend');
     setPendingPayload(toCreditNoteFormData(data));
     setConfirmOpen(true);
   });
 
   const openConfirmSignOnly = form.handleSubmit((data) => {
+    if (!canIssue) return;
     setSubmitIntent('sign');
     setPendingPayload(toCreditNoteFormData(data));
     setConfirmOpen(true);
@@ -556,6 +560,16 @@ export function CreditNoteForm({
   return (
     <>
     <form onSubmit={onSubmit} className="space-y-6">
+
+      {!canIssue && (
+        <div
+          className="flex items-start gap-3 rounded-lg border border-amber-400/40 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-300"
+          role="alert"
+        >
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          <span>{t('issuingPaused')}</span>
+        </div>
+      )}
 
       {/* Issuer chip */}
       <div className="flex items-center gap-1.5 rounded-md border border-border bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground w-fit">
@@ -853,7 +867,7 @@ export function CreditNoteForm({
       )}
 
       <div className="flex flex-wrap gap-3 pb-6">
-        <Button type="submit" disabled={isPending || !hasOriginalDocument || exceedsRemaining}>
+        <Button type="submit" disabled={isPending || !hasOriginalDocument || exceedsRemaining || !canIssue}>
           {isPending && submitIntent === 'signAndSend'
             ? isRebuild ? t('submittingRebuild') : t('submitting')
             : isRebuild ? t('submitRebuild') : t('submit')}
@@ -861,7 +875,7 @@ export function CreditNoteForm({
         <Button
           type="button"
           variant="outline"
-          disabled={isPending || !hasOriginalDocument || exceedsRemaining}
+          disabled={isPending || !hasOriginalDocument || exceedsRemaining || !canIssue}
           onClick={openConfirmSignOnly}
         >
           {isPending && submitIntent === 'sign'
