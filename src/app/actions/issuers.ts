@@ -7,6 +7,7 @@ import {
   updateIssuer,
   removeIssuer,
   activateIssuer,
+  setIssuerCanIssue,
   getIssuerSequentials,
   setIssuerSequential,
   addIssuerDocumentType,
@@ -187,6 +188,25 @@ export async function activateIssuerAction(issuerId: string): Promise<IssuersRes
 
   revalidatePath('/issuers');
   revalidatePath('/', 'layout');
+  return null;
+}
+
+export async function setIssuerCanIssueAction(issuerId: string, canIssue: boolean): Promise<IssuersResult> {
+  const ctx = await requirePermission('issuers.manage', { skipIssuer: true });
+
+  const issuer = await db.issuer.findUnique({ where: { id: issuerId } });
+  if (!issuer || issuer.tenantId !== ctx.tenant.id) return { error: 'ISSUER_NOT_FOUND' };
+
+  try {
+    // No local mirror to persist — canIssue lives only at the API (see
+    // issuers/page.tsx), so revalidating the page is enough to pick it up.
+    await setIssuerCanIssue({ apiKey: ctx.apiKey }, issuer.apiIssuerId, canIssue);
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.code };
+    throw err;
+  }
+
+  revalidatePath('/issuers');
   return null;
 }
 

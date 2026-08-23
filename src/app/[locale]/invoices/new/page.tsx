@@ -8,6 +8,7 @@ import {
   listCatalogPaymentMethods,
   listCatalogTaxRates,
   listCatalogTermUnits,
+  listTenantIssuers,
   getDocument,
   type CatalogIdType,
   type CatalogPaymentMethod,
@@ -81,7 +82,7 @@ export default async function NewInvoicePage({
   const backHref = rebuildFrom ? `/invoices/${rebuildFrom.accessKey}` : backTarget.href;
   const backLabel = rebuildFrom ? tCommon('back') : tBack(backTarget.key as Parameters<typeof tBack>[0]);
 
-  const [idTypes, paymentMethods, taxRates, termUnits, productRows, clientRows, templates] = await Promise.all([
+  const [idTypes, paymentMethods, taxRates, termUnits, productRows, clientRows, templates, apiIssuers] = await Promise.all([
     listCatalogIdTypes(apiCtx),
     listCatalogPaymentMethods(apiCtx),
     listCatalogTaxRates(apiCtx),
@@ -97,6 +98,7 @@ export default async function NewInvoicePage({
       select: { id: true, idType: true, idNumber: true, name: true, email: true, address: true },
     }),
     listInvoiceTemplatesAction(),
+    listTenantIssuers({ apiKey }).catch(() => []),
   ]);
 
   const products: CatalogProduct[] = productRows.map((r) => ({
@@ -105,6 +107,7 @@ export default async function NewInvoicePage({
   }));
 
   const catalogs: InvoiceCatalogs = { idTypes, paymentMethods, taxRates, termUnits, products, clients: clientRows, templates };
+  const canIssue = apiIssuers.find((a) => a.id === ctx.issuer.apiIssuerId)?.canIssue ?? true;
 
   return (
     <div>
@@ -113,7 +116,7 @@ export default async function NewInvoicePage({
         backHref={backHref}
         backLabel={backLabel}
       />
-      <InvoiceForm catalogs={catalogs} rebuildFrom={rebuildFrom} backHref={backHref} from={backTargetKey} issuer={ctx.issuer} />
+      <InvoiceForm catalogs={catalogs} rebuildFrom={rebuildFrom} backHref={backHref} from={backTargetKey} issuer={ctx.issuer} canIssue={canIssue} />
     </div>
   );
 }

@@ -281,6 +281,13 @@ export interface ApiIssuer {
   certExpiry: string | null;
 }
 
+// GET /v1/issuers's issuer.service.js → listIssuers() also includes canIssue —
+// createIssuer()/updateIssuer()'s controller responses below do not, so this is
+// kept as its own type rather than widening ApiIssuer for every call site.
+export interface ApiTenantIssuer extends ApiIssuer {
+  canIssue: boolean;
+}
+
 // Verified against: ../comprobify/src/validators/issuer.validator.js → createBranch
 export interface CreateIssuerFields {
   sourceIssuerId?: string;
@@ -589,8 +596,8 @@ export async function listCatalogTermUnits(ctx: ApiCtx): Promise<CatalogTermUnit
 
 // ── Issuer functions ──────────────────────────────────────────────────────────
 
-export async function listTenantIssuers(ctx: ApiCtx): Promise<ApiIssuer[]> {
-  const result = await request<{ ok: true; issuers: ApiIssuer[] }>(
+export async function listTenantIssuers(ctx: ApiCtx): Promise<ApiTenantIssuer[]> {
+  const result = await request<{ ok: true; issuers: ApiTenantIssuer[] }>(
     '/v1/issuers',
     { apiKey: ctx.apiKey },
   );
@@ -655,6 +662,16 @@ export async function removeIssuer(ctx: ApiCtx, issuerId: string): Promise<void>
 // Verified against: ../comprobify/src/controllers/issuer.controller.js → activateIssuer
 export async function activateIssuer(ctx: ApiCtx, issuerId: string): Promise<void> {
   await request(`/v1/issuers/${issuerId}/activate`, { apiKey: ctx.apiKey }, { method: 'PATCH' });
+}
+
+// Verified against: ../comprobify/src/controllers/issuer.controller.js → setCanIssue
+export async function setIssuerCanIssue(ctx: ApiCtx, issuerId: string, canIssue: boolean): Promise<boolean> {
+  const result = await request<{ ok: true; canIssue: boolean }>(
+    `/v1/issuers/${issuerId}/can-issue`,
+    { apiKey: ctx.apiKey },
+    { method: 'PATCH', body: JSON.stringify({ canIssue }) },
+  );
+  return result.canIssue;
 }
 
 // Verified against: ../comprobify/src/services/sequential.service.js → getCounters()

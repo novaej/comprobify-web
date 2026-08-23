@@ -81,6 +81,8 @@ export default async function IssuersPage({
       nextSequentialByType,
       certFingerprint: apiIssuer?.certFingerprint ?? null,
       certExpiry: apiIssuer?.certExpiry ?? null,
+      // canIssue lives only at the API — no local mirror, see setIssuerCanIssueAction.
+      canIssue: apiIssuer?.canIssue ?? true,
     };
   });
 

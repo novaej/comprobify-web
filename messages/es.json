@@ -275,6 +275,7 @@
   "invoiceForm": {
     "title": "Nueva factura",
     "rebuildTitle": "Corregir factura",
+    "issuingPaused": "Este emisor tiene pausada la emisión de nuevos comprobantes. No podrás firmar ni enviar hasta reanudarla desde Emisores.",
     "submit": "Firmar y Enviar",
     "signOnly": "Firmar",
     "submitRebuild": "Corregir y Enviar",
@@ -416,6 +417,7 @@
   "creditNoteForm": {
     "title": "Nueva nota de crédito",
     "rebuildTitle": "Corregir nota de crédito",
+    "issuingPaused": "Este emisor tiene pausada la emisión de nuevos comprobantes. No podrás firmar ni enviar hasta reanudarla desde Emisores.",
     "submit": "Firmar y Enviar",
     "signOnly": "Firmar",
     "submitRebuild": "Corregir y Enviar",
@@ -772,6 +774,7 @@
     "RUC_MISMATCH": "El RUC no coincide con el del emisor de origen.",
     "LAST_ISSUER_CANNOT_BE_REMOVED": "No se puede desactivar el único punto de emisión activo.",
     "ISSUER_HAS_DOCUMENTS": "Este punto de emisión ya emitió comprobantes y no puede desactivarse.",
+    "ISSUER_ISSUING_PAUSED": "Este punto de emisión tiene pausada la emisión de nuevos comprobantes. Actívala desde Emisores.",
     "LAST_DOCUMENT_TYPE_CANNOT_BE_REMOVED": "No puedes deshabilitar el único tipo de comprobante habilitado en este emisor.",
     "SEQUENTIAL_CANNOT_DECREASE": "El nuevo secuencial debe ser mayor al valor actual.",
     "DECRYPTION_FAILED": "Error interno al procesar datos cifrados. Contacte al soporte.",
@@ -1072,6 +1075,13 @@
     },
     "activateSuccess": "Punto de emisión activado.",
     "removeSuccess": "Punto de emisión desactivado.",
+    "issuing": {
+      "enabled": "Puede emitir",
+      "paused": "Emisión pausada",
+      "pausedBadge": "Emisión pausada"
+    },
+    "pauseIssuingSuccess": "Se pausó la emisión de nuevos comprobantes.",
+    "resumeIssuingSuccess": "Se reanudó la emisión de nuevos comprobantes.",
     "create": {
       "button": "Nuevo emisor",
       "title": "Nuevo emisor",

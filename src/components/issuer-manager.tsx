@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Link } from '@/i18n/navigation';
-import { addDocumentTypeAction, removeDocumentTypeAction, removeIssuerAction, activateIssuerAction } from '@/app/actions/issuers';
+import { addDocumentTypeAction, removeDocumentTypeAction, removeIssuerAction, activateIssuerAction, setIssuerCanIssueAction } from '@/app/actions/issuers';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import {
@@ -29,6 +29,7 @@ interface IssuerWithTypes {
   tradeName: string | null;
   isDefault: boolean;
   active: boolean;
+  canIssue: boolean;
   documentTypes: string[];
   nextSequentialByType: Record<string, number>;
   certFingerprint: string | null;
@@ -105,6 +106,21 @@ export function IssuerManager({
     });
   }
 
+  function handleToggleCanIssue(issuerId: string, nextCanIssue: boolean) {
+    setIssuers((prev) => prev.map((i) => (i.id === issuerId ? { ...i, canIssue: nextCanIssue } : i)));
+
+    startTransition(async () => {
+      const result = await setIssuerCanIssueAction(issuerId, nextCanIssue);
+      if (result?.error) {
+        // Revert optimistic update on error.
+        setIssuers((prev) => prev.map((i) => (i.id === issuerId ? { ...i, canIssue: !nextCanIssue } : i)));
+        toastApiError(result.error, tError);
+      } else {
+        toast.success(nextCanIssue ? t('resumeIssuingSuccess') : t('pauseIssuingSuccess'));
+      }
+    });
+  }
+
   if (issuers.length === 0) {
     return <p className="text-sm text-muted-foreground">{t('empty')}</p>;
   }
@@ -137,11 +153,16 @@ export function IssuerManager({
                         {t('default')}
                       </span>
                     )}
+                    {issuer.active && !issuer.canIssue && (
+                      <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
+                        {t('issuing.pausedBadge')}
+                      </span>
+                    )}
                   </p>
                 </div>
               </div>
               {canManage && (
-                <div className="flex shrink-0 items-center gap-3">
+                <div className="flex shrink-0 flex-wrap items-center gap-3">
                   {issuer.active && (
                     <Link
                       href={`/issuers/${issuer.id}`}
@@ -150,6 +171,18 @@ export function IssuerManager({
                       <Pencil className="h-3.5 w-3.5" />
                       <span className="hidden sm:inline">{t('edit')}</span>
                     </Link>
+                  )}
+                  {issuer.active && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        {issuer.canIssue ? t('issuing.enabled') : t('issuing.paused')}
+                      </span>
+                      <Switch
+                        checked={issuer.canIssue}
+                        onCheckedChange={(checked) => handleToggleCanIssue(issuer.id, checked)}
+                        disabled={isPending}
+                      />
+                    </div>
                   )}
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-muted-foreground">
