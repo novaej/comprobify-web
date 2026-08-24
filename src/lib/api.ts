@@ -794,8 +794,19 @@ export interface ApiTenantInfo {
   subscriptionTier: string;
   // PAST_DUE (ADR-025 on the API side): a self-resolving billing state, distinct
   // from the admin-only SUSPENDED — assigned when a renewal grace period lapses
-  // unpaid, cleared automatically once a new subscription's invoice authorizes.
+  // unpaid, cleared automatically once a fresh subscription's payment is verified
+  // (ADR-027 moved this trigger off invoice authorization).
   status: 'PENDING_VERIFICATION' | 'ACTIVE' | 'SUSPENDED' | 'PAST_DUE';
+  // Only meaningful alongside SUSPENDED — cleared server-side on any other
+  // transition (ADR-027). Mirrors ../comprobify/src/constants/suspension-reasons.js.
+  suspensionReasonCode:
+    | 'PAYMENT_REVERSED'
+    | 'FRAUD_SUSPECTED'
+    | 'TERMS_VIOLATION'
+    | 'VOLUNTARY_CLOSURE'
+    | 'UNPAID_BALANCE'
+    | 'OTHER'
+    | null;
   documentCount: string;   // bigint → serialized as string by pg/JSON
   documentQuota: number;   // regular int column
   sandbox: boolean;

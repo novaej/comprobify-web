@@ -8,6 +8,7 @@ import {
   verifyTenant,
   reviewPayment,
   linkInvoice,
+  refundPayment,
   publishAgreement,
   activateAgreement,
   createTierPrice,
@@ -21,6 +22,7 @@ import {
   type TierName,
   type BillingInterval,
   type AdminTenantStatus,
+  type AdminSuspensionReason,
 } from '@/lib/admin-api';
 import { ApiError } from '@/lib/errors';
 import { revalidatePath } from 'next/cache';
@@ -43,10 +45,11 @@ export async function updateTenantTierAction(id: string, tier: string): Promise<
 export async function updateTenantStatusAction(
   id: string,
   status: AdminTenantStatus,
+  suspensionReasonCode?: AdminSuspensionReason,
 ): Promise<AdminTenantResult> {
   await requireSuperAdmin();
   try {
-    const tenant = await updateTenantStatus(id, status);
+    const tenant = await updateTenantStatus(id, status, suspensionReasonCode);
     revalidatePath('/admin/tenants');
     return { tenant };
   } catch (err) {
@@ -91,7 +94,26 @@ export async function linkInvoiceAction(
   try {
     await linkInvoice(subscriptionId, accessKey);
     revalidatePath('/admin/payments');
+    revalidatePath('/admin/invoicing/pending');
+    // The nav badge count is read in admin/layout.tsx on every render, so it
+    // needs the same layout-wide invalidation rule-12 requires elsewhere.
+    revalidatePath('/', 'layout');
     return { ok: true };
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.code };
+    throw err;
+  }
+}
+
+export async function refundPaymentAction(
+  id: string,
+  reason?: string,
+): Promise<AdminPaymentResult> {
+  await requireSuperAdmin();
+  try {
+    const { payment } = await refundPayment(id, reason);
+    revalidatePath('/admin/payments');
+    return { payment };
   } catch (err) {
     if (err instanceof ApiError) return { error: err.code };
     throw err;

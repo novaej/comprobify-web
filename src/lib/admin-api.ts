@@ -16,11 +16,23 @@ import { ApiError, ProblemDetails } from './errors';
 // manually-lifted SUSPENDED.
 export type AdminTenantStatus = 'PENDING_VERIFICATION' | 'ACTIVE' | 'SUSPENDED' | 'PAST_DUE';
 
+// Mirrors ../comprobify/src/constants/suspension-reasons.js (ADR-027). Only
+// meaningful when status is SUSPENDED — cleared server-side on any other
+// transition, same denormalized-cache pattern as agreementAcceptedAt.
+export type AdminSuspensionReason =
+  | 'PAYMENT_REVERSED'
+  | 'FRAUD_SUSPECTED'
+  | 'TERMS_VIOLATION'
+  | 'VOLUNTARY_CLOSURE'
+  | 'UNPAID_BALANCE'
+  | 'OTHER';
+
 export interface AdminTenant {
   id: string;
   email: string;
   subscriptionTier: string;
   status: AdminTenantStatus;
+  suspensionReasonCode: AdminSuspensionReason | null;
   documentQuota: number;
   documentCount: number;
   createdAt: string;
@@ -48,6 +60,20 @@ export interface AdminPayment {
   tier: string;
   billing_interval: string;
   tenant: { id: string; email: string } | null;
+  // ADR-027: invoiced_at (not invoice_access_key/period_start) is the real
+  // "has an invoice been recorded" signal now — see listPendingInvoicing().
+  invoiced_at: string | null;
+  // Rollback snapshot captured immediately before a VERIFIED payment was
+  // applied — see refundPayment(). Absent on payments applied before
+  // migration 090; the API's refund endpoint refuses those.
+  applied_from: {
+    tier: string;
+    billingInterval: string;
+    periodStart: string | null;
+    periodEnd: string | null;
+    subscriptionStatus: string;
+    tenantTier: string;
+  } | null;
 }
 
 // Verified against: ../comprobify/src/services/subscription.service.js → formatPaymentProof()
@@ -156,13 +182,16 @@ export async function updateTenantTier(id: string, tier: string): Promise<AdminT
 }
 
 // Verified against: ../comprobify/src/controllers/admin.controller.js → updateTenantStatus()
+// suspensionReasonCode is required by the API's validator whenever status is
+// SUSPENDED (ADR-027) — omitting it 400s with VALIDATION_FAILED.
 export async function updateTenantStatus(
   id: string,
   status: AdminTenantStatus,
+  suspensionReasonCode?: AdminSuspensionReason,
 ): Promise<AdminTenant> {
   const { tenant } = await request<{ ok: true; tenant: AdminTenant }>(`/v1/admin/tenants/${id}/status`, {
     method: 'PATCH',
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({ status, suspensionReasonCode }),
   });
   return tenant;
 }
@@ -214,6 +243,55 @@ export async function reviewPayment(
   return request(`/v1/admin/payments/${id}/review`, {
     method: 'PATCH',
     body: JSON.stringify({ decision, rejectionReasonCode }),
+  });
+}
+
+// ── Invoicing queue (ADR-027) ────────────────────────────────────────────────
+// Verified payments whose self-billed factura the operator still owes — see
+// subscriptionService.listPendingInvoices() in
+// ../comprobify/src/services/subscription.service.js. Activation no longer
+// waits on this; it's purely a work queue.
+
+export interface AdminPendingInvoiceItem {
+  payment: {
+    id: string;
+    purpose: string;
+    method: string;
+    amount: string;
+    ivaRate: string;
+    ivaAmount: string;
+    totalAmount: string;
+    verifiedAt: string | null;
+  };
+  subscription: {
+    id: string;
+    tier: string;
+    billingInterval: string;
+    currentPeriodStart: string | null;
+    currentPeriodEnd: string | null;
+  };
+  buyer: {
+    tenantId: string;
+    email: string;
+    businessName: string | null;
+    ruc: string | null;
+    address: string | null;
+  };
+}
+
+// Verified against: ../comprobify/src/controllers/admin.controller.js → listPendingInvoices()
+export async function listPendingInvoicing(): Promise<{ count: number; items: AdminPendingInvoiceItem[] }> {
+  return request<{ ok: true; count: number; items: AdminPendingInvoiceItem[] }>('/v1/admin/invoicing/pending');
+}
+
+// Verified against: ../comprobify/src/controllers/admin.controller.js → refundPayment()
+export async function refundPayment(
+  id: string,
+  reason?: string,
+): Promise<{ payment: AdminPayment; subscription: unknown }> {
+  return request(`/v1/admin/payments/${id}/refund`, {
+    method: 'PATCH',
+    body: JSON.stringify({ reason }),
   });
 }
 

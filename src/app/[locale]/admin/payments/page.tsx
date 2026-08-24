@@ -3,8 +3,10 @@ import { requireSuperAdmin } from '@/lib/admin-context';
 import { listPendingPayments, listAdminIssuers } from '@/lib/admin-api';
 import { PageHeader } from '@/components/page-header';
 import { AdminPaymentManager } from '@/components/admin-payment-manager';
+import { AdminRateLimitNotice } from '@/components/admin-rate-limit-notice';
 import { Link } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
+import { ApiError } from '@/lib/errors';
 
 const STATUSES = ['REPORTED', 'VERIFIED', 'REJECTED'] as const;
 type PaymentStatus = typeof STATUSES[number];
@@ -26,18 +28,24 @@ export default async function AdminPaymentsPage({
     ? (rawStatus as PaymentStatus)
     : 'REPORTED';
 
-  const [payments, issuers] = await Promise.all([
-    listPendingPayments(status),
-    listAdminIssuers(),
-  ]);
-
-  // Build tenantId → business name. All issuers under a tenant share the same
-  // legal name — use the first one found.
+  let payments;
   const tenantNames: Record<string, string> = {};
-  for (const issuer of issuers) {
-    if (!(issuer.tenantId in tenantNames)) {
-      tenantNames[issuer.tenantId] = issuer.businessName;
+  try {
+    const [fetchedPayments, issuers] = await Promise.all([
+      listPendingPayments(status),
+      listAdminIssuers(),
+    ]);
+    payments = fetchedPayments;
+    // Build tenantId → business name. All issuers under a tenant share the same
+    // legal name — use the first one found.
+    for (const issuer of issuers) {
+      if (!(issuer.tenantId in tenantNames)) {
+        tenantNames[issuer.tenantId] = issuer.businessName;
+      }
     }
+  } catch (err) {
+    if (!(err instanceof ApiError) || !err.isRateLimit()) throw err;
+    payments = null;
   }
 
   return (
@@ -62,7 +70,11 @@ export default async function AdminPaymentsPage({
         ))}
       </div>
 
-      <AdminPaymentManager key={status} payments={payments} tenantNames={tenantNames} reviewable={status === 'REPORTED'} />
+      {payments === null ? (
+        <AdminRateLimitNotice />
+      ) : (
+        <AdminPaymentManager key={status} payments={payments} tenantNames={tenantNames} reviewable={status === 'REPORTED'} />
+      )}
     </div>
   );
 }

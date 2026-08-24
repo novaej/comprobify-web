@@ -6,8 +6,8 @@ import { toast } from 'sonner';
 import { toastApiError } from '@/lib/api-error-toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Dialog,
@@ -17,8 +17,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { reviewPaymentAction, linkInvoiceAction } from '@/app/actions/admin';
-import { Eye, Download, ChevronLeft, ChevronRight, Link2, ExternalLink } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { reviewPaymentAction, refundPaymentAction } from '@/app/actions/admin';
+import { Eye, Download, ChevronLeft, ChevronRight, ExternalLink, Undo2, MoreVertical } from 'lucide-react';
 import type { AdminPayment, AdminPaymentProof } from '@/lib/admin-api';
 
 const currencyFormatter = new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' });
@@ -42,9 +48,9 @@ export function AdminPaymentManager({
   const [rejectTarget, setRejectTarget] = useState<AdminPayment | null>(null);
   const [rejectionReasonCode, setRejectionReasonCode] = useState('');
   const [proofTarget, setProofTarget] = useState<AdminPayment | null>(null);
-  const [linkTarget, setLinkTarget] = useState<AdminPayment | null>(null);
-  const [linkAccessKey, setLinkAccessKey] = useState('');
   const [previewAccessKey, setPreviewAccessKey] = useState<string | null>(null);
+  const [refundTarget, setRefundTarget] = useState<AdminPayment | null>(null);
+  const [refundReason, setRefundReason] = useState('');
 
   function removeFromQueue(id: string) {
     setPayments((prev) => prev.filter((p) => p.id !== id));
@@ -83,27 +89,19 @@ export function AdminPaymentManager({
     });
   }
 
-  function handleLinkInvoice() {
-    if (!linkTarget || !linkAccessKey.trim()) return;
-    const subscriptionId = linkTarget.subscription_id;
-    const accessKey = linkAccessKey.trim();
-    const targetId = linkTarget.id;
-    setPendingId(targetId);
+  function handleRefund() {
+    if (!refundTarget) return;
+    const id = refundTarget.id;
+    setPendingId(id);
     startTransition(async () => {
-      const result = await linkInvoiceAction(subscriptionId, accessKey);
+      const result = await refundPaymentAction(id, refundReason.trim() || undefined);
       if ('error' in result) {
         toastApiError(result.error, tError);
       } else {
-        toast.success(t('invoiceLinked'));
-        setPayments((prev) =>
-          prev.map((p) =>
-            p.id === targetId
-              ? { ...p, invoice_access_key: accessKey, period_start: new Date().toISOString() }
-              : p
-          )
-        );
-        setLinkTarget(null);
-        setLinkAccessKey('');
+        toast.success(t('refunded'));
+        removeFromQueue(id);
+        setRefundTarget(null);
+        setRefundReason('');
       }
       setPendingId(null);
     });
@@ -161,16 +159,12 @@ export function AdminPaymentManager({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setProofTarget(payment)}
-                  >
-                    <Eye className="mr-1.5 h-3.5 w-3.5" aria-hidden />
-                    {t('viewProofs')}
-                  </Button>
-                  {reviewable && (
+                  {reviewable ? (
                     <>
+                      <Button size="sm" variant="outline" onClick={() => setProofTarget(payment)}>
+                        <Eye className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                        {t('viewProofs')}
+                      </Button>
                       <Button size="sm" disabled={rowPending} onClick={() => handleVerify(payment)}>
                         {t('verify')}
                       </Button>
@@ -186,32 +180,62 @@ export function AdminPaymentManager({
                         {t('reject')}
                       </Button>
                     </>
-                  )}
-                  {/* Production: preview the linked invoice PDF in a modal */}
-                  {payment.invoice_access_key && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setPreviewAccessKey(payment.invoice_access_key)}
-                    >
-                      <ExternalLink className="mr-1.5 h-3.5 w-3.5" aria-hidden />
-                      {t('viewInvoice')}
-                    </Button>
-                  )}
-                  {/* Show Link Invoice when VERIFIED and not yet applied (no access key for prod, no period_start for sandbox) */}
-                  {!reviewable && payment.status === 'VERIFIED' && !payment.invoice_access_key && !payment.period_start && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={rowPending}
-                      onClick={() => {
-                        setLinkTarget(payment);
-                        setLinkAccessKey('');
-                      }}
-                    >
-                      <Link2 className="mr-1.5 h-3.5 w-3.5" aria-hidden />
-                      {t('linkInvoice')}
-                    </Button>
+                  ) : (
+                    <>
+                      {/* Primary view button: the linked invoice when there is one to
+                          show (production only, see ADR-027), proofs otherwise. */}
+                      {payment.invoice_access_key ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setPreviewAccessKey(payment.invoice_access_key)}
+                        >
+                          <ExternalLink className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                          {t('viewInvoice')}
+                        </Button>
+                      ) : (
+                        <Button size="sm" variant="outline" onClick={() => setProofTarget(payment)}>
+                          <Eye className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                          {t('viewProofs')}
+                        </Button>
+                      )}
+
+                      {(payment.invoice_access_key || payment.status === 'VERIFIED') && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger
+                            render={<Button variant="outline" size="icon-sm" aria-label={t('moreActions')} />}
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {payment.invoice_access_key && (
+                              <DropdownMenuItem onClick={() => setProofTarget(payment)}>
+                                <Eye className="h-4 w-4" />
+                                {t('viewProofs')}
+                              </DropdownMenuItem>
+                            )}
+                            {/* applied_from is the rollback snapshot the refund endpoint
+                                needs (ADR-027) — a payment applied before that migration
+                                has none, so the item stays visible but disabled rather
+                                than vanishing with no explanation. */}
+                            {payment.status === 'VERIFIED' && (
+                              <DropdownMenuItem
+                                disabled={rowPending || !payment.applied_from}
+                                title={payment.applied_from ? undefined : t('refundUnavailable')}
+                                onClick={() => {
+                                  setRefundTarget(payment);
+                                  setRefundReason('');
+                                }}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Undo2 className="h-4 w-4" />
+                                {t('refund')}
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -257,31 +281,44 @@ export function AdminPaymentManager({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!linkTarget} onOpenChange={(open) => !open && setLinkTarget(null)}>
+      <Dialog open={!!refundTarget} onOpenChange={(open) => !open && setRefundTarget(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t('linkInvoiceDialog.title')}</DialogTitle>
-            <DialogDescription>{t('linkInvoiceDialog.description')}</DialogDescription>
+            <DialogTitle>{t('refundDialog.title')}</DialogTitle>
+            <DialogDescription>{t('refundDialog.description')}</DialogDescription>
           </DialogHeader>
+          {refundTarget?.applied_from && (
+            <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2.5 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+              {refundTarget.purpose === 'RENEWAL'
+                ? t('refundDialog.restore.RENEWAL', {
+                    date: refundTarget.applied_from.periodEnd
+                      ? dateFormatter.format(new Date(refundTarget.applied_from.periodEnd))
+                      : '—',
+                  })
+                : t(`refundDialog.restore.${refundTarget.purpose === 'INITIAL' ? 'INITIAL' : 'TIER_CHANGE'}` as 'refundDialog.restore.INITIAL' | 'refundDialog.restore.TIER_CHANGE', {
+                    tier: tPricing.has(`tiers.${refundTarget.applied_from.tenantTier}.name` as Parameters<typeof tPricing>[0])
+                      ? tPricing(`tiers.${refundTarget.applied_from.tenantTier}.name` as Parameters<typeof tPricing>[0])
+                      : refundTarget.applied_from.tenantTier,
+                  })}
+            </div>
+          )}
           <div className="space-y-2">
-            <Label htmlFor="link-access-key">{t('linkInvoiceDialog.label')}</Label>
-            <Input
-              id="link-access-key"
-              value={linkAccessKey}
-              onChange={(e) => setLinkAccessKey(e.target.value)}
-              placeholder={t('linkInvoiceDialog.placeholder')}
-              className="font-mono text-sm"
+            <Label htmlFor="refund-reason">{t('refundDialog.reasonLabel')}</Label>
+            <Textarea
+              id="refund-reason"
+              value={refundReason}
+              onChange={(e) => setRefundReason(e.target.value)}
+              placeholder={t('refundDialog.reasonPlaceholder')}
+              maxLength={200}
+              rows={2}
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setLinkTarget(null)} disabled={isPending}>
-              {t('linkInvoiceDialog.cancel')}
+            <Button variant="outline" onClick={() => setRefundTarget(null)} disabled={isPending}>
+              {t('refundDialog.cancel')}
             </Button>
-            <Button
-              onClick={handleLinkInvoice}
-              disabled={isPending || !linkAccessKey.trim()}
-            >
-              {t('linkInvoiceDialog.confirm')}
+            <Button variant="destructive" onClick={handleRefund} disabled={isPending}>
+              {t('refundDialog.confirm')}
             </Button>
           </DialogFooter>
         </DialogContent>
