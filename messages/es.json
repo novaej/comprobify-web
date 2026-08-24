@@ -1895,6 +1895,10 @@
         "cancel": "Cancelar",
         "confirm": "Vincular"
       }
+    },
+    "rateLimited": {
+      "message": "Se alcanzó el límite de solicitudes al panel de administración. Espera un momento y vuelve a intentar.",
+      "retry": "Reintentar"
     }
   },
   "accountSettings": {

@@ -1895,6 +1895,10 @@
         "cancel": "Cancel",
         "confirm": "Link"
       }
+    },
+    "rateLimited": {
+      "message": "The admin panel hit its request limit. Wait a moment and try again.",
+      "retry": "Retry"
     }
   },
   "accountSettings": {
