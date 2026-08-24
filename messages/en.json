@@ -1665,7 +1665,7 @@
       "adminBadge": "Super Admin",
       "tenants": "Tenants",
       "payments": "Payments",
-      "agreements": "Agreements",
+      "agreements": "Acceptance documents",
       "prices": "Prices",
       "signOut": "Sign out",
       "invoicing": "Pending invoicing"
@@ -1771,7 +1771,7 @@
       }
     },
     "agreements": {
-      "title": "Legal agreements",
+      "title": "Acceptance documents",
       "description": "Manage published versions of legal documents (Terms, Privacy, DPA).",
       "currentVersion": "v{version}",
       "noVersionPublished": "No version published",
