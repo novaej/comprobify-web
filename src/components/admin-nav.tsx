@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation';
-import { Building2, Receipt, FileText, DollarSign, LogOut, Menu, X, ShieldCheck } from 'lucide-react';
+import { Building2, Receipt, FileSpreadsheet, FileText, DollarSign, LogOut, Menu, X, ShieldCheck } from 'lucide-react';
 import { LogoLockup, Logomark } from '@/components/logo';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { logoutAction } from '@/app/actions/auth';
@@ -12,11 +12,12 @@ import { cn } from '@/lib/utils';
 const navItems = [
   { href: '/admin/tenants', icon: Building2, labelKey: 'tenants' as const },
   { href: '/admin/payments', icon: Receipt, labelKey: 'payments' as const },
+  { href: '/admin/invoicing/pending', icon: FileSpreadsheet, labelKey: 'invoicing' as const },
   { href: '/admin/agreements', icon: FileText, labelKey: 'agreements' as const },
   { href: '/admin/prices', icon: DollarSign, labelKey: 'prices' as const },
 ] as const;
 
-export function AdminNav({ userEmail }: { userEmail: string }) {
+export function AdminNav({ userEmail, pendingInvoicingCount }: { userEmail: string; pendingInvoicingCount: number }) {
   const t = useTranslations('admin.nav');
   const tNav = useTranslations('nav');
   const locale = useLocale();
@@ -43,7 +44,12 @@ export function AdminNav({ userEmail }: { userEmail: string }) {
                   )}
                 >
                   <Icon className="h-4 w-4 shrink-0" aria-hidden />
-                  {t(labelKey)}
+                  <span className="flex-1 truncate">{t(labelKey)}</span>
+                  {labelKey === 'invoicing' && pendingInvoicingCount > 0 && (
+                    <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-semibold text-white">
+                      {pendingInvoicingCount > 99 ? '99+' : pendingInvoicingCount}
+                    </span>
+                  )}
                 </Link>
               </li>
             );

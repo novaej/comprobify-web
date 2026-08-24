@@ -747,7 +747,7 @@
     "CERTIFICATE_PASSWORD_INVALID": "The P12 certificate password is incorrect.",
     "CERTIFICATE_KEY_NOT_FOUND": "Signing key not found inside the P12 file.",
     "CERTIFICATE_EXPIRED": "The signing certificate has expired. Replace it in issuer settings.",
-    "DECRYPTION_FAILED": "The stored signing certificate could not be read. Re-upload the issuer's P12 file.",
+    "DECRYPTION_FAILED": "Internal error processing encrypted data. Please contact support.",
     "ACCOUNT_SUSPENDED": "This account is suspended. Please contact support.",
     "ACCOUNT_PAST_DUE": "This account is past due on a subscription renewal. Submit a payment proof or start a new subscription to restore access.",
     "EMAIL_VERIFICATION_REQUIRED": "You must verify your email address before performing this action.",
@@ -777,7 +777,6 @@
     "ISSUER_ISSUING_PAUSED": "This issue point has new document creation paused. Resume it from Issuers.",
     "LAST_DOCUMENT_TYPE_CANNOT_BE_REMOVED": "You can't disable the only enabled document type on this issuer.",
     "SEQUENTIAL_CANNOT_DECREASE": "The new sequential must be greater than the current value.",
-    "DECRYPTION_FAILED": "Internal error processing encrypted data. Please contact support.",
     "BUILDER_NOT_FOUND": "Internal error: document type not registered. Please contact support.",
     "REQUIRED_FIELDS": "RUC and business name are required.",
     "CERT_REQUIRED": "Please upload your P12 certificate.",
@@ -1633,6 +1632,14 @@
       "cancel": "Cancel",
       "requested": "Subscription requested. Check the transfer details below.",
       "intendedHint": "You selected the {tier} plan during registration. Choose a plan and billing period below to complete your subscription."
+    },
+    "suspensionReasons": {
+      "PAYMENT_REVERSED": "Your account is suspended because a payment was reversed or disputed. Contact us to resolve this.",
+      "FRAUD_SUSPECTED": "Your account is suspended due to suspicious activity. Contact us for more information.",
+      "TERMS_VIOLATION": "Your account is suspended for violating the Terms of Service. Contact us if you have questions.",
+      "VOLUNTARY_CLOSURE": "Your account was closed at your request. Contact us if you'd like to reactivate it.",
+      "UNPAID_BALANCE": "Your account is suspended due to an unpaid balance. Contact us to resolve this.",
+      "OTHER": "Your account is suspended. Contact us for more information."
     }
   },
   "email": {
@@ -1660,7 +1667,8 @@
       "payments": "Payments",
       "agreements": "Agreements",
       "prices": "Prices",
-      "signOut": "Sign out"
+      "signOut": "Sign out",
+      "invoicing": "Pending invoicing"
     },
     "tenants": {
       "title": "Tenants",
@@ -1683,7 +1691,23 @@
       "verify": "Verify tenant",
       "tierUpdated": "Tier updated.",
       "statusUpdated": "Status updated.",
-      "verified": "Tenant verified."
+      "verified": "Tenant verified.",
+      "suspendDialog": {
+        "title": "Suspender tenant",
+        "description": "Se requiere un motivo antes de suspender el acceso del tenant.",
+        "reasonLabel": "Motivo de la suspensión",
+        "reasonPlaceholder": "Selecciona un motivo...",
+        "cancel": "Cancelar",
+        "confirm": "Suspender tenant",
+        "reasons": {
+          "PAYMENT_REVERSED": "Payment reversed or charged back",
+          "FRAUD_SUSPECTED": "Suspected fraud",
+          "TERMS_VIOLATION": "Terms of service violation",
+          "VOLUNTARY_CLOSURE": "Account closure requested by the tenant",
+          "UNPAID_BALANCE": "Unpaid balance",
+          "OTHER": "Other reason"
+        }
+      }
     },
     "payments": {
       "title": "Payments",
@@ -1702,18 +1726,8 @@
       "reject": "Reject",
       "verified": "Payment verified.",
       "rejected": "Payment rejected.",
-      "invoiceLinked": "Invoice linked successfully.",
       "invoiceAccessKey": "Invoice: {key}",
       "viewInvoice": "View invoice",
-      "linkInvoice": "Link invoice",
-      "linkInvoiceDialog": {
-        "title": "Link invoice to payment",
-        "description": "Enter the access key of the self-billed invoice issued for this payment. If the invoice is already authorized, the subscription will activate automatically.",
-        "label": "Access key",
-        "placeholder": "49-digit access key",
-        "cancel": "Cancel",
-        "confirm": "Link"
-      },
       "rejectDialog": {
         "title": "Reject payment",
         "reasonLabel": "Rejection reason",
@@ -1739,6 +1753,21 @@
         "filename": "File: {name}",
         "reference": "SPI reference: {ref}",
         "deleted": "Deleted by tenant"
+      },
+      "refund": "Refund",
+      "refunded": "Payment refunded.",
+      "refundDialog": {
+        "title": "Refund payment",
+        "description": "This reverts what this payment applied. Only use it once you've confirmed the reversal on your bank statement or the Payphone dashboard.",
+        "reasonLabel": "Reason (optional)",
+        "reasonPlaceholder": "E.g.: transfer reversed on 08/12, SPI reference 123456",
+        "cancel": "Cancel",
+        "confirm": "Refund payment",
+        "restore": {
+          "INITIAL": "This will restore: the subscription will be cancelled and the tenant returned to the {tier} plan.",
+          "TIER_CHANGE": "This will restore: the plan will revert to {tier}.",
+          "RENEWAL": "This will restore: the billing period will revert to expiring on {date}."
+        }
       }
     },
     "agreements": {
@@ -1842,6 +1871,29 @@
         "noticeDaysHint": "Minimum 30 days. Every active tenant receives a notification (in-app and email) of the change.",
         "submit": "Publish",
         "submitting": "Publishing..."
+      }
+    },
+    "invoicing": {
+      "title": "Pending invoicing",
+      "description": "Verified payments whose self-billed invoice hasn't been issued and linked yet.",
+      "empty": "No payments pending invoicing.",
+      "ruc": "Tax ID: {ruc}",
+      "period": "Period: {start} – {end}",
+      "verifiedAt": "Verified on {date}",
+      "purposes": {
+        "INITIAL": "Initial subscription",
+        "TIER_CHANGE": "Tier change",
+        "RENEWAL": "Renewal"
+      },
+      "linkInvoice": "Link invoice",
+      "invoiceLinked": "Invoice linked successfully.",
+      "linkInvoiceDialog": {
+        "title": "Link invoice to payment",
+        "description": "Enter the access key of the self-billed invoice issued for this payment. This only records the invoice — it does not affect the tenant's access, which has already been active since the payment was verified.",
+        "label": "Access key",
+        "placeholder": "49-digit access key",
+        "cancel": "Cancel",
+        "confirm": "Link"
       }
     }
   },

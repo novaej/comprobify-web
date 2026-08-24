@@ -7,7 +7,7 @@ import { toastApiError } from '@/lib/api-error-toast';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { FileIcon, DownloadIcon, Trash2Icon, Info } from 'lucide-react';
+import { FileIcon, DownloadIcon, Trash2Icon, Info, Ban } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -158,6 +158,17 @@ export function BillingManager({
           <div className="mt-3 flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300">
             <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
             <span>{t('activationPending')}</span>
+          </div>
+        )}
+
+        {/* The top-of-page SuspendedBanner (local Tenant.status mirror) has no
+            room for *why* — this reads the live suspensionReasonCode from the
+            same getCurrentTenant() call this page already makes. VOLUNTARY_CLOSURE
+            gets deliberately neutral copy, not punitive wording (ADR-027). */}
+        {tenantInfo.status === 'SUSPENDED' && tenantInfo.suspensionReasonCode && (
+          <div className="mt-3 flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-xs text-destructive dark:border-destructive/40 dark:bg-destructive/15">
+            <Ban className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+            <span>{t(`suspensionReasons.${tenantInfo.suspensionReasonCode}`)}</span>
           </div>
         )}
 

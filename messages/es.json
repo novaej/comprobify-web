@@ -747,7 +747,7 @@
     "CERTIFICATE_PASSWORD_INVALID": "La contraseña del certificado P12 es incorrecta.",
     "CERTIFICATE_KEY_NOT_FOUND": "No se encontró la clave de firma dentro del archivo P12.",
     "CERTIFICATE_EXPIRED": "El certificado de firma ha expirado. Reemplácelo en la configuración del emisor.",
-    "DECRYPTION_FAILED": "No se pudo leer el certificado de firma almacenado. Vuelva a cargar el archivo P12 del emisor.",
+    "DECRYPTION_FAILED": "Error interno al procesar datos cifrados. Contacte al soporte.",
     "ACCOUNT_SUSPENDED": "La cuenta está suspendida. Contacte al soporte.",
     "ACCOUNT_PAST_DUE": "La cuenta está atrasada en el pago de la suscripción. Envía un comprobante de pago o inicia una nueva suscripción para recuperar el acceso.",
     "EMAIL_VERIFICATION_REQUIRED": "Debe verificar su correo electrónico antes de realizar esta acción.",
@@ -777,7 +777,6 @@
     "ISSUER_ISSUING_PAUSED": "Este punto de emisión tiene pausada la emisión de nuevos comprobantes. Actívala desde Emisores.",
     "LAST_DOCUMENT_TYPE_CANNOT_BE_REMOVED": "No puedes deshabilitar el único tipo de comprobante habilitado en este emisor.",
     "SEQUENTIAL_CANNOT_DECREASE": "El nuevo secuencial debe ser mayor al valor actual.",
-    "DECRYPTION_FAILED": "Error interno al procesar datos cifrados. Contacte al soporte.",
     "BUILDER_NOT_FOUND": "Error interno: tipo de comprobante no registrado. Contacte al soporte.",
     "REQUIRED_FIELDS": "RUC y razón social son obligatorios.",
     "CERT_REQUIRED": "Debe subir su certificado P12.",
@@ -1633,6 +1632,14 @@
       "cancel": "Cancelar",
       "requested": "Suscripción registrada. Revisa los datos de transferencia abajo.",
       "intendedHint": "Seleccionaste el plan {tier} al registrarte. Elige el plan y el período de facturación para continuar con la suscripción."
+    },
+    "suspensionReasons": {
+      "PAYMENT_REVERSED": "Tu cuenta está suspendida porque un pago fue revertido o impugnado. Contáctanos para regularizar tu situación.",
+      "FRAUD_SUSPECTED": "Tu cuenta está suspendida por actividad sospechosa. Contáctanos para más información.",
+      "TERMS_VIOLATION": "Tu cuenta está suspendida por incumplimiento de los Términos de Servicio. Contáctanos si tienes preguntas.",
+      "VOLUNTARY_CLOSURE": "Tu cuenta fue cerrada a tu solicitud. Contáctanos si deseas reactivarla.",
+      "UNPAID_BALANCE": "Tu cuenta está suspendida por un saldo pendiente de pago. Contáctanos para regularizar tu situación.",
+      "OTHER": "Tu cuenta está suspendida. Contáctanos para más información."
     }
   },
   "email": {
@@ -1660,7 +1667,8 @@
       "payments": "Pagos",
       "agreements": "Contratos",
       "prices": "Precios",
-      "signOut": "Cerrar sesión"
+      "signOut": "Cerrar sesión",
+      "invoicing": "Facturación pendiente"
     },
     "tenants": {
       "title": "Tenants",
@@ -1683,7 +1691,23 @@
       "verify": "Verificar tenant",
       "tierUpdated": "Plan actualizado.",
       "statusUpdated": "Estado actualizado.",
-      "verified": "Tenant verificado."
+      "verified": "Tenant verificado.",
+      "suspendDialog": {
+        "title": "Suspender tenant",
+        "description": "Se requiere un motivo antes de suspender el acceso del tenant.",
+        "reasonLabel": "Motivo de la suspensión",
+        "reasonPlaceholder": "Selecciona un motivo...",
+        "cancel": "Cancelar",
+        "confirm": "Suspender tenant",
+        "reasons": {
+          "PAYMENT_REVERSED": "Pago revertido o contracargo",
+          "FRAUD_SUSPECTED": "Sospecha de fraude",
+          "TERMS_VIOLATION": "Incumplimiento de los términos de servicio",
+          "VOLUNTARY_CLOSURE": "Cierre de cuenta solicitado por el tenant",
+          "UNPAID_BALANCE": "Saldo pendiente de pago",
+          "OTHER": "Otro motivo"
+        }
+      }
     },
     "payments": {
       "title": "Pagos",
@@ -1702,18 +1726,8 @@
       "reject": "Rechazar",
       "verified": "Pago verificado.",
       "rejected": "Pago rechazado.",
-      "invoiceLinked": "Factura vinculada correctamente.",
       "invoiceAccessKey": "Factura: {key}",
       "viewInvoice": "Ver factura",
-      "linkInvoice": "Vincular factura",
-      "linkInvoiceDialog": {
-        "title": "Vincular factura al pago",
-        "description": "Ingresa la clave de acceso de la factura de autoconsumo emitida para este pago. Si la factura está autorizada, la suscripción se activará automáticamente.",
-        "label": "Clave de acceso",
-        "placeholder": "Clave de acceso de 49 dígitos",
-        "cancel": "Cancelar",
-        "confirm": "Vincular"
-      },
       "rejectDialog": {
         "title": "Rechazar pago",
         "reasonLabel": "Motivo del rechazo",
@@ -1739,6 +1753,21 @@
         "filename": "Archivo: {name}",
         "reference": "Referencia SPI: {ref}",
         "deleted": "Eliminado por el tenant"
+      },
+      "refund": "Reembolsar",
+      "refunded": "Pago reembolsado.",
+      "refundDialog": {
+        "title": "Reembolsar pago",
+        "description": "Esta acción revierte lo que este pago aplicó. Solo úsala cuando confirmes la reversión en tu banco o en el dashboard de Payphone.",
+        "reasonLabel": "Motivo (opcional)",
+        "reasonPlaceholder": "Ej: transferencia revertida el 12/08, referencia SPI 123456",
+        "cancel": "Cancelar",
+        "confirm": "Reembolsar pago",
+        "restore": {
+          "INITIAL": "Se restaurará: la suscripción quedará cancelada y el tenant volverá al plan {tier}.",
+          "TIER_CHANGE": "Se restaurará: el plan volverá a {tier}.",
+          "RENEWAL": "Se restaurará: el período de facturación volverá a expirar el {date}."
+        }
       }
     },
     "agreements": {
@@ -1842,6 +1871,29 @@
         "noticeDaysHint": "Mínimo 30 días. Cada tenant activo recibe una notificación (app y correo) del cambio.",
         "submit": "Publicar",
         "submitting": "Publicando..."
+      }
+    },
+    "invoicing": {
+      "title": "Facturación pendiente",
+      "description": "Pagos verificados cuya factura de autoconsumo todavía no ha sido emitida y vinculada.",
+      "empty": "No hay pagos pendientes de facturación.",
+      "ruc": "RUC: {ruc}",
+      "period": "Período: {start} – {end}",
+      "verifiedAt": "Verificado el {date}",
+      "purposes": {
+        "INITIAL": "Suscripción inicial",
+        "TIER_CHANGE": "Cambio de plan",
+        "RENEWAL": "Renovación"
+      },
+      "linkInvoice": "Vincular factura",
+      "invoiceLinked": "Factura vinculada correctamente.",
+      "linkInvoiceDialog": {
+        "title": "Vincular factura al pago",
+        "description": "Ingresa la clave de acceso de la factura de autoconsumo emitida para este pago. Esto solo registra la factura — no afecta el acceso del tenant, que ya está activo desde que se verificó el pago.",
+        "label": "Clave de acceso",
+        "placeholder": "Clave de acceso de 49 dígitos",
+        "cancel": "Cancelar",
+        "confirm": "Vincular"
       }
     }
   },

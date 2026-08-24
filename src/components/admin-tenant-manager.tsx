@@ -8,12 +8,29 @@ import { toastApiError } from '@/lib/api-error-toast';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { updateTenantTierAction, updateTenantStatusAction, verifyTenantAction } from '@/app/actions/admin';
 import { cn } from '@/lib/utils';
-import type { AdminTenant, AdminTenantStatus } from '@/lib/admin-api';
+import type { AdminTenant, AdminTenantStatus, AdminSuspensionReason } from '@/lib/admin-api';
 
 const TIERS = ['FREE', 'STARTER', 'GROWTH', 'BUSINESS'] as const;
 const STATUSES: AdminTenantStatus[] = ['PENDING_VERIFICATION', 'ACTIVE', 'SUSPENDED', 'PAST_DUE'];
+const SUSPENSION_REASONS: AdminSuspensionReason[] = [
+  'PAYMENT_REVERSED',
+  'FRAUD_SUSPECTED',
+  'TERMS_VIOLATION',
+  'VOLUNTARY_CLOSURE',
+  'UNPAID_BALANCE',
+  'OTHER',
+];
 
 const STATUS_TRIGGER: Record<string, string> = {
   PENDING_VERIFICATION: 'border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-500/15 dark:text-amber-300 dark:hover:bg-amber-500/25',
@@ -32,6 +49,8 @@ export function AdminTenantManager({ tenants }: { tenants: AdminTenantRow[] }) {
   const tError = useTranslations('apiError');
   const [isPending, startTransition] = useTransition();
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [suspendTarget, setSuspendTarget] = useState<string | null>(null);
+  const [suspensionReasonCode, setSuspensionReasonCode] = useState('');
 
   function handleTierChange(id: string, tier: string) {
     setPendingId(id);
@@ -44,6 +63,13 @@ export function AdminTenantManager({ tenants }: { tenants: AdminTenantRow[] }) {
   }
 
   function handleStatusChange(id: string, currentStatus: string, newStatus: string) {
+    // SUSPENDED requires a reason code — collect it via the dialog instead of
+    // firing the mutation directly (see ADR-027 on the API side).
+    if (newStatus === 'SUSPENDED') {
+      setSuspendTarget(id);
+      setSuspensionReasonCode('');
+      return;
+    }
     setPendingId(id);
     startTransition(async () => {
       // Use the dedicated verify endpoint when approving a pending tenant.
@@ -53,6 +79,22 @@ export function AdminTenantManager({ tenants }: { tenants: AdminTenantRow[] }) {
           : await updateTenantStatusAction(id, newStatus as AdminTenantStatus);
       if ('error' in result) toastApiError(result.error, tError);
       else toast.success(newStatus === 'ACTIVE' && currentStatus === 'PENDING_VERIFICATION' ? t('verified') : t('statusUpdated'));
+      setPendingId(null);
+    });
+  }
+
+  function handleConfirmSuspend() {
+    if (!suspendTarget || !suspensionReasonCode) return;
+    const id = suspendTarget;
+    setPendingId(id);
+    startTransition(async () => {
+      const result = await updateTenantStatusAction(id, 'SUSPENDED', suspensionReasonCode as AdminSuspensionReason);
+      if ('error' in result) toastApiError(result.error, tError);
+      else {
+        toast.success(t('statusUpdated'));
+        setSuspendTarget(null);
+        setSuspensionReasonCode('');
+      }
       setPendingId(null);
     });
   }
@@ -143,6 +185,12 @@ export function AdminTenantManager({ tenants }: { tenants: AdminTenantRow[] }) {
                         {t('verify')}
                       </button>
                     )}
+
+                    {tenant.status === 'SUSPENDED' && tenant.suspensionReasonCode && (
+                      <p className="text-xs text-muted-foreground">
+                        {t(`suspendDialog.reasons.${tenant.suspensionReasonCode}`)}
+                      </p>
+                    )}
                   </div>
                 </TableCell>
 
@@ -155,6 +203,44 @@ export function AdminTenantManager({ tenants }: { tenants: AdminTenantRow[] }) {
           })}
         </TableBody>
       </Table>
+
+      <Dialog open={!!suspendTarget} onOpenChange={(open) => !open && setSuspendTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('suspendDialog.title')}</DialogTitle>
+            <DialogDescription>{t('suspendDialog.description')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>{t('suspendDialog.reasonLabel')}</Label>
+            <Select value={suspensionReasonCode} onValueChange={(v) => v && setSuspensionReasonCode(v)}>
+              <SelectTrigger>
+                <SelectValue placeholder={t('suspendDialog.reasonPlaceholder')}>
+                  {(v: string) => (v ? t(`suspendDialog.reasons.${v as AdminSuspensionReason}`) : t('suspendDialog.reasonPlaceholder'))}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent className="min-w-max">
+                {SUSPENSION_REASONS.map((code) => (
+                  <SelectItem key={code} value={code}>
+                    {t(`suspendDialog.reasons.${code}`)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSuspendTarget(null)} disabled={isPending}>
+              {t('suspendDialog.cancel')}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmSuspend}
+              disabled={isPending || !suspensionReasonCode}
+            >
+              {t('suspendDialog.confirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
