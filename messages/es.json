@@ -1728,6 +1728,7 @@
       "rejected": "Pago rechazado.",
       "invoiceAccessKey": "Factura: {key}",
       "viewInvoice": "Ver factura",
+      "moreActions": "Más acciones",
       "rejectDialog": {
         "title": "Rechazar pago",
         "reasonLabel": "Motivo del rechazo",

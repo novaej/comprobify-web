@@ -17,8 +17,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { reviewPaymentAction, refundPaymentAction } from '@/app/actions/admin';
-import { Eye, Download, ChevronLeft, ChevronRight, ExternalLink, Undo2 } from 'lucide-react';
+import { Eye, Download, ChevronLeft, ChevronRight, ExternalLink, Undo2, MoreVertical } from 'lucide-react';
 import type { AdminPayment, AdminPaymentProof } from '@/lib/admin-api';
 
 const currencyFormatter = new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' });
@@ -153,16 +159,12 @@ export function AdminPaymentManager({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setProofTarget(payment)}
-                  >
-                    <Eye className="mr-1.5 h-3.5 w-3.5" aria-hidden />
-                    {t('viewProofs')}
-                  </Button>
-                  {reviewable && (
+                  {reviewable ? (
                     <>
+                      <Button size="sm" variant="outline" onClick={() => setProofTarget(payment)}>
+                        <Eye className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                        {t('viewProofs')}
+                      </Button>
                       <Button size="sm" disabled={rowPending} onClick={() => handleVerify(payment)}>
                         {t('verify')}
                       </Button>
@@ -178,37 +180,62 @@ export function AdminPaymentManager({
                         {t('reject')}
                       </Button>
                     </>
-                  )}
-                  {/* Production: preview the linked invoice PDF in a modal */}
-                  {payment.invoice_access_key && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setPreviewAccessKey(payment.invoice_access_key)}
-                    >
-                      <ExternalLink className="mr-1.5 h-3.5 w-3.5" aria-hidden />
-                      {t('viewInvoice')}
-                    </Button>
-                  )}
-                  {/* applied_from is the rollback snapshot the refund endpoint needs
-                      (ADR-027) — a payment applied before that migration has none,
-                      so the button stays visible but disabled rather than vanishing
-                      with no explanation. */}
-                  {!reviewable && payment.status === 'VERIFIED' && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={rowPending || !payment.applied_from}
-                      title={payment.applied_from ? undefined : t('refundUnavailable')}
-                      className="text-destructive hover:text-destructive disabled:text-muted-foreground"
-                      onClick={() => {
-                        setRefundTarget(payment);
-                        setRefundReason('');
-                      }}
-                    >
-                      <Undo2 className="mr-1.5 h-3.5 w-3.5" aria-hidden />
-                      {t('refund')}
-                    </Button>
+                  ) : (
+                    <>
+                      {/* Primary view button: the linked invoice when there is one to
+                          show (production only, see ADR-027), proofs otherwise. */}
+                      {payment.invoice_access_key ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setPreviewAccessKey(payment.invoice_access_key)}
+                        >
+                          <ExternalLink className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                          {t('viewInvoice')}
+                        </Button>
+                      ) : (
+                        <Button size="sm" variant="outline" onClick={() => setProofTarget(payment)}>
+                          <Eye className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                          {t('viewProofs')}
+                        </Button>
+                      )}
+
+                      {(payment.invoice_access_key || payment.status === 'VERIFIED') && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger
+                            render={<Button variant="outline" size="icon-sm" aria-label={t('moreActions')} />}
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {payment.invoice_access_key && (
+                              <DropdownMenuItem onClick={() => setProofTarget(payment)}>
+                                <Eye className="h-4 w-4" />
+                                {t('viewProofs')}
+                              </DropdownMenuItem>
+                            )}
+                            {/* applied_from is the rollback snapshot the refund endpoint
+                                needs (ADR-027) — a payment applied before that migration
+                                has none, so the item stays visible but disabled rather
+                                than vanishing with no explanation. */}
+                            {payment.status === 'VERIFIED' && (
+                              <DropdownMenuItem
+                                disabled={rowPending || !payment.applied_from}
+                                title={payment.applied_from ? undefined : t('refundUnavailable')}
+                                onClick={() => {
+                                  setRefundTarget(payment);
+                                  setRefundReason('');
+                                }}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Undo2 className="h-4 w-4" />
+                                {t('refund')}
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </>
                   )}
                 </div>
               </div>

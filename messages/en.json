@@ -1728,6 +1728,7 @@
       "rejected": "Payment rejected.",
       "invoiceAccessKey": "Invoice: {key}",
       "viewInvoice": "View invoice",
+      "moreActions": "More actions",
       "rejectDialog": {
         "title": "Reject payment",
         "reasonLabel": "Rejection reason",
