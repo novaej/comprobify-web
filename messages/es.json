@@ -1756,6 +1756,7 @@
       },
       "refund": "Reembolsar",
       "refunded": "Pago reembolsado.",
+      "refundUnavailable": "Este pago se aplicó antes de que existiera el reembolso automático y no tiene un respaldo para revertirlo. Ajusta el plan y la suscripción manualmente.",
       "refundDialog": {
         "title": "Reembolsar pago",
         "description": "Esta acción revierte lo que este pago aplicó. Solo úsala cuando confirmes la reversión en tu banco o en el dashboard de Payphone.",

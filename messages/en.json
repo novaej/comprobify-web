@@ -1756,6 +1756,7 @@
       },
       "refund": "Refund",
       "refunded": "Payment refunded.",
+      "refundUnavailable": "This payment was applied before automatic refunds existed and has no rollback snapshot. Adjust the tier and subscription manually.",
       "refundDialog": {
         "title": "Refund payment",
         "description": "This reverts what this payment applied. Only use it once you've confirmed the reversal on your bank statement or the Payphone dashboard.",

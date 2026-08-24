@@ -191,14 +191,16 @@ export function AdminPaymentManager({
                     </Button>
                   )}
                   {/* applied_from is the rollback snapshot the refund endpoint needs
-                      (ADR-027) — a payment applied before that migration has none
-                      and the API refuses it, so the button doesn't offer it. */}
-                  {!reviewable && payment.status === 'VERIFIED' && payment.applied_from && (
+                      (ADR-027) — a payment applied before that migration has none,
+                      so the button stays visible but disabled rather than vanishing
+                      with no explanation. */}
+                  {!reviewable && payment.status === 'VERIFIED' && (
                     <Button
                       size="sm"
                       variant="outline"
-                      disabled={rowPending}
-                      className="text-destructive hover:text-destructive"
+                      disabled={rowPending || !payment.applied_from}
+                      title={payment.applied_from ? undefined : t('refundUnavailable')}
+                      className="text-destructive hover:text-destructive disabled:text-muted-foreground"
                       onClick={() => {
                         setRefundTarget(payment);
                         setRefundReason('');
