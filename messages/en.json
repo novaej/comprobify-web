@@ -794,6 +794,10 @@
     "PROOF_FILE_LIMIT_REACHED": "This payment already has the maximum number of files (10). Delete one before uploading more.",
     "SUBSCRIPTION_NOT_FOUND": "Subscription not found.",
     "PAYMENT_NOT_FOUND": "Payment not found.",
+    "PAYMENT_GATEWAY_NOT_CONFIGURED": "Card payment isn't available right now. Use the bank transfer instead.",
+    "PAYPHONE_CONFIRM_FAILED": "We couldn't confirm the payment with the provider. It will be confirmed automatically within a few minutes — don't try again.",
+    "PAYPHONE_SESSION_NOT_FOUND": "The card payment attempt wasn't found. Request a new one.",
+    "PAYMENT_ALREADY_VERIFIED": "This payment has already been verified.",
     "SUBSCRIPTION_ALREADY_IN_FLIGHT": "Your account already has a subscription in progress.",
     "NO_ACTIVE_SUBSCRIPTION": "You don't have an active subscription. Activate production with a paid plan first.",
     "TIER_CHANGE_NO_OP": "You're already on that plan.",
@@ -1579,6 +1583,31 @@
       "referenceNumberPlaceholder": "E.g. 20261234567890",
       "referenceNumberHint": "The reference number shown on your bank’s transfer receipt.",
       "paymentId": "Payment ID"
+    },
+    "payphone": {
+      "transferTab": "Bank transfer",
+      "cardTab": "Card",
+      "mintingSession": "Preparing the card payment...",
+      "loadingWidget": "Loading payment form...",
+      "redirectNote": "You'll be redirected automatically once the payment completes. Don't close this window.",
+      "useTransferInstead": "Use a bank transfer instead",
+      "return": {
+        "confirming": "Confirming your payment...",
+        "approvedTitle": "Payment approved!",
+        "approvedDescription": "Your plan is already active. You can review the details on your billing page.",
+        "cancelledTitle": "Payment not completed",
+        "cancelledDescription": "The card was declined or you cancelled the payment. Nothing was charged — you can try again from Billing.",
+        "duplicateTitle": "This payment was already processed",
+        "duplicateDescription": "We detected a duplicate charge for this payment. Our team will review it and refund the difference — no action needed from you.",
+        "errorTitle": "We couldn't confirm the payment",
+        "errorDescription": "The confirmed amount didn't match what was expected, so no change was applied to your plan. Contact support.",
+        "unresolvedTitle": "Confirming your payment",
+        "unresolvedDescription": "We couldn't reach the payment provider. Your payment will be confirmed automatically within a few minutes — don't try again.",
+        "missingParamsTitle": "Invalid link",
+        "missingParamsDescription": "This payment confirmation link is invalid or incomplete.",
+        "backToBilling": "Go to Billing",
+        "goToSupport": "Contact support"
+      }
     },
     "changePlan": {
       "title": "Change plan",

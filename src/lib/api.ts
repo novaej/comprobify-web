@@ -962,7 +962,7 @@ export interface ApiPaymentInfo {
   iva_rate?: number | null;
   iva_amount?: string | null;
   total_amount?: string | null;  // IVA-inclusive total; use this for display
-  method: 'SPI_TRANSFER';
+  method: 'SPI_TRANSFER' | 'PAYPHONE_CARD';
   purpose?: 'INITIAL' | 'TIER_CHANGE' | 'RENEWAL';
   target_tier?: 'STARTER' | 'GROWTH' | 'BUSINESS' | null;
   target_billing_interval?: 'MONTHLY' | 'YEARLY' | null;
@@ -1150,6 +1150,63 @@ export async function deletePaymentProof(ctx: ApiCtx, paymentId: string, proofId
     const problem: ProblemDetails = await res.json();
     throw new ApiError(problem);
   }
+}
+
+// Verified against: ../comprobify/src/controllers/payment.controller.js → createPayphoneSession()
+// and ../comprobify/src/services/payphone-payment.service.js → createSession() (ADR-028).
+// Fed straight into Payphone's browser widget (PPaymentButtonBox) as init config — do not
+// recompute or round any of these; the API already satisfies Payphone's required identity
+// amount = amountWithoutTax + amountWithTax + tax + service + tip. All amounts are integer cents.
+export interface ApiPayphoneSession {
+  clientTransactionId: string;
+  attemptId: string;
+  token: string;
+  storeId: string;
+  currency: string;
+  reference: string;
+  amount: number;
+  amountWithoutTax: number;
+  amountWithTax: number;
+  tax: number;
+  service: number;
+  tip: number;
+}
+
+// Verified against: ../comprobify/src/routes/payments.routes.js → POST /v1/payments/:id/payphone-session
+// 503 PAYMENT_GATEWAY_NOT_CONFIGURED when PAYPHONE_TOKEN/PAYPHONE_STORE_ID are unset — the
+// caller must fall back to the bank-transfer flow, never treat it as a hard failure.
+// 409 PAYMENT_ALREADY_VERIFIED if the payment is already settled or refunded.
+export async function createPayphoneSession(ctx: ApiCtx, paymentId: string): Promise<ApiPayphoneSession> {
+  const result = await request<{ ok: true; session: ApiPayphoneSession }>(
+    `/v1/payments/${paymentId}/payphone-session`,
+    { apiKey: ctx.apiKey },
+    { method: 'POST' },
+  );
+  return result.session;
+}
+
+// Verified against: ../comprobify/src/controllers/payment.controller.js → confirmPayphone()
+// and ../comprobify/src/services/payphone-payment.service.js → confirmTransaction() (ADR-028).
+// Called by the return page Payphone redirects to — must run immediately on load, never
+// behind a click, or Payphone auto-reverses the charge at the 5-minute mark. Safe to call
+// twice with the same body: a replayed return page gets back the stored outcome with no
+// second vendor call. 502 PAYPHONE_CONFIRM_FAILED means the charge is UNRESOLVED (not
+// declined) — it will be reconciled automatically; never prompt an immediate retry for it.
+export interface ApiPayphoneConfirmResult {
+  status: 'APPROVED' | 'CANCELLED' | 'DUPLICATE' | 'ERROR';
+  clientTransactionId: string;
+}
+
+export async function confirmPayphonePayment(
+  ctx: ApiCtx,
+  payphoneId: string,
+  clientTransactionId: string,
+): Promise<ApiPayphoneConfirmResult> {
+  return request<{ ok: true } & ApiPayphoneConfirmResult>(
+    '/v1/payments/payphone/confirm',
+    { apiKey: ctx.apiKey },
+    { method: 'POST', body: JSON.stringify({ id: payphoneId, clientTransactionId }) },
+  );
 }
 
 // Verified against: src/routes/tenants.routes.js → PATCH /v1/tenants/language

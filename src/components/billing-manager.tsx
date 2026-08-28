@@ -7,13 +7,14 @@ import { toastApiError } from '@/lib/api-error-toast';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { FileIcon, DownloadIcon, Trash2Icon, Info, Ban } from 'lucide-react';
+import { FileIcon, DownloadIcon, Trash2Icon, Info, Ban, CreditCard, Landmark } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { PayphoneCheckout } from '@/components/payphone-checkout';
 import {
   submitPaymentProofAction,
   listPaymentProofsAction,
@@ -21,8 +22,9 @@ import {
   changeTierAction,
   createSubscriptionAction,
   cancelSubscriptionAction,
+  createPayphoneSessionAction,
 } from '@/app/actions/billing';
-import type { ApiTenantInfo, ApiSubscriptionInfo, ApiPaymentInfo, ApiBankTransferInfo, ApiPaymentProof } from '@/lib/api';
+import type { ApiTenantInfo, ApiSubscriptionInfo, ApiPaymentInfo, ApiBankTransferInfo, ApiPaymentProof, ApiPayphoneSession } from '@/lib/api';
 import type { ApiTierInfo } from '@/lib/public-api';
 import type { PaidTier, BillingInterval } from '@/lib/subscription-tiers';
 
@@ -332,12 +334,36 @@ function PendingPaymentCard({
   const [proofs, setProofs] = useState<ApiPaymentProof[]>(initialProofs);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Card payment (Payphone, ADR-028) alongside the existing bank-transfer flow —
+  // both stay first-class, offered side by side. The session is only minted the
+  // first time the tenant actually picks the "Tarjeta" tab, not eagerly on
+  // mount, since createPayphoneSession also flips payments.method as a side
+  // effect — doing that just from rendering the page would be misleading.
+  const [payMethod, setPayMethod] = useState<'transfer' | 'card'>('transfer');
+  const [cardPending, startCardTransition] = useTransition();
+  const [payphoneSession, setPayphoneSession] = useState<ApiPayphoneSession | null>(null);
+  const [cardError, setCardError] = useState<string | null>(null);
+
   const isTierChange = payment.purpose === 'TIER_CHANGE';
   const targetTierKey = payment.target_tier
     ? (`tiers.${payment.target_tier}.name` as Parameters<typeof tPricing>[0])
     : null;
   const targetTierName =
     targetTierKey && tPricing.has(targetTierKey) ? tPricing(targetTierKey) : payment.target_tier ?? '';
+
+  function handleSelectCard() {
+    setPayMethod('card');
+    if (payphoneSession || cardPending) return;
+    setCardError(null);
+    startCardTransition(async () => {
+      const result = await createPayphoneSessionAction(payment.id);
+      if ('error' in result) {
+        setCardError(result.error);
+      } else {
+        setPayphoneSession(result.session);
+      }
+    });
+  }
 
   function handleUpload() {
     const files = fileInputRef.current?.files;
@@ -400,37 +426,91 @@ function PendingPaymentCard({
         </p>
       )}
 
-      {bankTransfer ? (
-        <div className="mt-3 space-y-1 rounded-md border border-border bg-background p-3 text-sm">
-          <p>
-            <span className="text-muted-foreground">{t('pendingPayment.paymentId')}:</span>{' '}
-            <span className="font-mono font-medium">#{payment.id}</span>
-          </p>
-          <p>
-            <span className="text-muted-foreground">{t('pendingPayment.bank')}:</span> {bankTransfer.bankName}
-          </p>
-          <p>
-            <span className="text-muted-foreground">{t('pendingPayment.accountType')}:</span>{' '}
-            {bankTransfer.accountType}
-          </p>
-          <p>
-            <span className="text-muted-foreground">{t('pendingPayment.accountNumber')}:</span>{' '}
-            {bankTransfer.accountNumber}
-          </p>
-          <p>
-            <span className="text-muted-foreground">{t('pendingPayment.accountHolder')}:</span>{' '}
-            {bankTransfer.accountHolder}
-          </p>
-          <p>
-            <span className="text-muted-foreground">{t('pendingPayment.identification')}:</span>{' '}
-            {bankTransfer.identification}
-          </p>
-          <p className="mt-2 border-t border-border pt-2 text-xs text-muted-foreground">
-            {t('pendingPayment.transferNote', { id: payment.id })}
-          </p>
+      {canManageBilling && (
+        <div className="mt-3 inline-flex items-center gap-1 rounded-lg border border-border bg-background p-1">
+          <button
+            type="button"
+            onClick={() => setPayMethod('transfer')}
+            className={cn(
+              'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+              payMethod === 'transfer' ? 'bg-muted shadow-sm' : 'text-muted-foreground',
+            )}
+          >
+            <Landmark className="h-3.5 w-3.5" />
+            {t('payphone.transferTab')}
+          </button>
+          <button type="button" onClick={handleSelectCard} className={cn(
+              'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+              payMethod === 'card' ? 'bg-muted shadow-sm' : 'text-muted-foreground',
+            )}
+          >
+            <CreditCard className="h-3.5 w-3.5" />
+            {t('payphone.cardTab')}
+          </button>
         </div>
-      ) : (
-        <p className="mt-3 text-sm text-muted-foreground">{t('pendingPayment.contactSupport')}</p>
+      )}
+
+      {payMethod === 'transfer' && (
+        bankTransfer ? (
+          <div className="mt-3 space-y-1 rounded-md border border-border bg-background p-3 text-sm">
+            <p>
+              <span className="text-muted-foreground">{t('pendingPayment.paymentId')}:</span>{' '}
+              <span className="font-mono font-medium">#{payment.id}</span>
+            </p>
+            <p>
+              <span className="text-muted-foreground">{t('pendingPayment.bank')}:</span> {bankTransfer.bankName}
+            </p>
+            <p>
+              <span className="text-muted-foreground">{t('pendingPayment.accountType')}:</span>{' '}
+              {bankTransfer.accountType}
+            </p>
+            <p>
+              <span className="text-muted-foreground">{t('pendingPayment.accountNumber')}:</span>{' '}
+              {bankTransfer.accountNumber}
+            </p>
+            <p>
+              <span className="text-muted-foreground">{t('pendingPayment.accountHolder')}:</span>{' '}
+              {bankTransfer.accountHolder}
+            </p>
+            <p>
+              <span className="text-muted-foreground">{t('pendingPayment.identification')}:</span>{' '}
+              {bankTransfer.identification}
+            </p>
+            <p className="mt-2 border-t border-border pt-2 text-xs text-muted-foreground">
+              {t('pendingPayment.transferNote', { id: payment.id })}
+            </p>
+          </div>
+        ) : (
+          <p className="mt-3 text-sm text-muted-foreground">{t('pendingPayment.contactSupport')}</p>
+        )
+      )}
+
+      {payMethod === 'card' && (
+        <div className="mt-3 rounded-md border border-border bg-background p-3 text-sm">
+          {cardError ? (
+            <div className="space-y-2">
+              <p className="text-destructive">
+                {tError.has(cardError) ? tError(cardError) : tError('UNKNOWN')}
+              </p>
+              <button
+                type="button"
+                onClick={() => setPayMethod('transfer')}
+                className="text-xs font-medium text-primary hover:underline"
+              >
+                {t('payphone.useTransferInstead')}
+              </button>
+            </div>
+          ) : cardPending || !payphoneSession ? (
+            <div className="flex items-center gap-2 py-1 text-sm text-muted-foreground">
+              {t('payphone.mintingSession')}
+            </div>
+          ) : (
+            <>
+              <p className="mb-2 text-xs text-muted-foreground">{t('payphone.redirectNote')}</p>
+              <PayphoneCheckout key={payphoneSession.clientTransactionId} session={payphoneSession} />
+            </>
+          )}
+        </div>
       )}
 
       {/* Uploaded proof files */}
@@ -473,7 +553,7 @@ function PendingPaymentCard({
         )}
       </div>
 
-      {canManageBilling && (
+      {canManageBilling && payMethod === 'transfer' && (
         <div className="mt-3 space-y-2">
           <div>
             <label className="mb-1 block text-xs font-medium text-muted-foreground">
