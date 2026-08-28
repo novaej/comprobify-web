@@ -84,13 +84,6 @@ export function BillingManager({
   const latestPayment = latestSubscription?.payments[0] ?? null;
   const isSubscriptionOver = latestSubscription?.status === 'CANCELLED' || latestSubscription?.status === 'EXPIRED';
   const needsAction = !!latestPayment && latestPayment.status !== 'VERIFIED' && !isSubscriptionOver;
-  // Payment verification and subscription activation are two separate admin steps
-  // (reviewPayment, then a follow-up linkInvoice once the self-billed invoice
-  // exists) — a payment can sit "Verificado" in the history below for a while
-  // before the plan itself actually switches on. Surface that gap explicitly so
-  // the tenant doesn't read the verified payment as "nothing left to do" and
-  // assume something's broken when their plan/quota hasn't changed yet.
-  const isActivating = latestSubscription?.status === 'PAYMENT_RECEIVED' || latestSubscription?.status === 'INVOICE_PROCESSING';
   // pending_tier = 'FREE' means cancellation scheduled; a paid tier means downgrade scheduled.
   const pendingCancellation = latestSubscription?.status === 'ACTIVE' && latestSubscription.pending_tier === 'FREE';
   const pendingDowngradeTier = latestSubscription?.status === 'ACTIVE' && latestSubscription.pending_tier !== 'FREE'
@@ -152,13 +145,6 @@ export function BillingManager({
               date: dateFormatter.format(new Date(latestSubscription.current_period_end)),
             })}
           </p>
-        )}
-
-        {isActivating && (
-          <div className="mt-3 flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300">
-            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-            <span>{t('activationPending')}</span>
-          </div>
         )}
 
         {/* The top-of-page SuspendedBanner (local Tenant.status mirror) has no

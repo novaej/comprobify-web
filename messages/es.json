@@ -1527,7 +1527,6 @@
     "ivaIncluded": "IVA inc.",
     "downgradeScheduled": "Tu plan bajará a {tier} el {date}.",
     "cancellationScheduled": "Tu suscripción será cancelada el {date}. Hasta entonces tendrás acceso a tu plan actual.",
-    "activationPending": "Tu pago fue verificado y tu suscripción se está activando. Este proceso puede tardar unos minutos — no necesitas hacer nada más.",
     "tierChangeTo": "Cambio a {tier}",
     "tierChangeToWithInterval": "Cambio a {tier} ({interval})",
     "renewal": "Renovación",
