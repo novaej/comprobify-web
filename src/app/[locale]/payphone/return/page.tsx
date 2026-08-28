@@ -8,8 +8,11 @@ import { cn } from '@/lib/utils';
 
 // Payphone redirects the browser here after the Cajita de Pagos widget
 // completes (ADR-028) — the return URL registered in Payphone's developer
-// console is fixed to this locale's path (/es/pagos/payphone/retorno), since
-// the widget config has no per-session responseUrl field to vary it.
+// console is fixed to this locale's path (/es/payphone/return), since the
+// widget config has no per-session responseUrl field to vary it. The path
+// segments stay English (matching every other route in this app — content is
+// Spanish-default, URLs are not) even though only the Spanish locale prefix
+// is ever actually registered.
 //
 // The confirm call below fires unconditionally on render, never behind a
 // click: Payphone auto-reverses any charge not confirmed within 5 minutes of
