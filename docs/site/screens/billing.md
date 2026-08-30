@@ -37,7 +37,9 @@ Tier name (resolved through the `pricing` i18n namespace, same labels as `/prici
 
 ### 3. Pending payment card
 
-Shown when the latest subscription's latest payment isn't yet `VERIFIED` (and the subscription isn't `CANCELLED`/`EXPIRED`). Title and amount adapt to `payment.purpose` (`INITIAL`, `TIER_CHANGE` naming the target tier + interval when it also changed, or `RENEWAL`). Amount is displayed as the IVA-inclusive total (`payment.total_amount`) with an "IVA incluido" label, falling back to `payment.amount` when `total_amount` is absent (same-interval downgrade carries no payment at all). When a payment is `REJECTED`, shows `payment.rejection_reason_code` mapped to a localized message — codes: `AMOUNT_MISMATCH`, `TRANSFER_NOT_FOUND`, `WRONG_ACCOUNT`, `ILLEGIBLE_PROOF`, `DUPLICATE_SUBMISSION`, `OTHER`. Shows the cached bank-transfer details (or a "contact support" fallback if `pendingBankTransfer` is `null` — e.g. an admin-initiated subscription the tenant never saw the response for), and a file input + upload button (`billing.manage` only) that calls `submitPaymentProofAction`. A renewal's payment is opened by a backend cron job, not any call this screen makes, so it always relies on the cached bank details rather than a fresh response — see "Bank transfer caching."
+Shown when the latest subscription's latest payment is still actionable — status is not `VERIFIED`, not `REFUNDED`, and the subscription isn't `CANCELLED`/`EXPIRED`. `REFUNDED` is deliberately excluded despite not being `VERIFIED`: a refund already rolled the subscription back to its pre-payment `applied_from` state (see CLAUDE.md's "Refunds" entry), so there's nothing left to pay for *that* payment — showing this card for it would demand payment for an already-reversed change instead of falling back to `ChangeTierCard`/`SubscribeCard` for a fresh attempt. `REJECTED` stays included; that one genuinely needs a new proof upload. Title and amount adapt to `payment.purpose` (`INITIAL`, `TIER_CHANGE` naming the target tier + interval when it also changed, or `RENEWAL`). Amount is displayed as the IVA-inclusive total (`payment.total_amount`) with an "IVA incluido" label, falling back to `payment.amount` when `total_amount` is absent (same-interval downgrade carries no payment at all). When a payment is `REJECTED`, shows `payment.rejection_reason_code` mapped to a localized message — codes: `AMOUNT_MISMATCH`, `TRANSFER_NOT_FOUND`, `WRONG_ACCOUNT`, `ILLEGIBLE_PROOF`, `DUPLICATE_SUBMISSION`, `OTHER`.
+
+`billing.manage` users see a **"Transferencia"/"Tarjeta" tab toggle** (ADR-028) — see "Card payments (Payphone)" below. The Transferencia tab is the pre-existing flow: cached bank-transfer details (or a "contact support" fallback if `pendingBankTransfer` is `null` — e.g. an admin-initiated subscription the tenant never saw the response for), and a file input + upload button that calls `submitPaymentProofAction`. A renewal's payment is opened by a backend cron job, not any call this screen makes, so it always relies on the cached bank details rather than a fresh response — see "Bank transfer caching." `billing.read`-only users never see the toggle and always get the read-only Transferencia view, same as before this feature.
 
 ### 4. Subscribe card
 
@@ -45,17 +47,47 @@ Shown when there is no subscription in flight (none yet, or the only ones are `C
 
 ### 5. Change tier card
 
-Shown when the latest subscription is `ACTIVE`, no payment is pending, and no downgrade is already scheduled. Renders the same **interval toggle + card grid** as Subscribe, but includes all three paid tiers (not filtered) and marks the current plan as locked/greyed when the current billing interval is selected — so switching interval while staying on the same tier is a valid selection. The API's three-scenario behavior is surfaced as contextual hints in the confirm step:
+Shown when the latest subscription is `ACTIVE`, no payment is pending, and no downgrade is already scheduled. Renders the same **interval toggle + card grid** as Subscribe, but includes all three paid tiers (not filtered) and marks the current plan as locked/greyed when the current billing interval is selected — so switching interval while staying on the same tier is a valid selection. Selecting the same tier at the same interval is treated as a no-op and the confirm button is disabled with a hint.
+
+**In production**, the API's three-scenario behavior is surfaced as contextual hints in the confirm step:
 
 - **Same-interval upgrade** (higher-priced tier, interval unchanged) — payment required, prorated for the fraction of the current period remaining. Calls `changeTierAction(tier)` (no interval). If the prorated amount rounds to $0, applies immediately with no payment.
 - **Same-interval downgrade** (lower-priced tier, interval unchanged) — scheduled for `current_period_end`, no payment owed. Calls `changeTierAction(tier)` (no interval).
 - **Interval change** (different interval, regardless of tier direction) — deferred to `current_period_end`, billed at the new tier+interval's full price. Calls `changeTierAction(tier, newInterval)`. The subscription's `billing_interval` does not flip until the period ends.
 
-Selecting the same tier at the same interval is treated as a no-op and the confirm button is disabled with a hint.
+**In sandbox, none of the above applies** — `requestSandboxTierChange` on the API side ignores the upgrade/downgrade/interval-change distinction entirely and only checks whether the target tier is cheaper: a downgrade (by monthly price, regardless of interval) applies **immediately for free**; anything else — an upgrade, or even a same-tier interval-only change — applies **immediately** too, charged as the *difference* against whatever tier was already paid for (`max(0, targetPrice − currentPrice)`, both from the current catalog) rather than the new tier's full sticker price, since there's no real period to prorate against but the tenant has still already paid for their current tier. `ChangeTierCard` shows dedicated `confirmHintSandboxCharge`/`confirmHintSandboxFree` copy for this (picked via `isTierDowngrade` alone, same condition the API branches on) instead of the three production hints above, and computes that same credited net price client-side to preview the actual one-time amount — see CLAUDE.md Common Mistake #55 for the two bugs this fixed: a sandbox upgrade originally charged the full new-tier price with no credit for what was already paid, and separately (found while fixing that) every sandbox tier change was being deferred to a `current_period_end` that sandbox discards at promotion, so a paid change could take effect late or never.
 
 ### 6. Subscription history
 
-Every subscription (newest first) with its nested payments, each as a small status badge (`subscriptionStatus.*`/`paymentStatus.*` i18n — covers the full `PENDING_PAYMENT`/`PAYMENT_RECEIVED`/`INVOICE_PROCESSING`/`ACTIVE`/`EXPIRED`/`SUSPENDED`/`CANCELLED` set, not just the happy-path values). A `TIER_CHANGE` payment additionally shows "Cambio a {tier}", or "Cambio a {tier} ({interval})" when `target_billing_interval` is present (an interval change); a `RENEWAL` payment shows "Renovación".
+Every subscription (newest first) with its nested payments, each as a small status badge (`subscriptionStatus.*`/`paymentStatus.*` i18n — covers the full `PENDING_PAYMENT`/`PAYMENT_RECEIVED`/`INVOICE_PROCESSING`/`ACTIVE`/`EXPIRED`/`SUSPENDED`/`CANCELLED` set). `PAYMENT_RECEIVED`/`INVOICE_PROCESSING` are legacy statuses from before ADR-027 — nothing writes them any more (a `VERIFIED` payment now activates its subscription immediately), but old rows can still carry them, so the badge styling stays. A `TIER_CHANGE` payment additionally shows "Cambio a {tier}", or "Cambio a {tier} ({interval})" when `target_billing_interval` is present (an interval change); a `RENEWAL` payment shows "Renovación".
+
+---
+
+## Card payments (Payphone)
+
+`billing.manage` users can settle any pending payment by card instead of bank transfer, via
+Payphone's *Cajita de Pagos* widget (ADR-028) — see `docs/guides/payphone-payments.md` for the full
+flow. Selecting the "Tarjeta" tab mints a session (`createPayphoneSessionAction`, only on that
+click, not eagerly — minting also flips the payment's `method`) and renders the widget
+(`PayphoneCheckout`). The session is **held and reused** across a Transferencia/Tarjeta tab toggle —
+only re-minted once it's older than 10 minutes (Payphone's own widget-form expiry) — since the API
+deliberately never reuses an attempt itself and instead caps unresolved attempts per payment at 10.
+
+Three error codes mean card isn't viable for this payment right now, not "try again": `503
+PAYMENT_GATEWAY_NOT_CONFIGURED` (no Payphone credentials configured in this environment), `400
+PAYPHONE_AMOUNT_BELOW_MINIMUM` (Payphone refuses charges under $1.00 — reachable via a small
+prorated tier-change upgrade), and `409 PAYPHONE_TOO_MANY_ATTEMPTS` (10+ unresolved attempts already
+open — only reachable in practice via a minting bug). All three toast, switch back to Transferencia,
+and disable the "Tarjeta" tab (with the reason in its tooltip); any other error stays retryable
+inline instead.
+
+Once the payer submits card details, Payphone takes over entirely: it redirects the browser away
+from this screen to `/es/payphone/return`, which confirms the charge and shows the outcome
+(approved / declined / duplicate / unresolved). Nothing on this screen tracks that outcome directly
+— the return page's "Ir a Facturación" button is a plain `<a>` (a full navigation, not the i18n
+`Link`), which is what shows the updated plan/quota immediately on return, since its own confirm
+action can't call `revalidatePath` from inside a Server Component's render (see CLAUDE.md Common
+Mistake #57).
 
 ---
 
@@ -73,7 +105,7 @@ A `PAST_DUE` account (see CLAUDE.md's "Tenant account status" entry) shows an am
 
 ## Notifications
 
-Payment decisions and the renewal lifecycle fire real notifications instead of leaving the tenant to poll: `PAYMENT_VERIFIED`/`PAYMENT_REJECTED` on every `reviewPayment` decision (regardless of `purpose`), `SUBSCRIPTION_RENEWAL_DUE`/`SUBSCRIPTION_PAST_DUE_WARNING`/`SUBSCRIPTION_EXPIRED` from the renewal job, and `PRICE_CHANGE_ANNOUNCED` (mandatory, no opt-out) when a published tier price change enters its 30-day notice window. The first five are "live" toggleable types in `/settings/notifications` (see `docs/site/screens/notifications.md`); `PRICE_CHANGE_ANNOUNCED` is mandatory instead. All six route to this screen when clicked (`getNotificationHref()` in `src/lib/notification-link.ts`). Activation itself (the self-billed invoice authorizing) still fires no notification — `GET /v1/subscriptions/me` remains the only way to see that complete.
+Payment decisions and the renewal lifecycle fire real notifications instead of leaving the tenant to poll: `PAYMENT_VERIFIED`/`PAYMENT_REJECTED` on every `reviewPayment` decision (regardless of `purpose`), `SUBSCRIPTION_RENEWAL_DUE`/`SUBSCRIPTION_PAST_DUE_WARNING`/`SUBSCRIPTION_EXPIRED` from the renewal job, and `PRICE_CHANGE_ANNOUNCED` (mandatory, no opt-out) when a published tier price change enters its 30-day notice window. The first five are "live" toggleable types in `/settings/notifications` (see `docs/site/screens/notifications.md`); `PRICE_CHANGE_ANNOUNCED` is mandatory instead. All six route to this screen when clicked (`getNotificationHref()` in `src/lib/notification-link.ts`). Since ADR-027, `PAYMENT_VERIFIED` firing *is* the activation notification — verification grants access immediately, so there's no longer a separate "the self-billed invoice authorized" event to wait for.
 
 ---
 
@@ -95,8 +127,10 @@ No self-service path exists to **cancel** a subscription (admin-only `PATCH /v1/
 |---|---|
 | `src/app/[locale]/settings/billing/page.tsx` | Server Component — data fetching; reads (never clears) `Tenant.pendingBankTransfer`; calls `reconcileTenantStatus()` after `getCurrentTenant()` |
 | `src/components/billing-manager.tsx` | Client Component — all sections above (`SubscribeCard`/`ChangeTierCard`/`PendingPaymentCard` are local to this file) |
-| `src/app/actions/billing.ts` | `submitPaymentProofAction`, `createSubscriptionAction`, `changeTierAction` |
-| `src/lib/api.ts` | `getMySubscriptions`, `submitPaymentProof`, `createSubscription`, `changeTier`, `promoteTenant` (tier/billingInterval), `ApiSubscriptionInfo`/`ApiPaymentInfo`/`ApiBankTransferInfo` types, `ApiTenantInfo.status` (includes `PAST_DUE`) |
+| `src/components/payphone-checkout.tsx` | Client Component — loads Payphone's Cajita de Pagos CDN assets, renders the `PPaymentButtonBox` widget for one minted session (ADR-028) |
+| `src/app/[locale]/payphone/return/page.tsx` | Confirms a card charge unconditionally on load and renders the outcome — see `docs/guides/payphone-payments.md` |
+| `src/app/actions/billing.ts` | `submitPaymentProofAction`, `createSubscriptionAction`, `changeTierAction`, `createPayphoneSessionAction`, `confirmPayphonePaymentAction` |
+| `src/lib/api.ts` | `getMySubscriptions`, `submitPaymentProof`, `createSubscription`, `changeTier`, `promoteTenant` (tier/billingInterval), `createPayphoneSession`, `confirmPayphonePayment`, `ApiSubscriptionInfo`/`ApiPaymentInfo`/`ApiBankTransferInfo`/`ApiPayphoneSession`/`ApiPayphoneConfirmResult` types, `ApiTenantInfo.status` (includes `PAST_DUE`) |
 | `src/lib/public-api.ts` | `listTiers()` — public tier catalog |
 | `src/lib/subscription-tiers.ts` | `PaidTier`/`BillingInterval` shared types |
 | `src/lib/rbac.ts` | `billing.read`/`billing.manage` permissions |

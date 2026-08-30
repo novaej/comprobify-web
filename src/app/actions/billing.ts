@@ -9,11 +9,15 @@ import {
   changeTier,
   createSubscription,
   cancelSubscription,
+  createPayphoneSession,
+  confirmPayphonePayment,
   type ApiPaymentInfo,
   type ApiPaymentProof,
   type ChangeTierResult,
   type CreateSubscriptionResult,
   type CancelSubscriptionResult,
+  type ApiPayphoneSession,
+  type ApiPayphoneConfirmResult,
 } from '@/lib/api';
 import { ApiError } from '@/lib/errors';
 import { syncTenantStatusFromError } from '@/lib/tenant-status-sync';
@@ -26,6 +30,8 @@ export type ProofListResult = { error: string } | { proofs: ApiPaymentProof[] };
 export type ChangeTierActionResult = { error: string } | ChangeTierResult;
 export type CreateSubscriptionActionResult = { error: string } | CreateSubscriptionResult;
 export type CancelSubscriptionActionResult = { error: string } | CancelSubscriptionResult;
+export type PayphoneSessionActionResult = { error: string } | { session: ApiPayphoneSession };
+export type PayphoneConfirmActionResult = { error: string } | ApiPayphoneConfirmResult;
 
 const PROOF_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'application/pdf']);
 const MAX_PROOF_BYTES = 2 * 1024 * 1024;
@@ -162,4 +168,51 @@ export async function createSubscriptionAction(
 
   revalidatePath('/settings/billing');
   return result;
+}
+
+// Mints a card-payment session for one of the tenant's own pending payments —
+// fed straight into Payphone's browser widget (ADR-028). Returns { error:
+// 'PAYMENT_GATEWAY_NOT_CONFIGURED' } when card payments aren't enabled in this
+// environment; the caller must fall back to the bank-transfer flow already on
+// the page, not treat this as a hard failure.
+export async function createPayphoneSessionAction(paymentId: string): Promise<PayphoneSessionActionResult> {
+  const ctx = await requirePermission('billing.manage', { skipIssuer: true });
+  try {
+    const session = await createPayphoneSession({ apiKey: ctx.apiKey }, paymentId);
+    return { session };
+  } catch (err) {
+    if (err instanceof ApiError) {
+      await syncTenantStatusFromError(ctx.tenant.id, err);
+      return { error: err.code };
+    }
+    throw err;
+  }
+}
+
+// Called by the Payphone return page immediately on load — never behind a
+// click, per ADR-028's five-minute auto-reversal window. Safe to call twice
+// with the same arguments (e.g. a refreshed return page): the API returns the
+// stored outcome without contacting Payphone again.
+//
+// Deliberately no revalidatePath here: this action is always invoked directly
+// during PayphoneReturnPage's render (that's the whole point — it can't wait
+// behind a click), and Next.js throws if a Server Action calls revalidatePath
+// "during render" rather than from a real form submission/event. Freshness on
+// return to /settings/billing is instead guaranteed by that page linking back
+// with a plain <a> (a full navigation, which always bypasses the Router Cache)
+// rather than the i18n <Link> — see the return page itself.
+export async function confirmPayphonePaymentAction(
+  payphoneId: string,
+  clientTransactionId: string,
+): Promise<PayphoneConfirmActionResult> {
+  const ctx = await requirePermission('billing.manage', { skipIssuer: true });
+  try {
+    return await confirmPayphonePayment({ apiKey: ctx.apiKey }, payphoneId, clientTransactionId);
+  } catch (err) {
+    if (err instanceof ApiError) {
+      await syncTenantStatusFromError(ctx.tenant.id, err);
+      return { error: err.code };
+    }
+    throw err;
+  }
 }

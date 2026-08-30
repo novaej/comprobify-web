@@ -45,7 +45,7 @@ export interface AdminPayment {
   iva_rate: string;
   iva_amount: string;
   total_amount: string;
-  method: string;
+  method: 'SPI_TRANSFER' | 'PAYPHONE_CARD';
   purpose: string;
   target_tier: string | null;
   status: string;

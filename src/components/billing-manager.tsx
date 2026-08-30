@@ -7,13 +7,14 @@ import { toastApiError } from '@/lib/api-error-toast';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { FileIcon, DownloadIcon, Trash2Icon, Info, Ban } from 'lucide-react';
+import { FileIcon, DownloadIcon, Trash2Icon, Info, Ban, CreditCard, Landmark } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { PayphoneCheckout } from '@/components/payphone-checkout';
 import {
   submitPaymentProofAction,
   listPaymentProofsAction,
@@ -21,8 +22,9 @@ import {
   changeTierAction,
   createSubscriptionAction,
   cancelSubscriptionAction,
+  createPayphoneSessionAction,
 } from '@/app/actions/billing';
-import type { ApiTenantInfo, ApiSubscriptionInfo, ApiPaymentInfo, ApiBankTransferInfo, ApiPaymentProof } from '@/lib/api';
+import type { ApiTenantInfo, ApiSubscriptionInfo, ApiPaymentInfo, ApiBankTransferInfo, ApiPaymentProof, ApiPayphoneSession } from '@/lib/api';
 import type { ApiTierInfo } from '@/lib/public-api';
 import type { PaidTier, BillingInterval } from '@/lib/subscription-tiers';
 
@@ -46,6 +48,21 @@ const PAYMENT_STATUS_STYLES: Record<string, string> = {
   REJECTED: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/30',
   REFUNDED: 'bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-500/15 dark:text-zinc-300 dark:border-zinc-500/30',
 };
+
+// Payphone's own widget form expires 10 minutes after load — reusing a session
+// held past that would fail at submit, so PendingPaymentCard mints a fresh one
+// past this age instead of reusing the cached one.
+const PAYPHONE_SESSION_MAX_AGE_MS = 10 * 60 * 1000;
+
+// createPayphoneSession error codes that mean "card isn't a viable option for
+// this payment right now" — PendingPaymentCard disables the "Tarjeta" tab
+// rather than letting the tenant retry into the same wall. Distinct from any
+// other/unexpected error code, which stays retryable inline.
+const CARD_UNAVAILABLE_CODES = new Set([
+  'PAYMENT_GATEWAY_NOT_CONFIGURED',
+  'PAYPHONE_AMOUNT_BELOW_MINIMUM',
+  'PAYPHONE_TOO_MANY_ATTEMPTS',
+]);
 
 export function BillingManager({
   tenantInfo,
@@ -83,14 +100,13 @@ export function BillingManager({
   const latestSubscription = subscriptions[0] ?? null;
   const latestPayment = latestSubscription?.payments[0] ?? null;
   const isSubscriptionOver = latestSubscription?.status === 'CANCELLED' || latestSubscription?.status === 'EXPIRED';
-  const needsAction = !!latestPayment && latestPayment.status !== 'VERIFIED' && !isSubscriptionOver;
-  // Payment verification and subscription activation are two separate admin steps
-  // (reviewPayment, then a follow-up linkInvoice once the self-billed invoice
-  // exists) — a payment can sit "Verificado" in the history below for a while
-  // before the plan itself actually switches on. Surface that gap explicitly so
-  // the tenant doesn't read the verified payment as "nothing left to do" and
-  // assume something's broken when their plan/quota hasn't changed yet.
-  const isActivating = latestSubscription?.status === 'PAYMENT_RECEIVED' || latestSubscription?.status === 'INVOICE_PROCESSING';
+  // REFUNDED is terminal, not "still pending" — a refund already rolled the
+  // subscription back to applied_from (see refundPayment on the API side), so
+  // there's nothing left to pay for *this* payment. Without excluding it, the
+  // pending-payment card kept demanding payment for an already-reversed
+  // TIER_CHANGE instead of falling back to ChangeTierCard for a fresh attempt.
+  // REJECTED stays included — that one genuinely needs a new proof upload.
+  const needsAction = !!latestPayment && latestPayment.status !== 'VERIFIED' && latestPayment.status !== 'REFUNDED' && !isSubscriptionOver;
   // pending_tier = 'FREE' means cancellation scheduled; a paid tier means downgrade scheduled.
   const pendingCancellation = latestSubscription?.status === 'ACTIVE' && latestSubscription.pending_tier === 'FREE';
   const pendingDowngradeTier = latestSubscription?.status === 'ACTIVE' && latestSubscription.pending_tier !== 'FREE'
@@ -152,13 +168,6 @@ export function BillingManager({
               date: dateFormatter.format(new Date(latestSubscription.current_period_end)),
             })}
           </p>
-        )}
-
-        {isActivating && (
-          <div className="mt-3 flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300">
-            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-            <span>{t('activationPending')}</span>
-          </div>
         )}
 
         {/* The top-of-page SuspendedBanner (local Tenant.status mirror) has no
@@ -346,12 +355,61 @@ function PendingPaymentCard({
   const [proofs, setProofs] = useState<ApiPaymentProof[]>(initialProofs);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Card payment (Payphone, ADR-028) alongside the existing bank-transfer flow —
+  // both stay first-class, offered side by side. The session is only minted the
+  // first time the tenant actually picks the "Tarjeta" tab, not eagerly on
+  // mount, since createPayphoneSession also flips payments.method as a side
+  // effect — doing that just from rendering the page would be misleading.
+  //
+  // One mint per checkout, not one per widget open: the API deliberately never
+  // reuses an attempt server-side (it can't tell "closed without paying" from
+  // "paid but the redirect never arrived," and reusing a clientTransactionId in
+  // the second case would be a duplicate submission against a live charge — see
+  // ADR-028 / PAYPHONE_TOO_MANY_ATTEMPTS below), so *this* component holding
+  // onto the session for as long as it's valid is what keeps a naive re-open
+  // from minting a fresh attempt every time. `payphoneSession` persisting
+  // across a Transferencia/Tarjeta tab toggle already covers "modal reopened
+  // within the window" (see handleSelectCard's guard); `sessionMintedAt` below
+  // additionally covers "the tenant left this open past Payphone's own 10-
+  // minute form expiry," where reusing the stale session would fail at submit.
+  //
+  // This is driven entirely by handleSelectCard, a click handler — never a
+  // useEffect — specifically so React 18 Strict Mode's dev-only double-invoke
+  // of effects can never double a mint. If minting logic is ever moved into an
+  // effect, that guarantee no longer holds and needs re-checking.
+  const [payMethod, setPayMethod] = useState<'transfer' | 'card'>('transfer');
+  const [cardPending, startCardTransition] = useTransition();
+  const [payphoneSession, setPayphoneSession] = useState<ApiPayphoneSession | null>(null);
+  const [sessionMintedAt, setSessionMintedAt] = useState<number | null>(null);
+  const [cardError, setCardError] = useState<string | null>(null);
+  const cardUnavailable = !!cardError && CARD_UNAVAILABLE_CODES.has(cardError);
+
   const isTierChange = payment.purpose === 'TIER_CHANGE';
   const targetTierKey = payment.target_tier
     ? (`tiers.${payment.target_tier}.name` as Parameters<typeof tPricing>[0])
     : null;
   const targetTierName =
     targetTierKey && tPricing.has(targetTierKey) ? tPricing(targetTierKey) : payment.target_tier ?? '';
+
+  function handleSelectCard() {
+    setPayMethod('card');
+    const isFresh = !!payphoneSession && !!sessionMintedAt && (Date.now() - sessionMintedAt < PAYPHONE_SESSION_MAX_AGE_MS);
+    if (isFresh || cardPending) return;
+    setCardError(null);
+    startCardTransition(async () => {
+      const result = await createPayphoneSessionAction(payment.id);
+      if ('error' in result) {
+        setCardError(result.error);
+        if (CARD_UNAVAILABLE_CODES.has(result.error)) {
+          setPayMethod('transfer');
+          toastApiError(result.error, tError);
+        }
+      } else {
+        setPayphoneSession(result.session);
+        setSessionMintedAt(Date.now());
+      }
+    });
+  }
 
   function handleUpload() {
     const files = fileInputRef.current?.files;
@@ -414,37 +472,106 @@ function PendingPaymentCard({
         </p>
       )}
 
-      {bankTransfer ? (
-        <div className="mt-3 space-y-1 rounded-md border border-border bg-background p-3 text-sm">
-          <p>
-            <span className="text-muted-foreground">{t('pendingPayment.paymentId')}:</span>{' '}
-            <span className="font-mono font-medium">#{payment.id}</span>
-          </p>
-          <p>
-            <span className="text-muted-foreground">{t('pendingPayment.bank')}:</span> {bankTransfer.bankName}
-          </p>
-          <p>
-            <span className="text-muted-foreground">{t('pendingPayment.accountType')}:</span>{' '}
-            {bankTransfer.accountType}
-          </p>
-          <p>
-            <span className="text-muted-foreground">{t('pendingPayment.accountNumber')}:</span>{' '}
-            {bankTransfer.accountNumber}
-          </p>
-          <p>
-            <span className="text-muted-foreground">{t('pendingPayment.accountHolder')}:</span>{' '}
-            {bankTransfer.accountHolder}
-          </p>
-          <p>
-            <span className="text-muted-foreground">{t('pendingPayment.identification')}:</span>{' '}
-            {bankTransfer.identification}
-          </p>
-          <p className="mt-2 border-t border-border pt-2 text-xs text-muted-foreground">
-            {t('pendingPayment.transferNote', { id: payment.id })}
-          </p>
+      {canManageBilling && (
+        <div className="mt-3 inline-flex items-center gap-1 rounded-lg border border-border bg-background p-1">
+          <button
+            type="button"
+            onClick={() => setPayMethod('transfer')}
+            className={cn(
+              'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+              payMethod === 'transfer' ? 'bg-muted shadow-sm' : 'text-muted-foreground',
+            )}
+          >
+            <Landmark className="h-3.5 w-3.5" />
+            {t('payphone.transferTab')}
+          </button>
+          <button
+            type="button"
+            onClick={handleSelectCard}
+            disabled={cardUnavailable}
+            title={cardUnavailable ? (tError.has(cardError as Parameters<typeof tError>[0]) ? tError(cardError as Parameters<typeof tError>[0]) : undefined) : undefined}
+            className={cn(
+              'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+              payMethod === 'card' ? 'bg-muted shadow-sm' : 'text-muted-foreground',
+            )}
+          >
+            <CreditCard className="h-3.5 w-3.5" />
+            {t('payphone.cardTab')}
+          </button>
         </div>
-      ) : (
-        <p className="mt-3 text-sm text-muted-foreground">{t('pendingPayment.contactSupport')}</p>
+      )}
+
+      {payMethod === 'transfer' && (
+        bankTransfer ? (
+          <div className="mt-3 space-y-1 rounded-md border border-border bg-background p-3 text-sm">
+            <p>
+              <span className="text-muted-foreground">{t('pendingPayment.paymentId')}:</span>{' '}
+              <span className="font-mono font-medium">#{payment.id}</span>
+            </p>
+            <p>
+              <span className="text-muted-foreground">{t('pendingPayment.bank')}:</span> {bankTransfer.bankName}
+            </p>
+            <p>
+              <span className="text-muted-foreground">{t('pendingPayment.accountType')}:</span>{' '}
+              {bankTransfer.accountType}
+            </p>
+            <p>
+              <span className="text-muted-foreground">{t('pendingPayment.accountNumber')}:</span>{' '}
+              {bankTransfer.accountNumber}
+            </p>
+            <p>
+              <span className="text-muted-foreground">{t('pendingPayment.accountHolder')}:</span>{' '}
+              {bankTransfer.accountHolder}
+            </p>
+            <p>
+              <span className="text-muted-foreground">{t('pendingPayment.identification')}:</span>{' '}
+              {bankTransfer.identification}
+            </p>
+            <p className="mt-2 border-t border-border pt-2 text-xs text-muted-foreground">
+              {t('pendingPayment.transferNote', { id: payment.id })}
+            </p>
+          </div>
+        ) : (
+          <p className="mt-3 text-sm text-muted-foreground">{t('pendingPayment.contactSupport')}</p>
+        )
+      )}
+
+      {payMethod === 'card' && (
+        <div className="mt-3 rounded-md border border-border bg-background p-3 text-sm">
+          {cardError ? (
+            <div className="space-y-2">
+              <p className="text-destructive">
+                {tError.has(cardError) ? tError(cardError) : tError('UNKNOWN')}
+              </p>
+              <button
+                type="button"
+                onClick={() => setPayMethod('transfer')}
+                className="text-xs font-medium text-primary hover:underline"
+              >
+                {t('payphone.useTransferInstead')}
+              </button>
+            </div>
+          ) : cardPending || !payphoneSession ? (
+            <div className="flex items-center gap-2 py-1 text-sm text-muted-foreground">
+              {t('payphone.mintingSession')}
+            </div>
+          ) : (
+            <p className="mb-2 text-xs text-muted-foreground">{t('payphone.redirectNote')}</p>
+          )}
+        </div>
+      )}
+
+      {/* Rendered once and kept mounted (hidden via CSS, not removed from the
+          tree) for as long as this session lives — Payphone's widget SDK
+          rejects a second render() call for a clientTransactionId it has
+          already seen, so unmounting/remounting on every "Tarjeta" tab toggle
+          (as this used to do, nested inside the block above) broke the widget
+          with "Ya existe una transacción..." the second time the tab was
+          reopened. See CLAUDE.md Common Mistake #56. */}
+      {payphoneSession && !cardError && (
+        <div className={payMethod === 'card' ? 'mt-1' : 'hidden'}>
+          <PayphoneCheckout key={payphoneSession.clientTransactionId} session={payphoneSession} />
+        </div>
       )}
 
       {/* Uploaded proof files */}
@@ -487,7 +614,7 @@ function PendingPaymentCard({
         )}
       </div>
 
-      {canManageBilling && (
+      {canManageBilling && payMethod === 'transfer' && (
         <div className="mt-3 space-y-2">
           <div>
             <label className="mb-1 block text-xs font-medium text-muted-foreground">
@@ -717,6 +844,15 @@ function ChangeTierCard({
     targetTierInfo.priceMonthlyUsd < currentTierInfo.priceMonthlyUsd;
   const isNoOp = selectedTier === currentSubscriptionTier && !intervalChanged;
 
+  // Mirrors requestSandboxTierChange's own pricing exactly: current-tier price
+  // at the CURRENT interval (what was actually paid) credited against the
+  // target tier's price at the SELECTED interval — both from the same tiers
+  // catalog, no time-proration (sandbox has no real period for that).
+  const sandboxNetPrice = targetTierInfo && currentTierInfo
+    ? Math.max(0, (selectedInterval === 'YEARLY' ? targetTierInfo.priceYearlyUsd : targetTierInfo.priceMonthlyUsd)
+        - (currentBillingInterval === 'YEARLY' ? currentTierInfo.priceYearlyUsd : currentTierInfo.priceMonthlyUsd))
+    : 0;
+
   type Scenario = 'upgrade' | 'downgrade' | 'interval-change';
   let scenario: Scenario | null = null;
   if (selectedTier && !isNoOp) {
@@ -811,17 +947,33 @@ function ChangeTierCard({
         {confirming && selectedTier && scenario && (
           <div className="mt-3 rounded-md border border-border bg-muted/40 p-3 text-sm space-y-2">
             <p>
-              {scenario === 'upgrade'
-                ? t('changePlan.confirmHintUpgrade')
-                : scenario === 'downgrade'
-                  ? (periodEndFormatted
-                      ? t('changePlan.confirmHintDowngrade', { date: periodEndFormatted })
-                      : t('changePlan.confirmHintDowngradeNoDate'))
-                  : (periodEndFormatted
-                      ? t('changePlan.confirmHintIntervalChange', { date: periodEndFormatted })
-                      : t('changePlan.confirmHintIntervalChangeNoDate'))}
+              {/* Sandbox never prorates and never defers to period end (see
+                  requestSandboxTierChange) — it only branches on isTierDowngrade,
+                  ignoring the production upgrade/downgrade/interval-change
+                  distinction entirely, so it needs its own two-way copy here
+                  rather than reusing the production hints above. */}
+              {isSandbox
+                ? (isTierDowngrade
+                    ? t('changePlan.confirmHintSandboxFree')
+                    : t('changePlan.confirmHintSandboxCharge'))
+                : scenario === 'upgrade'
+                  ? t('changePlan.confirmHintUpgrade')
+                  : scenario === 'downgrade'
+                    ? (periodEndFormatted
+                        ? t('changePlan.confirmHintDowngrade', { date: periodEndFormatted })
+                        : t('changePlan.confirmHintDowngradeNoDate'))
+                    : (periodEndFormatted
+                        ? t('changePlan.confirmHintIntervalChange', { date: periodEndFormatted })
+                        : t('changePlan.confirmHintIntervalChangeNoDate'))}
             </p>
-            {targetTierInfo && scenario !== 'upgrade' && (
+            {targetTierInfo && isSandbox && !isTierDowngrade && (
+              <p className="font-medium">
+                {currencyFormatter.format(sandboxNetPrice)}
+                {' · '}
+                <span className="text-xs font-normal text-muted-foreground">{t('ivaIncluded')}</span>
+              </p>
+            )}
+            {targetTierInfo && !isSandbox && scenario !== 'upgrade' && (
               <p className="font-medium">
                 {currencyFormatter.format(selectedInterval === 'YEARLY' ? targetTierInfo.priceYearlyUsd : targetTierInfo.priceMonthlyUsd)}
                 {tPricing(selectedInterval === 'YEARLY' ? 'perYear' : 'perMonth')}
