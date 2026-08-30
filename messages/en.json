@@ -797,6 +797,7 @@
     "PAYMENT_GATEWAY_NOT_CONFIGURED": "Card payment isn't available right now. Use the bank transfer instead.",
     "PAYPHONE_CONFIRM_FAILED": "We couldn't confirm the payment with the provider. It will be confirmed automatically within a few minutes — don't try again.",
     "PAYPHONE_SESSION_NOT_FOUND": "The card payment attempt wasn't found. Request a new one.",
+    "PAYPHONE_AMOUNT_BELOW_MINIMUM": "This amount is too low to pay by card (minimum $1.00). Use a bank transfer for this payment instead.",
     "PAYMENT_ALREADY_VERIFIED": "This payment has already been verified.",
     "SUBSCRIPTION_ALREADY_IN_FLIGHT": "Your account already has a subscription in progress.",
     "NO_ACTIVE_SUBSCRIPTION": "You don't have an active subscription. Activate production with a paid plan first.",

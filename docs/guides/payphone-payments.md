@@ -147,21 +147,37 @@ nothing and let the API's own reconciliation job settle it.
 
 ## Environment setup: registering the return URL
 
-Payphone's developer console registers a **web application per domain** — each entry has a
-"Dominio Web" (domain) field and a "URL de Respuesta" (return URL) field, and there is no
-per-session `responseUrl` in the widget config to override either one. `comprobify` uses **two
-separate Payphone stores**: a TEST store for non-production environments and the LIVE store for
-production (`.example.env`: "Staging should point at Payphone's TEST store, never the live one").
+Payphone's developer console (appdeveloper.payphonetodoesposible.com) registers a **web
+application**, each with its own independent `Web Domain` and `Response URL` fields, its own
+credentials (Token/StoreID, on that application's "Credenciales" tab — these are what become
+`PAYPHONE_TOKEN`/`PAYPHONE_STORE_ID` in `comprobify`'s env), and its own environment mode (test vs.
+production, set inside that application's own config). There is no per-session `responseUrl` in the
+widget config to override any of this.
+
+**Give each environment its own application — don't share one across environments by toggling its
+fields.** The Response URL is a single value per application: pointing an existing application's
+Response URL at `localhost` to test locally would silently break every other environment sharing
+that application until you toggle it back. `comprobify`'s own setup notes this explicitly (`.example.env`:
+"Staging should point at Payphone's TEST store, never the live one" — and the same reasoning extends
+to local dev needing a third application, separate from staging's).
 
 Because URL paths in this app stay English regardless of locale content (see CLAUDE.md), and
 `localePrefix: 'always'` means every route is locale-prefixed, only the **Spanish** path is ever
 actually reachable at a fixed URL — register that one, not a bare or English-prefixed variant:
 
-| Environment | Payphone store | Dominio Web | URL de Respuesta |
+| Environment | Application mode | Web Domain | Response URL |
 |---|---|---|---|
-| Local dev | TEST | `http://localhost:3000` | `http://localhost:3000/es/payphone/return` |
-| Staging | TEST | `https://app-staging.comprobify.com` | `https://app-staging.comprobify.com/es/payphone/return` |
-| Production | LIVE | `https://app.comprobify.com` | `https://app.comprobify.com/es/payphone/return` |
+| Local dev | test | `http://localhost:3000` | `http://localhost:3000/es/payphone/return` |
+| Staging | test | `https://app-staging.comprobify.com` | `https://app-staging.comprobify.com/es/payphone/return` |
+| Production | production | `https://app.comprobify.com` | `https://app.comprobify.com/es/payphone/return` |
+
+`Web Domain` and `Response URL` are independent: the domain controls where the widget will
+**render**, the Response URL controls only where the post-payment redirect **goes**. That means you
+can validate that the widget accepts its token and that Payphone accepts the amount mapping — both
+checked at submit, before any redirect — by temporarily adding `localhost` as an extra Web Domain on
+an existing test application, without a dedicated one. But the redirect still lands wherever that
+application's single Response URL points, so a full local loop through the return page needs its own
+application, not a borrowed one.
 
 Payphone's own docs only confirm that `http://localhost` (no SSL certificate) is allowed for local
 testing — they don't spell out whether the domain match is port-sensitive. Register with the port
@@ -170,9 +186,8 @@ it as an unauthorized domain, try registering the bare `http://localhost` instea
 
 If a registration is missing or wrong, `POST /v1/payments/:id/payphone-session` still succeeds — the
 mismatch only surfaces when the widget tries to render on an unregistered domain (it will fail to
-load or reject the transaction), or when Payphone has nowhere sensible to redirect back to.
-`PAYPHONE_TOKEN`/`PAYPHONE_STORE_ID` are API-side env vars (`comprobify`'s `.env`, not this app's) —
-this repo never holds Payphone credentials of its own; the token in the widget config is minted
+load or reject the transaction), or when Payphone has nowhere sensible to redirect back to. This repo
+never holds Payphone credentials of its own; the token in the widget config is minted
 per-session and only ever reaches the browser through an authenticated `payphone-session` response.
 
 ---
@@ -192,6 +207,7 @@ loudly.
 **"Tarjeta" tab shows an error immediately.** Check the surfaced `apiError` code:
 - `PAYMENT_GATEWAY_NOT_CONFIGURED` — Payphone credentials unset on the API for this environment; expected outside production/staging with a real store configured.
 - `PAYMENT_ALREADY_VERIFIED` — the payment already settled through another attempt; refresh the billing page.
+- `PAYPHONE_AMOUNT_BELOW_MINIMUM` — Payphone rejects any charge under $1.00 outright (undocumented on their side, found by probing their `Prepare` endpoint); `createSession` catches it before minting an attempt row so the tenant sees this instead of a raw vendor error at submit. Reachable in practice via a small prorated tier-change upgrade. Not something to "fix" — the UI's job here is just to point back at the Transferencia tab, which the existing generic error-message + "use transfer instead" button already does; no code change needed beyond the translated string.
 - `PAYPHONE_SESSION_NOT_FOUND` (only from the confirm call, not session creation) — see below.
 
 **Widget button never appears / renders blank.** Almost always a domain mismatch — the current host
