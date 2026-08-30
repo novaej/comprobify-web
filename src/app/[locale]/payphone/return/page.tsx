@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
-import { Link } from '@/i18n/navigation';
 import { buttonVariants } from '@/components/ui/button';
 import { CheckCircle2, XCircle, AlertTriangle, Clock, HelpCircle, type LucideIcon } from 'lucide-react';
 import { confirmPayphonePaymentAction } from '@/app/actions/billing';
@@ -35,7 +34,7 @@ export default async function PayphoneReturnPage({
   if (!id || !clientTransactionId) {
     return (
       <StatusCard icon={HelpCircle} tone="muted" title={t('missingParamsTitle')} description={t('missingParamsDescription')}>
-        <BillingLink label={t('backToBilling')} />
+        <BillingLink locale={locale} label={t('backToBilling')} />
       </StatusCard>
     );
   }
@@ -55,7 +54,7 @@ export default async function PayphoneReturnPage({
         title={t('errorTitle')}
         description={tError.has(result.error as Parameters<typeof tError>[0]) ? tError(result.error as Parameters<typeof tError>[0]) : tError('UNKNOWN')}
       >
-        <BillingLink label={t('backToBilling')} />
+        <BillingLink locale={locale} label={t('backToBilling')} />
       </StatusCard>
     );
   }
@@ -64,25 +63,25 @@ export default async function PayphoneReturnPage({
     case 'APPROVED':
       return (
         <StatusCard icon={CheckCircle2} tone="green" title={t('approvedTitle')} description={t('approvedDescription')}>
-          <BillingLink label={t('backToBilling')} primary />
+          <BillingLink locale={locale} label={t('backToBilling')} primary />
         </StatusCard>
       );
     case 'CANCELLED':
       return (
         <StatusCard icon={XCircle} tone="muted" title={t('cancelledTitle')} description={t('cancelledDescription')}>
-          <BillingLink label={t('backToBilling')} primary />
+          <BillingLink locale={locale} label={t('backToBilling')} primary />
         </StatusCard>
       );
     case 'DUPLICATE':
       return (
         <StatusCard icon={AlertTriangle} tone="amber" title={t('duplicateTitle')} description={t('duplicateDescription')}>
-          <SupportLink label={t('goToSupport')} />
+          <SupportLink locale={locale} label={t('goToSupport')} />
         </StatusCard>
       );
     case 'ERROR':
       return (
         <StatusCard icon={XCircle} tone="destructive" title={t('errorTitle')} description={t('errorDescription')}>
-          <SupportLink label={t('goToSupport')} />
+          <SupportLink locale={locale} label={t('goToSupport')} />
         </StatusCard>
       );
   }
@@ -122,18 +121,23 @@ function StatusCard({
   );
 }
 
-function BillingLink({ label, primary }: { label: string; primary?: boolean }) {
+// Plain <a>, not the i18n <Link>: this page's confirm action can't call
+// revalidatePath (see confirmPayphonePaymentAction), so a soft navigation risks
+// serving /settings/billing's stale Router Cache entry right after a payment
+// that just changed the tenant's tier/quota. A full navigation always bypasses
+// that cache.
+function BillingLink({ locale, label, primary }: { locale: string; label: string; primary?: boolean }) {
   return (
-    <Link href="/settings/billing" className={cn(buttonVariants({ variant: primary ? 'default' : 'outline' }), 'cursor-pointer')}>
+    <a href={`/${locale}/settings/billing`} className={cn(buttonVariants({ variant: primary ? 'default' : 'outline' }), 'cursor-pointer')}>
       {label}
-    </Link>
+    </a>
   );
 }
 
-function SupportLink({ label }: { label: string }) {
+function SupportLink({ locale, label }: { locale: string; label: string }) {
   return (
-    <Link href="/support" className={cn(buttonVariants({ variant: 'outline' }), 'cursor-pointer')}>
+    <a href={`/${locale}/support`} className={cn(buttonVariants({ variant: 'outline' }), 'cursor-pointer')}>
       {label}
-    </Link>
+    </a>
   );
 }

@@ -172,6 +172,18 @@ The call is also safe to repeat — reloading the return page (or Payphone someh
 returns the stored outcome without contacting Payphone again, so there's no double-charge risk from
 a refresh.
 
+**`confirmPayphonePaymentAction` cannot call `revalidatePath`.** It's tempting to revalidate
+`/settings/billing` here so it isn't served stale from the Router Cache right after a payment that
+just changed the tenant's tier — the standard pattern for a mutation elsewhere in this app. But
+`revalidatePath` is only legal from a Server Action triggered by a real client event (a form
+submission, a button's `onClick`) or a Route Handler; calling it from a Server Action that's itself
+awaited directly inside a Server Component's render — which is exactly what this page does, by
+design — throws `Error: Route ... used "revalidatePath ..." during render which is unsupported`.
+The fix isn't a different revalidation call, it's not needing one: the return page's own links back
+to `/settings/billing` (`BillingLink`) are a plain `<a>`, not the i18n `<Link>` — a full browser
+navigation always bypasses the Router Cache regardless of whether anything revalidated it. See
+CLAUDE.md Common Mistake #57.
+
 ### Outcomes
 
 | `result.status` | Meaning | Page shows |

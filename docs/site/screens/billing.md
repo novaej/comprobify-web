@@ -84,8 +84,10 @@ inline instead.
 Once the payer submits card details, Payphone takes over entirely: it redirects the browser away
 from this screen to `/es/payphone/return`, which confirms the charge and shows the outcome
 (approved / declined / duplicate / unresolved). Nothing on this screen tracks that outcome directly
-— a successful confirm revalidates `/settings/billing`, so returning here (via the return page's
-"Ir a Facturación" button) shows the updated plan/quota immediately.
+— the return page's "Ir a Facturación" button is a plain `<a>` (a full navigation, not the i18n
+`Link`), which is what shows the updated plan/quota immediately on return, since its own confirm
+action can't call `revalidatePath` from inside a Server Component's render (see CLAUDE.md Common
+Mistake #57).
 
 ---
 
