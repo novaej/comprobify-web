@@ -49,6 +49,21 @@ const PAYMENT_STATUS_STYLES: Record<string, string> = {
   REFUNDED: 'bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-500/15 dark:text-zinc-300 dark:border-zinc-500/30',
 };
 
+// Payphone's own widget form expires 10 minutes after load — reusing a session
+// held past that would fail at submit, so PendingPaymentCard mints a fresh one
+// past this age instead of reusing the cached one.
+const PAYPHONE_SESSION_MAX_AGE_MS = 10 * 60 * 1000;
+
+// createPayphoneSession error codes that mean "card isn't a viable option for
+// this payment right now" — PendingPaymentCard disables the "Tarjeta" tab
+// rather than letting the tenant retry into the same wall. Distinct from any
+// other/unexpected error code, which stays retryable inline.
+const CARD_UNAVAILABLE_CODES = new Set([
+  'PAYMENT_GATEWAY_NOT_CONFIGURED',
+  'PAYPHONE_AMOUNT_BELOW_MINIMUM',
+  'PAYPHONE_TOO_MANY_ATTEMPTS',
+]);
+
 export function BillingManager({
   tenantInfo,
   currentTier,
@@ -339,10 +354,29 @@ function PendingPaymentCard({
   // first time the tenant actually picks the "Tarjeta" tab, not eagerly on
   // mount, since createPayphoneSession also flips payments.method as a side
   // effect — doing that just from rendering the page would be misleading.
+  //
+  // One mint per checkout, not one per widget open: the API deliberately never
+  // reuses an attempt server-side (it can't tell "closed without paying" from
+  // "paid but the redirect never arrived," and reusing a clientTransactionId in
+  // the second case would be a duplicate submission against a live charge — see
+  // ADR-028 / PAYPHONE_TOO_MANY_ATTEMPTS below), so *this* component holding
+  // onto the session for as long as it's valid is what keeps a naive re-open
+  // from minting a fresh attempt every time. `payphoneSession` persisting
+  // across a Transferencia/Tarjeta tab toggle already covers "modal reopened
+  // within the window" (see handleSelectCard's guard); `sessionMintedAt` below
+  // additionally covers "the tenant left this open past Payphone's own 10-
+  // minute form expiry," where reusing the stale session would fail at submit.
+  //
+  // This is driven entirely by handleSelectCard, a click handler — never a
+  // useEffect — specifically so React 18 Strict Mode's dev-only double-invoke
+  // of effects can never double a mint. If minting logic is ever moved into an
+  // effect, that guarantee no longer holds and needs re-checking.
   const [payMethod, setPayMethod] = useState<'transfer' | 'card'>('transfer');
   const [cardPending, startCardTransition] = useTransition();
   const [payphoneSession, setPayphoneSession] = useState<ApiPayphoneSession | null>(null);
+  const [sessionMintedAt, setSessionMintedAt] = useState<number | null>(null);
   const [cardError, setCardError] = useState<string | null>(null);
+  const cardUnavailable = !!cardError && CARD_UNAVAILABLE_CODES.has(cardError);
 
   const isTierChange = payment.purpose === 'TIER_CHANGE';
   const targetTierKey = payment.target_tier
@@ -353,14 +387,20 @@ function PendingPaymentCard({
 
   function handleSelectCard() {
     setPayMethod('card');
-    if (payphoneSession || cardPending) return;
+    const isFresh = !!payphoneSession && !!sessionMintedAt && (Date.now() - sessionMintedAt < PAYPHONE_SESSION_MAX_AGE_MS);
+    if (isFresh || cardPending) return;
     setCardError(null);
     startCardTransition(async () => {
       const result = await createPayphoneSessionAction(payment.id);
       if ('error' in result) {
         setCardError(result.error);
+        if (CARD_UNAVAILABLE_CODES.has(result.error)) {
+          setPayMethod('transfer');
+          toastApiError(result.error, tError);
+        }
       } else {
         setPayphoneSession(result.session);
+        setSessionMintedAt(Date.now());
       }
     });
   }
@@ -439,8 +479,13 @@ function PendingPaymentCard({
             <Landmark className="h-3.5 w-3.5" />
             {t('payphone.transferTab')}
           </button>
-          <button type="button" onClick={handleSelectCard} className={cn(
-              'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+          <button
+            type="button"
+            onClick={handleSelectCard}
+            disabled={cardUnavailable}
+            title={cardUnavailable ? (tError.has(cardError as Parameters<typeof tError>[0]) ? tError(cardError as Parameters<typeof tError>[0]) : undefined) : undefined}
+            className={cn(
+              'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50',
               payMethod === 'card' ? 'bg-muted shadow-sm' : 'text-muted-foreground',
             )}
           >

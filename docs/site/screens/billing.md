@@ -69,10 +69,17 @@ Every subscription (newest first) with its nested payments, each as a small stat
 Payphone's *Cajita de Pagos* widget (ADR-028) — see `docs/guides/payphone-payments.md` for the full
 flow. Selecting the "Tarjeta" tab mints a session (`createPayphoneSessionAction`, only on that
 click, not eagerly — minting also flips the payment's `method`) and renders the widget
-(`PayphoneCheckout`). A `503 PAYMENT_GATEWAY_NOT_CONFIGURED` shows an inline fallback and a button
-back to Transferencia — the environment simply has no Payphone credentials configured, which is a
-supported state, not an error. A `400 PAYPHONE_AMOUNT_BELOW_MINIMUM` (Payphone refuses charges under
-$1.00 — reachable via a small prorated tier-change upgrade) shows the same fallback pattern.
+(`PayphoneCheckout`). The session is **held and reused** across a Transferencia/Tarjeta tab toggle —
+only re-minted once it's older than 10 minutes (Payphone's own widget-form expiry) — since the API
+deliberately never reuses an attempt itself and instead caps unresolved attempts per payment at 10.
+
+Three error codes mean card isn't viable for this payment right now, not "try again": `503
+PAYMENT_GATEWAY_NOT_CONFIGURED` (no Payphone credentials configured in this environment), `400
+PAYPHONE_AMOUNT_BELOW_MINIMUM` (Payphone refuses charges under $1.00 — reachable via a small
+prorated tier-change upgrade), and `409 PAYPHONE_TOO_MANY_ATTEMPTS` (10+ unresolved attempts already
+open — only reachable in practice via a minting bug). All three toast, switch back to Transferencia,
+and disable the "Tarjeta" tab (with the reason in its tooltip); any other error stays retryable
+inline instead.
 
 Once the payer submits card details, Payphone takes over entirely: it redirects the browser away
 from this screen to `/es/payphone/return`, which confirms the charge and shows the outcome

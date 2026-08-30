@@ -53,20 +53,41 @@ by rendering the page would misrepresent a payment the tenant never actually cho
 widget wants them (`amount = amountWithoutTax + amountWithTax + tax + service + tip`, integer
 cents) — pass them straight into the widget config, never recompute or round.
 
-A `503 PAYMENT_GATEWAY_NOT_CONFIGURED` means `PAYPHONE_TOKEN`/`PAYPHONE_STORE_ID` are unset on the
-API for this environment (see "Optional infrastructure" below) — this is a normal, expected state,
-not a bug. `PendingPaymentCard` shows an inline fallback message and a button back to the transfer
-tab; bank transfer keeps working regardless.
+**One mint per checkout, not one per widget open.** The API deliberately never reuses an existing
+attempt server-side — it can't tell "the payer closed the widget without paying" from "they paid and
+the redirect never arrived," and reusing a `clientTransactionId` in the second case would be a
+duplicate submission against a charge Payphone may already be holding (`PAYPHONE_TOO_MANY_ATTEMPTS`
+below is the API's backstop against a frontend that mints on every open regardless). So this side
+holds onto the minted session for as long as it's valid, instead of re-minting on every tab
+open/close: `handleSelectCard` reuses `payphoneSession` as-is when the tab is reselected, and only
+mints a fresh one when there's no session yet **or** the held one is older than 10 minutes —
+Payphone's own widget-form expiry (`PAYPHONE_SESSION_MAX_AGE_MS` in `billing-manager.tsx`; separate
+from the 5-minute post-payment auto-reversal window in Step 3). This is driven entirely by a click
+handler, never a `useEffect` — deliberately, so React 18 Strict Mode's dev-only double-invoke of
+effects can never double a mint. If minting logic is ever moved into an effect, re-check this.
 
-**Selecting "Tarjeta" always creates a real `payphone_transactions` row, even if the tenant never
-submits card details.** There is no way around this — Payphone requires a real session before it
-will render anything, so "just looking" at the tab necessarily mints one. This isn't a bug: an
-abandoned attempt simply sits `PENDING` until the API's reconciliation job marks it `EXPIRED` (see
+**Selecting "Tarjeta" for the first time still creates a real `payphone_transactions` row, even if
+the tenant never submits card details** — there is no way around this, Payphone requires a real
+session before it will render anything, so "just looking" necessarily mints one. This isn't a bug:
+an abandoned attempt simply sits `PENDING` until the API's reconciliation job marks it `EXPIRED` (see
 `../comprobify/docs/guides/payphone-payments.md`'s "Attempt states" table) — the same append-only,
-audit-trail design a declined-then-retried card already relies on. Switching back to "Tarjeta" after
-switching away does **not** mint a second row for the same visit, since `payphoneSession` state
-persists in `PendingPaymentCard` for as long as that component stays mounted (see Step 2 below for
-what does and doesn't survive that).
+audit-trail design a declined-then-retried card already relies on. The caching above is what keeps
+this to *one* row per genuine checkout attempt rather than one per UI interaction.
+
+**Three `createSession` error codes mean "card isn't viable for this payment right now," not "retry
+me":**
+
+| Code | Status | Meaning |
+|---|---|---|
+| `PAYMENT_GATEWAY_NOT_CONFIGURED` | 503 | `PAYPHONE_TOKEN`/`PAYPHONE_STORE_ID` unset for this environment (see "Optional infrastructure" below) |
+| `PAYPHONE_AMOUNT_BELOW_MINIMUM` | 400 | Payphone refuses charges under $1.00 — reachable via a small prorated tier-change upgrade |
+| `PAYPHONE_TOO_MANY_ATTEMPTS` | 409 | 10+ unresolved attempts already open for this payment — the API's own cap against a runaway minting bug, not a normal state |
+
+For all three, `PendingPaymentCard` shows a toast, switches back to the Transferencia tab, and
+**disables** the "Tarjeta" tab (not hides it — the disabled button's `title` still shows why, and
+bank transfer is right there as the working alternative). Any *other*, unexpected error code stays
+retryable inline (message + a manual "usar transferencia" link) rather than disabling the tab, since
+those aren't known-persistent conditions.
 
 ---
 
@@ -234,11 +255,17 @@ loudly.
 
 ## Troubleshooting (frontend side)
 
-**"Tarjeta" tab shows an error immediately.** Check the surfaced `apiError` code:
+**"Tarjeta" tab is disabled, or a toast appeared and it switched back to Transferencia.** One of the
+three `CARD_UNAVAILABLE_CODES` fired (see Step 1) — check the surfaced `apiError` code (also in the
+disabled tab's `title` tooltip):
 - `PAYMENT_GATEWAY_NOT_CONFIGURED` — Payphone credentials unset on the API for this environment; expected outside production/staging with a real store configured.
-- `PAYMENT_ALREADY_VERIFIED` — the payment already settled through another attempt; refresh the billing page.
-- `PAYPHONE_AMOUNT_BELOW_MINIMUM` — Payphone rejects any charge under $1.00 outright (undocumented on their side, found by probing their `Prepare` endpoint); `createSession` catches it before minting an attempt row so the tenant sees this instead of a raw vendor error at submit. Reachable in practice via a small prorated tier-change upgrade. Not something to "fix" — the UI's job here is just to point back at the Transferencia tab, which the existing generic error-message + "use transfer instead" button already does; no code change needed beyond the translated string.
-- `PAYPHONE_SESSION_NOT_FOUND` (only from the confirm call, not session creation) — see below.
+- `PAYPHONE_AMOUNT_BELOW_MINIMUM` — Payphone rejects any charge under $1.00 outright (undocumented on their side, found by probing their `Prepare` endpoint). Reachable in practice via a small prorated tier-change upgrade.
+- `PAYPHONE_TOO_MANY_ATTEMPTS` — 10+ unresolved attempts already exist for this payment (`comprobify`'s own `MAX_PENDING_ATTEMPTS_PER_PAYMENT`). Legitimately reachable only if something is minting in a loop (a regression in the caching described in Step 1) — if you see this in normal use, that's the bug to chase, not this error itself.
+
+**"Tarjeta" tab shows an inline error but stays enabled.** Any *other* `createSession`/confirm error
+code — e.g. `PAYMENT_ALREADY_VERIFIED` (the payment already settled through another attempt; refresh
+the billing page) or `PAYPHONE_SESSION_NOT_FOUND` (only from the confirm call, not session creation —
+see below). These aren't known-persistent conditions, so the tab stays clickable to retry.
 
 **Widget button never appears / renders blank.** Almost always a domain mismatch — the current host
 isn't registered for the store whose token the session returned (see the table above), or the CDN
@@ -268,6 +295,6 @@ for "I paid but nothing happened."
 | `src/lib/api.ts` | `createPayphoneSession()`, `confirmPayphonePayment()`, `ApiPayphoneSession`/`ApiPayphoneConfirmResult` types |
 | `src/app/actions/billing.ts` | `createPayphoneSessionAction`, `confirmPayphonePaymentAction` — both gated `billing.manage` |
 | `src/components/payphone-checkout.tsx` | Loads the Cajita CDN assets, renders `PPaymentButtonBox` |
-| `src/components/billing-manager.tsx` | `PendingPaymentCard`'s "Transferencia"/"Tarjeta" tab toggle |
+| `src/components/billing-manager.tsx` | `PendingPaymentCard`'s "Transferencia"/"Tarjeta" tab toggle, session caching/expiry (`PAYPHONE_SESSION_MAX_AGE_MS`), and the disabled-tab handling for `CARD_UNAVAILABLE_CODES` |
 | `src/app/[locale]/payphone/return/page.tsx` | Confirms the charge on load, renders the outcome |
 | `messages/es.json` / `en.json` | `billing.payphone.*` (widget UI) and `billing.payphone.return.*` (return page) namespaces |

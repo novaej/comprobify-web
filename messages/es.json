@@ -798,6 +798,7 @@
     "PAYPHONE_CONFIRM_FAILED": "No pudimos confirmar el pago con el proveedor. Se confirmará automáticamente en unos minutos — no vuelvas a intentarlo.",
     "PAYPHONE_SESSION_NOT_FOUND": "No se encontró el intento de pago con tarjeta. Solicita uno nuevo.",
     "PAYPHONE_AMOUNT_BELOW_MINIMUM": "Este monto es demasiado bajo para pagar con tarjeta (mínimo $1.00). Usa transferencia bancaria para este pago.",
+    "PAYPHONE_TOO_MANY_ATTEMPTS": "Hay demasiados intentos de pago con tarjeta sin resolver para este pago. Espera unos minutos o usa transferencia bancaria.",
     "PAYMENT_ALREADY_VERIFIED": "Este pago ya fue verificado.",
     "SUBSCRIPTION_ALREADY_IN_FLIGHT": "Ya existe una suscripción en proceso para su cuenta.",
     "NO_ACTIVE_SUBSCRIPTION": "No tiene una suscripción activa. Active producción con un plan de pago primero.",
