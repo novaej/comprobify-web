@@ -1,6 +1,6 @@
 # Comprobify Web Deployment Reference (Staging)
 
-Last updated: 2026-08-16
+Last updated: 2026-08-30
 
 This reference describes the staging deployment setup for `comprobify-web`, including infrastructure, required configuration, deployment steps, and post-deployment checks. For the step-by-step guide on how this is set up (and *why*, in detail), see `docs/deployment.md` and `docs/terraform-digitalocean-setup.md` — this file is the quick-reference sheet of concrete project names and values for the environment that's actually running.
 
@@ -42,7 +42,7 @@ Use this section as the baseline configuration for the staging web app. It is fu
 | Droplet size | `s-1vcpu-1gb` (~$6/mo) — resized from the $4/mo tier after SSH connection resets under load |
 | Deploy user | `cpfywebdeploy9x` — unprivileged, docker-group only, no sudo |
 | Firewall | 80/443 restricted to Cloudflare's live IPv4 ranges; 22 open to `0.0.0.0/0` with defense at the identity layer (key-only auth, no root, `fail2ban`) |
-| Health check | `GET /api/health` exists (`src/app/api/health/route.ts`) but isn't wired to any platform-level probe — Caddy/Docker Compose have no application health check today; `restart: unless-stopped` is the container-recovery mechanism |
+| Health check | `GET /api/health` exists (`src/app/api/health/route.ts`); no Docker/Caddy-level probe wires into it (`restart: unless-stopped` is still the only *container-recovery* mechanism), but it **is** probed externally — Sentry's Uptime Monitoring for this project (dashboard-configured, not in this repo) hits it every minute. Previously pointed at `/`, which rendered the landing page and cascaded into a recurring `GET /v1/tiers` call to the Comprobify API on every probe |
 
 ### Environment variables
 
@@ -50,7 +50,7 @@ Everything lives in the `staging` GitHub Environment, as either a Secret or a Va
 
 | Variable | Kind | Value |
 |---|---|---|
-| `DATABASE_URL` | Secret | |
+| `DATABASE_URL` | Secret | Needed both as a Docker `--build-arg` (`src/lib/db.ts` eagerly parses it with `new URL()` at module scope, and `next build`'s page-data collection statically imports every route, so a missing value fails the build — not a live DB connection) and in the runtime `.env` for `prisma migrate deploy`/the app itself |
 | `DATABASE_SSL` | Variable | `true` |
 | `DATABASE_SSL_CA` | Secret | |
 | `COMPROBIFY_API_URL` | Variable | `https://api-staging.comprobify.com` |
@@ -64,6 +64,7 @@ Everything lives in the `staging` GitHub Environment, as either a Secret or a Va
 | `SENTRY_DSN` | Variable | `https://dda17234977e8471d407795aaa6672e1@o4511524451385344.ingest.us.sentry.io/4511524532256768` |
 | `NEXT_PUBLIC_SENTRY_DSN` | Variable | same value as `SENTRY_DSN` |
 | `SENTRY_AUTH_TOKEN` | Secret | build-time only — passed as a Docker `--build-arg`, never written to the runtime `.env` |
+| `SENTRY_RELEASE` | *(computed)* | build-time only, `${{ github.sha }}` — not a stored secret/variable. `.dockerignore` excludes `.git` from the build context, so the Sentry webpack plugin can't auto-detect a release from git the way it did under the old App Platform buildpack build; this must be passed explicitly or releases silently stop being tracked in Sentry (v0.9.16) |
 | `MAILGUN_API_KEY` | Secret | |
 | `MAILGUN_DOMAIN` | Variable | `mg.comprobify.com` |
 | `MAILGUN_FROM` | Variable | `Comprobify <no-reply@mg.comprobify.com>` |
@@ -167,7 +168,7 @@ None beyond Docker/Docker Compose on the droplet (installed by cloud-init) and C
 4. `release-staging.yml` fast-forwards `staging`; `deploy-staging.yml` picks up the push, builds a Docker image, pushes it to GHCR, and restarts the containers on the droplet. Any merged `terraform/**` change is applied separately by `terraform.yml` on its own `main`-push trigger, independent of the release cadence.
 5. Monitor the run in the GitHub Actions tab (build/push/SCP/SSH steps); once it finishes, `docker compose logs -f web` on the droplet confirms `prisma migrate deploy` ran (migrations run at container startup, not in the CI build log).
 
-Current version as of this writing: **v0.9.13**.
+Current version as of this writing: **v0.9.16** (staging branch HEAD). Several features (Payphone card payments/ADR-028, the invoicing-queue/refunds/suspension-reasons work/ADR-027, per-document-type "canIssue" pause) have merged to `main` since but not yet been cut into a release — none of them require new env vars/secrets for this app, see below.
 
 ## Post-deployment checks
 
@@ -194,6 +195,7 @@ Current version as of this writing: **v0.9.13**.
 | Every DB query fails at startup with `SELF_SIGNED_CERT_IN_CHAIN` | `DATABASE_SSL=true` is set but `DATABASE_SSL_CA` is missing/wrong for the cluster's private CA — download it from the cluster's Connection Details page in the DigitalOcean console. |
 | Cert-expiry banner never appears | `notification.issuerId` compared against the wrong field — must use `Issuer.apiIssuerId`, not `Issuer.id`. |
 | `/support` shows no contact details | `SUPPORT_EMAIL`/`SUPPORT_PHONE` GitHub Variable not set. |
+| "Tarjeta" tab on `/settings/billing` never renders the Payphone widget, or the widget errors on an unregistered domain | Nothing to fix in this repo/environment's `.env` — `PAYPHONE_TOKEN`/`PAYPHONE_STORE_ID` and the registered Web Domain/Response URL are configured on the **Comprobify API** side per Payphone application (one application per environment, not shareable). See `docs/guides/payphone-payments.md` and CLAUDE.md's "Registering the return URL is per Payphone *application*" entry. |
 | `deploy-staging.yml`'s SSH/SCP step fails to connect | Confirm `DROPLET_IP` is the **reserved** IP (`terraform output reserved_ip`), not the droplet's ephemeral own address, and that `INFRA_SSH_PRIVATE_KEY` matches the public key actually in `terraform.tfvars`. |
 | Domain loads over plain HTTP or shows a cert warning | Caddy hasn't finished its automatic Let's Encrypt issuance yet (first request after DNS propagates), or the ACME HTTP-01 challenge on port 80 is being blocked — confirm the firewall's Cloudflare IP ranges are current (`terraform plan` re-fetches them live on every run). |
 | `docker compose up -d` doesn't pick up a Caddyfile-only change | `docker compose up -d` only recreates a container when the *service definition* changes — a bind-mounted file edit needs an explicit `docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile`, which `deploy-staging.yml`'s last step already runs on every deploy. |
