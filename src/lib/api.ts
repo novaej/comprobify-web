@@ -844,6 +844,14 @@ export interface ApiAgreementStatus {
   // published yet" (hide the legal docs section) apart from "all caught up"
   // (show it, links work). See comprobify/tenant-agreement.service.js#getStatus.
   hasPublishedAgreements: boolean;
+  // false when the operator has switched legal documents off entirely for this
+  // deployment (comprobify's AGREEMENTS_ENABLED=false — API-side only, nothing
+  // to configure in this repo). hasPublishedAgreements is then also false and
+  // needsAcceptance is always false, so the existing gates on those two fields
+  // already hide the "Documentos legales" card and skip /agreements correctly
+  // with no code change — kept here purely so this interface matches the API
+  // response (rule 15/25), not because anything currently branches on it.
+  agreementsEnabled: boolean;
 }
 
 // Verified against: ../comprobify/src/routes/tenants.routes.js → GET /v1/tenants/agreements
