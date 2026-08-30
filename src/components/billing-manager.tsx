@@ -877,17 +877,26 @@ function ChangeTierCard({
         {confirming && selectedTier && scenario && (
           <div className="mt-3 rounded-md border border-border bg-muted/40 p-3 text-sm space-y-2">
             <p>
-              {scenario === 'upgrade'
-                ? t('changePlan.confirmHintUpgrade')
-                : scenario === 'downgrade'
-                  ? (periodEndFormatted
-                      ? t('changePlan.confirmHintDowngrade', { date: periodEndFormatted })
-                      : t('changePlan.confirmHintDowngradeNoDate'))
-                  : (periodEndFormatted
-                      ? t('changePlan.confirmHintIntervalChange', { date: periodEndFormatted })
-                      : t('changePlan.confirmHintIntervalChangeNoDate'))}
+              {/* Sandbox never prorates and never defers to period end (see
+                  requestSandboxTierChange) — it only branches on isTierDowngrade,
+                  ignoring the production upgrade/downgrade/interval-change
+                  distinction entirely, so it needs its own two-way copy here
+                  rather than reusing the production hints above. */}
+              {isSandbox
+                ? (isTierDowngrade
+                    ? t('changePlan.confirmHintSandboxFree')
+                    : t('changePlan.confirmHintSandboxCharge'))
+                : scenario === 'upgrade'
+                  ? t('changePlan.confirmHintUpgrade')
+                  : scenario === 'downgrade'
+                    ? (periodEndFormatted
+                        ? t('changePlan.confirmHintDowngrade', { date: periodEndFormatted })
+                        : t('changePlan.confirmHintDowngradeNoDate'))
+                    : (periodEndFormatted
+                        ? t('changePlan.confirmHintIntervalChange', { date: periodEndFormatted })
+                        : t('changePlan.confirmHintIntervalChangeNoDate'))}
             </p>
-            {targetTierInfo && scenario !== 'upgrade' && (
+            {targetTierInfo && (isSandbox ? !isTierDowngrade : scenario !== 'upgrade') && (
               <p className="font-medium">
                 {currencyFormatter.format(selectedInterval === 'YEARLY' ? targetTierInfo.priceYearlyUsd : targetTierInfo.priceMonthlyUsd)}
                 {tPricing(selectedInterval === 'YEARLY' ? 'perYear' : 'perMonth')}

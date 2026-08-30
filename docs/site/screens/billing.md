@@ -47,13 +47,15 @@ Shown when there is no subscription in flight (none yet, or the only ones are `C
 
 ### 5. Change tier card
 
-Shown when the latest subscription is `ACTIVE`, no payment is pending, and no downgrade is already scheduled. Renders the same **interval toggle + card grid** as Subscribe, but includes all three paid tiers (not filtered) and marks the current plan as locked/greyed when the current billing interval is selected — so switching interval while staying on the same tier is a valid selection. The API's three-scenario behavior is surfaced as contextual hints in the confirm step:
+Shown when the latest subscription is `ACTIVE`, no payment is pending, and no downgrade is already scheduled. Renders the same **interval toggle + card grid** as Subscribe, but includes all three paid tiers (not filtered) and marks the current plan as locked/greyed when the current billing interval is selected — so switching interval while staying on the same tier is a valid selection. Selecting the same tier at the same interval is treated as a no-op and the confirm button is disabled with a hint.
+
+**In production**, the API's three-scenario behavior is surfaced as contextual hints in the confirm step:
 
 - **Same-interval upgrade** (higher-priced tier, interval unchanged) — payment required, prorated for the fraction of the current period remaining. Calls `changeTierAction(tier)` (no interval). If the prorated amount rounds to $0, applies immediately with no payment.
 - **Same-interval downgrade** (lower-priced tier, interval unchanged) — scheduled for `current_period_end`, no payment owed. Calls `changeTierAction(tier)` (no interval).
 - **Interval change** (different interval, regardless of tier direction) — deferred to `current_period_end`, billed at the new tier+interval's full price. Calls `changeTierAction(tier, newInterval)`. The subscription's `billing_interval` does not flip until the period ends.
 
-Selecting the same tier at the same interval is treated as a no-op and the confirm button is disabled with a hint.
+**In sandbox, none of the above applies** — `requestSandboxTierChange` on the API side ignores the upgrade/downgrade/interval-change distinction entirely and only checks whether the target tier is cheaper: a downgrade (by monthly price, regardless of interval) applies **immediately for free**; anything else — an upgrade, or even a same-tier interval-only change — charges the new tier's **full sticker price immediately**, with no proration against a period that doesn't meaningfully exist yet and no deferral. `ChangeTierCard` shows dedicated `confirmHintSandboxCharge`/`confirmHintSandboxFree` copy for this (picked via `isTierDowngrade` alone, same condition the API branches on) instead of the three production hints above — see CLAUDE.md Common Mistake #55 for the bug this fixed (a sandbox upgrade previously said "cobro proporcional"/prorated while actually charging full price).
 
 ### 6. Subscription history
 

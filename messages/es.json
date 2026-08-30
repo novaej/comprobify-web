@@ -1622,6 +1622,8 @@
       "confirmHintDowngradeNoDate": "Sin cobro adicional. Tu plan actual se mantiene hasta el final del periodo y el nuevo plan se aplica automáticamente después.",
       "confirmHintIntervalChange": "El cambio se aplica al finalizar tu periodo actual ({date}). Se cobrará el precio completo del nuevo plan, sin prorrateo.",
       "confirmHintIntervalChangeNoDate": "El cambio se aplica al finalizar tu periodo actual. Se cobrará el precio completo del nuevo plan, sin prorrateo.",
+      "confirmHintSandboxCharge": "El cambio se aplica de inmediato. En sandbox no hay prorrateo: se cobra el precio completo del nuevo plan, sin descontar lo que ya pagaste. Deberás subir el comprobante de transferencia.",
+      "confirmHintSandboxFree": "El cambio se aplica de inmediato y sin cargo adicional — en sandbox, bajar de plan o cambiar la frecuencia de facturación nunca genera un cobro.",
       "confirm": "Confirmar cambio",
       "confirming": "Procesando...",
       "cancel": "Cancelar",
