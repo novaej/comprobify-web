@@ -1754,6 +1754,7 @@
       "verifiedAt": "Verified on {date}",
       "rejectedAt": "Rejected on {date}",
       "viewProofs": "View proofs",
+      "paidByCard": "Paid by card",
       "verify": "Verify",
       "reject": "Reject",
       "verified": "Payment verified.",

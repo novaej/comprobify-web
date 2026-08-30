@@ -24,7 +24,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { reviewPaymentAction, refundPaymentAction } from '@/app/actions/admin';
-import { Eye, Download, ChevronLeft, ChevronRight, ExternalLink, Undo2, MoreVertical } from 'lucide-react';
+import { Eye, Download, ChevronLeft, ChevronRight, ExternalLink, Undo2, MoreVertical, CreditCard } from 'lucide-react';
 import type { AdminPayment, AdminPaymentProof } from '@/lib/admin-api';
 
 const currencyFormatter = new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' });
@@ -183,7 +183,11 @@ export function AdminPaymentManager({
                   ) : (
                     <>
                       {/* Primary view button: the linked invoice when there is one to
-                          show (production only, see ADR-027), proofs otherwise. */}
+                          show (production only, see ADR-027), proofs otherwise — except
+                          a Payphone card payment, which never has proofs to view at all
+                          (it verifies itself; nothing was ever uploaded), so a "Ver
+                          comprobantes" button there would just open an always-empty
+                          dialog. Show a plain badge instead. */}
                       {payment.invoice_access_key ? (
                         <Button
                           size="sm"
@@ -193,6 +197,11 @@ export function AdminPaymentManager({
                           <ExternalLink className="mr-1.5 h-3.5 w-3.5" aria-hidden />
                           {t('viewInvoice')}
                         </Button>
+                      ) : payment.method === 'PAYPHONE_CARD' ? (
+                        <Badge variant="outline" className="gap-1.5">
+                          <CreditCard className="h-3.5 w-3.5" aria-hidden />
+                          {t('paidByCard')}
+                        </Badge>
                       ) : (
                         <Button size="sm" variant="outline" onClick={() => setProofTarget(payment)}>
                           <Eye className="mr-1.5 h-3.5 w-3.5" aria-hidden />
@@ -208,7 +217,7 @@ export function AdminPaymentManager({
                             <MoreVertical className="h-4 w-4" />
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            {payment.invoice_access_key && (
+                            {payment.invoice_access_key && payment.method !== 'PAYPHONE_CARD' && (
                               <DropdownMenuItem onClick={() => setProofTarget(payment)}>
                                 <Eye className="h-4 w-4" />
                                 {t('viewProofs')}

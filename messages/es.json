@@ -1754,6 +1754,7 @@
       "verifiedAt": "Verificado el {date}",
       "rejectedAt": "Rechazado el {date}",
       "viewProofs": "Ver comprobantes",
+      "paidByCard": "Pagado con tarjeta",
       "verify": "Verificar",
       "reject": "Rechazar",
       "verified": "Pago verificado.",

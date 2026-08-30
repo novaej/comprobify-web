@@ -300,11 +300,33 @@ for "I paid but nothing happened."
 
 ---
 
+## The super-admin side (`/admin/payments`)
+
+`admin-payment-manager.tsx` shows the same `payments` rows regardless of `method`, so it has to
+branch on it explicitly in two places:
+
+- **Viewing proofs.** A `PAYPHONE_CARD` payment never has anything in `payment_proofs` — it verifies
+  itself via Payphone's confirm call, never going through the upload/review pipeline an SPI transfer
+  does. The row shows a plain "Pagado con tarjeta" badge instead of a "Ver comprobantes" button for
+  these, in both the primary action slot and the dropdown's fallback item (which otherwise appears
+  once an invoice is linked) — showing the button anyway would just open an always-empty dialog.
+- **Refunding.** This one needed **no** method-specific handling — `PATCH /v1/admin/payments/:id/refund`
+  reads `payments.applied_from`, which the card path writes via the same `applyVerifiedPayment()` an
+  SPI transfer does (an explicit positive consequence called out in ADR-028). The refund dialog's own
+  copy already tells the admin to confirm the reversal "en tu banco o en el dashboard de Payphone"
+  before confirming — the endpoint only rolls back the *subscription* side; it never touches Payphone
+  or the real charge. See `../comprobify/docs/guides/payphone-payments.md`'s "Reversals and refunds"
+  section for the manual Payphone-side steps.
+
+---
+
 ## Key files
 
 | File | Role |
 |---|---|
 | `src/lib/api.ts` | `createPayphoneSession()`, `confirmPayphonePayment()`, `ApiPayphoneSession`/`ApiPayphoneConfirmResult` types |
+| `src/components/admin-payment-manager.tsx` | Super-admin payment list — shows a "Pagado con tarjeta" badge instead of "Ver comprobantes" for `PAYPHONE_CARD` payments; refund needs no method-specific handling |
+| `src/lib/admin-api.ts` | `AdminPayment.method: 'SPI_TRANSFER' \| 'PAYPHONE_CARD'` |
 | `src/app/actions/billing.ts` | `createPayphoneSessionAction`, `confirmPayphonePaymentAction` — both gated `billing.manage` |
 | `src/components/payphone-checkout.tsx` | Loads the Cajita CDN assets, renders `PPaymentButtonBox` |
 | `src/components/billing-manager.tsx` | `PendingPaymentCard`'s "Transferencia"/"Tarjeta" tab toggle, session caching/expiry (`PAYPHONE_SESSION_MAX_AGE_MS`), and the disabled-tab handling for `CARD_UNAVAILABLE_CODES` |
