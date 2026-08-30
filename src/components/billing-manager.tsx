@@ -793,6 +793,15 @@ function ChangeTierCard({
     targetTierInfo.priceMonthlyUsd < currentTierInfo.priceMonthlyUsd;
   const isNoOp = selectedTier === currentSubscriptionTier && !intervalChanged;
 
+  // Mirrors requestSandboxTierChange's own pricing exactly: current-tier price
+  // at the CURRENT interval (what was actually paid) credited against the
+  // target tier's price at the SELECTED interval — both from the same tiers
+  // catalog, no time-proration (sandbox has no real period for that).
+  const sandboxNetPrice = targetTierInfo && currentTierInfo
+    ? Math.max(0, (selectedInterval === 'YEARLY' ? targetTierInfo.priceYearlyUsd : targetTierInfo.priceMonthlyUsd)
+        - (currentBillingInterval === 'YEARLY' ? currentTierInfo.priceYearlyUsd : currentTierInfo.priceMonthlyUsd))
+    : 0;
+
   type Scenario = 'upgrade' | 'downgrade' | 'interval-change';
   let scenario: Scenario | null = null;
   if (selectedTier && !isNoOp) {
@@ -906,7 +915,14 @@ function ChangeTierCard({
                         ? t('changePlan.confirmHintIntervalChange', { date: periodEndFormatted })
                         : t('changePlan.confirmHintIntervalChangeNoDate'))}
             </p>
-            {targetTierInfo && (isSandbox ? !isTierDowngrade : scenario !== 'upgrade') && (
+            {targetTierInfo && isSandbox && !isTierDowngrade && (
+              <p className="font-medium">
+                {currencyFormatter.format(sandboxNetPrice)}
+                {' · '}
+                <span className="text-xs font-normal text-muted-foreground">{t('ivaIncluded')}</span>
+              </p>
+            )}
+            {targetTierInfo && !isSandbox && scenario !== 'upgrade' && (
               <p className="font-medium">
                 {currencyFormatter.format(selectedInterval === 'YEARLY' ? targetTierInfo.priceYearlyUsd : targetTierInfo.priceMonthlyUsd)}
                 {tPricing(selectedInterval === 'YEARLY' ? 'perYear' : 'perMonth')}

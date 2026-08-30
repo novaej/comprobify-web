@@ -1622,7 +1622,7 @@
       "confirmHintDowngradeNoDate": "No additional charge. Your current plan stays active until the end of your period, then the new plan applies automatically.",
       "confirmHintIntervalChange": "The change takes effect at the end of your current period ({date}). You'll be charged the full price of the new plan — no proration.",
       "confirmHintIntervalChangeNoDate": "The change takes effect at the end of your current period. You'll be charged the full price of the new plan — no proration.",
-      "confirmHintSandboxCharge": "The change applies immediately. Sandbox never prorates: you'll be charged the full price of the new plan, without crediting what you already paid. You'll need to upload a transfer proof.",
+      "confirmHintSandboxCharge": "The change applies immediately. Sandbox doesn't prorate by time, but what you already paid for your current plan is credited — you only pay the difference, as a one-time charge. You'll need to upload a transfer proof.",
       "confirmHintSandboxFree": "The change applies immediately at no additional charge — in sandbox, downgrading or changing billing frequency never generates a charge.",
       "confirm": "Confirm change",
       "confirming": "Processing...",
