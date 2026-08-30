@@ -147,23 +147,28 @@ nothing and let the API's own reconciliation job settle it.
 
 ## Environment setup: registering the return URL
 
-Payphone's console registration is **per store, per domain** — there is no per-session `responseUrl`
-field in the widget config, so the return URL an environment uses is whatever was registered for
-that store, full stop. `comprobify` uses **two separate Payphone stores**: a TEST store for
-non-production environments and the LIVE store for production (`.example.env`: "Staging should
-point at Payphone's TEST store, never the live one").
+Payphone's developer console registers a **web application per domain** — each entry has a
+"Dominio Web" (domain) field and a "URL de Respuesta" (return URL) field, and there is no
+per-session `responseUrl` in the widget config to override either one. `comprobify` uses **two
+separate Payphone stores**: a TEST store for non-production environments and the LIVE store for
+production (`.example.env`: "Staging should point at Payphone's TEST store, never the live one").
 
 Because URL paths in this app stay English regardless of locale content (see CLAUDE.md), and
 `localePrefix: 'always'` means every route is locale-prefixed, only the **Spanish** path is ever
 actually reachable at a fixed URL — register that one, not a bare or English-prefixed variant:
 
-| Environment | Payphone store | Register this URL |
-|---|---|---|
-| Local dev | TEST | Nothing to register — Payphone allows `localhost` automatically |
-| Staging | TEST | `https://app-staging.comprobify.com/es/payphone/return` |
-| Production | LIVE | `https://app.comprobify.com/es/payphone/return` |
+| Environment | Payphone store | Dominio Web | URL de Respuesta |
+|---|---|---|---|
+| Local dev | TEST | `http://localhost:3000` | `http://localhost:3000/es/payphone/return` |
+| Staging | TEST | `https://app-staging.comprobify.com` | `https://app-staging.comprobify.com/es/payphone/return` |
+| Production | LIVE | `https://app.comprobify.com` | `https://app.comprobify.com/es/payphone/return` |
 
-If a registration is missing, `POST /v1/payments/:id/payphone-session` still succeeds — the
+Payphone's own docs only confirm that `http://localhost` (no SSL certificate) is allowed for local
+testing — they don't spell out whether the domain match is port-sensitive. Register with the port
+included first (matching the actual browser origin, `http://localhost:3000`); if the widget rejects
+it as an unauthorized domain, try registering the bare `http://localhost` instead.
+
+If a registration is missing or wrong, `POST /v1/payments/:id/payphone-session` still succeeds — the
 mismatch only surfaces when the widget tries to render on an unregistered domain (it will fail to
 load or reject the transaction), or when Payphone has nowhere sensible to redirect back to.
 `PAYPHONE_TOKEN`/`PAYPHONE_STORE_ID` are API-side env vars (`comprobify`'s `.env`, not this app's) —
