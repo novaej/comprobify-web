@@ -69,7 +69,8 @@ flow. Selecting the "Tarjeta" tab mints a session (`createPayphoneSessionAction`
 click, not eagerly — minting also flips the payment's `method`) and renders the widget
 (`PayphoneCheckout`). A `503 PAYMENT_GATEWAY_NOT_CONFIGURED` shows an inline fallback and a button
 back to Transferencia — the environment simply has no Payphone credentials configured, which is a
-supported state, not an error.
+supported state, not an error. A `400 PAYPHONE_AMOUNT_BELOW_MINIMUM` (Payphone refuses charges under
+$1.00 — reachable via a small prorated tier-change upgrade) shows the same fallback pattern.
 
 Once the payer submits card details, Payphone takes over entirely: it redirects the browser away
 from this screen to `/es/payphone/return`, which confirms the charge and shows the outcome
