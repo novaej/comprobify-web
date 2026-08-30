@@ -100,7 +100,13 @@ export function BillingManager({
   const latestSubscription = subscriptions[0] ?? null;
   const latestPayment = latestSubscription?.payments[0] ?? null;
   const isSubscriptionOver = latestSubscription?.status === 'CANCELLED' || latestSubscription?.status === 'EXPIRED';
-  const needsAction = !!latestPayment && latestPayment.status !== 'VERIFIED' && !isSubscriptionOver;
+  // REFUNDED is terminal, not "still pending" — a refund already rolled the
+  // subscription back to applied_from (see refundPayment on the API side), so
+  // there's nothing left to pay for *this* payment. Without excluding it, the
+  // pending-payment card kept demanding payment for an already-reversed
+  // TIER_CHANGE instead of falling back to ChangeTierCard for a fresh attempt.
+  // REJECTED stays included — that one genuinely needs a new proof upload.
+  const needsAction = !!latestPayment && latestPayment.status !== 'VERIFIED' && latestPayment.status !== 'REFUNDED' && !isSubscriptionOver;
   // pending_tier = 'FREE' means cancellation scheduled; a paid tier means downgrade scheduled.
   const pendingCancellation = latestSubscription?.status === 'ACTIVE' && latestSubscription.pending_tier === 'FREE';
   const pendingDowngradeTier = latestSubscription?.status === 'ACTIVE' && latestSubscription.pending_tier !== 'FREE'
