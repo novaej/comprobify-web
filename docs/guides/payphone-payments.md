@@ -58,6 +58,16 @@ API for this environment (see "Optional infrastructure" below) — this is a nor
 not a bug. `PendingPaymentCard` shows an inline fallback message and a button back to the transfer
 tab; bank transfer keeps working regardless.
 
+**Selecting "Tarjeta" always creates a real `payphone_transactions` row, even if the tenant never
+submits card details.** There is no way around this — Payphone requires a real session before it
+will render anything, so "just looking" at the tab necessarily mints one. This isn't a bug: an
+abandoned attempt simply sits `PENDING` until the API's reconciliation job marks it `EXPIRED` (see
+`../comprobify/docs/guides/payphone-payments.md`'s "Attempt states" table) — the same append-only,
+audit-trail design a declined-then-retried card already relies on. Switching back to "Tarjeta" after
+switching away does **not** mint a second row for the same visit, since `payphoneSession` state
+persists in `PendingPaymentCard` for as long as that component stays mounted (see Step 2 below for
+what does and doesn't survive that).
+
 ---
 
 ## Step 2: rendering the widget
@@ -79,10 +89,30 @@ new window.PPaymentButtonBox({
 }).render('pp-button');
 ```
 
-**Mount `<PayphoneCheckout>` with `key={session.clientTransactionId}`.** The widget attaches once
-per instance — reusing the same component instance for a new session (e.g. after switching tabs
-away and back) silently no-ops instead of rendering a fresh form. A `key` forces React to mount a
-genuinely new instance whenever the session changes.
+**Who actually renders the card-entry fields:** nothing in this app or the API. Once
+`PPaymentButtonBox(...).render('pp-button')` runs, Payphone's own script takes over the container
+and injects its own UI (card number/expiry/CVV, brand detection, validation) entirely under its
+control — this repo and the API only ever supply the numeric/session **config** (token, amounts,
+ids), never the form markup itself. There is nothing to customize or debug on our side if a field
+looks wrong; that's Payphone's script rendering, not ours.
+
+**`<PayphoneCheckout>` must stay mounted for the lifetime of its session — never conditionally
+unmount and remount it, even to hide it.** `.render()` is a one-time call per `clientTransactionId`:
+Payphone's own widget SDK tracks which ids it has already processed and **rejects a second
+`render()` call for the same one**, failing client-side with "Ya existe una transacción con el
+ClientTransactionId especificado." This app hit exactly that: `PendingPaymentCard` used to nest
+`<PayphoneCheckout>` inside `{payMethod === 'card' && (...)}`, so switching to the Transferencia tab
+and back unmounted-then-remounted it — a fresh mount resets the `renderedRef` guard and calls
+`.render()` again for the *same* session, which Payphone refuses. The fix (`billing-manager.tsx`):
+hoist `<PayphoneCheckout>` out of that conditional so it mounts exactly once, the first time
+`payphoneSession` is set, and toggle a wrapping `<div className={payMethod === 'card' ? '' :
+'hidden'}>` around it instead — conditional *visibility*, never conditional *mounting*, once a
+session exists. See CLAUDE.md Common Mistake #56.
+
+Still mount it with `key={session.clientTransactionId}` — that's for the case where the session
+itself genuinely changes (e.g. a future retry flow that mints a fresh one after a decline), which
+*should* force a new instance; it does nothing to protect against the tab-toggle case above, since
+the key stays identical across toggles and React only remounts on a key change, not on unmount.
 
 **The rendered form expires 10 minutes after load** (Payphone's own limit, separate from the
 5-minute post-payment auto-reversal window described in Step 3). If a tenant leaves the widget open

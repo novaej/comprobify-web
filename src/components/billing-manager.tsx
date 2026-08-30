@@ -505,11 +505,21 @@ function PendingPaymentCard({
               {t('payphone.mintingSession')}
             </div>
           ) : (
-            <>
-              <p className="mb-2 text-xs text-muted-foreground">{t('payphone.redirectNote')}</p>
-              <PayphoneCheckout key={payphoneSession.clientTransactionId} session={payphoneSession} />
-            </>
+            <p className="mb-2 text-xs text-muted-foreground">{t('payphone.redirectNote')}</p>
           )}
+        </div>
+      )}
+
+      {/* Rendered once and kept mounted (hidden via CSS, not removed from the
+          tree) for as long as this session lives — Payphone's widget SDK
+          rejects a second render() call for a clientTransactionId it has
+          already seen, so unmounting/remounting on every "Tarjeta" tab toggle
+          (as this used to do, nested inside the block above) broke the widget
+          with "Ya existe una transacción..." the second time the tab was
+          reopened. See CLAUDE.md Common Mistake #56. */}
+      {payphoneSession && !cardError && (
+        <div className={payMethod === 'card' ? 'mt-1' : 'hidden'}>
+          <PayphoneCheckout key={payphoneSession.clientTransactionId} session={payphoneSession} />
         </div>
       )}
 
