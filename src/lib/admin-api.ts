@@ -103,7 +103,7 @@ export interface AdminAgreementDetail extends AdminAgreementVersion {
   contentMarkdown: string;
 }
 
-export type TierName = 'FREE' | 'STARTER' | 'GROWTH' | 'BUSINESS';
+export type TierName = 'FREE' | 'SOLO' | 'LITE' | 'STARTER' | 'GROWTH' | 'BUSINESS' | 'ENTERPRISE';
 export type BillingInterval = 'MONTHLY' | 'YEARLY';
 
 // Verified against: ../comprobify/src/controllers/admin.controller.js → formatTierPrice()

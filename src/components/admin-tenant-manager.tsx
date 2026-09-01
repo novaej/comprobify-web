@@ -20,8 +20,9 @@ import { Label } from '@/components/ui/label';
 import { updateTenantTierAction, updateTenantStatusAction, verifyTenantAction } from '@/app/actions/admin';
 import { cn } from '@/lib/utils';
 import type { AdminTenant, AdminTenantStatus, AdminSuspensionReason } from '@/lib/admin-api';
+import { ALL_TIERS } from '@/lib/subscription-tiers';
 
-const TIERS = ['FREE', 'STARTER', 'GROWTH', 'BUSINESS'] as const;
+const TIERS = ALL_TIERS;
 const STATUSES: AdminTenantStatus[] = ['PENDING_VERIFICATION', 'ACTIVE', 'SUSPENDED', 'PAST_DUE'];
 const SUSPENSION_REASONS: AdminSuspensionReason[] = [
   'PAYMENT_REVERSED',

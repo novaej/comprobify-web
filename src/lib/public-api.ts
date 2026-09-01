@@ -234,27 +234,35 @@ export async function listAgreements(): Promise<ApiAgreementInfo[]> {
 }
 
 // Verified against: ../comprobify/src/controllers/tiers.controller.js → list()
-// Prices are IVA-inclusive all-in totals (what a tenant transfers).
-// The *Base fields are the base imponible; *Iva is the IVA portion.
+// priceMonthlyUsd/priceYearlyUsd are the advertised, tax-EXCLUSIVE sticker
+// price — matches how every local competitor publishes theirs (IVA added at
+// checkout, not baked into the listed number). *Iva is the IVA portion on
+// top; *Total is what a tenant actually pays/is charged — use *Total for
+// any "you will be charged" display. Either price can be null when the tier
+// doesn't sell that interval (e.g. SOLO is yearly-only — see
+// billingIntervals). This flipped from an IVA-inclusive convention in API
+// commit f3d2e83 — see CLAUDE.md Common Mistake #59 for the full history.
 export interface ApiTierInfo {
-  name: 'FREE' | 'STARTER' | 'GROWTH' | 'BUSINESS';
+  name: 'FREE' | 'SOLO' | 'LITE' | 'STARTER' | 'GROWTH' | 'BUSINESS' | 'ENTERPRISE';
   documentQuota: number;
   maxBranches: number | null;
   maxIssuePointsPerBranch: number | null;
   maxWebhookEndpoints: number;
   writeRateLimit: number;
   readRateLimit: number;
+  billingIntervals: ('MONTHLY' | 'YEARLY')[];
   allowedDocumentTypes: string[];
   ivaRate: number;
-  priceMonthlyUsdBase: number;
-  priceMonthlyUsdIva: number;
-  priceMonthlyUsd: number;        // IVA-inclusive total
-  priceYearlyUsdBase: number;
-  priceYearlyUsdIva: number;
-  priceYearlyUsd: number;         // IVA-inclusive total
+  priceMonthlyUsd: number | null;       // tax-exclusive base
+  priceMonthlyUsdIva: number | null;
+  priceMonthlyUsdTotal: number | null;  // what a tenant actually pays
+  priceYearlyUsd: number | null;        // tax-exclusive base
+  priceYearlyUsdIva: number | null;
+  priceYearlyUsdTotal: number | null;   // what a tenant actually pays
   // A published-but-not-yet-effective price change (ADR-023's 30-day notice
   // window), null when nothing is pending. Visible here so prospective
   // tenants see it too, not just existing ones who got the notification.
+  // Also tax-exclusive, same convention as priceMonthlyUsd/priceYearlyUsd.
   upcomingPriceMonthlyUsd: number | null;
   monthlyPriceEffectiveAt: string | null;
   upcomingPriceYearlyUsd: number | null;
