@@ -197,13 +197,15 @@ export function ProductionPromotion({
                   </div>
                   {selectedTierInfo && (() => {
                     const { total, effectiveInterval } = resolveTierTotal(selectedTierInfo, selectedInterval);
+                    const priceInterval = {
+                      price: currencyFormatter.format(total),
+                      interval: tPricing(effectiveInterval === 'MONTHLY' ? 'perMonth' : 'perYear'),
+                    };
                     return (
                       <p className="text-sm">
-                        {t('planSummary', {
-                          price: currencyFormatter.format(total),
-                          interval: tPricing(effectiveInterval === 'MONTHLY' ? 'perMonth' : 'perYear'),
-                          quota: selectedTierInfo.documentQuota,
-                        })}
+                        {selectedTierInfo.documentQuota === null
+                          ? t('planSummaryUnlimited', priceInterval)
+                          : t('planSummary', { ...priceInterval, quota: selectedTierInfo.documentQuota })}
                         {' '}
                         <span className="text-xs text-muted-foreground">
                           ({tPricing('ivaIncluded')})

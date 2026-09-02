@@ -197,7 +197,9 @@ export function AdminTenantManager({ tenants }: { tenants: AdminTenantRow[] }) {
 
                 {/* Usage */}
                 <TableCell className="text-sm text-muted-foreground">
-                  {t('usageValue', { count: tenant.documentCount, quota: tenant.documentQuota })}
+                  {tenant.documentQuota === null
+                    ? t('usageValueUnlimited', { count: tenant.documentCount })
+                    : t('usageValue', { count: tenant.documentCount, quota: tenant.documentQuota })}
                 </TableCell>
               </TableRow>
             );

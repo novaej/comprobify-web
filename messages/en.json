@@ -661,6 +661,7 @@
       "planAlreadyActive": "You already have an active subscription to the {tier} plan. It will carry over when you activate production.",
       "planAlreadyActiveLink": "Manage plan",
       "planSummary": "{price}{interval} · {quota} documents/month",
+      "planSummaryUnlimited": "{price}{interval} · unlimited documents",
       "sequentials": "Starting sequence numbers (production)",
       "sequentialsHint": "The next number Comprobify will use for each document type in production. If the last number issued outside the system was 99, enter 100. Leave at 1 if starting fresh.",
       "resend": "Resend verification email",
@@ -1518,6 +1519,7 @@
     },
     "features": {
       "quota": "{count} documents/month",
+      "unlimitedQuota": "Unlimited documents",
       "branches": "{count} branches",
       "unlimitedBranches": "Unlimited branches",
       "issuePoints": "{count} issue points per branch",
@@ -1532,6 +1534,7 @@
     "viewProof": "View proof",
     "currentPlan": "Current plan",
     "usage": "{count} of {quota} production documents used",
+    "usageUnlimited": "{count} production documents used (unlimited)",
     "planDetails": "Plan details",
     "planLimits": {
       "quota": "Documents per period",
@@ -1736,6 +1739,7 @@
         "PAST_DUE": "Past due"
       },
       "usageValue": "{count} / {quota} docs",
+      "usageValueUnlimited": "{count} docs (unlimited)",
       "verify": "Verify tenant",
       "tierUpdated": "Tier updated.",
       "statusUpdated": "Status updated.",

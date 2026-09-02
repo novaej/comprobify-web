@@ -134,7 +134,9 @@ export function BillingManager({
         <p className="mt-1.5 text-lg font-semibold">{tierName}</p>
         {!isSandbox && (
           <p className="mt-1 text-sm text-muted-foreground">
-            {t('usage', { count: Number(tenantInfo.documentCount), quota: tenantInfo.documentQuota })}
+            {tenantInfo.documentQuota === null
+              ? t('usageUnlimited', { count: Number(tenantInfo.documentCount) })
+              : t('usage', { count: Number(tenantInfo.documentCount), quota: tenantInfo.documentQuota })}
           </p>
         )}
         {latestSubscription?.status === 'ACTIVE' && (
@@ -188,7 +190,10 @@ export function BillingManager({
             </p>
             <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {[
-                { label: t('planLimits.quota'), value: String(currentTier.documentQuota) },
+                {
+                  label: t('planLimits.quota'),
+                  value: currentTier.documentQuota === null ? t('planLimits.unlimited') : String(currentTier.documentQuota),
+                },
                 {
                   label: t('planLimits.branches'),
                   value: currentTier.maxBranches === null ? t('planLimits.unlimited') : String(currentTier.maxBranches),
@@ -804,7 +809,9 @@ function PlanCard({
         </p>
       </div>
       <p className="text-xs text-muted-foreground">
-        {tPricing('features.quota', { count: tier.documentQuota })}
+        {tier.documentQuota === null
+          ? tPricing('features.unlimitedQuota')
+          : tPricing('features.quota', { count: tier.documentQuota })}
       </p>
     </div>
   );

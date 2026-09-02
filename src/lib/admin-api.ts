@@ -33,7 +33,8 @@ export interface AdminTenant {
   subscriptionTier: string;
   status: AdminTenantStatus;
   suspensionReasonCode: AdminSuspensionReason | null;
-  documentQuota: number;
+  // null means genuinely unlimited (ENTERPRISE — comprobify migration 094).
+  documentQuota: number | null;
   documentCount: number;
   createdAt: string;
 }

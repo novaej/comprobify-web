@@ -809,7 +809,8 @@ export interface ApiTenantInfo {
     | 'OTHER'
     | null;
   documentCount: string;   // bigint → serialized as string by pg/JSON
-  documentQuota: number;   // regular int column
+  // null means genuinely unlimited (ENTERPRISE — comprobify migration 094).
+  documentQuota: number | null;
   sandbox: boolean;
   agreementAcceptedAt: string | null;
   agreementVersion: string | null;

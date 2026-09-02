@@ -244,7 +244,8 @@ export async function listAgreements(): Promise<ApiAgreementInfo[]> {
 // commit f3d2e83 — see CLAUDE.md Common Mistake #59 for the full history.
 export interface ApiTierInfo {
   name: 'FREE' | 'SOLO' | 'LITE' | 'STARTER' | 'GROWTH' | 'BUSINESS' | 'ENTERPRISE';
-  documentQuota: number;
+  // null means genuinely unlimited (ENTERPRISE — comprobify migration 094).
+  documentQuota: number | null;
   maxBranches: number | null;
   maxIssuePointsPerBranch: number | null;
   maxWebhookEndpoints: number;

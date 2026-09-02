@@ -661,6 +661,7 @@
       "planAlreadyActive": "Ya tienes una suscripción activa al plan {tier}. Se mantendrá al activar producción.",
       "planAlreadyActiveLink": "Gestionar plan",
       "planSummary": "{price}{interval} · {quota} comprobantes/mes",
+      "planSummaryUnlimited": "{price}{interval} · comprobantes ilimitados",
       "sequentials": "Secuenciales iniciales en producción",
       "sequentialsHint": "Número desde el que empezará cada tipo de comprobante en producción. Si el último emitido fuera del sistema fue el 99, ingresa 100. Si empiezas desde cero, deja todo en 1.",
       "resend": "Reenviar correo de verificación",
@@ -1518,6 +1519,7 @@
     },
     "features": {
       "quota": "{count} comprobantes/mes",
+      "unlimitedQuota": "Comprobantes ilimitados",
       "branches": "{count} sucursales",
       "unlimitedBranches": "Sucursales ilimitadas",
       "issuePoints": "{count} puntos de emisión por sucursal",
@@ -1532,6 +1534,7 @@
     "viewProof": "Ver comprobante",
     "currentPlan": "Plan actual",
     "usage": "{count} de {quota} comprobantes usados en producción",
+    "usageUnlimited": "{count} comprobantes usados en producción (ilimitado)",
     "planDetails": "Detalles del plan",
     "planLimits": {
       "quota": "Comprobantes por período",
@@ -1736,6 +1739,7 @@
         "PAST_DUE": "Atrasado"
       },
       "usageValue": "{count} / {quota} docs",
+      "usageValueUnlimited": "{count} docs (ilimitado)",
       "verify": "Verificar tenant",
       "tierUpdated": "Plan actualizado.",
       "statusUpdated": "Estado actualizado.",

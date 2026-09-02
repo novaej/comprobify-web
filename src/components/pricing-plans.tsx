@@ -140,7 +140,9 @@ export function PricingPlans({ tiers }: { tiers: ApiTierInfo[] }) {
               <ul className="flex flex-col gap-2 flex-1 text-sm">
                 <li className="flex items-start gap-2">
                   <Check className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                  {t('features.quota', { count: tier.documentQuota })}
+                  {tier.documentQuota === null
+                    ? t('features.unlimitedQuota')
+                    : t('features.quota', { count: tier.documentQuota })}
                 </li>
                 <li className="flex items-start gap-2">
                   <Check className="w-4 h-4 text-primary mt-0.5 shrink-0" />
