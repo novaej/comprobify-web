@@ -10,7 +10,7 @@ import { resendVerificationAction } from '@/app/actions/tenant';
 import { AlertTriangle, Info, MailCheck, FileWarning } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import type { ApiTierInfo } from '@/lib/public-api';
-import type { PaidTier, BillingInterval } from '@/lib/subscription-tiers';
+import { resolveTierTotal, type PaidTier, type BillingInterval } from '@/lib/subscription-tiers';
 
 const currencyFormatter = new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
@@ -96,7 +96,12 @@ export function ProductionPromotion({
     );
     startTransition(async () => {
       const tier = activeSubscriptionTier || selectedTier === 'FREE' ? undefined : selectedTier;
-      const interval = activeSubscriptionTier || selectedTier === 'FREE' ? undefined : selectedInterval;
+      // Resolve off the tier's own billingIntervals rather than the raw toggle
+      // state — guards against submitting an interval the tier doesn't sell
+      // (e.g. Mensual for SOLO, which is yearly-only).
+      const interval = activeSubscriptionTier || selectedTier === 'FREE' || !selectedTierInfo
+        ? undefined
+        : resolveTierTotal(selectedTierInfo, selectedInterval).effectiveInterval;
       const result = await promoteTenantAction(initialSequentials, tier, interval);
       if (result && 'error' in result) {
         setConfirming(false);
@@ -140,7 +145,14 @@ export function ProductionPromotion({
               </div>
               <Select<'FREE' | PaidTier>
                 value={selectedTier}
-                onValueChange={(value) => value && setSelectedTier(value)}
+                onValueChange={(value) => {
+                  if (!value) return;
+                  setSelectedTier(value);
+                  // Keep the interval toggle in sync when the picked tier doesn't
+                  // sell the currently-selected interval (e.g. SOLO is yearly-only).
+                  const info = tiers.find((tier) => tier.name === value);
+                  if (info) setSelectedInterval(resolveTierTotal(info, selectedInterval).effectiveInterval);
+                }}
               >
                 <SelectTrigger className="w-full" disabled={isPending}>
                   <SelectValue>
@@ -162,41 +174,45 @@ export function ProductionPromotion({
               {selectedTier !== 'FREE' && (
                 <>
                   <div className="flex gap-2">
-                    {(['MONTHLY', 'YEARLY'] as const).map((interval) => (
-                      <button
-                        key={interval}
-                        type="button"
-                        onClick={() => setSelectedInterval(interval)}
-                        disabled={isPending}
-                        className={`rounded-md border px-3 py-1.5 text-sm transition-colors ${
-                          selectedInterval === interval
-                            ? 'border-primary bg-primary/5 font-medium'
-                            : 'border-border text-muted-foreground'
-                        }`}
-                      >
-                        {tPricing(`interval.${interval.toLowerCase()}` as Parameters<typeof tPricing>[0])}
-                      </button>
-                    ))}
+                    {(['MONTHLY', 'YEARLY'] as const).map((interval) => {
+                      const sellsInterval = selectedTierInfo
+                        ? (selectedTierInfo.billingIntervals ?? ['MONTHLY', 'YEARLY']).includes(interval)
+                        : true;
+                      return (
+                        <button
+                          key={interval}
+                          type="button"
+                          onClick={() => setSelectedInterval(interval)}
+                          disabled={isPending || !sellsInterval}
+                          className={`rounded-md border px-3 py-1.5 text-sm transition-colors ${
+                            selectedInterval === interval
+                              ? 'border-primary bg-primary/5 font-medium'
+                              : 'border-border text-muted-foreground'
+                          } ${!sellsInterval ? 'opacity-40 cursor-not-allowed' : ''}`}
+                        >
+                          {tPricing(`interval.${interval.toLowerCase()}` as Parameters<typeof tPricing>[0])}
+                        </button>
+                      );
+                    })}
                   </div>
-                  {selectedTierInfo && (
-                    <p className="text-sm">
-                      {t('planSummary', {
-                        price: currencyFormatter.format(
-                          selectedInterval === 'MONTHLY'
-                            ? selectedTierInfo.priceMonthlyUsd
-                            : selectedTierInfo.priceYearlyUsd,
-                        ),
-                        interval: tPricing(
-                          selectedInterval === 'MONTHLY' ? 'perMonth' : 'perYear',
-                        ),
-                        quota: selectedTierInfo.documentQuota,
-                      })}
-                      {' '}
-                      <span className="text-xs text-muted-foreground">
-                        ({tPricing('ivaIncluded')})
-                      </span>
-                    </p>
-                  )}
+                  {selectedTierInfo && (() => {
+                    const { total, effectiveInterval } = resolveTierTotal(selectedTierInfo, selectedInterval);
+                    const priceInterval = {
+                      price: currencyFormatter.format(total),
+                      interval: tPricing(effectiveInterval === 'MONTHLY' ? 'perMonth' : 'perYear'),
+                    };
+                    return (
+                      <p className="text-sm">
+                        {selectedTierInfo.documentQuota === null
+                          ? t('planSummaryUnlimited', priceInterval)
+                          : t('planSummary', { ...priceInterval, quota: selectedTierInfo.documentQuota })}
+                        {' '}
+                        <span className="text-xs text-muted-foreground">
+                          ({tPricing('ivaIncluded')})
+                        </span>
+                      </p>
+                    );
+                  })()}
                 </>
               )}
             </>

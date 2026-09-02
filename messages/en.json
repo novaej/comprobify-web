@@ -661,6 +661,7 @@
       "planAlreadyActive": "You already have an active subscription to the {tier} plan. It will carry over when you activate production.",
       "planAlreadyActiveLink": "Manage plan",
       "planSummary": "{price}{interval} · {quota} documents/month",
+      "planSummaryUnlimited": "{price}{interval} · unlimited documents",
       "sequentials": "Starting sequence numbers (production)",
       "sequentialsHint": "The next number Comprobify will use for each document type in production. If the last number issued outside the system was 99, enter 100. Leave at 1 if starting fresh.",
       "resend": "Resend verification email",
@@ -1477,12 +1478,23 @@
     "yearlyEquivalent": "Equivalent to {price}/mo",
     "ivaIncluded": "VAT included",
     "ivaNote": "Prices include VAT ({rate}%)",
+    "yearlyOnlyNote": "Available with yearly billing only",
     "upcomingPriceNote": "Price increases to {price} on {date}.",
     "tiers": {
       "FREE": {
         "name": "Free",
         "description": "For developers and teams exploring the platform.",
         "cta": "Get started free"
+      },
+      "SOLO": {
+        "name": "Solo",
+        "description": "For independent, occasional invoicing.",
+        "cta": "Sign up"
+      },
+      "LITE": {
+        "name": "Lite",
+        "description": "For small businesses just getting started online.",
+        "cta": "Sign up"
       },
       "STARTER": {
         "name": "Starter",
@@ -1498,10 +1510,16 @@
         "name": "Business",
         "description": "For high-volume businesses with advanced needs.",
         "cta": "Sign up"
+      },
+      "ENTERPRISE": {
+        "name": "Enterprise",
+        "description": "For high-volume operations with custom needs.",
+        "cta": "Sign up"
       }
     },
     "features": {
       "quota": "{count} documents/month",
+      "unlimitedQuota": "Unlimited documents",
       "branches": "{count} branches",
       "unlimitedBranches": "Unlimited branches",
       "issuePoints": "{count} issue points per branch",
@@ -1516,6 +1534,7 @@
     "viewProof": "View proof",
     "currentPlan": "Current plan",
     "usage": "{count} of {quota} production documents used",
+    "usageUnlimited": "{count} production documents used (unlimited)",
     "planDetails": "Plan details",
     "planLimits": {
       "quota": "Documents per period",
@@ -1720,6 +1739,7 @@
         "PAST_DUE": "Past due"
       },
       "usageValue": "{count} / {quota} docs",
+      "usageValueUnlimited": "{count} docs (unlimited)",
       "verify": "Verify tenant",
       "tierUpdated": "Tier updated.",
       "statusUpdated": "Status updated.",
@@ -1864,9 +1884,12 @@
       "published": "Price published. Active tenants will be notified.",
       "tiers": {
         "FREE": "Free",
+        "SOLO": "Solo",
+        "LITE": "Lite",
         "STARTER": "Starter",
         "GROWTH": "Growth",
-        "BUSINESS": "Business"
+        "BUSINESS": "Business",
+        "ENTERPRISE": "Enterprise"
       },
       "intervals": {
         "MONTHLY": "Monthly",
@@ -1880,7 +1903,7 @@
       "columns": {
         "tier": "Tier",
         "interval": "Interval",
-        "price": "Price",
+        "price": "Price (excl. VAT)",
         "status": "Status",
         "effectiveAt": "Effective",
         "actions": "Actions"
@@ -1890,8 +1913,8 @@
         "description": "Created as a draft — not visible to tenants and starts no notice clock until you publish it.",
         "tierLabel": "Tier",
         "intervalLabel": "Billing interval",
-        "priceLabel": "Price (USD, VAT included)",
-        "priceHint": "Same format as priceMonthlyUsd/priceYearlyUsd on GET /v1/tiers.",
+        "priceLabel": "Price (USD, excl. VAT)",
+        "priceHint": "Base price, excluding VAT — VAT is added automatically at checkout. Same format as priceMonthlyUsd/priceYearlyUsd on GET /v1/tiers.",
         "submit": "Create draft",
         "submitting": "Creating..."
       },
@@ -1900,7 +1923,7 @@
       },
       "publishDialog": {
         "title": "Publish price — {tier} ({interval})",
-        "description": "New price: {price}",
+        "description": "New price: {price} (excl. VAT)",
         "warning": "This action is irreversible. Once published, the price can't be edited or deleted — only a new draft can replace it later.",
         "noticeDaysLabel": "Notice days",
         "noticeDaysHint": "Minimum 30 days. Every active tenant receives a notification (in-app and email) of the change.",

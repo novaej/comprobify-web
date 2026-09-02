@@ -2,6 +2,7 @@ import 'server-only';
 import { ApiError, ProblemDetails } from './errors';
 import { buildClientForwardingHeaders, type ClientForwardingInfo } from './client-forwarding';
 import type { ApiKeyScope } from './role-api-scopes';
+import type { PaidTier } from './subscription-tiers';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // IMPORTANT — READ BEFORE ADDING OR MODIFYING ANY FUNCTION
@@ -808,7 +809,8 @@ export interface ApiTenantInfo {
     | 'OTHER'
     | null;
   documentCount: string;   // bigint → serialized as string by pg/JSON
-  documentQuota: number;   // regular int column
+  // null means genuinely unlimited (ENTERPRISE — comprobify migration 094).
+  documentQuota: number | null;
   sandbox: boolean;
   agreementAcceptedAt: string | null;
   agreementVersion: string | null;
@@ -919,7 +921,7 @@ export interface PromoteTenantResult {
   // Only present when `tier` was supplied in the request.
   subscription?: {
     id: string;
-    tier: 'STARTER' | 'GROWTH' | 'BUSINESS';
+    tier: PaidTier;
     status: string;
     billing_interval: 'MONTHLY' | 'YEARLY';
   };
@@ -934,7 +936,7 @@ export interface PromoteTenantResult {
 export async function promoteTenant(
   ctx: ApiCtx,
   initialSequentials?: Array<{ issuerId: string; documentType: string; sequential: number }>,
-  tier?: 'STARTER' | 'GROWTH' | 'BUSINESS',
+  tier?: PaidTier,
   billingInterval?: 'MONTHLY' | 'YEARLY',
 ): Promise<PromoteTenantResult> {
   return request<PromoteTenantResult>(
@@ -972,7 +974,7 @@ export interface ApiPaymentInfo {
   total_amount?: string | null;  // IVA-inclusive total; use this for display
   method: 'SPI_TRANSFER' | 'PAYPHONE_CARD';
   purpose?: 'INITIAL' | 'TIER_CHANGE' | 'RENEWAL';
-  target_tier?: 'STARTER' | 'GROWTH' | 'BUSINESS' | null;
+  target_tier?: PaidTier | null;
   target_billing_interval?: 'MONTHLY' | 'YEARLY' | null;
   rejection_reason_code?: 'AMOUNT_MISMATCH' | 'TRANSFER_NOT_FOUND' | 'WRONG_ACCOUNT' | 'ILLEGIBLE_PROOF' | 'DUPLICATE_SUBMISSION' | 'OTHER' | null;
   reported_at?: string | null;
@@ -999,12 +1001,12 @@ export interface ApiPaymentProof {
 export interface ApiSubscriptionInfo {
   id: string;
   tenant_id: string;
-  tier: 'STARTER' | 'GROWTH' | 'BUSINESS';
+  tier: PaidTier;
   billing_interval: 'MONTHLY' | 'YEARLY';
   status: 'PENDING_PAYMENT' | 'PAYMENT_RECEIVED' | 'INVOICE_PROCESSING' | 'ACTIVE' | 'EXPIRED' | 'SUSPENDED' | 'CANCELLED';
   // 'FREE' means a cancellation is scheduled (applyScheduledTierChanges drops the tenant
   // to FREE and closes the subscription at period end) — added in API commit 161803a.
-  pending_tier?: 'FREE' | 'STARTER' | 'GROWTH' | 'BUSINESS' | null;
+  pending_tier?: 'FREE' | PaidTier | null;
   invoice_document_id: string | null;
   current_period_start: string | null;
   current_period_end: string | null;
@@ -1033,10 +1035,10 @@ export interface ChangeTierResult {
   ok: true;
   subscription: {
     id: string;
-    tier: 'STARTER' | 'GROWTH' | 'BUSINESS';
+    tier: PaidTier;
     status?: string;
     billing_interval?: 'MONTHLY' | 'YEARLY';
-    pending_tier?: 'STARTER' | 'GROWTH' | 'BUSINESS' | null;
+    pending_tier?: PaidTier | null;
     current_period_start?: string | null;
     current_period_end?: string | null;
   };
@@ -1050,7 +1052,7 @@ export interface ChangeTierResult {
 // billingInterval is optional — omit to keep the current subscription interval.
 export async function changeTier(
   ctx: ApiCtx,
-  tier: 'STARTER' | 'GROWTH' | 'BUSINESS',
+  tier: PaidTier,
   billingInterval?: 'MONTHLY' | 'YEARLY',
 ): Promise<ChangeTierResult> {
   return request<ChangeTierResult>(
@@ -1086,7 +1088,7 @@ export async function cancelSubscription(ctx: ApiCtx): Promise<CancelSubscriptio
 // prorate against yet).
 export interface CreateSubscriptionResult {
   ok: true;
-  subscription: { id: string; tier: 'STARTER' | 'GROWTH' | 'BUSINESS'; status: string; billing_interval: 'MONTHLY' | 'YEARLY' };
+  subscription: { id: string; tier: PaidTier; status: string; billing_interval: 'MONTHLY' | 'YEARLY' };
   payment: ApiPaymentInfo;
   bankTransfer: ApiBankTransferInfo;
 }
@@ -1094,7 +1096,7 @@ export interface CreateSubscriptionResult {
 // Verified against: ../comprobify/src/routes/subscriptions.routes.js → POST /v1/subscriptions
 export async function createSubscription(
   ctx: ApiCtx,
-  tier: 'STARTER' | 'GROWTH' | 'BUSINESS',
+  tier: PaidTier,
   billingInterval?: 'MONTHLY' | 'YEARLY',
 ): Promise<CreateSubscriptionResult> {
   return request<CreateSubscriptionResult>(

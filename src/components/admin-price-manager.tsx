@@ -25,8 +25,9 @@ import {
 } from '@/app/actions/admin';
 import { DollarSign, Plus, PenLine, Rocket } from 'lucide-react';
 import type { AdminTierPrice, TierName, BillingInterval } from '@/lib/admin-api';
+import { ALL_TIERS } from '@/lib/subscription-tiers';
 
-const TIER_ORDER: TierName[] = ['FREE', 'STARTER', 'GROWTH', 'BUSINESS'];
+const TIER_ORDER: TierName[] = [...ALL_TIERS];
 const INTERVAL_ORDER: BillingInterval[] = ['MONTHLY', 'YEARLY'];
 
 const dateFormatter = new Intl.DateTimeFormat('es-EC', { dateStyle: 'medium', timeStyle: 'short' });

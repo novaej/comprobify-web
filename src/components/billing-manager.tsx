@@ -26,7 +26,7 @@ import {
 } from '@/app/actions/billing';
 import type { ApiTenantInfo, ApiSubscriptionInfo, ApiPaymentInfo, ApiBankTransferInfo, ApiPaymentProof, ApiPayphoneSession } from '@/lib/api';
 import type { ApiTierInfo } from '@/lib/public-api';
-import type { PaidTier, BillingInterval } from '@/lib/subscription-tiers';
+import { TIER_RANK, resolveTierTotal, type PaidTier, type BillingInterval } from '@/lib/subscription-tiers';
 
 const currencyFormatter = new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' });
 const dateFormatter = new Intl.DateTimeFormat('es-EC', { dateStyle: 'long' });
@@ -134,7 +134,9 @@ export function BillingManager({
         <p className="mt-1.5 text-lg font-semibold">{tierName}</p>
         {!isSandbox && (
           <p className="mt-1 text-sm text-muted-foreground">
-            {t('usage', { count: Number(tenantInfo.documentCount), quota: tenantInfo.documentQuota })}
+            {tenantInfo.documentQuota === null
+              ? t('usageUnlimited', { count: Number(tenantInfo.documentCount) })
+              : t('usage', { count: Number(tenantInfo.documentCount), quota: tenantInfo.documentQuota })}
           </p>
         )}
         {latestSubscription?.status === 'ACTIVE' && (
@@ -188,7 +190,10 @@ export function BillingManager({
             </p>
             <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {[
-                { label: t('planLimits.quota'), value: String(currentTier.documentQuota) },
+                {
+                  label: t('planLimits.quota'),
+                  value: currentTier.documentQuota === null ? t('planLimits.unlimited') : String(currentTier.documentQuota),
+                },
                 {
                   label: t('planLimits.branches'),
                   value: currentTier.maxBranches === null ? t('planLimits.unlimited') : String(currentTier.maxBranches),
@@ -760,8 +765,8 @@ function PlanCard({
 }) {
   const tPricing = useTranslations('pricing');
   const t = useTranslations('billing');
-  const price = interval === 'YEARLY' ? tier.priceYearlyUsd : tier.priceMonthlyUsd;
-  const perLabel = tPricing(interval === 'YEARLY' ? 'perYear' : 'perMonth');
+  const { total: price, effectiveInterval } = resolveTierTotal(tier, interval);
+  const perLabel = tPricing(effectiveInterval === 'YEARLY' ? 'perYear' : 'perMonth');
   const isHighlighted = tier.name === 'GROWTH';
 
   return (
@@ -798,10 +803,15 @@ function PlanCard({
           {currencyFormatter.format(price)}
           <span className="text-sm font-normal text-muted-foreground">{perLabel}</span>
         </p>
-        <p className="text-xs text-muted-foreground">{t('ivaIncluded')}</p>
+        <p className="text-xs text-muted-foreground">
+          {t('ivaIncluded')}
+          {effectiveInterval !== interval && ` · ${tPricing('yearlyOnlyNote')}`}
+        </p>
       </div>
       <p className="text-xs text-muted-foreground">
-        {tPricing('features.quota', { count: tier.documentQuota })}
+        {tier.documentQuota === null
+          ? tPricing('features.unlimitedQuota')
+          : tPricing('features.quota', { count: tier.documentQuota })}
       </p>
     </div>
   );
@@ -837,20 +847,33 @@ function ChangeTierCard({
 
   const currentTierInfo = tiers.find((ti) => ti.name === currentSubscriptionTier);
   const targetTierInfo = selectedTier ? tiers.find((ti) => ti.name === selectedTier) : null;
-  const intervalChanged = selectedInterval !== currentBillingInterval;
+  // The interval actually submitted for the target tier — falls back off
+  // `selectedInterval` when the target doesn't sell it (e.g. SOLO is
+  // yearly-only), so picking SOLO while the toggle sits on Mensual can't send
+  // the API an interval/tier combination it doesn't offer.
+  const targetEffectiveInterval = targetTierInfo
+    ? resolveTierTotal(targetTierInfo, selectedInterval).effectiveInterval
+    : selectedInterval;
+  const intervalChanged = targetEffectiveInterval !== currentBillingInterval;
+  // Ranked by quota tier, not raw price — a tier's priceMonthlyUsd can be
+  // null (SOLO has no monthly price), so comparing prices directly isn't safe.
   const isTierUpgrade = !!targetTierInfo && !!currentTierInfo &&
-    targetTierInfo.priceMonthlyUsd > currentTierInfo.priceMonthlyUsd;
+    TIER_RANK[targetTierInfo.name] > TIER_RANK[currentTierInfo.name];
   const isTierDowngrade = !!targetTierInfo && !!currentTierInfo &&
-    targetTierInfo.priceMonthlyUsd < currentTierInfo.priceMonthlyUsd;
+    TIER_RANK[targetTierInfo.name] < TIER_RANK[currentTierInfo.name];
   const isNoOp = selectedTier === currentSubscriptionTier && !intervalChanged;
 
   // Mirrors requestSandboxTierChange's own pricing exactly: current-tier price
   // at the CURRENT interval (what was actually paid) credited against the
   // target tier's price at the SELECTED interval — both from the same tiers
-  // catalog, no time-proration (sandbox has no real period for that).
+  // catalog, no time-proration (sandbox has no real period for that). Uses
+  // the IVA-inclusive total on both sides (algebraically equivalent to the
+  // API's own base-price-then-IVA order of operations, since IVA is a flat
+  // rate applied uniformly — see subscription.service.js's breakdownAmount).
   const sandboxNetPrice = targetTierInfo && currentTierInfo
-    ? Math.max(0, (selectedInterval === 'YEARLY' ? targetTierInfo.priceYearlyUsd : targetTierInfo.priceMonthlyUsd)
-        - (currentBillingInterval === 'YEARLY' ? currentTierInfo.priceYearlyUsd : currentTierInfo.priceMonthlyUsd))
+    ? Math.max(0,
+        resolveTierTotal(targetTierInfo, selectedInterval).total
+          - resolveTierTotal(currentTierInfo, currentBillingInterval).total)
     : 0;
 
   type Scenario = 'upgrade' | 'downgrade' | 'interval-change';
@@ -864,6 +887,15 @@ function ChangeTierCard({
   function selectTier(name: PaidTier) {
     setSelectedTier(name);
     setConfirming(false);
+    // Keep the visible interval toggle in sync when the picked tier doesn't
+    // sell the currently-selected interval (e.g. SOLO is yearly-only) — the
+    // submitted interval already falls back via targetEffectiveInterval, but
+    // leaving the toggle showing "Mensual" while Anual is what's actually
+    // charged would be confusing.
+    const info = tiers.find((ti) => ti.name === name);
+    if (info) {
+      setSelectedInterval(resolveTierTotal(info, selectedInterval).effectiveInterval);
+    }
   }
 
   function handleChange() {
@@ -871,7 +903,7 @@ function ChangeTierCard({
     startTransition(async () => {
       const result = await changeTierAction(
         selectedTier,
-        intervalChanged ? selectedInterval : undefined,
+        intervalChanged ? targetEffectiveInterval : undefined,
       );
       if ('error' in result) {
         toastApiError(result.error, tError);
@@ -975,8 +1007,8 @@ function ChangeTierCard({
             )}
             {targetTierInfo && !isSandbox && scenario !== 'upgrade' && (
               <p className="font-medium">
-                {currencyFormatter.format(selectedInterval === 'YEARLY' ? targetTierInfo.priceYearlyUsd : targetTierInfo.priceMonthlyUsd)}
-                {tPricing(selectedInterval === 'YEARLY' ? 'perYear' : 'perMonth')}
+                {currencyFormatter.format(resolveTierTotal(targetTierInfo, selectedInterval).total)}
+                {tPricing(targetEffectiveInterval === 'YEARLY' ? 'perYear' : 'perMonth')}
                 {' · '}
                 <span className="text-xs font-normal text-muted-foreground">{t('ivaIncluded')}</span>
               </p>
@@ -1056,10 +1088,24 @@ function SubscribeCard({
   const [billingInterval, setBillingInterval] = useState<BillingInterval>(intendedBillingInterval ?? 'MONTHLY');
   const options = tiers.filter((tier): tier is ApiTierInfo & { name: PaidTier } => tier.name !== 'FREE');
 
+  function selectTier(name: PaidTier) {
+    setSelectedTier(name);
+    setConfirming(false);
+    // Keep the visible interval toggle in sync when the picked tier doesn't
+    // sell the currently-selected interval (e.g. SOLO is yearly-only).
+    const info = options.find((o) => o.name === name);
+    if (info) setBillingInterval(resolveTierTotal(info, billingInterval).effectiveInterval);
+  }
+
   function handleSubscribe() {
     if (!selectedTier) return;
+    // Resolve the actual interval to submit off the tier's own billingIntervals,
+    // not the raw toggle state — guards against the toggle being clicked back to
+    // an interval the selected tier doesn't sell (e.g. Mensual after picking SOLO).
+    const info = options.find((o) => o.name === selectedTier);
+    const effectiveInterval = info ? resolveTierTotal(info, billingInterval).effectiveInterval : billingInterval;
     startTransition(async () => {
-      const result = await createSubscriptionAction(selectedTier, billingInterval);
+      const result = await createSubscriptionAction(selectedTier, effectiveInterval);
       if ('error' in result) {
         toastApiError(result.error, tError);
         return;
@@ -1111,7 +1157,7 @@ function SubscribeCard({
                 tier={tier}
                 interval={billingInterval}
                 state={selectedTier === tier.name ? 'selected' : 'default'}
-                onClick={() => { setSelectedTier(tier.name as PaidTier); setConfirming(false); }}
+                onClick={() => selectTier(tier.name as PaidTier)}
               />
             ))}
           </div>
@@ -1127,10 +1173,8 @@ function SubscribeCard({
           {confirming && selectedTier && selectedTierInfo && (
             <div className="mt-3 rounded-md border border-border bg-muted/40 p-3 text-sm space-y-2">
               <p className="font-medium">
-                {currencyFormatter.format(
-                  billingInterval === 'YEARLY' ? selectedTierInfo.priceYearlyUsd : selectedTierInfo.priceMonthlyUsd,
-                )}
-                {tPricing(billingInterval === 'YEARLY' ? 'perYear' : 'perMonth')}
+                {currencyFormatter.format(resolveTierTotal(selectedTierInfo, billingInterval).total)}
+                {tPricing(resolveTierTotal(selectedTierInfo, billingInterval).effectiveInterval === 'YEARLY' ? 'perYear' : 'perMonth')}
                 {' · '}
                 <span className="text-xs font-normal text-muted-foreground">{t('ivaIncluded')}</span>
               </p>

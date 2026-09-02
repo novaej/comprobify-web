@@ -7,8 +7,9 @@ import { buttonVariants } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type { ApiTierInfo } from '@/lib/public-api';
+import { ALL_TIERS, resolveTierTotal } from '@/lib/subscription-tiers';
 
-const TIER_ORDER: ApiTierInfo['name'][] = ['FREE', 'STARTER', 'GROWTH', 'BUSINESS'];
+const TIER_ORDER: ApiTierInfo['name'][] = [...ALL_TIERS];
 const HIGHLIGHTED: ApiTierInfo['name'] = 'GROWTH';
 const DOC_TYPE_LABEL_KEYS: Record<string, string> = {
   '01': 'docType01',
@@ -67,10 +68,22 @@ export function PricingPlans({ tiers }: { tiers: ApiTierInfo[] }) {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {ordered.map((tier) => {
           const highlighted = tier.name === HIGHLIGHTED;
-          const price = interval === 'MONTHLY' ? tier.priceMonthlyUsd : tier.priceYearlyUsd;
-          const isFree = tier.priceMonthlyUsd === 0;
-          const upcomingPrice = interval === 'MONTHLY' ? tier.upcomingPriceMonthlyUsd : tier.upcomingPriceYearlyUsd;
-          const upcomingEffectiveAt = interval === 'MONTHLY' ? tier.monthlyPriceEffectiveAt : tier.yearlyPriceEffectiveAt;
+          // A tier that doesn't sell the globally-selected interval (e.g. SOLO
+          // is yearly-only) falls back to whichever interval it does sell,
+          // rather than showing a blank/null price. *Total is what a tenant
+          // actually pays (IVA-inclusive) — priceMonthlyUsd/priceYearlyUsd are
+          // the tax-exclusive base, never the headline number.
+          const { total: price, effectiveInterval } = resolveTierTotal(tier, interval);
+          const yearlyOnly = effectiveInterval !== interval;
+          const isFree = price === 0;
+          const upcomingBase = effectiveInterval === 'MONTHLY' ? tier.upcomingPriceMonthlyUsd : tier.upcomingPriceYearlyUsd;
+          const upcomingEffectiveAt = effectiveInterval === 'MONTHLY' ? tier.monthlyPriceEffectiveAt : tier.yearlyPriceEffectiveAt;
+          // The API only publishes the upcoming price as its tax-exclusive base
+          // (same convention as priceMonthlyUsd/priceYearlyUsd) — add IVA back on
+          // client-side so it's comparable to the IVA-inclusive headline price above.
+          const upcomingPrice = upcomingBase !== null
+            ? Math.round(upcomingBase * (1 + (tier.ivaRate ?? 0.15)) * 100) / 100
+            : null;
           const docTypeNames = tier.allowedDocumentTypes.map((code) =>
             DOC_TYPE_LABEL_KEYS[code] ? tDocTypes(DOC_TYPE_LABEL_KEYS[code] as Parameters<typeof tDocTypes>[0]) : code,
           );
@@ -94,17 +107,23 @@ export function PricingPlans({ tiers }: { tiers: ApiTierInfo[] }) {
                   {isFree ? '$0' : currencyFormatter.format(price)}
                   {!isFree && (
                     <span className="text-sm font-normal text-muted-foreground">
-                      {interval === 'MONTHLY' ? t('perMonth') : t('perYear')}
+                      {effectiveInterval === 'MONTHLY' ? t('perMonth') : t('perYear')}
                     </span>
                   )}
                 </p>
                 {!isFree && (
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {interval === 'YEARLY'
+                    {effectiveInterval === 'YEARLY'
                       ? t('yearlyEquivalent', { price: currencyFormatter.format(Math.round(price / 12)) })
                       : null}
-                    {interval === 'YEARLY' && ' · '}
+                    {effectiveInterval === 'YEARLY' && ' · '}
                     {t('ivaNote', { rate: Math.round((tier.ivaRate ?? 0.15) * 100) })}
+                    {yearlyOnly && (
+                      <>
+                        {' · '}
+                        {t('yearlyOnlyNote')}
+                      </>
+                    )}
                   </p>
                 )}
                 <p className="text-sm text-muted-foreground mt-2">{t(`tiers.${tier.name}.description`)}</p>
@@ -121,7 +140,9 @@ export function PricingPlans({ tiers }: { tiers: ApiTierInfo[] }) {
               <ul className="flex flex-col gap-2 flex-1 text-sm">
                 <li className="flex items-start gap-2">
                   <Check className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                  {t('features.quota', { count: tier.documentQuota })}
+                  {tier.documentQuota === null
+                    ? t('features.unlimitedQuota')
+                    : t('features.quota', { count: tier.documentQuota })}
                 </li>
                 <li className="flex items-start gap-2">
                   <Check className="w-4 h-4 text-primary mt-0.5 shrink-0" />
@@ -149,7 +170,7 @@ export function PricingPlans({ tiers }: { tiers: ApiTierInfo[] }) {
                   clicks and issues a cross-origin RSC fetch (staging.comprobify.com →
                   app-staging.comprobify.com) that the browser blocks with a CORS error. */}
               <a
-                href={isFree ? `/${locale}/register` : `/${locale}/register?tier=${tier.name}&interval=${interval}`}
+                href={isFree ? `/${locale}/register` : `/${locale}/register?tier=${tier.name}&interval=${effectiveInterval}`}
                 className={cn(
                   buttonVariants({
                     variant: highlighted ? 'default' : 'outline',

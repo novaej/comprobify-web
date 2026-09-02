@@ -661,6 +661,7 @@
       "planAlreadyActive": "Ya tienes una suscripción activa al plan {tier}. Se mantendrá al activar producción.",
       "planAlreadyActiveLink": "Gestionar plan",
       "planSummary": "{price}{interval} · {quota} comprobantes/mes",
+      "planSummaryUnlimited": "{price}{interval} · comprobantes ilimitados",
       "sequentials": "Secuenciales iniciales en producción",
       "sequentialsHint": "Número desde el que empezará cada tipo de comprobante en producción. Si el último emitido fuera del sistema fue el 99, ingresa 100. Si empiezas desde cero, deja todo en 1.",
       "resend": "Reenviar correo de verificación",
@@ -1477,12 +1478,23 @@
     "yearlyEquivalent": "Equivalente a {price}/mes",
     "ivaIncluded": "IVA incluido",
     "ivaNote": "Precios incluyen IVA ({rate}%)",
+    "yearlyOnlyNote": "Disponible solo con facturación anual",
     "upcomingPriceNote": "El precio sube a {price} a partir del {date}.",
     "tiers": {
       "FREE": {
         "name": "Gratis",
         "description": "Para desarrolladores y equipos que quieren explorar la plataforma.",
         "cta": "Empezar gratis"
+      },
+      "SOLO": {
+        "name": "Solo",
+        "description": "Para quien factura de forma independiente y ocasional.",
+        "cta": "Registrarme"
+      },
+      "LITE": {
+        "name": "Lite",
+        "description": "Para negocios pequeños que recién empiezan a facturar en línea.",
+        "cta": "Registrarme"
       },
       "STARTER": {
         "name": "Emprendedor",
@@ -1498,10 +1510,16 @@
         "name": "Empresarial",
         "description": "Para empresas con alto volumen y necesidades avanzadas.",
         "cta": "Registrarme"
+      },
+      "ENTERPRISE": {
+        "name": "Corporativo",
+        "description": "Para operaciones de alto volumen con necesidades a la medida.",
+        "cta": "Registrarme"
       }
     },
     "features": {
       "quota": "{count} comprobantes/mes",
+      "unlimitedQuota": "Comprobantes ilimitados",
       "branches": "{count} sucursales",
       "unlimitedBranches": "Sucursales ilimitadas",
       "issuePoints": "{count} puntos de emisión por sucursal",
@@ -1516,6 +1534,7 @@
     "viewProof": "Ver comprobante",
     "currentPlan": "Plan actual",
     "usage": "{count} de {quota} comprobantes usados en producción",
+    "usageUnlimited": "{count} comprobantes usados en producción (ilimitado)",
     "planDetails": "Detalles del plan",
     "planLimits": {
       "quota": "Comprobantes por período",
@@ -1720,6 +1739,7 @@
         "PAST_DUE": "Atrasado"
       },
       "usageValue": "{count} / {quota} docs",
+      "usageValueUnlimited": "{count} docs (ilimitado)",
       "verify": "Verificar tenant",
       "tierUpdated": "Plan actualizado.",
       "statusUpdated": "Estado actualizado.",
@@ -1864,9 +1884,12 @@
       "published": "Precio publicado. Los tenants activos serán notificados.",
       "tiers": {
         "FREE": "Gratis",
+        "SOLO": "Solo",
+        "LITE": "Lite",
         "STARTER": "Emprendedor",
         "GROWTH": "Crecimiento",
-        "BUSINESS": "Empresarial"
+        "BUSINESS": "Empresarial",
+        "ENTERPRISE": "Corporativo"
       },
       "intervals": {
         "MONTHLY": "Mensual",
@@ -1880,7 +1903,7 @@
       "columns": {
         "tier": "Plan",
         "interval": "Intervalo",
-        "price": "Precio",
+        "price": "Precio (sin IVA)",
         "status": "Estado",
         "effectiveAt": "Vigencia",
         "actions": "Acciones"
@@ -1890,8 +1913,8 @@
         "description": "Se crea como borrador — no es visible para los tenants ni inicia el aviso de cambio hasta que lo publiques.",
         "tierLabel": "Plan",
         "intervalLabel": "Intervalo de facturación",
-        "priceLabel": "Precio (USD, incluye IVA)",
-        "priceHint": "Mismo formato que priceMonthlyUsd/priceYearlyUsd en GET /v1/tiers.",
+        "priceLabel": "Precio (USD, sin IVA)",
+        "priceHint": "Precio base, sin IVA — el IVA se añade automáticamente al momento del cobro. Mismo formato que priceMonthlyUsd/priceYearlyUsd en GET /v1/tiers.",
         "submit": "Crear borrador",
         "submitting": "Creando..."
       },
@@ -1900,7 +1923,7 @@
       },
       "publishDialog": {
         "title": "Publicar precio — {tier} ({interval})",
-        "description": "Nuevo precio: {price}",
+        "description": "Nuevo precio: {price} (sin IVA)",
         "warning": "Esta acción es irreversible. Una vez publicado, el precio no puede editarse ni eliminarse — solo un nuevo borrador puede reemplazarlo a futuro.",
         "noticeDaysLabel": "Días de aviso",
         "noticeDaysHint": "Mínimo 30 días. Cada tenant activo recibe una notificación (app y correo) del cambio.",
