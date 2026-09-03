@@ -44,7 +44,7 @@ export async function generateMetadata({
  */
 async function getSupportedDocumentTypes(): Promise<string[] | null> {
   try {
-    const tiers = await listTiers();
+    const { tiers } = await listTiers();
     const union = new Set(tiers.flatMap((tier) => tier.allowedDocumentTypes));
     return union.size > 0 ? [...union] : null;
   } catch {

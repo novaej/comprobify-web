@@ -1,4 +1,4 @@
-import type { ApiTierInfo } from './public-api';
+import type { ApiTierInfo, ApiExtraSeatPricing } from './public-api';
 
 // Shared validation for the tier/billingInterval pair threaded from /pricing
 // through registration and onboarding onto Tenant.intendedTier/intendedBillingInterval.
@@ -23,17 +23,26 @@ export type BillingInterval = (typeof BILLING_INTERVALS)[number];
 
 // A tier's price at `interval` if it sells that interval, otherwise its price
 // at whichever interval it does sell (e.g. SOLO always resolves to YEARLY —
-// see billingIntervals). Returns the IVA-inclusive total — what a tenant
-// actually pays — never the tax-exclusive priceMonthlyUsd/priceYearlyUsd base
-// fields (see ApiTierInfo's comment for why those aren't the same number).
+// see billingIntervals). Returns the tax-EXCLUSIVE base price — every price
+// display on this site shows "$X + IVA" rather than a bundled inclusive
+// total (matches how the API itself computes a charge: base first, IVA added
+// on top via breakdownAmount() — see subscription.service.js).
 export function resolveTierTotal(
-  tier: Pick<ApiTierInfo, 'billingIntervals' | 'priceMonthlyUsdTotal' | 'priceYearlyUsdTotal'>,
+  tier: Pick<ApiTierInfo, 'billingIntervals' | 'priceMonthlyUsd' | 'priceYearlyUsd'>,
   interval: BillingInterval,
-): { total: number; effectiveInterval: BillingInterval } {
+): { base: number; effectiveInterval: BillingInterval } {
   const billingIntervals = tier.billingIntervals?.length ? tier.billingIntervals : BILLING_INTERVALS;
   const effectiveInterval = billingIntervals.includes(interval) ? interval : billingIntervals[0];
-  const total = (effectiveInterval === 'MONTHLY' ? tier.priceMonthlyUsdTotal : tier.priceYearlyUsdTotal) ?? 0;
-  return { total, effectiveInterval };
+  const base = (effectiveInterval === 'MONTHLY' ? tier.priceMonthlyUsd : tier.priceYearlyUsd) ?? 0;
+  return { base, effectiveInterval };
+}
+
+// The extra-seat add-on's tax-EXCLUSIVE base price at `interval` (ADR-032) —
+// shown as the advertised "$X + IVA" price rather than a bundled total, unlike
+// a tier's own headline price. No billingIntervals fallback needed, since the
+// add-on always sells both intervals (see db/migrations/095's seed).
+export function resolveSeatBasePrice(extraSeat: ApiExtraSeatPricing, interval: BillingInterval): number {
+  return (interval === 'MONTHLY' ? extraSeat.priceMonthlyUsd : extraSeat.priceYearlyUsd) ?? 0;
 }
 
 export function isPaidTier(value: string | null | undefined): value is PaidTier {

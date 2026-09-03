@@ -119,6 +119,19 @@ export interface AdminTierPrice {
   createdAt: string;
 }
 
+// Verified against: ../comprobify/src/controllers/admin.controller.js → formatSeatPrice()
+// Same DRAFT/PUBLISHED shape as AdminTierPrice, minus `tier` — the extra-seat
+// add-on's price (ADR-032) is flat across every tier.
+export interface AdminSeatPrice {
+  id: string;
+  billingInterval: BillingInterval;
+  priceUsd: number;
+  status: 'DRAFT' | 'PUBLISHED';
+  effectiveAt: string | null;
+  publishedAt: string | null;
+  createdAt: string;
+}
+
 function getApiUrl(): string {
   const apiUrl = process.env.COMPROBIFY_API_URL;
   if (!apiUrl) throw new Error('COMPROBIFY_API_URL is not set');
@@ -421,6 +434,48 @@ export async function updateTierPrice(id: string, priceUsd: number): Promise<Adm
 // 30) when omitted; the API rejects anything shorter with PRICE_NOTICE_TOO_SHORT.
 export async function publishTierPrice(id: string, noticeDays?: number): Promise<AdminTierPrice> {
   const { price } = await request<{ ok: true; price: AdminTierPrice }>(`/v1/admin/prices/${id}/publish`, {
+    method: 'POST',
+    body: JSON.stringify({ noticeDays }),
+  });
+  return price;
+}
+
+// ── Seat prices (ADR-032) ────────────────────────────────────────────────────
+// Mirrors the tier-price functions above exactly, minus the `tier` param —
+// same DRAFT → publish workflow, same PRICE_NOT_DRAFT/PRICE_NOTICE_TOO_SHORT
+// error codes, no new error mapping needed anywhere that already handles those.
+
+// Verified against: ../comprobify/src/controllers/admin.controller.js → listSeatPrices()
+export async function listSeatPrices(): Promise<AdminSeatPrice[]> {
+  const { prices } = await request<{ ok: true; prices: AdminSeatPrice[] }>('/v1/admin/seat-prices');
+  return prices;
+}
+
+// Verified against: ../comprobify/src/controllers/admin.controller.js → createSeatPrice()
+export async function createSeatPrice(
+  billingInterval: BillingInterval,
+  priceUsd: number,
+): Promise<AdminSeatPrice> {
+  const { price } = await request<{ ok: true; price: AdminSeatPrice }>('/v1/admin/seat-prices', {
+    method: 'POST',
+    body: JSON.stringify({ billingInterval, priceUsd }),
+  });
+  return price;
+}
+
+// Verified against: ../comprobify/src/controllers/admin.controller.js → updateSeatPrice()
+// Only a DRAFT price can be edited — the API rejects otherwise with PRICE_NOT_DRAFT.
+export async function updateSeatPrice(id: string, priceUsd: number): Promise<AdminSeatPrice> {
+  const { price } = await request<{ ok: true; price: AdminSeatPrice }>(`/v1/admin/seat-prices/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ priceUsd }),
+  });
+  return price;
+}
+
+// Verified against: ../comprobify/src/controllers/admin.controller.js → publishSeatPrice()
+export async function publishSeatPrice(id: string, noticeDays?: number): Promise<AdminSeatPrice> {
+  const { price } = await request<{ ok: true; price: AdminSeatPrice }>(`/v1/admin/seat-prices/${id}/publish`, {
     method: 'POST',
     body: JSON.stringify({ noticeDays }),
   });

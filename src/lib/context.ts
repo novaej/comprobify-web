@@ -4,12 +4,39 @@ import { db } from '@/lib/db';
 import { decrypt } from '@/lib/crypto';
 import { readCtxCookie } from '@/lib/context-cookie';
 import { resolveApiKeyForRole } from '@/lib/tenant-api-key';
+import { ApiError } from '@/lib/errors';
 import { ROLE_PERMISSIONS } from '@/lib/rbac';
 import { getLocale } from 'next-intl/server';
 import { notFound, redirect as nextRedirect } from 'next/navigation';
 import { redirect } from '@/i18n/navigation';
 import { isUuid } from '@/lib/utils';
 import type { Role, Permission } from '@/lib/rbac';
+
+// resolveApiKeyForRole mints a role's key lazily here on any request where it's
+// missing/stale — that mint is a real POST /v1/keys call, so it can throw
+// API_KEY_LIMIT_REACHED (402) if the tenant is already at the tier's maxApiKeys.
+// Left uncaught, that would crash every page load for anyone on that role
+// (surfacing only as the generic [locale]/error.tsx apiError.UNKNOWN boundary).
+// Redirect to the same settings page as the "no key at all" case below instead,
+// mirroring its ?missing=1 pattern — the query string isn't parsed there either,
+// it's self-documenting only, since the page independently recomputes the real
+// banner state from the tenant's actual key count.
+async function resolveApiKeyRowOrRedirect(
+  tenantId: string,
+  environment: 'sandbox' | 'production',
+  role: Role,
+  locale: string,
+) {
+  try {
+    return await resolveApiKeyForRole(tenantId, environment, role);
+  } catch (err) {
+    if (err instanceof ApiError && err.code === 'API_KEY_LIMIT_REACHED') {
+      redirect({ href: '/settings/api-keys?limitReached=1', locale });
+      return null as never;
+    }
+    throw err;
+  }
+}
 
 export interface Context {
   user: { id: string; email: string; firstName: string | null; lastName: string | null; emailVerified: boolean; role: Role };
@@ -103,7 +130,7 @@ export async function requireContext(opts?: { skipIssuer?: boolean }): Promise<C
 
   // 3. skipIssuer — return MinimalContext with just the active API key
   if (opts?.skipIssuer) {
-    const keyRow = await resolveApiKeyForRole(tenant.id, tenantCtx.environment, role);
+    const keyRow = await resolveApiKeyRowOrRedirect(tenant.id, tenantCtx.environment, role, locale);
     if (!keyRow) {
       redirect({ href: '/settings/api-keys?missing=1', locale });
       return null as never;
@@ -157,7 +184,7 @@ export async function requireContext(opts?: { skipIssuer?: boolean }): Promise<C
   }
 
   // 6. Resolve active API key (see resolveApiKeyForRole — role-scoped, environment-matched, deterministic)
-  const keyRow = await resolveApiKeyForRole(tenant.id, tenantCtx.environment, role);
+  const keyRow = await resolveApiKeyRowOrRedirect(tenant.id, tenantCtx.environment, role, locale);
   if (!keyRow) {
     redirect({ href: '/settings/api-keys?missing=1', locale });
     return null as never;

@@ -1,6 +1,7 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { requirePermission } from '@/lib/context';
 import { db } from '@/lib/db';
+import { resolveTenantLimits } from '@/lib/tenant-limits';
 import { PageHeader } from '@/components/page-header';
 import { UserManager } from '@/components/user-manager';
 
@@ -15,7 +16,7 @@ export default async function UsersPage({
 
   const ctx = await requirePermission('users.read', { skipIssuer: true });
 
-  const [users, issuers] = await Promise.all([
+  const [users, issuers, limits] = await Promise.all([
     db.user.findMany({
       where: { tenantId: ctx.tenant.id },
       orderBy: { createdAt: 'asc' },
@@ -26,6 +27,7 @@ export default async function UsersPage({
       orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
       select: { id: true, branchCode: true, issuePointCode: true, businessName: true, tradeName: true },
     }),
+    resolveTenantLimits(ctx),
   ]);
 
   const canManage = ctx.permissions.has('users.manage');
@@ -48,6 +50,7 @@ export default async function UsersPage({
         currentUserId={ctx.user.id}
         currentUserRole={ctx.user.role}
         canManage={canManage}
+        seatLimit={limits.seats}
       />
     </div>
   );

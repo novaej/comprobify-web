@@ -11,6 +11,7 @@ import {
   toggleUserActiveAction,
   resetUserPasswordAction,
 } from '@/app/actions/users';
+import { Link } from '@/i18n/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -62,6 +63,14 @@ interface IssuerRow {
   tradeName: string | null;
 }
 
+// Mirrors TenantLimits['seats'] from src/lib/tenant-limits.ts.
+interface SeatLimitInfo {
+  used: number;
+  limit: number | null; // null = unlimited (ENTERPRISE)
+  extraSeats: number;
+  maxUsers: number | null;
+}
+
 function fullName(user: UserRow): string | null {
   const parts = [user.firstName, user.lastName].filter(Boolean);
   return parts.length > 0 ? parts.join(' ') : null;
@@ -91,16 +100,20 @@ export function UserManager({
   currentUserId,
   currentUserRole,
   canManage,
+  seatLimit,
 }: {
   users: UserRow[];
   issuers: IssuerRow[];
   currentUserId: string;
   currentUserRole: Role;
   canManage: boolean;
+  seatLimit: SeatLimitInfo;
 }) {
   const t = useTranslations('users');
   const tError = useTranslations('apiError');
   const [isPending, startTransition] = useTransition();
+
+  const atSeatLimit = seatLimit.limit !== null && seatLimit.used >= seatLimit.limit;
 
   // Invite form
   const [showInvite, setShowInvite] = useState(false);
@@ -214,6 +227,26 @@ export function UserManager({
 
   return (
     <div className="space-y-4">
+      {/* Seat usage */}
+      {canManage && (
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <span>
+            {seatLimit.limit === null
+              ? t('seatUsageUnlimited', { used: seatLimit.used })
+              : t('seatUsage', { used: seatLimit.used, limit: seatLimit.limit })}
+          </span>
+          {atSeatLimit && (
+            <>
+              <span>·</span>
+              <span className="text-amber-700 dark:text-amber-400">{t('seatLimitReached')}</span>
+              <Link href="/settings/billing" className="font-medium underline underline-offset-4 hover:opacity-80">
+                {t('seatLimitReachedLink')}
+              </Link>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Invite row */}
       {canManage && (
         showInvite ? (
@@ -234,7 +267,7 @@ export function UserManager({
                   <option key={r} value={r}>{t(`role.${r}` as Parameters<typeof t>[0])}</option>
                 ))}
               </select>
-              <Button size="sm" onClick={handleInvite} disabled={isPending || !inviteEmail}>
+              <Button size="sm" onClick={handleInvite} disabled={isPending || !inviteEmail || atSeatLimit}>
                 {isPending ? t('inviting') : t('sendInvite')}
               </Button>
               <Button size="sm" variant="outline" onClick={() => setShowInvite(false)} disabled={isPending}>
@@ -244,7 +277,7 @@ export function UserManager({
           </div>
         ) : (
           <div className="flex items-center gap-3">
-            <Button size="sm" onClick={() => setShowInvite(true)}>
+            <Button size="sm" onClick={() => setShowInvite(true)} disabled={atSeatLimit}>
               <UserPlus className="h-4 w-4 mr-1" />{t('invite')}
             </Button>
             <button type="button" onClick={() => setShowRolesInfo(true)}

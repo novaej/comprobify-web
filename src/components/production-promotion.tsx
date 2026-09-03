@@ -196,9 +196,9 @@ export function ProductionPromotion({
                     })}
                   </div>
                   {selectedTierInfo && (() => {
-                    const { total, effectiveInterval } = resolveTierTotal(selectedTierInfo, selectedInterval);
+                    const { base, effectiveInterval } = resolveTierTotal(selectedTierInfo, selectedInterval);
                     const priceInterval = {
-                      price: currencyFormatter.format(total),
+                      price: currencyFormatter.format(base),
                       interval: tPricing(effectiveInterval === 'MONTHLY' ? 'perMonth' : 'perYear'),
                     };
                     return (
@@ -208,7 +208,7 @@ export function ProductionPromotion({
                           : t('planSummary', { ...priceInterval, quota: selectedTierInfo.documentQuota })}
                         {' '}
                         <span className="text-xs text-muted-foreground">
-                          ({tPricing('ivaIncluded')})
+                          ({tPricing('plusIva')})
                         </span>
                       </p>
                     );

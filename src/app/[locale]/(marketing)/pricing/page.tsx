@@ -30,7 +30,7 @@ export default async function PricingPage({
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations('pricing');
-  const tiers = await listTiers();
+  const { tiers, extraSeat } = await listTiers();
 
   return (
     <div className="px-4 md:px-8 py-12 md:py-20">
@@ -42,7 +42,7 @@ export default async function PricingPage({
           </p>
         </div>
 
-        <PricingPlans tiers={tiers} />
+        <PricingPlans tiers={tiers} extraSeat={extraSeat} />
       </div>
     </div>
   );

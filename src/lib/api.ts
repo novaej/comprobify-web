@@ -814,6 +814,14 @@ export interface ApiTenantInfo {
   sandbox: boolean;
   agreementAcceptedAt: string | null;
   agreementVersion: string | null;
+  // Extra user seats add-on (ADR-032) — set via authenticate.js's join onto
+  // req.tenant (tenant_extra_seats/tenant_pending_extra_seats), echoed
+  // verbatim by getMe(). extraSeats is the currently-effective count;
+  // pendingExtraSeats is a scheduled-but-not-yet-applied decrease (null when
+  // nothing is scheduled) — see src/lib/tenant-limits.ts for how this
+  // combines with a tier's maxUsers.
+  extraSeats: number;
+  pendingExtraSeats: number | null;
 }
 
 // Verified against: ../comprobify/src/routes/tenants.routes.js → GET /v1/tenants/me
@@ -973,9 +981,17 @@ export interface ApiPaymentInfo {
   iva_amount?: string | null;
   total_amount?: string | null;  // IVA-inclusive total; use this for display
   method: 'SPI_TRANSFER' | 'PAYPHONE_CARD';
-  purpose?: 'INITIAL' | 'TIER_CHANGE' | 'RENEWAL';
+  // 'SEAT_CHANGE' added by migration 095 (ADR-032) — only ever set on an
+  // increase (a decrease never opens a payment, see requestSeatChange).
+  purpose?: 'INITIAL' | 'TIER_CHANGE' | 'RENEWAL' | 'SEAT_CHANGE';
   target_tier?: PaidTier | null;
   target_billing_interval?: 'MONTHLY' | 'YEARLY' | null;
+  // target_extra_seats: the new total seat count being purchased (mirrors
+  // target_tier, SEAT_CHANGE only). seats_charged: audit snapshot of how many
+  // seats' cost is baked into this payment (a delta on SEAT_CHANGE, the
+  // effective total on a RENEWAL/interval-change TIER_CHANGE, 0 otherwise).
+  target_extra_seats?: number | null;
+  seats_charged?: number | null;
   rejection_reason_code?: 'AMOUNT_MISMATCH' | 'TRANSFER_NOT_FOUND' | 'WRONG_ACCOUNT' | 'ILLEGIBLE_PROOF' | 'DUPLICATE_SUBMISSION' | 'OTHER' | null;
   reported_at?: string | null;
   verified_at?: string | null;
@@ -1012,6 +1028,12 @@ export interface ApiSubscriptionInfo {
   current_period_end: string | null;
   created_at: string;
   canceled_at: string | null;
+  // Extra user seats add-on (ADR-032, migration 095) — raw columns, spread
+  // through getStatusForTenant() same as every other field here.
+  // pending_extra_seats is a scheduled decrease taking effect at
+  // current_period_end (null when nothing is scheduled).
+  extra_seats: number;
+  pending_extra_seats: number | null;
   payments: ApiPaymentInfo[];
 }
 
@@ -1059,6 +1081,39 @@ export async function changeTier(
     '/v1/subscriptions/change-tier',
     { apiKey: ctx.apiKey },
     { method: 'POST', body: JSON.stringify({ tier, ...(billingInterval && { billingInterval }) }) },
+  );
+}
+
+// Verified against: ../comprobify/src/controllers/subscription.controller.js → changeSeats()
+// and ../comprobify/src/services/subscription.service.js → requestSeatChange() (ADR-032).
+// Same response shape as ChangeTierResult, minus the interval-change scenario — seats
+// always follow the subscription's own billing_interval, there is no third scenario.
+export interface ChangeSeatsResult {
+  ok: true;
+  subscription: {
+    id: string;
+    tier: PaidTier;
+    status?: string;
+    billing_interval?: 'MONTHLY' | 'YEARLY';
+    extra_seats?: number;
+    pending_extra_seats?: number | null;
+    current_period_start?: string | null;
+    current_period_end?: string | null;
+  };
+  payment?: ApiPaymentInfo | null;
+  bankTransfer?: ApiBankTransferInfo;
+  amount?: number;
+  effectiveAt?: string;
+}
+
+// Verified against: ../comprobify/src/routes/subscriptions.routes.js → POST /v1/subscriptions/seats
+// extraSeats is the ABSOLUTE target count (0-100), not a delta — mirrors requestSeatChange's
+// own doc comment on the API side.
+export async function changeSeats(ctx: ApiCtx, extraSeats: number): Promise<ChangeSeatsResult> {
+  return request<ChangeSeatsResult>(
+    '/v1/subscriptions/seats',
+    { apiKey: ctx.apiKey },
+    { method: 'POST', body: JSON.stringify({ extraSeats }) },
   );
 }
 
