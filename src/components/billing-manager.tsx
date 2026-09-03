@@ -20,13 +20,14 @@ import {
   listPaymentProofsAction,
   deletePaymentProofAction,
   changeTierAction,
+  changeSeatsAction,
   createSubscriptionAction,
   cancelSubscriptionAction,
   createPayphoneSessionAction,
 } from '@/app/actions/billing';
 import type { ApiTenantInfo, ApiSubscriptionInfo, ApiPaymentInfo, ApiBankTransferInfo, ApiPaymentProof, ApiPayphoneSession } from '@/lib/api';
-import type { ApiTierInfo } from '@/lib/public-api';
-import { TIER_RANK, resolveTierTotal, type PaidTier, type BillingInterval } from '@/lib/subscription-tiers';
+import type { ApiTierInfo, ApiExtraSeatPricing } from '@/lib/public-api';
+import { TIER_RANK, resolveTierTotal, resolveSeatBasePrice, type PaidTier, type BillingInterval } from '@/lib/subscription-tiers';
 
 const currencyFormatter = new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' });
 const dateFormatter = new Intl.DateTimeFormat('es-EC', { dateStyle: 'long' });
@@ -68,6 +69,7 @@ export function BillingManager({
   tenantInfo,
   currentTier,
   tiers,
+  extraSeat,
   subscriptions,
   pendingBankTransfer,
   proofsByPaymentId,
@@ -80,6 +82,7 @@ export function BillingManager({
   tenantInfo: ApiTenantInfo;
   currentTier: ApiTierInfo | null;
   tiers: ApiTierInfo[];
+  extraSeat: ApiExtraSeatPricing | null;
   subscriptions: ApiSubscriptionInfo[];
   pendingBankTransfer: ApiBankTransferInfo | null;
   proofsByPaymentId: Record<string, ApiPaymentProof[]>;
@@ -203,6 +206,18 @@ export function BillingManager({
                   value: currentTier.maxIssuePointsPerBranch === null ? t('planLimits.unlimited') : String(currentTier.maxIssuePointsPerBranch),
                 },
                 { label: t('planLimits.webhooks'), value: String(currentTier.maxWebhookEndpoints) },
+                {
+                  label: t('planLimits.users'),
+                  value: currentTier.maxUsers === null
+                    ? t('planLimits.unlimited')
+                    : tenantInfo.extraSeats > 0
+                      ? t('planLimits.usersWithExtra', { base: currentTier.maxUsers, extra: tenantInfo.extraSeats })
+                      : String(currentTier.maxUsers),
+                },
+                {
+                  label: t('planLimits.apiKeys'),
+                  value: currentTier.maxApiKeys === null ? t('planLimits.unlimited') : String(currentTier.maxApiKeys),
+                },
               ].map(({ label, value }) => (
                 <div key={label} className="flex items-center justify-between rounded-md bg-muted/40 px-3 py-2">
                   <dt className="text-xs text-muted-foreground">{label}</dt>
@@ -258,6 +273,17 @@ export function BillingManager({
         />
       )}
 
+      {canChangeTier && latestSubscription && extraSeat && (
+        <SeatsCard
+          extraSeat={extraSeat}
+          currentExtraSeats={latestSubscription.extra_seats}
+          pendingExtraSeats={latestSubscription.pending_extra_seats ?? null}
+          currentBillingInterval={latestSubscription.billing_interval}
+          currentPeriodEnd={latestSubscription.current_period_end}
+          isSandbox={isSandbox}
+        />
+      )}
+
       <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
         <h2 className="text-sm font-semibold mb-3">{t('history')}</h2>
         {(() => {
@@ -290,6 +316,8 @@ export function BillingManager({
                   } else {
                     purposeLabel = t('tierChangeTo', { tier: targetTierName });
                   }
+                } else if (p.purpose === 'SEAT_CHANGE') {
+                  purposeLabel = t('seatChangeLabel', { seats: p.seats_charged ?? p.target_extra_seats ?? 0 });
                 } else if (p.purpose === 'RENEWAL') {
                   purposeLabel = t('paymentPurposeRenewal', { tier: subTierName });
                 } else {
@@ -456,9 +484,11 @@ function PendingPaymentCard({
       <h2 className="text-sm font-semibold">
         {isTierChange
           ? t('pendingPayment.tierChangeTitle', { tier: targetTierName })
-          : payment.purpose === 'RENEWAL'
-            ? t('pendingPayment.renewalTitle')
-            : t('pendingPayment.title')}
+          : payment.purpose === 'SEAT_CHANGE'
+            ? t('pendingPayment.seatChangeTitle', { seats: payment.target_extra_seats ?? 0 })
+            : payment.purpose === 'RENEWAL'
+              ? t('pendingPayment.renewalTitle')
+              : t('pendingPayment.title')}
       </h2>
       <p className="mt-2 text-2xl font-semibold tracking-tight">
         {currencyFormatter.format(Number(payment.total_amount ?? payment.amount))}
@@ -765,9 +795,17 @@ function PlanCard({
 }) {
   const tPricing = useTranslations('pricing');
   const t = useTranslations('billing');
-  const { total: price, effectiveInterval } = resolveTierTotal(tier, interval);
-  const perLabel = tPricing(effectiveInterval === 'YEARLY' ? 'perYear' : 'perMonth');
+  // Both callers (ChangeTierCard/SubscribeCard) filter their tier list to
+  // only tiers selling `interval` before rendering this card, so it never
+  // has to fall back to a different interval — the price is always shown
+  // at the actual selected interval.
+  const { base: price } = resolveTierTotal(tier, interval);
+  const perLabel = tPricing(interval === 'YEARLY' ? 'perYear' : 'perMonth');
   const isHighlighted = tier.name === 'GROWTH';
+  // Mirrors the pricing page: a YEARLY subscription pools the full year's
+  // quota up front (documentQuota × 12) rather than resetting monthly.
+  const yearlyPooled = interval === 'YEARLY';
+  const quotaCount = (yearlyPooled ? (tier.documentQuota ?? 0) * 12 : tier.documentQuota) ?? 0;
 
   return (
     <div
@@ -804,14 +842,15 @@ function PlanCard({
           <span className="text-sm font-normal text-muted-foreground">{perLabel}</span>
         </p>
         <p className="text-xs text-muted-foreground">
-          {t('ivaIncluded')}
-          {effectiveInterval !== interval && ` · ${tPricing('yearlyOnlyNote')}`}
+          {t('plusIva')}
         </p>
       </div>
       <p className="text-xs text-muted-foreground">
         {tier.documentQuota === null
           ? tPricing('features.unlimitedQuota')
-          : tPricing('features.quota', { count: tier.documentQuota })}
+          : yearlyPooled
+            ? tPricing('features.quotaYearly', { count: quotaCount })
+            : tPricing('features.quota', { count: quotaCount })}
       </p>
     </div>
   );
@@ -840,6 +879,10 @@ function ChangeTierCard({
   const [selectedInterval, setSelectedInterval] = useState<'MONTHLY' | 'YEARLY'>(currentBillingInterval);
 
   const options = tiers.filter((tier): tier is ApiTierInfo & { name: PaidTier } => tier.name !== 'FREE');
+  // Hides a tier entirely on an interval it doesn't sell (e.g. SOLO on
+  // Mensual) instead of showing it with a mismatched price + a "yearly only"
+  // caveat — mirrors the same fix on the public /pricing page.
+  const visibleOptions = options.filter((tier) => tier.billingIntervals.includes(selectedInterval));
 
   const periodEndFormatted = currentPeriodEnd
     ? dateFormatter.format(new Date(currentPeriodEnd))
@@ -866,14 +909,14 @@ function ChangeTierCard({
   // Mirrors requestSandboxTierChange's own pricing exactly: current-tier price
   // at the CURRENT interval (what was actually paid) credited against the
   // target tier's price at the SELECTED interval — both from the same tiers
-  // catalog, no time-proration (sandbox has no real period for that). Uses
-  // the IVA-inclusive total on both sides (algebraically equivalent to the
-  // API's own base-price-then-IVA order of operations, since IVA is a flat
-  // rate applied uniformly — see subscription.service.js's breakdownAmount).
+  // catalog, no time-proration (sandbox has no real period for that). Both
+  // sides are tax-exclusive base prices, same as the API's own netPrice
+  // calculation (breakdownAmount() adds IVA on top afterward — see
+  // subscription.service.js) — shown here with a "+ IVA" note, not pre-summed.
   const sandboxNetPrice = targetTierInfo && currentTierInfo
     ? Math.max(0,
-        resolveTierTotal(targetTierInfo, selectedInterval).total
-          - resolveTierTotal(currentTierInfo, currentBillingInterval).total)
+        resolveTierTotal(targetTierInfo, selectedInterval).base
+          - resolveTierTotal(currentTierInfo, currentBillingInterval).base)
     : 0;
 
   type Scenario = 'upgrade' | 'downgrade' | 'interval-change';
@@ -949,7 +992,7 @@ function ChangeTierCard({
         </div>
 
         <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {options.map((tier) => {
+          {visibleOptions.map((tier) => {
             const isCurrent = tier.name === currentSubscriptionTier && selectedInterval === currentBillingInterval;
             const isSelected = selectedTier === tier.name && !isCurrent;
             return (
@@ -1001,16 +1044,16 @@ function ChangeTierCard({
             {targetTierInfo && isSandbox && !isTierDowngrade && (
               <p className="font-medium">
                 {currencyFormatter.format(sandboxNetPrice)}
-                {' · '}
-                <span className="text-xs font-normal text-muted-foreground">{t('ivaIncluded')}</span>
+                {' '}
+                <span className="text-xs font-normal text-muted-foreground">{t('plusIva')}</span>
               </p>
             )}
             {targetTierInfo && !isSandbox && scenario !== 'upgrade' && (
               <p className="font-medium">
-                {currencyFormatter.format(resolveTierTotal(targetTierInfo, selectedInterval).total)}
+                {currencyFormatter.format(resolveTierTotal(targetTierInfo, selectedInterval).base)}
                 {tPricing(targetEffectiveInterval === 'YEARLY' ? 'perYear' : 'perMonth')}
-                {' · '}
-                <span className="text-xs font-normal text-muted-foreground">{t('ivaIncluded')}</span>
+                {' '}
+                <span className="text-xs font-normal text-muted-foreground">{t('plusIva')}</span>
               </p>
             )}
             <div className="flex gap-2">
@@ -1068,6 +1111,142 @@ function ChangeTierCard({
   );
 }
 
+// Extra user seats add-on (ADR-032) — a flat-priced, quantity-based purchase
+// against comprobify-web's own maxUsers cap (see src/lib/tenant-limits.ts).
+// Deliberately a separate card from ChangeTierCard rather than folded into
+// it: seats have only two scenarios (increase/decrease, no interval-change —
+// they always follow the subscription's own billing_interval) and a plain
+// count input, not a tier picker, so sharing ChangeTierCard's three-scenario
+// state machine would add more complexity than it would save.
+function SeatsCard({
+  extraSeat,
+  currentExtraSeats,
+  pendingExtraSeats,
+  currentBillingInterval,
+  currentPeriodEnd,
+  isSandbox,
+}: {
+  extraSeat: ApiExtraSeatPricing;
+  currentExtraSeats: number;
+  pendingExtraSeats: number | null;
+  currentBillingInterval: 'MONTHLY' | 'YEARLY';
+  currentPeriodEnd: string | null;
+  isSandbox: boolean;
+}) {
+  const t = useTranslations('billing');
+  const tError = useTranslations('apiError');
+  const [isPending, startTransition] = useTransition();
+  const [confirming, setConfirming] = useState(false);
+  const [selectedSeats, setSelectedSeats] = useState(currentExtraSeats);
+
+  const periodEndFormatted = currentPeriodEnd ? dateFormatter.format(new Date(currentPeriodEnd)) : null;
+  const isNoOp = selectedSeats === currentExtraSeats;
+  const isDecrease = selectedSeats < currentExtraSeats;
+  const scenario: 'increase' | 'decrease' | null = isNoOp ? null : isDecrease ? 'decrease' : 'increase';
+  // Base (tax-exclusive) unit price — shown as "$X + IVA", not a bundled total.
+  const seatUnitBasePrice = resolveSeatBasePrice(extraSeat, currentBillingInterval);
+  // Flat per-seat pricing, unlike a tier's price — no "credit for what was
+  // already paid" needed, the net difference is just delta × unit price
+  // (mirrors requestSandboxSeatChange's own seatDelta * seatPrice math).
+  const sandboxNetPrice = Math.max(0, (selectedSeats - currentExtraSeats) * seatUnitBasePrice);
+
+  function handleChange() {
+    if (isNoOp) return;
+    startTransition(async () => {
+      const result = await changeSeatsAction(selectedSeats);
+      if ('error' in result) {
+        toastApiError(result.error, tError);
+        return;
+      }
+      setConfirming(false);
+      if (result.effectiveAt && !result.payment) {
+        toast.success(t('changeSeats.decreaseScheduled'));
+      } else if (result.payment) {
+        toast.success(t('changeSeats.increaseRequested'));
+      } else {
+        toast.success(t('changeSeats.increaseApplied'));
+      }
+    });
+  }
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-3">
+      <div>
+        <h2 className="text-sm font-semibold">{t('changeSeats.title')}</h2>
+        <p className="mt-1 text-xs text-muted-foreground">{t('changeSeats.hint')}</p>
+      </div>
+
+      {pendingExtraSeats !== null && periodEndFormatted && (
+        <p className="text-sm text-amber-700 dark:text-amber-400">
+          {t('changeSeats.decreasePending', { seats: pendingExtraSeats, date: periodEndFormatted })}
+        </p>
+      )}
+
+      <div className="flex items-center gap-3">
+        <label className="text-xs font-medium text-muted-foreground" htmlFor="extra-seats-input">
+          {t('changeSeats.seatsLabel')}
+        </label>
+        <input
+          id="extra-seats-input"
+          type="number"
+          min={0}
+          max={100}
+          value={selectedSeats}
+          onChange={(e) => {
+            setConfirming(false);
+            const parsed = Number(e.target.value);
+            setSelectedSeats(Number.isFinite(parsed) ? Math.min(100, Math.max(0, Math.trunc(parsed))) : 0);
+          }}
+          disabled={isPending}
+          className="w-24 rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+        />
+        <span className="text-xs text-muted-foreground">
+          {t('changeSeats.currentCount', { count: currentExtraSeats })}
+        </span>
+      </div>
+
+      {!isNoOp && !confirming && (
+        <div className="flex justify-end">
+          <Button size="sm" variant="outline" onClick={() => setConfirming(true)} disabled={isPending}>
+            {t('changeSeats.button')}
+          </Button>
+        </div>
+      )}
+
+      {confirming && scenario && (
+        <div className="rounded-md border border-border bg-muted/40 p-3 text-sm space-y-2">
+          <p>
+            {isSandbox
+              ? (scenario === 'decrease'
+                  ? t('changeSeats.confirmHintSandboxFree')
+                  : t('changeSeats.confirmHintSandboxCharge'))
+              : scenario === 'increase'
+                ? t('changeSeats.confirmHintIncrease')
+                : (periodEndFormatted
+                    ? t('changeSeats.confirmHintDecrease', { date: periodEndFormatted })
+                    : t('changeSeats.confirmHintDecreaseNoDate'))}
+          </p>
+          {isSandbox && scenario === 'increase' && (
+            <p className="font-medium">
+              {currencyFormatter.format(sandboxNetPrice)}
+              {' '}
+              <span className="text-xs font-normal text-muted-foreground">{t('plusIva')}</span>
+            </p>
+          )}
+          <div className="flex gap-2">
+            <Button size="sm" onClick={handleChange} disabled={isPending}>
+              {isPending ? t('changeSeats.confirming') : t('changeSeats.confirm')}
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setConfirming(false)} disabled={isPending}>
+              {t('changeSeats.cancel')}
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SubscribeCard({
   tiers,
   emailVerified,
@@ -1087,6 +1266,13 @@ function SubscribeCard({
   const [selectedTier, setSelectedTier] = useState<PaidTier | null>(intendedTier ?? null);
   const [billingInterval, setBillingInterval] = useState<BillingInterval>(intendedBillingInterval ?? 'MONTHLY');
   const options = tiers.filter((tier): tier is ApiTierInfo & { name: PaidTier } => tier.name !== 'FREE');
+  // Hides a tier entirely on an interval it doesn't sell (e.g. SOLO on
+  // Mensual) instead of showing it with a mismatched price + a "yearly only"
+  // caveat — mirrors the same fix on the public /pricing page. `options`
+  // itself stays unfiltered since selectTier/handleSubscribe/selectedTierInfo
+  // need to resolve a selection regardless of the toggle's current position
+  // (e.g. a pre-filled intendedTier of SOLO before the user touches the toggle).
+  const visibleOptions = options.filter((tier) => tier.billingIntervals.includes(billingInterval));
 
   function selectTier(name: PaidTier) {
     setSelectedTier(name);
@@ -1151,7 +1337,7 @@ function SubscribeCard({
           </div>
 
           <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {options.map((tier) => (
+            {visibleOptions.map((tier) => (
               <PlanCard
                 key={tier.name}
                 tier={tier}
@@ -1173,10 +1359,10 @@ function SubscribeCard({
           {confirming && selectedTier && selectedTierInfo && (
             <div className="mt-3 rounded-md border border-border bg-muted/40 p-3 text-sm space-y-2">
               <p className="font-medium">
-                {currencyFormatter.format(resolveTierTotal(selectedTierInfo, billingInterval).total)}
+                {currencyFormatter.format(resolveTierTotal(selectedTierInfo, billingInterval).base)}
                 {tPricing(resolveTierTotal(selectedTierInfo, billingInterval).effectiveInterval === 'YEARLY' ? 'perYear' : 'perMonth')}
-                {' · '}
-                <span className="text-xs font-normal text-muted-foreground">{t('ivaIncluded')}</span>
+                {' '}
+                <span className="text-xs font-normal text-muted-foreground">{t('plusIva')}</span>
               </p>
               <p>{t('subscribe.confirmHint')}</p>
               <div className="flex gap-2">

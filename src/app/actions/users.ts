@@ -6,7 +6,8 @@ import { revalidatePath } from 'next/cache';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { sendMail } from '@/lib/mailgun';
 import * as Sentry from '@sentry/nextjs';
-import { resolveApiKeyForRole } from '@/lib/tenant-api-key';
+import { resolveApiKeyForRole, roleNeedsNewApiKey } from '@/lib/tenant-api-key';
+import { resolveTenantLimits } from '@/lib/tenant-limits';
 import { issueVerificationToken } from '@/lib/verification-token';
 import type { Role } from '@/lib/rbac';
 
@@ -15,6 +16,27 @@ export type UsersResult = { error: string } | null;
 function assertCanGrantRole(role: Role, callerRole: Role): UsersResult {
   if (role === 'Owner' && callerRole !== 'Owner') {
     return { error: 'ONLY_OWNER_CAN_GRANT_OWNER' };
+  }
+  return null;
+}
+
+/**
+ * Blocks a role grant that would need a brand-new API key when the tenant is
+ * already at maxApiKeys, instead of letting ensureRoleApiKeyBestEffort's mint
+ * fail silently (best-effort there is meant for transient failures, not a
+ * deterministic, knowable-in-advance cap breach). Cheap in the common case —
+ * roleNeedsNewApiKey short-circuits on one indexed lookup for a role this
+ * tenant has already used, only pulling the tier's maxApiKeys when a role is
+ * genuinely new to this tenant.
+ */
+async function assertApiKeyHeadroomForRole(
+  ctx: { apiKey: string; tenant: { id: string; environment: 'sandbox' | 'production' } },
+  role: Role,
+): Promise<UsersResult> {
+  if (!(await roleNeedsNewApiKey(ctx.tenant.id, ctx.tenant.environment, role))) return null;
+  const limits = await resolveTenantLimits(ctx);
+  if (limits.apiKeys.limit !== null && limits.apiKeys.used >= limits.apiKeys.limit) {
+    return { error: 'API_KEY_LIMIT_REACHED' };
   }
   return null;
 }
@@ -55,6 +77,22 @@ export async function inviteUserAction(email: string, role: Role): Promise<Users
 
   const grantError = assertCanGrantRole(role, ctx.user.role);
   if (grantError) return grantError;
+
+  // Two independent caps, both checked before creating/linking the user —
+  // headcount (WEB-scoped, maxUsers+extraSeats) and, since granting a role
+  // this tenant has never used mints a brand-new API key, the tier's
+  // maxApiKeys (API-scoped) too. See src/lib/tenant-limits.ts.
+  const limits = await resolveTenantLimits(ctx);
+  if (limits.seats.limit !== null && limits.seats.used >= limits.seats.limit) {
+    return { error: 'USER_SEAT_LIMIT_REACHED' };
+  }
+  if (
+    limits.apiKeys.limit !== null &&
+    limits.apiKeys.used >= limits.apiKeys.limit &&
+    (await roleNeedsNewApiKey(ctx.tenant.id, ctx.tenant.environment, role))
+  ) {
+    return { error: 'API_KEY_LIMIT_REACHED' };
+  }
 
   const normalizedEmail = email.trim().toLowerCase();
   const existing = await db.user.findUnique({ where: { email: normalizedEmail } });
@@ -121,6 +159,9 @@ export async function updateUserRoleAction(userId: string, role: Role): Promise<
 
   const user = await db.user.findUnique({ where: { id: userId } });
   if (!user || user.tenantId !== ctx.tenant.id) return { error: 'USER_NOT_FOUND' };
+
+  const keyError = await assertApiKeyHeadroomForRole(ctx, role);
+  if (keyError) return keyError;
 
   await db.user.update({ where: { id: userId }, data: { role } });
   await ensureRoleApiKeyBestEffort(ctx.tenant.id, ctx.tenant.environment, role);
@@ -213,6 +254,8 @@ export async function updateUserAction(
   if (data.role !== undefined && userId !== ctx.user.id) {
     const grantError = assertCanGrantRole(data.role, ctx.user.role);
     if (grantError) return grantError;
+    const keyError = await assertApiKeyHeadroomForRole(ctx, data.role);
+    if (keyError) return keyError;
     userUpdate.role = data.role;
   }
 

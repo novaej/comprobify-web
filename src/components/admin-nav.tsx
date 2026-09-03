@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation';
-import { Building2, Receipt, FileSpreadsheet, FileText, DollarSign, LogOut, Menu, X, ShieldCheck } from 'lucide-react';
+import { Building2, Receipt, FileSpreadsheet, FileText, DollarSign, Users, LogOut, Menu, X, ShieldCheck } from 'lucide-react';
 import { LogoLockup, Logomark } from '@/components/logo';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { logoutAction } from '@/app/actions/auth';
@@ -15,6 +15,7 @@ const navItems = [
   { href: '/admin/invoicing/pending', icon: FileSpreadsheet, labelKey: 'invoicing' as const },
   { href: '/admin/agreements', icon: FileText, labelKey: 'agreements' as const },
   { href: '/admin/prices', icon: DollarSign, labelKey: 'prices' as const },
+  { href: '/admin/seat-prices', icon: Users, labelKey: 'seatPrices' as const },
 ] as const;
 
 export function AdminNav({ userEmail, pendingInvoicingCount }: { userEmail: string; pendingInvoicingCount: number }) {

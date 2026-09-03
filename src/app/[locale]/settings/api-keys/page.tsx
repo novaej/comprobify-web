@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/page-header';
 import { ApiKeyManager } from '@/components/api-key-manager';
 import { listTenantApiKeys } from '@/lib/api';
 import { computeApiScopesForRole } from '@/lib/role-api-scopes';
+import { resolveTenantLimits } from '@/lib/tenant-limits';
 
 export default async function ApiKeysPage({
   params,
@@ -18,7 +19,7 @@ export default async function ApiKeysPage({
 
   const ctx = await requirePermission('apikeys.read', { skipIssuer: true });
 
-  const [keys, apiKeyInfos] = await Promise.all([
+  const [keys, apiKeyInfos, limits] = await Promise.all([
     db.tenantApiKey.findMany({
       where: { tenantId: ctx.tenant.id },
       orderBy: { createdAt: 'desc' },
@@ -26,6 +27,7 @@ export default async function ApiKeysPage({
     // Lifetime lastUsedAt/requestCount live only on the API side — the local
     // TenantApiKey mirror has no columns for them.
     listTenantApiKeys({ apiKey: ctx.apiKey }),
+    resolveTenantLimits(ctx),
   ]);
 
   const usageByApiKeyId = new Map(apiKeyInfos.map((info) => [info.id, info]));
@@ -59,6 +61,8 @@ export default async function ApiKeysPage({
         environment={ctx.tenant.environment}
         apiBaseUrl={process.env.COMPROBIFY_API_URL ?? ''}
         callerScopes={computeApiScopesForRole(ctx.user.role)}
+        activeKeyCount={limits.apiKeys.used}
+        maxApiKeys={limits.apiKeys.maxApiKeys}
       />
     </div>
   );

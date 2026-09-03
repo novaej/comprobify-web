@@ -44,7 +44,7 @@ export default async function IssuersPage({
   });
   const activeIssuers = issuers.filter((i) => i.active);
 
-  const [documentTypesPerIssuer, sequentialsPerIssuer, apiIssuers, tenantInfo, tiers] = await Promise.all([
+  const [documentTypesPerIssuer, sequentialsPerIssuer, apiIssuers, tenantInfo, tiersResult] = await Promise.all([
     Promise.all(
       issuers.map((issuer) =>
         listIssuerDocumentTypes({ apiKey: ctx.apiKey }, issuer.apiIssuerId).catch(() => [] as string[])
@@ -57,8 +57,9 @@ export default async function IssuersPage({
     ),
     listTenantIssuers({ apiKey: ctx.apiKey }).catch(() => []),
     getCurrentTenant({ apiKey: ctx.apiKey }),
-    listTiers().catch(() => []),
+    listTiers().catch(() => null),
   ]);
+  const tiers = tiersResult?.tiers ?? [];
 
   // See settings/billing/page.tsx for why this reconciles the local mirror here.
   await reconcileTenantStatus(ctx.tenant.id, ctx.tenant.status, tenantInfo.status);

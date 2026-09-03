@@ -14,6 +14,28 @@ export function findMasterApiKeyRow(tenantId: string, environment: string) {
   });
 }
 
+/**
+ * True only when granting `role` would mint a brand-new TenantApiKey row —
+ * i.e. it consumes one of the tier's maxApiKeys slots. Owner/Admin always
+ * share the already-existing master key (never a new slot). A scopes-drift
+ * remint (existing row, stale scopes) is a revoke-then-create wash on the
+ * active count, not a new slot, so an existing row of any scope shape counts
+ * as "no new key needed" here — see resolveApiKeyForRole's revoke-and-remint
+ * path. Callers should check this *before* minting (ensureRoleApiKeyBestEffort
+ * silently swallows a 402 API_KEY_LIMIT_REACHED from the mint itself).
+ */
+export async function roleNeedsNewApiKey(
+  tenantId: string,
+  environment: string,
+  role: Role,
+): Promise<boolean> {
+  if (isFullAccessScopeSet(computeApiScopesForRole(role))) return false;
+  const existing = await db.tenantApiKey.findFirst({
+    where: { tenantId, environment, isActive: true, isManaged: true, managedRole: role },
+  });
+  return !existing;
+}
+
 /** Finds, mints, or reconciles the key a role should authenticate with. Idempotent — safe to call eagerly on role assignment or lazily from requireContext(). */
 export async function resolveApiKeyForRole(
   tenantId: string,

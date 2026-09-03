@@ -7,6 +7,7 @@ import {
   listPaymentProofs,
   deletePaymentProof,
   changeTier,
+  changeSeats,
   createSubscription,
   cancelSubscription,
   createPayphoneSession,
@@ -14,6 +15,7 @@ import {
   type ApiPaymentInfo,
   type ApiPaymentProof,
   type ChangeTierResult,
+  type ChangeSeatsResult,
   type CreateSubscriptionResult,
   type CancelSubscriptionResult,
   type ApiPayphoneSession,
@@ -28,6 +30,7 @@ import type { PaidTier, BillingInterval } from '@/lib/subscription-tiers';
 export type BillingResult = { error: string } | { payment: ApiPaymentInfo; proofs: ApiPaymentProof[] };
 export type ProofListResult = { error: string } | { proofs: ApiPaymentProof[] };
 export type ChangeTierActionResult = { error: string } | ChangeTierResult;
+export type ChangeSeatsActionResult = { error: string } | ChangeSeatsResult;
 export type CreateSubscriptionActionResult = { error: string } | CreateSubscriptionResult;
 export type CancelSubscriptionActionResult = { error: string } | CancelSubscriptionResult;
 export type PayphoneSessionActionResult = { error: string } | { session: ApiPayphoneSession };
@@ -121,6 +124,33 @@ export async function changeTierAction(tier: PaidTier, billingInterval?: Billing
 
   // Same one-time-response caching as promoteTenantAction — bankTransfer is only
   // ever returned from this call, never retrievable again afterward.
+  if (result.bankTransfer) {
+    await db.tenant.update({
+      where: { id: ctx.tenant.id },
+      data: { pendingBankTransfer: result.bankTransfer as unknown as Prisma.InputJsonValue },
+    });
+  }
+
+  revalidatePath('/settings/billing');
+  return result;
+}
+
+export async function changeSeatsAction(extraSeats: number): Promise<ChangeSeatsActionResult> {
+  const ctx = await requirePermission('billing.manage', { skipIssuer: true });
+
+  let result: ChangeSeatsResult;
+  try {
+    result = await changeSeats({ apiKey: ctx.apiKey }, extraSeats);
+  } catch (err) {
+    if (err instanceof ApiError) {
+      await syncTenantStatusFromError(ctx.tenant.id, err);
+      return { error: err.code };
+    }
+    throw err;
+  }
+
+  // Same one-time-response caching as changeTierAction/promoteTenantAction —
+  // bankTransfer is only ever returned from this call, never retrievable again.
   if (result.bankTransfer) {
     await db.tenant.update({
       where: { id: ctx.tenant.id },

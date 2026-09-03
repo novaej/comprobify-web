@@ -37,6 +37,8 @@ export function ApiKeyManager({
   environment,
   apiBaseUrl,
   callerScopes,
+  activeKeyCount,
+  maxApiKeys,
 }: {
   keys: ApiKeyRow[];
   canManage: boolean;
@@ -45,6 +47,10 @@ export function ApiKeyManager({
   apiBaseUrl: string;
   /** Scopes the current user's own key holds — bounds what a new key can be created with. */
   callerScopes: ApiKeyScope[];
+  /** Active keys for the tenant's current environment — used against maxApiKeys (ADR-031). */
+  activeKeyCount: number;
+  /** null = unlimited (ENTERPRISE). */
+  maxApiKeys: number | null;
 }) {
   const t = useTranslations('apiKeys');
   const tRole = useTranslations('users');
@@ -109,6 +115,7 @@ export function ApiKeyManager({
   }
 
   const curlSnippet = `curl ${apiBaseUrl}/v1/documents \\\n  -H "Authorization: Bearer ${createdKey?.key ?? t('usage.keyPlaceholder')}"`;
+  const atKeyLimit = maxApiKeys !== null && activeKeyCount >= maxApiKeys;
 
   return (
     <div className="space-y-4">
@@ -116,6 +123,13 @@ export function ApiKeyManager({
         <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           {t('missingKeyWarning')}
+        </div>
+      )}
+
+      {atKeyLimit && (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 text-sm text-amber-700 dark:text-amber-400">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          {t('keyLimitReached', { used: activeKeyCount, limit: maxApiKeys })}
         </div>
       )}
 
@@ -184,7 +198,7 @@ export function ApiKeyManager({
             </div>
 
             <div className="flex items-center gap-2">
-              <Button size="sm" onClick={handleCreate} disabled={isPending}>
+              <Button size="sm" onClick={handleCreate} disabled={isPending || atKeyLimit}>
                 {isPending ? t('creating') : t('create')}
               </Button>
               <Button size="sm" variant="outline" onClick={() => setShowCreate(false)} disabled={isPending}>
@@ -193,7 +207,7 @@ export function ApiKeyManager({
             </div>
           </div>
         ) : (
-          <Button size="sm" onClick={() => setShowCreate(true)}>
+          <Button size="sm" onClick={() => setShowCreate(true)} disabled={atKeyLimit}>
             <Plus className="mr-1 h-4 w-4" />
             {t('createKey')}
           </Button>

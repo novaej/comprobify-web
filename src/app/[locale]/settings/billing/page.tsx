@@ -23,12 +23,14 @@ export default async function BillingPage({
 
   // Subscribing/changing tier no longer depends on environment — POST /v1/subscriptions
   // works while still in sandbox (the grant just has no production effect until promoted).
-  const [tenantInfo, subscriptions, tenantRow, tiers] = await Promise.all([
+  const [tenantInfo, subscriptions, tenantRow, tiersResult] = await Promise.all([
     getCurrentTenant({ apiKey: ctx.apiKey }),
     getMySubscriptions({ apiKey: ctx.apiKey }),
     db.tenant.findUnique({ where: { id: ctx.tenant.id }, select: { pendingBankTransfer: true, intendedTier: true, intendedBillingInterval: true } }),
-    listTiers().catch(() => []),
+    listTiers().catch(() => null),
   ]);
+  const tiers = tiersResult?.tiers ?? [];
+  const extraSeat = tiersResult?.extraSeat ?? null;
 
   // Fetch proofs for every payment upfront so they appear in both the
   // PendingPaymentCard and the read-only payment history rows.
@@ -66,6 +68,7 @@ export default async function BillingPage({
         tenantInfo={tenantInfo}
         currentTier={currentTier}
         tiers={tiers}
+        extraSeat={extraSeat}
         subscriptions={subscriptions}
         pendingBankTransfer={pendingBankTransfer}
         proofsByPaymentId={proofsByPaymentId}

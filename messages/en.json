@@ -736,6 +736,8 @@
     "INTERNAL_ERROR": "Internal server error. Please contact support.",
     "VALIDATION_FAILED": "Please review the form fields and try again.",
     "ONLY_OWNER_CAN_GRANT_OWNER": "Only an Owner can grant the Owner role.",
+    "USER_SEAT_LIMIT_REACHED": "You've reached your plan's user limit. Buy additional seats or upgrade your plan to invite more people.",
+    "API_KEY_LIMIT_REACHED": "Your plan's API key limit has been reached. Revoke an unused key or upgrade your plan.",
     "SRI_SUBMISSION_FAILED": "The SRI returned an error. Review the detail messages.",
     "DOCUMENT_NOT_FOUND": "Document not found.",
     "DOCUMENT_TYPE_NOT_ENABLED": "That document type is not enabled for this issuer.",
@@ -806,6 +808,8 @@
     "TIER_CHANGE_NO_OP": "You're already on that plan.",
     "TIER_CHANGE_ALREADY_PENDING": "A plan change is already in progress for your subscription.",
     "CANCELLATION_ALREADY_PENDING": "A cancellation is already scheduled for this subscription.",
+    "SEAT_CHANGE_NO_OP": "You already have that many extra seats.",
+    "SEAT_CHANGE_ALREADY_PENDING": "A seat change is already in progress for your subscription.",
     "REQUIRES_PRODUCTION": "This action is only available in the production environment.",
     "AGREEMENT_NOT_FOUND": "The requested agreement document was not found.",
     "VERSION_MISMATCH": "The terms have been updated. Reload the page and review them before continuing.",
@@ -1062,6 +1066,7 @@
     "createdSuccess": "API key \"{label}\" created successfully.",
     "showOnce": "Copy this key now. You won't be able to see it again.",
     "missingKeyWarning": "You have no active API keys. The system cannot authenticate requests until you create one.",
+    "keyLimitReached": "You've reached your plan's API key limit ({used} of {limit}). Revoke an unused key or upgrade your plan to create more.",
     "table": {
       "label": "Label",
       "environment": "Environment",
@@ -1152,6 +1157,10 @@
     },
     "inviteSuccess": "Invitation sent to {email}.",
     "roleSuccess": "Role updated successfully.",
+    "seatUsage": "{used} of {limit} user seats used",
+    "seatUsageUnlimited": "{used} user seats used (unlimited)",
+    "seatLimitReached": "You've reached your plan's user limit.",
+    "seatLimitReachedLink": "Buy additional seats",
     "removeSuccess": "User removed from the organization.",
     "resendInvite": "Resend invite",
     "resendInviteSuccess": "Invitation email resent.",
@@ -1476,10 +1485,9 @@
     "perMonth": "/mo",
     "perYear": "/yr",
     "yearlyEquivalent": "Equivalent to {price}/mo",
-    "ivaIncluded": "VAT included",
-    "ivaNote": "Prices include VAT ({rate}%)",
-    "yearlyOnlyNote": "Available with yearly billing only",
+    "plusIva": "+ VAT",
     "upcomingPriceNote": "Price increases to {price} on {date}.",
+    "extraSeatNote": "You can add more platform users after signing up, for {price}",
     "tiers": {
       "FREE": {
         "name": "Free",
@@ -1518,13 +1526,16 @@
       }
     },
     "features": {
-      "quota": "{count} documents/month",
+      "quota": "{count, plural, one {# document/month} other {# documents/month}}",
+      "quotaYearly": "{count, plural, one {# document/year} other {# documents/year}}",
       "unlimitedQuota": "Unlimited documents",
-      "branches": "{count} branches",
+      "branches": "{count, plural, one {# branch} other {# branches}}",
       "unlimitedBranches": "Unlimited branches",
-      "issuePoints": "{count} issue points per branch",
+      "issuePoints": "{count, plural, one {# issue point per branch} other {# issue points per branch}}",
       "unlimitedIssuePoints": "Unlimited issue points",
-      "webhooks": "{count} webhooks",
+      "webhooks": "{count, plural, one {# webhook} other {# webhooks}}",
+      "users": "{count, plural, one {# platform user} other {# platform users}}",
+      "unlimitedUsers": "Unlimited platform users",
       "docTypes": "Document types: {types}"
     }
   },
@@ -1541,6 +1552,9 @@
       "branches": "Branches",
       "issuePoints": "Issue points per branch",
       "webhooks": "Webhooks",
+      "users": "Dashboard users",
+      "usersWithExtra": "{base} + {extra} extra",
+      "apiKeys": "API keys",
       "allowedDocTypes": "Available document types",
       "unlimited": "Unlimited"
     },
@@ -1550,11 +1564,13 @@
     "billingPeriod": "Period: {start} – {end} · {interval}",
     "billingPeriodSandbox": "{interval} billing — the billing period will start once you go to production",
     "ivaIncluded": "VAT incl.",
+    "plusIva": "+ VAT",
     "downgradeScheduled": "Your plan will move to {tier} on {date}.",
     "cancellationScheduled": "Your subscription will be cancelled on {date}. You'll keep access to your current plan until then.",
     "tierChangeTo": "Change to {tier}",
     "tierChangeToWithInterval": "Change to {tier} ({interval})",
     "renewal": "Renewal",
+    "seatChangeLabel": "Extra seats ({seats})",
     "paymentPurposeInitial": "Subscription — {tier}",
     "paymentPurposeRenewal": "Renewal — {tier}",
     "billingInterval": {
@@ -1580,6 +1596,7 @@
     "pendingPayment": {
       "title": "Pending payment",
       "tierChangeTitle": "Pending payment to switch to {tier}",
+      "seatChangeTitle": "Pending payment for {seats} extra seats",
       "renewalTitle": "Pending renewal payment",
       "amount": "Amount to transfer: {amount}",
       "ivaBreakdown": "Includes {rate}% VAT ({iva}) on taxable base {base}",
@@ -1651,6 +1668,25 @@
       "upgradeApplied": "Your plan was updated immediately.",
       "downgradeScheduled": "The plan change was scheduled for the end of your current period."
     },
+    "changeSeats": {
+      "title": "Extra seats",
+      "hint": "Buy extra seats to invite more dashboard users beyond your plan's included limit.",
+      "seatsLabel": "Extra seats",
+      "currentCount": "You currently have {count}",
+      "button": "Change seats",
+      "confirmHintIncrease": "The change applies immediately. A prorated charge for the time remaining in your period will be generated. You'll be able to pay it by bank transfer or card.",
+      "confirmHintDecrease": "No additional charge. Your current seats stay active until {date}, then the decrease applies automatically.",
+      "confirmHintDecreaseNoDate": "No additional charge. Your current seats stay active until the end of your period, then the decrease applies automatically.",
+      "confirmHintSandboxCharge": "The change applies immediately. Sandbox doesn't prorate by time — you pay the full price of the new seats, as a one-time charge. You'll be able to pay it by bank transfer or card.",
+      "confirmHintSandboxFree": "The change applies immediately at no additional charge — in sandbox, reducing seats never generates a charge.",
+      "confirm": "Confirm change",
+      "confirming": "Processing...",
+      "cancel": "Cancel",
+      "increaseRequested": "Extra seats requested. Check the transfer details below.",
+      "increaseApplied": "Your extra seats were updated immediately.",
+      "decreaseScheduled": "The seat decrease was scheduled for the end of your current period.",
+      "decreasePending": "Your seats will drop to {seats} on {date}."
+    },
     "rejectionReason": {
       "AMOUNT_MISMATCH": "The transferred amount does not match the requested amount.",
       "TRANSFER_NOT_FOUND": "No matching transfer was found in the account.",
@@ -1718,6 +1754,7 @@
       "payments": "Payments",
       "agreements": "Acceptance documents",
       "prices": "Prices",
+      "seatPrices": "Seat pricing",
       "signOut": "Sign out",
       "invoicing": "Pending invoicing"
     },
@@ -1923,6 +1960,55 @@
       },
       "publishDialog": {
         "title": "Publish price — {tier} ({interval})",
+        "description": "New price: {price} (excl. VAT)",
+        "warning": "This action is irreversible. Once published, the price can't be edited or deleted — only a new draft can replace it later.",
+        "noticeDaysLabel": "Notice days",
+        "noticeDaysHint": "Minimum 30 days. Every active tenant receives a notification (in-app and email) of the change.",
+        "submit": "Publish",
+        "submitting": "Publishing..."
+      }
+    },
+    "seatPrices": {
+      "title": "Extra seat pricing",
+      "description": "Manage the extra user seats add-on's price. A new price is created as a draft and only takes effect — with at least 30 days' notice to tenants — once published.",
+      "newPrice": "New price",
+      "empty": "No prices recorded.",
+      "cancel": "Cancel",
+      "edit": "Edit",
+      "publish": "Publish",
+      "created": "Price created as a draft.",
+      "updated": "Draft updated.",
+      "published": "Price published. Active tenants will be notified.",
+      "intervals": {
+        "MONTHLY": "Monthly",
+        "YEARLY": "Yearly"
+      },
+      "status": {
+        "draft": "Draft",
+        "scheduled": "Scheduled",
+        "active": "Active"
+      },
+      "columns": {
+        "interval": "Interval",
+        "price": "Price (excl. VAT)",
+        "status": "Status",
+        "effectiveAt": "Effective",
+        "actions": "Actions"
+      },
+      "createDialog": {
+        "title": "New seat price",
+        "description": "Created as a draft — not visible to tenants and starts no notice clock until you publish it.",
+        "intervalLabel": "Billing interval",
+        "priceLabel": "Price (USD, excl. VAT)",
+        "priceHint": "Base price, excluding VAT — VAT is added automatically at checkout. Flat price, applies the same across every tier.",
+        "submit": "Create draft",
+        "submitting": "Creating..."
+      },
+      "editDialog": {
+        "title": "Edit draft — {interval}"
+      },
+      "publishDialog": {
+        "title": "Publish price — {interval}",
         "description": "New price: {price} (excl. VAT)",
         "warning": "This action is irreversible. Once published, the price can't be edited or deleted — only a new draft can replace it later.",
         "noticeDaysLabel": "Notice days",

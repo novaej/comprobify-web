@@ -14,11 +14,15 @@ import {
   createTierPrice,
   updateTierPrice,
   publishTierPrice,
+  createSeatPrice,
+  updateSeatPrice,
+  publishSeatPrice,
   type AdminTenant,
   type AdminPayment,
   type AdminAgreementVersion,
   type AgreementDocumentType,
   type AdminTierPrice,
+  type AdminSeatPrice,
   type TierName,
   type BillingInterval,
   type AdminTenantStatus,
@@ -187,6 +191,49 @@ export async function publishTierPriceAction(id: string, noticeDays?: number): P
   try {
     const price = await publishTierPrice(id, noticeDays);
     revalidatePath('/admin/prices');
+    return { price };
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.code };
+    throw err;
+  }
+}
+
+// ── Seat prices (ADR-032) ────────────────────────────────────────────────────
+
+export type AdminSeatPriceResult = { error: string } | { price: AdminSeatPrice };
+
+export async function createSeatPriceAction(
+  billingInterval: BillingInterval,
+  priceUsd: number,
+): Promise<AdminSeatPriceResult> {
+  await requireSuperAdmin();
+  try {
+    const price = await createSeatPrice(billingInterval, priceUsd);
+    revalidatePath('/admin/seat-prices');
+    return { price };
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.code };
+    throw err;
+  }
+}
+
+export async function updateSeatPriceAction(id: string, priceUsd: number): Promise<AdminSeatPriceResult> {
+  await requireSuperAdmin();
+  try {
+    const price = await updateSeatPrice(id, priceUsd);
+    revalidatePath('/admin/seat-prices');
+    return { price };
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.code };
+    throw err;
+  }
+}
+
+export async function publishSeatPriceAction(id: string, noticeDays?: number): Promise<AdminSeatPriceResult> {
+  await requireSuperAdmin();
+  try {
+    const price = await publishSeatPrice(id, noticeDays);
+    revalidatePath('/admin/seat-prices');
     return { price };
   } catch (err) {
     if (err instanceof ApiError) return { error: err.code };

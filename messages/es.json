@@ -736,6 +736,8 @@
     "INTERNAL_ERROR": "Error interno del servidor. Contacte al soporte.",
     "VALIDATION_FAILED": "Revise los campos del formulario e intente de nuevo.",
     "ONLY_OWNER_CAN_GRANT_OWNER": "Solo un Propietario puede asignar el rol de Propietario.",
+    "USER_SEAT_LIMIT_REACHED": "Alcanzaste el límite de usuarios de tu plan. Compra cupos adicionales o cambia de plan para invitar a más personas.",
+    "API_KEY_LIMIT_REACHED": "Se alcanzó el límite de API keys de tu plan. Revoca una clave sin uso o actualiza tu plan.",
     "SRI_SUBMISSION_FAILED": "El SRI devolvió un error. Revise los mensajes de detalle.",
     "DOCUMENT_NOT_FOUND": "El comprobante no existe.",
     "DOCUMENT_TYPE_NOT_ENABLED": "Ese tipo de comprobante no está habilitado para este emisor.",
@@ -806,6 +808,8 @@
     "TIER_CHANGE_NO_OP": "Ya está en ese plan.",
     "TIER_CHANGE_ALREADY_PENDING": "Ya hay un cambio de plan en proceso para su suscripción.",
     "CANCELLATION_ALREADY_PENDING": "La suscripción ya tiene una cancelación programada.",
+    "SEAT_CHANGE_NO_OP": "Ya tienes esa cantidad de cupos adicionales.",
+    "SEAT_CHANGE_ALREADY_PENDING": "Ya hay un cambio de cupos en proceso para su suscripción.",
     "REQUIRES_PRODUCTION": "Esta acción solo está disponible en el ambiente de producción.",
     "AGREEMENT_NOT_FOUND": "No se encontró el documento de acuerdo solicitado.",
     "VERSION_MISMATCH": "Los términos han sido actualizados. Recargue la página y revíselos antes de continuar.",
@@ -1162,6 +1166,7 @@
     "createdSuccess": "API key «{label}» creada exitosamente.",
     "showOnce": "Copia esta clave ahora. No podrás verla de nuevo.",
     "missingKeyWarning": "No tienes API keys activas. El sistema no puede autenticar solicitudes hasta que crees una.",
+    "keyLimitReached": "Alcanzaste el límite de API keys de tu plan ({used} de {limit}). Revoca una clave sin uso o actualiza tu plan para crear más.",
     "table": {
       "label": "Etiqueta",
       "environment": "Ambiente",
@@ -1252,6 +1257,10 @@
     },
     "inviteSuccess": "Invitación enviada a {email}.",
     "roleSuccess": "Rol actualizado correctamente.",
+    "seatUsage": "{used} de {limit} cupos de usuario usados",
+    "seatUsageUnlimited": "{used} cupos de usuario usados (ilimitado)",
+    "seatLimitReached": "Alcanzaste el límite de usuarios de tu plan.",
+    "seatLimitReachedLink": "Comprar cupos adicionales",
     "removeSuccess": "Usuario eliminado de la organización.",
     "resendInvite": "Reenviar invitación",
     "resendInviteSuccess": "Correo de invitación reenviado.",
@@ -1476,10 +1485,9 @@
     "perMonth": "/mes",
     "perYear": "/año",
     "yearlyEquivalent": "Equivalente a {price}/mes",
-    "ivaIncluded": "IVA incluido",
-    "ivaNote": "Precios incluyen IVA ({rate}%)",
-    "yearlyOnlyNote": "Disponible solo con facturación anual",
+    "plusIva": "+ IVA",
     "upcomingPriceNote": "El precio sube a {price} a partir del {date}.",
+    "extraSeatNote": "Puedes agregar más usuarios de la plataforma después de registrarte, por {price}",
     "tiers": {
       "FREE": {
         "name": "Gratis",
@@ -1518,13 +1526,16 @@
       }
     },
     "features": {
-      "quota": "{count} comprobantes/mes",
+      "quota": "{count, plural, one {# comprobante/mes} other {# comprobantes/mes}}",
+      "quotaYearly": "{count, plural, one {# comprobante/año} other {# comprobantes/año}}",
       "unlimitedQuota": "Comprobantes ilimitados",
-      "branches": "{count} sucursales",
+      "branches": "{count, plural, one {# sucursal} other {# sucursales}}",
       "unlimitedBranches": "Sucursales ilimitadas",
-      "issuePoints": "{count} puntos de emisión por sucursal",
+      "issuePoints": "{count, plural, one {# punto de emisión por sucursal} other {# puntos de emisión por sucursal}}",
       "unlimitedIssuePoints": "Puntos de emisión ilimitados",
-      "webhooks": "{count} webhooks",
+      "webhooks": "{count, plural, one {# webhook} other {# webhooks}}",
+      "users": "{count, plural, one {# usuario de la plataforma} other {# usuarios de la plataforma}}",
+      "unlimitedUsers": "Usuarios de la plataforma ilimitados",
       "docTypes": "Comprobantes: {types}"
     }
   },
@@ -1541,6 +1552,9 @@
       "branches": "Sucursales",
       "issuePoints": "Puntos de emisión por sucursal",
       "webhooks": "Webhooks",
+      "users": "Usuarios del panel",
+      "usersWithExtra": "{base} + {extra} adicionales",
+      "apiKeys": "API keys",
       "allowedDocTypes": "Tipos de comprobantes disponibles",
       "unlimited": "Ilimitados"
     },
@@ -1550,11 +1564,13 @@
     "billingPeriod": "Periodo: {start} – {end} · {interval}",
     "billingPeriodSandbox": "Facturación {interval} — el periodo se activará al pasar a producción",
     "ivaIncluded": "IVA inc.",
+    "plusIva": "+ IVA",
     "downgradeScheduled": "Tu plan bajará a {tier} el {date}.",
     "cancellationScheduled": "Tu suscripción será cancelada el {date}. Hasta entonces tendrás acceso a tu plan actual.",
     "tierChangeTo": "Cambio a {tier}",
     "tierChangeToWithInterval": "Cambio a {tier} ({interval})",
     "renewal": "Renovación",
+    "seatChangeLabel": "Cupos adicionales ({seats})",
     "paymentPurposeInitial": "Suscripción — {tier}",
     "paymentPurposeRenewal": "Renovación — {tier}",
     "billingInterval": {
@@ -1580,6 +1596,7 @@
     "pendingPayment": {
       "title": "Pago pendiente",
       "tierChangeTitle": "Pago pendiente para cambiar a {tier}",
+      "seatChangeTitle": "Pago pendiente por {seats} cupos adicionales",
       "renewalTitle": "Pago pendiente de renovación",
       "amount": "Monto a transferir: {amount}",
       "ivaBreakdown": "Incluye IVA {rate}% ({iva}) sobre base imponible de {base}",
@@ -1651,6 +1668,25 @@
       "upgradeApplied": "Tu plan fue actualizado de inmediato.",
       "downgradeScheduled": "El cambio de plan quedó programado para el final de tu periodo actual."
     },
+    "changeSeats": {
+      "title": "Cupos adicionales",
+      "hint": "Compra cupos adicionales para invitar más usuarios al panel, por encima del límite incluido en tu plan.",
+      "seatsLabel": "Cupos adicionales",
+      "currentCount": "Actualmente tienes {count}",
+      "button": "Cambiar cupos",
+      "confirmHintIncrease": "El cambio se aplica de inmediato. Se generará un cobro proporcional al tiempo restante de tu periodo. Podrás pagarlo por transferencia bancaria o con tarjeta.",
+      "confirmHintDecrease": "Sin cobro adicional. Tus cupos actuales se mantienen hasta el {date} y la reducción se aplica automáticamente después.",
+      "confirmHintDecreaseNoDate": "Sin cobro adicional. Tus cupos actuales se mantienen hasta el final del periodo y la reducción se aplica automáticamente después.",
+      "confirmHintSandboxCharge": "El cambio se aplica de inmediato. En sandbox no hay prorrateo por tiempo — pagas el precio completo de los cupos nuevos, una sola vez. Podrás pagarlo por transferencia bancaria o con tarjeta.",
+      "confirmHintSandboxFree": "El cambio se aplica de inmediato y sin cargo adicional — en sandbox, reducir cupos nunca genera un cobro.",
+      "confirm": "Confirmar cambio",
+      "confirming": "Procesando...",
+      "cancel": "Cancelar",
+      "increaseRequested": "Solicitud de cupos adicionales registrada. Revisa los datos de transferencia abajo.",
+      "increaseApplied": "Tus cupos adicionales fueron actualizados de inmediato.",
+      "decreaseScheduled": "La reducción de cupos quedó programada para el final de tu periodo actual.",
+      "decreasePending": "Tus cupos bajarán a {seats} el {date}."
+    },
     "rejectionReason": {
       "AMOUNT_MISMATCH": "El monto transferido no coincide con el solicitado.",
       "TRANSFER_NOT_FOUND": "No se encontró una transferencia coincidente en la cuenta.",
@@ -1718,6 +1754,7 @@
       "payments": "Pagos",
       "agreements": "Documentos de aceptación",
       "prices": "Precios",
+      "seatPrices": "Precio de cupos",
       "signOut": "Cerrar sesión",
       "invoicing": "Facturación pendiente"
     },
@@ -1923,6 +1960,55 @@
       },
       "publishDialog": {
         "title": "Publicar precio — {tier} ({interval})",
+        "description": "Nuevo precio: {price} (sin IVA)",
+        "warning": "Esta acción es irreversible. Una vez publicado, el precio no puede editarse ni eliminarse — solo un nuevo borrador puede reemplazarlo a futuro.",
+        "noticeDaysLabel": "Días de aviso",
+        "noticeDaysHint": "Mínimo 30 días. Cada tenant activo recibe una notificación (app y correo) del cambio.",
+        "submit": "Publicar",
+        "submitting": "Publicando..."
+      }
+    },
+    "seatPrices": {
+      "title": "Precio de cupos adicionales",
+      "description": "Gestiona el precio del complemento de usuarios adicionales. Un precio nuevo se crea como borrador y solo empieza a regir — con al menos 30 días de aviso a los tenants — al publicarlo.",
+      "newPrice": "Nuevo precio",
+      "empty": "No hay precios registrados.",
+      "cancel": "Cancelar",
+      "edit": "Editar",
+      "publish": "Publicar",
+      "created": "Precio creado como borrador.",
+      "updated": "Borrador actualizado.",
+      "published": "Precio publicado. Los tenants activos serán notificados.",
+      "intervals": {
+        "MONTHLY": "Mensual",
+        "YEARLY": "Anual"
+      },
+      "status": {
+        "draft": "Borrador",
+        "scheduled": "Programado",
+        "active": "Vigente"
+      },
+      "columns": {
+        "interval": "Intervalo",
+        "price": "Precio (sin IVA)",
+        "status": "Estado",
+        "effectiveAt": "Vigencia",
+        "actions": "Acciones"
+      },
+      "createDialog": {
+        "title": "Nuevo precio de cupo",
+        "description": "Se crea como borrador — no es visible para los tenants ni inicia el aviso de cambio hasta que lo publiques.",
+        "intervalLabel": "Intervalo de facturación",
+        "priceLabel": "Precio (USD, sin IVA)",
+        "priceHint": "Precio base, sin IVA — el IVA se añade automáticamente al momento del cobro. Precio flat, aplica a todos los planes por igual.",
+        "submit": "Crear borrador",
+        "submitting": "Creando..."
+      },
+      "editDialog": {
+        "title": "Editar borrador — {interval}"
+      },
+      "publishDialog": {
+        "title": "Publicar precio — {interval}",
         "description": "Nuevo precio: {price} (sin IVA)",
         "warning": "Esta acción es irreversible. Una vez publicado, el precio no puede editarse ni eliminarse — solo un nuevo borrador puede reemplazarlo a futuro.",
         "noticeDaysLabel": "Días de aviso",

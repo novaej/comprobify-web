@@ -60,7 +60,8 @@ export default async function SettingsPage({
         select: { intendedTier: true, intendedBillingInterval: true },
       })
     : null;
-  const tiers = environment === 'sandbox' && canPromoteTenant ? await listTiers().catch(() => []) : [];
+  const tiersResult = environment === 'sandbox' && canPromoteTenant ? await listTiers().catch(() => null) : null;
+  const tiers = tiersResult?.tiers ?? [];
 
   // A subscription may already be ACTIVE from POST /v1/subscriptions, started
   // while still in sandbox via /settings/billing — promote() ignores tier/

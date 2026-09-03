@@ -237,11 +237,19 @@ export async function listAgreements(): Promise<ApiAgreementInfo[]> {
 // priceMonthlyUsd/priceYearlyUsd are the advertised, tax-EXCLUSIVE sticker
 // price — matches how every local competitor publishes theirs (IVA added at
 // checkout, not baked into the listed number). *Iva is the IVA portion on
-// top; *Total is what a tenant actually pays/is charged — use *Total for
-// any "you will be charged" display. Either price can be null when the tier
-// doesn't sell that interval (e.g. SOLO is yearly-only — see
-// billingIntervals). This flipped from an IVA-inclusive convention in API
-// commit f3d2e83 — see CLAUDE.md Common Mistake #59 for the full history.
+// top; *Total is the IVA-inclusive sum of the two. Every *advertised* price
+// display on this site (tier cards, change-plan/subscribe confirm previews,
+// the extra-seat price) shows priceMonthlyUsd/priceYearlyUsd (the base) with
+// a "+ IVA"/"+ VAT" note — see resolveTierTotal()/resolveSeatBasePrice() in
+// subscription-tiers.ts — never the *Total fields; *Total exists for
+// completeness (it's what breakdownAmount() on the API side actually derives
+// this same base into) but has no current display call site. A real, already-
+// charged payment amount (ApiPaymentInfo.total_amount) is a different,
+// legitimately-inclusive number and is unaffected by this. Either price can
+// be null when the tier doesn't sell that interval (e.g. SOLO is yearly-only
+// — see billingIntervals). This flipped from an IVA-inclusive convention in
+// API commit f3d2e83 — see CLAUDE.md Common Mistake #59 for that history, and
+// #62 for the later switch back to showing the base price on this side.
 export interface ApiTierInfo {
   name: 'FREE' | 'SOLO' | 'LITE' | 'STARTER' | 'GROWTH' | 'BUSINESS' | 'ENTERPRISE';
   // null means genuinely unlimited (ENTERPRISE — comprobify migration 094).
@@ -249,6 +257,13 @@ export interface ApiTierInfo {
   maxBranches: number | null;
   maxIssuePointsPerBranch: number | null;
   maxWebhookEndpoints: number;
+  // API-enforced (comprobify checks this at key-creation time) — see
+  // limitScopes/ADR-031 below.
+  maxApiKeys: number | null;
+  // WEB-enforced only — comprobify has no users/session concept at all, so
+  // this cap exists purely for comprobify-web's own dashboard seat count.
+  // See src/lib/tenant-limits.ts and CLAUDE.md's "Extra user seats" section.
+  maxUsers: number | null;
   writeRateLimit: number;
   readRateLimit: number;
   billingIntervals: ('MONTHLY' | 'YEARLY')[];
@@ -271,8 +286,47 @@ export interface ApiTierInfo {
   overagePerDocumentUsd: number | null;
 }
 
-// Verified against: ../comprobify/src/routes/tiers.routes.js → GET /v1/tiers (public, no auth, no rate limit)
-export async function listTiers(): Promise<ApiTierInfo[]> {
-  const result = await publicRequest<{ ok: true; tiers: ApiTierInfo[] }>('/v1/tiers');
-  return result.tiers;
+// ADR-031 — classifies every TIERS[tier] key by who enforces it. Currently
+// informational only on this side (nothing branches on it yet — the actual
+// enforcement split is hardcoded independently: comprobify checks maxApiKeys
+// server-side, comprobify-web checks maxUsers in src/lib/tenant-limits.ts),
+// but typed so the response shape stays fully accounted for (see CLAUDE.md
+// Common Mistake #58 — an unused field is still a rule-15 gap if untyped).
+export type TierLimitScope = 'API' | 'WEB';
+export type TierLimitScopes = Record<string, TierLimitScope>;
+
+// The extra-seat add-on's price (ADR-032) — flat across every tier, so this
+// is a single top-level block, not per-tier. Same shape/conventions as a
+// tier's own price block above, minus billingIntervals (the add-on always
+// sells both — see db/migrations/095_extra_user_seats.sql's seed).
+export interface ApiExtraSeatPricing {
+  priceMonthlyUsd: number | null;
+  priceMonthlyUsdIva: number | null;
+  priceMonthlyUsdTotal: number | null;
+  priceYearlyUsd: number | null;
+  priceYearlyUsdIva: number | null;
+  priceYearlyUsdTotal: number | null;
+  upcomingPriceMonthlyUsd: number | null;
+  monthlyPriceEffectiveAt: string | null;
+  upcomingPriceYearlyUsd: number | null;
+  yearlyPriceEffectiveAt: string | null;
+}
+
+// Verified against: ../comprobify/src/controllers/tiers.controller.js → list()
+// GET /v1/tiers (public, no auth, no rate limit). Returns the full
+// { ok, ivaRate, limitScopes, tiers, extraSeat } envelope now — extraSeat/
+// limitScopes used to be silently discarded here.
+export async function listTiers(): Promise<{
+  tiers: ApiTierInfo[];
+  extraSeat: ApiExtraSeatPricing;
+  limitScopes: TierLimitScopes;
+}> {
+  const result = await publicRequest<{
+    ok: true;
+    ivaRate: number;
+    limitScopes: TierLimitScopes;
+    tiers: ApiTierInfo[];
+    extraSeat: ApiExtraSeatPricing;
+  }>('/v1/tiers');
+  return { tiers: result.tiers, extraSeat: result.extraSeat, limitScopes: result.limitScopes };
 }
