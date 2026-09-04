@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { PayphoneCheckout } from '@/components/payphone-checkout';
+import { AccessKeyCopy } from '@/components/access-key-copy';
 import {
   submitPaymentProofAction,
   listPaymentProofsAction,
@@ -549,9 +550,10 @@ function PendingPaymentCard({
       {payMethod === 'transfer' && (
         bankTransfer ? (
           <div className="mt-3 space-y-1 rounded-md border border-border bg-background p-3 text-sm">
-            <p>
-              <span className="text-muted-foreground">{t('pendingPayment.paymentId')}:</span>{' '}
-              <span className="font-mono font-medium">#{payment.id}</span>
+            <p className="flex items-center gap-1">
+              <span className="text-muted-foreground">{t('pendingPayment.paymentCode')}:</span>{' '}
+              <span className="font-mono font-medium">{payment.payment_code}</span>
+              <AccessKeyCopy value={payment.payment_code} />
             </p>
             <p>
               <span className="text-muted-foreground">{t('pendingPayment.bank')}:</span> {bankTransfer.bankName}
@@ -573,7 +575,7 @@ function PendingPaymentCard({
               {bankTransfer.identification}
             </p>
             <p className="mt-2 border-t border-border pt-2 text-xs text-muted-foreground">
-              {t('pendingPayment.transferNote', { id: payment.id })}
+              {t('pendingPayment.transferNote', { code: payment.payment_code })}
             </p>
           </div>
         ) : (

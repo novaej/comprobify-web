@@ -1632,11 +1632,11 @@
       "download": "Download",
       "deleteProof": "Delete file",
       "proofDeleted": "File deleted.",
-      "transferNote": "Include payment ID #{id} in the description or note of your transfer to help us verify it faster.",
+      "transferNote": "Include code {code} in the description or note of your transfer to help us verify it faster.",
       "referenceNumber": "SPI transfer reference number",
       "referenceNumberPlaceholder": "E.g. 20261234567890",
       "referenceNumberHint": "The reference number shown on your bank’s transfer receipt.",
-      "paymentId": "Payment ID"
+      "paymentCode": "Payment code"
     },
     "payphone": {
       "transferTab": "Bank transfer",

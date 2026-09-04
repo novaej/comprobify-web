@@ -1001,6 +1001,11 @@ export async function promoteTenant(
 // case amount itself was the all-in total — use total_amount ?? amount for display.
 export interface ApiPaymentInfo {
   id: string;
+  // Migration 097 — short, hand-typable identifier (e.g. "CB-4K7N9QRT") the
+  // tenant writes into the SPI transfer's description/glosa field instead of
+  // the UUID id, which is impractical to hand-copy. DB-generated, always
+  // present (NOT NULL DEFAULT) on every payment, old or new.
+  payment_code: string;
   subscription_id?: string;
   status: 'PENDING' | 'REPORTED' | 'VERIFIED' | 'REJECTED' | 'REFUNDED';
   amount: string;            // base imponible; numeric → string by pg/JSON
