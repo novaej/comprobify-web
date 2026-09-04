@@ -1615,7 +1615,7 @@
       "seatChangeTitle": "Pago pendiente por {seats} cupos adicionales",
       "renewalTitle": "Pago pendiente de renovación",
       "amount": "Monto a transferir: {amount}",
-      "ivaBreakdown": "Incluye IVA {rate}% ({iva}) sobre base imponible de {base}",
+      "ivaBreakdown": "Incluye {iva} de IVA ({rate}%) sobre un subtotal de {base}",
       "rejected": "Tu comprobante fue rechazado: {reason}",
       "bank": "Banco",
       "accountType": "Tipo de cuenta",

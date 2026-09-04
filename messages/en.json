@@ -1615,7 +1615,7 @@
       "seatChangeTitle": "Pending payment for {seats} extra seats",
       "renewalTitle": "Pending renewal payment",
       "amount": "Amount to transfer: {amount}",
-      "ivaBreakdown": "Includes {rate}% VAT ({iva}) on taxable base {base}",
+      "ivaBreakdown": "Includes {iva} in VAT ({rate}%) on a subtotal of {base}",
       "rejected": "Your proof was rejected: {reason}",
       "bank": "Bank",
       "accountType": "Account type",
