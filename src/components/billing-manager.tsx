@@ -1144,6 +1144,7 @@ function SeatsCard({
   isSandbox: boolean;
 }) {
   const t = useTranslations('billing');
+  const tPricing = useTranslations('pricing');
   const tError = useTranslations('apiError');
   const [isPending, startTransition] = useTransition();
   const [confirming, setConfirming] = useState(false);
@@ -1184,6 +1185,12 @@ function SeatsCard({
       <div>
         <h2 className="text-sm font-semibold">{t('changeSeats.title')}</h2>
         <p className="mt-1 text-xs text-muted-foreground">{t('changeSeats.hint')}</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {t('changeSeats.unitPrice', {
+            price: currencyFormatter.format(seatUnitBasePrice),
+            interval: tPricing(currentBillingInterval === 'YEARLY' ? 'perYear' : 'perMonth'),
+          })}
+        </p>
       </div>
 
       {pendingExtraSeats !== null && periodEndFormatted && (

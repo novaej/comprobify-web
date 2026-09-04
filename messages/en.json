@@ -1687,6 +1687,7 @@
     "changeSeats": {
       "title": "Extra seats",
       "hint": "Buy extra seats to invite more dashboard users beyond your plan's included limit.",
+      "unitPrice": "{price}{interval} + VAT per additional seat",
       "seatsLabel": "Extra seats",
       "currentCount": "You currently have {count}",
       "button": "Change seats",

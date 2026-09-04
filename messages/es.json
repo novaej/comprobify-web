@@ -1687,6 +1687,7 @@
     "changeSeats": {
       "title": "Cupos adicionales",
       "hint": "Compra cupos adicionales para invitar más usuarios al panel, por encima del límite incluido en tu plan.",
+      "unitPrice": "{price}{interval} + IVA por cupo adicional",
       "seatsLabel": "Cupos adicionales",
       "currentCount": "Actualmente tienes {count}",
       "button": "Cambiar cupos",
