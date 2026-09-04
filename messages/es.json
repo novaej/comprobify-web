@@ -162,7 +162,8 @@
     "RECEIVED": "Recibido por SRI",
     "AUTHORIZED": "Autorizado",
     "RETURNED": "Devuelto",
-    "NOT_AUTHORIZED": "No autorizado"
+    "NOT_AUTHORIZED": "No autorizado",
+    "VOIDED": "Anulado"
   },
   "emailStatus": {
     "PENDING": "Pendiente",
@@ -544,12 +545,24 @@
       "resendEmailSuccess": "Correo reenviado correctamente.",
       "sriErrors": "Ver errores SRI",
       "moreActions": "Más acciones",
+      "void": "Anular documento",
+      "voidSuccess": "Comprobante anulado.",
       "confirm": {
         "title": "Enviar al SRI",
         "description": "El comprobante será enviado al Servicio de Rentas Internas (SRI) para su autorización. El proceso continuará automáticamente hasta completarse.",
         "cancel": "Cancelar",
         "submit": "Enviar"
       }
+    },
+    "voidDialog": {
+      "title": "Anular documento",
+      "sriFirstWarning": "Importante: primero debes anular este comprobante en el portal del SRI.",
+      "reasonLabel": "Motivo (máx. 500 caracteres)",
+      "reasonPlaceholder": "Ej. Factura duplicada — el cliente ya recibió el comprobante original 001-001-000000010",
+      "confirmCheckboxLabel": "Confirmo que ya anulé este comprobante en el portal del SRI",
+      "cancel": "Cancelar",
+      "submit": "Anular",
+      "submitting": "Anulando..."
     },
     "sriRejection": {
       "title": "Motivo del rechazo del SRI"
@@ -596,7 +609,8 @@
       "emailFailed": "Error al enviar el correo",
       "emailDelivered": "Correo entregado",
       "emailTempFailed": "Error temporal al entregar el correo",
-      "emailComplained": "Correo marcado como spam"
+      "emailComplained": "Correo marcado como spam",
+      "voided": "Comprobante anulado"
     },
     "eventTypes": {
       "CREATED": "Creado",
@@ -608,7 +622,8 @@
       "EMAIL_FAILED": "Error en correo",
       "EMAIL_DELIVERED": "Correo entregado",
       "EMAIL_TEMP_FAILED": "Error temporal en correo",
-      "EMAIL_COMPLAINED": "Correo reportado como spam"
+      "EMAIL_COMPLAINED": "Correo reportado como spam",
+      "VOIDED": "Anulado"
     }
   },
   "settings": {
@@ -745,6 +760,7 @@
     "INVALID_STATE_TRANSITION": "La operación no es válida para el estado actual del comprobante.",
     "NOTHING_TO_RETRY": "No hay ningún envío fallido para reintentar. Es posible que el comprobante ya esté en proceso o completado.",
     "DOCUMENT_NOT_AUTHORIZED": "El comprobante aún no está autorizado. Esta operación requiere un comprobante autorizado.",
+    "DOCUMENT_VOID_CONFIRMATION_REQUIRED": "Debes confirmar que ya anulaste este comprobante en el portal del SRI.",
     "CREDIT_NOTE_EXCEEDS_REMAINING": "El valor de la nota de crédito supera el saldo disponible de la factura original.",
     "CERTIFICATE_INVALID": "El archivo P12 no es válido o está dañado.",
     "CERTIFICATE_PASSWORD_INVALID": "La contraseña del certificado P12 es incorrecta.",

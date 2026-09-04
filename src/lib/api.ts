@@ -54,6 +54,7 @@ export const DOCUMENT_STATUSES = [
   'AUTHORIZED',
   'RETURNED',
   'NOT_AUTHORIZED',
+  'VOIDED',
 ] as const;
 
 export type DocumentStatus = (typeof DOCUMENT_STATUSES)[number];
@@ -92,6 +93,12 @@ export interface Document {
   };
   authorizationNumber?: string;
   authorizationDate?: string;
+  // Manual void (a second terminal state alongside AUTHORIZED, reachable only
+  // from it) — SRI has no SOAP service to cancel an already-authorized
+  // document, so the tenant cancels it on SRI's own portal first and this
+  // just syncs the local record. Both present only once voided.
+  voidReason?: string;
+  voidedAt?: string;
   // Present whenever the document has one (every document created since request_payload was
   // added) — the exact original create/rebuild body, used to pre-fill the rebuild form.
   requestPayload?: CreateDocumentPayload;
@@ -478,6 +485,26 @@ export async function retrySend(ctx: ApiCtx, accessKey: string): Promise<Documen
     `/v1/documents/${accessKey}/send/retry`,
     ctx,
     { method: 'POST' }
+  );
+  return result.document;
+}
+
+// Manual void — only valid on an AUTHORIZED document (400 DOCUMENT_NOT_AUTHORIZED
+// otherwise, which also covers "already voided"). confirmedSriVoid must be true —
+// the API has no way to verify the tenant actually cancelled it in SRI's own
+// portal first, so this is an explicit attestation, not a real check.
+// Verified against: ../comprobify/src/controllers/documents.controller.js → voidDocument()
+// and ../comprobify/src/validators/document-void.validator.js.
+export async function voidDocument(
+  ctx: ApiCtx,
+  accessKey: string,
+  reason: string,
+  confirmedSriVoid: true,
+): Promise<Document> {
+  const result = await request<{ ok: true; document: Document }>(
+    `/v1/documents/${accessKey}/void`,
+    ctx,
+    { method: 'POST', body: JSON.stringify({ reason, confirmedSriVoid }) }
   );
   return result.document;
 }

@@ -154,7 +154,9 @@ export function DocumentTable({
                 </TableCell>
                 <TableCell className="pr-4 text-right">
                   <div className="flex items-center justify-end gap-1">
-                    {doc.status === 'AUTHORIZED' && (
+                    {/* RIDE/XML stay available for a voided document too — it's the
+                        frozen record of what SRI actually authorized before voiding. */}
+                    {(doc.status === 'AUTHORIZED' || doc.status === 'VOIDED') && (
                       <>
                         <a
                           href={`/api/documents/${doc.accessKey}/ride`}

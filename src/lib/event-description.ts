@@ -11,7 +11,7 @@ export interface EventDescription {
   transition?: { from: DocumentStatus | null; to: DocumentStatus | null };
 }
 
-const VALID_STATUSES = new Set<string>(['SIGNED', 'RECEIVED', 'AUTHORIZED', 'RETURNED', 'NOT_AUTHORIZED']);
+const VALID_STATUSES = new Set<string>(['SIGNED', 'RECEIVED', 'AUTHORIZED', 'RETURNED', 'NOT_AUTHORIZED', 'VOIDED']);
 
 function asStatus(value: string | null): DocumentStatus | null {
   return value && VALID_STATUSES.has(value) ? (value as DocumentStatus) : null;
@@ -69,6 +69,9 @@ export function describeDocumentEvent(event: DocumentEvent, t: TFunc): EventDesc
 
     case 'EMAIL_COMPLAINED':
       return { title: t('events.emailComplained'), detail: str(detail.to) };
+
+    case 'VOIDED':
+      return { title: t('events.voided'), detail: str(detail.reason), transition: { from, to } };
 
     default: {
       const key = `eventTypes.${event.eventType}`;

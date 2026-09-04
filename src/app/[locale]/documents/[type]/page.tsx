@@ -5,7 +5,7 @@ import { DocumentTable } from '@/components/document-table';
 import { DocumentPagination, getTotalPages } from '@/components/document-pagination';
 import { DocumentFilters } from '@/components/document-filters';
 import { buttonVariants } from '@/components/ui/button';
-import { listDocuments, DOCUMENT_SORT_FIELDS, DOCUMENT_STATUSES } from '@/lib/api';
+import { listDocuments, listIssuerDocumentTypes, DOCUMENT_SORT_FIELDS, DOCUMENT_STATUSES } from '@/lib/api';
 import { requirePermission } from '@/lib/context';
 import { Plus } from 'lucide-react';
 import type { Document, Pagination, DocumentSortField, DocumentStatus } from '@/lib/api';
@@ -99,9 +99,16 @@ export default async function DocumentListPage({
     fetchError = true;
   }
 
+  // Reachable by direct URL (e.g. a bookmark from before a tier downgrade) even
+  // though the hub only ever links here for a type the issuer has enabled — so
+  // this page needs its own check, same reasoning as InvoiceActions' credit-note
+  // button: POST /v1/documents rejects a type the issuer hasn't enabled with
+  // DOCUMENT_TYPE_NOT_ENABLED, itself capped by the tenant's tier.
+  const issuerDocumentTypes = await listIssuerDocumentTypes(apiCtx, ctx.issuer.apiIssuerId).catch(() => ['01']);
+
   const nameKey = `types.${type}.name` as Parameters<typeof t>[0];
   const typeName = t.has(nameKey) ? t(nameKey) : type;
-  const createHref = CREATE_HREFS[type];
+  const createHref = issuerDocumentTypes.includes(type) ? CREATE_HREFS[type] : undefined;
   const basePath = `/documents/${type}`;
 
   function sortHrefFor(field: DocumentSortField): string {

@@ -1,10 +1,12 @@
 import type { Role } from '@/lib/rbac';
 
-// Mirrors comprobify's src/constants/api-key-scopes.js (commit 2e6880e).
-// Adding a 10th scope there requires updating this list too.
+// Mirrors comprobify's src/constants/api-key-scopes.js (commit 2e6880e,
+// documents:void added by migration 096). Adding an 11th scope there
+// requires updating this list too.
 export type ApiKeyScope =
   | 'documents:read'
   | 'documents:write'
+  | 'documents:void'
   | 'issuers:read'
   | 'issuers:write'
   | 'keys:manage'
@@ -16,6 +18,7 @@ export type ApiKeyScope =
 export const ALL_API_SCOPES: ApiKeyScope[] = [
   'documents:read',
   'documents:write',
+  'documents:void',
   'issuers:read',
   'issuers:write',
   'keys:manage',
@@ -35,7 +38,9 @@ export const ALL_API_SCOPES: ApiKeyScope[] = [
 export const ROLE_API_SCOPES: Record<Role, ApiKeyScope[]> = {
   Owner: ALL_API_SCOPES,
   Admin: ALL_API_SCOPES,
-  BillingOperator: ['documents:read', 'documents:write', 'issuers:read'],
+  // documents:void matches the same documents.manage RBAC trust this role
+  // already holds (rbac.ts) — voiding is gated the same as rebuild/resend.
+  BillingOperator: ['documents:read', 'documents:write', 'documents:void', 'issuers:read'],
   Viewer: ['documents:read', 'issuers:read'],
   Developer: ['documents:read', 'issuers:read', 'keys:manage'],
 };

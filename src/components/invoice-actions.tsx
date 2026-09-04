@@ -3,8 +3,9 @@
 import { useState, useEffect, useRef, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { Send, Download, Mail, Loader2, Hammer, FileMinus, MoreVertical, Eye, EyeOff } from 'lucide-react';
+import { Send, Download, Mail, Loader2, Hammer, FileMinus, FileX, MoreVertical, Eye, EyeOff } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogClose,
@@ -20,7 +21,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { sendToSriAction, getDocumentStatusAction, resendEmailAction, retrySendAction } from '@/app/actions/document';
+import { sendToSriAction, getDocumentStatusAction, resendEmailAction, retrySendAction, voidDocumentAction } from '@/app/actions/document';
 import type { DocumentStatus, DocumentDispatchStatus } from '@/lib/api';
 import { toastApiError } from '@/lib/api-error-toast';
 import { Link, useRouter } from '@/i18n/navigation';
@@ -38,6 +39,13 @@ interface InvoiceActionsProps {
   from?: string;
   canManage?: boolean;
   canCreate?: boolean;
+  // Document types actually enabled on the issuer that created this document
+  // (GET /v1/issuers/:id/document-types) — itself capped by the tenant's tier,
+  // since an issuer can never have a type enabled that its plan doesn't allow.
+  // Gates "Crear nota de crédito" so a FREE/lower-tier tenant (or an issuer
+  // that simply never enabled '04') never sees an action that would just fail
+  // with DOCUMENT_TYPE_NOT_ENABLED.
+  issuerDocumentTypes?: string[];
 }
 
 // Document types whose "Corregir" link goes through /credit-notes/new instead of
@@ -46,7 +54,7 @@ const REBUILD_HREFS: Record<string, string> = {
   '04': '/credit-notes/new',
 };
 
-export function InvoiceActions({ accessKey, status, documentType, from, canManage = true, canCreate = true }: InvoiceActionsProps) {
+export function InvoiceActions({ accessKey, status, documentType, from, canManage = true, canCreate = true, issuerDocumentTypes = ['01'] }: InvoiceActionsProps) {
   const t = useTranslations('invoiceDetail');
   const tError = useTranslations('apiError');
   const router = useRouter();
@@ -55,6 +63,10 @@ export function InvoiceActions({ accessKey, status, documentType, from, canManag
   const [phase, setPhase] = useState<Phase>('idle');
   const [resendPending, startResendTransition] = useTransition();
   const [retryPending, startRetryTransition] = useTransition();
+  const [voidOpen, setVoidOpen] = useState(false);
+  const [voidReason, setVoidReason] = useState('');
+  const [voidConfirmed, setVoidConfirmed] = useState(false);
+  const [voidPending, startVoidTransition] = useTransition();
   // Bumped to restart the polling effect below from a fresh clock — either
   // after a successful manual retry, or after deciding to just wait longer —
   // even though `status` itself hasn't changed (still PENDING_SEND).
@@ -150,6 +162,21 @@ export function InvoiceActions({ accessKey, status, documentType, from, canManag
     });
   }
 
+  function handleVoid() {
+    startVoidTransition(async () => {
+      const result = await voidDocumentAction(accessKey, voidReason.trim());
+      if (result?.error) {
+        toastApiError(result.error, tError);
+        return;
+      }
+      setVoidOpen(false);
+      setVoidReason('');
+      setVoidConfirmed(false);
+      toast.success(t('actions.voidSuccess'));
+      router.refresh();
+    });
+  }
+
   const isProcessing = phase === 'sending' || phase === 'polling';
 
   return (
@@ -167,6 +194,54 @@ export function InvoiceActions({ accessKey, status, documentType, from, canManag
             <Button onClick={handleSend}>
               <Send className="mr-2 h-4 w-4" />
               {t('actions.confirm.submit')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={voidOpen} onOpenChange={(open) => { setVoidOpen(open); if (!open) { setVoidReason(''); setVoidConfirmed(false); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('voidDialog.title')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="rounded-md border border-amber-200 bg-amber-50/50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/5 dark:text-amber-300">
+              {t('voidDialog.sriFirstWarning')}
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="void-reason" className="text-xs font-medium text-muted-foreground">
+                {t('voidDialog.reasonLabel')}
+              </label>
+              <Textarea
+                id="void-reason"
+                value={voidReason}
+                onChange={(e) => setVoidReason(e.target.value)}
+                maxLength={500}
+                placeholder={t('voidDialog.reasonPlaceholder')}
+                disabled={voidPending}
+              />
+            </div>
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-3.5 w-3.5 accent-primary"
+                checked={voidConfirmed}
+                onChange={(e) => setVoidConfirmed(e.target.checked)}
+                disabled={voidPending}
+              />
+              {t('voidDialog.confirmCheckboxLabel')}
+            </label>
+          </div>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" disabled={voidPending} />}>
+              {t('voidDialog.cancel')}
+            </DialogClose>
+            <Button
+              variant="destructive"
+              onClick={handleVoid}
+              disabled={voidPending || !voidReason.trim() || !voidConfirmed}
+            >
+              {voidPending ? t('voidDialog.submitting') : t('voidDialog.submit')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -208,7 +283,11 @@ export function InvoiceActions({ accessKey, status, documentType, from, canManag
             </Link>
           )}
 
-          {status === 'AUTHORIZED' && (
+          {/* RIDE/XML preview stays available for a voided document too — it's the
+              frozen record of what SRI actually authorized before voiding. Resending
+              the email, crediting, or voiding again don't make sense once voided, so
+              those stay AUTHORIZED-only below. */}
+          {(status === 'AUTHORIZED' || status === 'VOIDED') && (
             <>
               <Button onClick={() => setPreviewOpen((v) => !v)}>
                 {previewOpen ? <EyeOff className="mr-2 h-4 w-4" /> : <Eye className="mr-2 h-4 w-4" />}
@@ -223,13 +302,13 @@ export function InvoiceActions({ accessKey, status, documentType, from, canManag
                     <Download className="h-4 w-4" />
                     {t('actions.downloadXml')}
                   </DropdownMenuItem>
-                  {canManage && (
+                  {status === 'AUTHORIZED' && canManage && (
                     <DropdownMenuItem disabled={resendPending} onClick={handleResendEmail}>
                       <Mail className="h-4 w-4" />
                       {t('actions.resendEmail')}
                     </DropdownMenuItem>
                   )}
-                  {documentType === '01' && canCreate && (
+                  {status === 'AUTHORIZED' && documentType === '01' && canCreate && issuerDocumentTypes.includes('04') && (
                     <DropdownMenuItem
                       render={
                         <Link
@@ -241,13 +320,19 @@ export function InvoiceActions({ accessKey, status, documentType, from, canManag
                       {t('actions.createCreditNote')}
                     </DropdownMenuItem>
                   )}
+                  {status === 'AUTHORIZED' && canManage && (
+                    <DropdownMenuItem variant="destructive" onClick={() => setVoidOpen(true)}>
+                      <FileX className="h-4 w-4" />
+                      {t('actions.void')}
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </>
           )}
         </div>
 
-        {status === 'AUTHORIZED' && previewOpen && (
+        {(status === 'AUTHORIZED' || status === 'VOIDED') && previewOpen && (
           <div className="mt-3">
             <InvoicePdfPreview accessKey={accessKey} />
           </div>
