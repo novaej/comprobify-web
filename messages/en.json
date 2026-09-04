@@ -1676,7 +1676,7 @@
       "hint": "Upgrading takes effect immediately (prorated for the time left in your period). Downgrading or changing billing frequency is scheduled for the end of your current period.",
       "placeholder": "Select a plan",
       "currentPlan": "current plan",
-      "noOp": "You're already on this plan with this billing frequency.",
+      "currentOptionSuffix": "(current)",
       "button": "Change plan",
       "confirmHintUpgrade": "The change applies immediately. A prorated charge for the time remaining in your period will be generated. You'll be able to pay it by bank transfer or card.",
       "confirmHintDowngrade": "No additional charge. Your current plan stays active until {date}, then the new plan applies automatically.",

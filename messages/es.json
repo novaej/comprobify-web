@@ -1676,7 +1676,7 @@
       "hint": "Subir de plan se aplica de inmediato (con un cobro proporcional al tiempo restante de tu periodo). Bajar de plan o cambiar la frecuencia se programa para el final de tu periodo actual.",
       "placeholder": "Selecciona un plan",
       "currentPlan": "plan actual",
-      "noOp": "Ya estás en este plan con esta frecuencia de facturación.",
+      "currentOptionSuffix": "(actual)",
       "button": "Cambiar plan",
       "confirmHintUpgrade": "El cambio se aplica de inmediato. Se generará un cobro proporcional al tiempo restante de tu periodo. Podrás pagarlo por transferencia bancaria o con tarjeta.",
       "confirmHintDowngrade": "Sin cobro adicional. Tu plan actual se mantiene hasta el {date} y el nuevo plan se aplica automáticamente después.",

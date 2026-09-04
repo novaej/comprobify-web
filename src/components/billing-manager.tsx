@@ -7,13 +7,20 @@ import { toastApiError } from '@/lib/api-error-toast';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { FileIcon, DownloadIcon, Trash2Icon, Info, Ban, CreditCard, Landmark } from 'lucide-react';
+import { FileIcon, DownloadIcon, Trash2Icon, Info, Ban, CreditCard, Landmark, Check } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { PayphoneCheckout } from '@/components/payphone-checkout';
 import { AccessKeyCopy } from '@/components/access-key-copy';
 import {
@@ -954,11 +961,15 @@ function ChangeTierCard({
 }) {
   const t = useTranslations('billing');
   const tPricing = useTranslations('pricing');
+  const tIssuers = useTranslations('issuers');
   const tError = useTranslations('apiError');
   const [isPending, startTransition] = useTransition();
   const [confirming, setConfirming] = useState(false);
   const [cancelConfirming, setCancelConfirming] = useState(false);
-  const [selectedTier, setSelectedTier] = useState<PaidTier | null>(null);
+  // Defaults to the tenant's own current tier (rather than nothing selected)
+  // so the details panel always shows something on first render instead of
+  // an empty state — reads as "here's your plan" until they pick a different one.
+  const [selectedTier, setSelectedTier] = useState<PaidTier | null>(currentSubscriptionTier);
   const [selectedInterval, setSelectedInterval] = useState<'MONTHLY' | 'YEARLY'>(currentBillingInterval);
 
   const options = tiers.filter((tier): tier is ApiTierInfo & { name: PaidTier } => tier.name !== 'FREE');
@@ -1060,6 +1071,20 @@ function ChangeTierCard({
     });
   }
 
+  // Dropdown option label: tier name + price at the currently toggled
+  // interval, tagged as the current plan when it's the exact tier+interval
+  // combo already active — same condition the old PlanCard grid used to mark
+  // one tile 'current', just evaluated per-option instead of per-tile.
+  function tierOptionLabel(tier: ApiTierInfo): string {
+    const name = tPricing.has(`tiers.${tier.name}.name` as Parameters<typeof tPricing>[0])
+      ? tPricing(`tiers.${tier.name}.name` as Parameters<typeof tPricing>[0])
+      : tier.name;
+    const { base, effectiveInterval } = resolveTierTotal(tier, selectedInterval);
+    const price = `${currencyFormatter.format(base)}${tPricing(effectiveInterval === 'YEARLY' ? 'perYear' : 'perMonth')}`;
+    const isCurrentOption = tier.name === currentSubscriptionTier && selectedInterval === currentBillingInterval;
+    return isCurrentOption ? `${name} — ${price} ${t('changePlan.currentOptionSuffix')}` : `${name} — ${price}`;
+  }
+
   return (
     <div className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-4">
       <div>
@@ -1074,81 +1099,171 @@ function ChangeTierCard({
           />
         </div>
 
-        <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {visibleOptions.map((tier) => {
-            const isCurrent = tier.name === currentSubscriptionTier && selectedInterval === currentBillingInterval;
-            const isSelected = selectedTier === tier.name && !isCurrent;
-            return (
-              <PlanCard
-                key={tier.name}
-                tier={tier}
-                interval={selectedInterval}
-                state={isCurrent ? 'current' : isSelected ? 'selected' : 'default'}
-                onClick={() => selectTier(tier.name as PaidTier)}
-              />
-            );
-          })}
-        </div>
-
-        {selectedTier && !isNoOp && !confirming && (
-          <div className="mt-3 flex justify-end">
-            <Button size="sm" variant="outline" onClick={() => setConfirming(true)} disabled={isPending}>
-              {t('changePlan.button')}
-            </Button>
+        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[240px_1fr]">
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-muted-foreground" htmlFor="change-tier-select">
+              {t('changePlan.placeholder')}
+            </label>
+            <Select
+              value={selectedTier ?? undefined}
+              onValueChange={(value) => selectTier(value as PaidTier)}
+              disabled={isPending}
+            >
+              <SelectTrigger id="change-tier-select" className="w-full">
+                <SelectValue>
+                  {(value: string | null) => {
+                    const tier = tiers.find((ti) => ti.name === value);
+                    return tier ? tierOptionLabel(tier) : value;
+                  }}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {visibleOptions.map((tier) => (
+                  <SelectItem key={tier.name} value={tier.name}>
+                    {tierOptionLabel(tier)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        )}
 
-        {isNoOp && selectedTier && (
-          <p className="mt-3 text-xs text-muted-foreground">{t('changePlan.noOp')}</p>
-        )}
+          {targetTierInfo && (
+            <div
+              className={cn(
+                'flex flex-col gap-3 rounded-lg border p-4',
+                isNoOp ? 'border-muted bg-muted/30' : 'border-primary/30 bg-primary/5',
+              )}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-sm font-semibold">
+                  {tPricing(`tiers.${targetTierInfo.name}.name` as Parameters<typeof tPricing>[0])}
+                </p>
+                {isNoOp ? (
+                  <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                    {t('changePlan.currentPlan')}
+                  </span>
+                ) : targetTierInfo.name === 'GROWTH' ? (
+                  <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                    {tPricing('badge.popular')}
+                  </span>
+                ) : null}
+              </div>
 
-        {confirming && selectedTier && scenario && (
-          <div className="mt-3 rounded-md border border-border bg-muted/40 p-3 text-sm space-y-2">
-            <p>
-              {/* Sandbox never prorates and never defers to period end (see
-                  requestSandboxTierChange) — it only branches on isTierDowngrade,
-                  ignoring the production upgrade/downgrade/interval-change
-                  distinction entirely, so it needs its own two-way copy here
-                  rather than reusing the production hints above. */}
-              {isSandbox
-                ? (isTierDowngrade
-                    ? t('changePlan.confirmHintSandboxFree')
-                    : t('changePlan.confirmHintSandboxCharge'))
-                : scenario === 'upgrade'
-                  ? t('changePlan.confirmHintUpgrade')
-                  : scenario === 'downgrade'
-                    ? (periodEndFormatted
-                        ? t('changePlan.confirmHintDowngrade', { date: periodEndFormatted })
-                        : t('changePlan.confirmHintDowngradeNoDate'))
-                    : (periodEndFormatted
-                        ? t('changePlan.confirmHintIntervalChange', { date: periodEndFormatted })
-                        : t('changePlan.confirmHintIntervalChangeNoDate'))}
-            </p>
-            {targetTierInfo && isSandbox && !isTierDowngrade && (
-              <p className="font-medium">
-                {currencyFormatter.format(sandboxNetPrice)}
-                {' '}
-                <span className="text-xs font-normal text-muted-foreground">{t('plusIva')}</span>
+              <div>
+                <p className="text-2xl font-bold">
+                  {currencyFormatter.format(resolveTierTotal(targetTierInfo, selectedInterval).base)}
+                  <span className="text-sm font-normal text-muted-foreground">
+                    {tPricing(targetEffectiveInterval === 'YEARLY' ? 'perYear' : 'perMonth')}
+                  </span>
+                </p>
+                <p className="text-xs text-muted-foreground">{t('plusIva')}</p>
+              </div>
+
+              <p className="text-sm text-muted-foreground">
+                {tPricing(`tiers.${targetTierInfo.name}.description` as Parameters<typeof tPricing>[0])}
               </p>
-            )}
-            {targetTierInfo && !isSandbox && scenario !== 'upgrade' && (
-              <p className="font-medium">
-                {currencyFormatter.format(resolveTierTotal(targetTierInfo, selectedInterval).base)}
-                {tPricing(targetEffectiveInterval === 'YEARLY' ? 'perYear' : 'perMonth')}
-                {' '}
-                <span className="text-xs font-normal text-muted-foreground">{t('plusIva')}</span>
-              </p>
-            )}
-            <div className="flex gap-2">
-              <Button size="sm" onClick={handleChange} disabled={isPending}>
-                {isPending ? t('changePlan.confirming') : t('changePlan.confirm')}
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => setConfirming(false)} disabled={isPending}>
-                {t('changePlan.cancel')}
-              </Button>
+
+              <ul className="flex flex-col gap-1.5 text-xs">
+                <li className="flex items-start gap-2">
+                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                  {targetTierInfo.documentQuota === null
+                    ? tPricing('features.unlimitedQuota')
+                    : selectedInterval === 'YEARLY'
+                      ? tPricing('features.quotaYearly', { count: targetTierInfo.documentQuota * 12 })
+                      : tPricing('features.quota', { count: targetTierInfo.documentQuota })}
+                </li>
+                <li className="flex items-start gap-2">
+                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                  {targetTierInfo.maxBranches === null
+                    ? tPricing('features.unlimitedBranches')
+                    : tPricing('features.branches', { count: targetTierInfo.maxBranches })}
+                </li>
+                <li className="flex items-start gap-2">
+                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                  {targetTierInfo.maxIssuePointsPerBranch === null
+                    ? tPricing('features.unlimitedIssuePoints')
+                    : tPricing('features.issuePoints', { count: targetTierInfo.maxIssuePointsPerBranch })}
+                </li>
+                <li className="flex items-start gap-2">
+                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                  {tPricing('features.docTypes', {
+                    types: targetTierInfo.allowedDocumentTypes
+                      .map((code) =>
+                        tIssuers.has(`docType.${code}` as Parameters<typeof tIssuers>[0])
+                          ? tIssuers(`docType.${code}` as Parameters<typeof tIssuers>[0])
+                          : code,
+                      )
+                      .join(', '),
+                  })}
+                </li>
+                <li className="flex items-start gap-2">
+                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                  {tPricing('features.webhooks', { count: targetTierInfo.maxWebhookEndpoints })}
+                </li>
+                <li className="flex items-start gap-2">
+                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                  {targetTierInfo.maxUsers === null
+                    ? tPricing('features.unlimitedUsers')
+                    : tPricing('features.users', { count: targetTierInfo.maxUsers })}
+                </li>
+              </ul>
+
+              {!isNoOp && !confirming && (
+                <Button size="sm" onClick={() => setConfirming(true)} disabled={isPending} className="mt-1 self-start">
+                  {t('changePlan.button')}
+                </Button>
+              )}
+
+              {confirming && scenario && (
+                <div className="mt-1 rounded-md border border-border bg-background p-3 text-sm space-y-2">
+                  <p>
+                    {/* Sandbox never prorates and never defers to period end (see
+                        requestSandboxTierChange) — it only branches on isTierDowngrade,
+                        ignoring the production upgrade/downgrade/interval-change
+                        distinction entirely, so it needs its own two-way copy here
+                        rather than reusing the production hints above. */}
+                    {isSandbox
+                      ? (isTierDowngrade
+                          ? t('changePlan.confirmHintSandboxFree')
+                          : t('changePlan.confirmHintSandboxCharge'))
+                      : scenario === 'upgrade'
+                        ? t('changePlan.confirmHintUpgrade')
+                        : scenario === 'downgrade'
+                          ? (periodEndFormatted
+                              ? t('changePlan.confirmHintDowngrade', { date: periodEndFormatted })
+                              : t('changePlan.confirmHintDowngradeNoDate'))
+                          : (periodEndFormatted
+                              ? t('changePlan.confirmHintIntervalChange', { date: periodEndFormatted })
+                              : t('changePlan.confirmHintIntervalChangeNoDate'))}
+                  </p>
+                  {isSandbox && !isTierDowngrade && (
+                    <p className="font-medium">
+                      {currencyFormatter.format(sandboxNetPrice)}
+                      {' '}
+                      <span className="text-xs font-normal text-muted-foreground">{t('plusIva')}</span>
+                    </p>
+                  )}
+                  {!isSandbox && scenario !== 'upgrade' && (
+                    <p className="font-medium">
+                      {currencyFormatter.format(resolveTierTotal(targetTierInfo, selectedInterval).base)}
+                      {tPricing(targetEffectiveInterval === 'YEARLY' ? 'perYear' : 'perMonth')}
+                      {' '}
+                      <span className="text-xs font-normal text-muted-foreground">{t('plusIva')}</span>
+                    </p>
+                  )}
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={handleChange} disabled={isPending}>
+                      {isPending ? t('changePlan.confirming') : t('changePlan.confirm')}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setConfirming(false)} disabled={isPending}>
+                      {t('changePlan.cancel')}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {!isSandbox && (
