@@ -1027,6 +1027,7 @@ export interface ApiPaymentInfo {
   rejection_reason_code?: 'AMOUNT_MISMATCH' | 'TRANSFER_NOT_FOUND' | 'WRONG_ACCOUNT' | 'ILLEGIBLE_PROOF' | 'DUPLICATE_SUBMISSION' | 'OTHER' | null;
   reported_at?: string | null;
   verified_at?: string | null;
+  created_at: string;  // NOT NULL DEFAULT NOW() (migration 052) — every payment has one
 }
 
 // Verified against: ../comprobify/src/services/subscription.service.js → formatPaymentProof()

@@ -1587,8 +1587,8 @@
     "tierChangeToWithInterval": "Change to {tier} ({interval})",
     "renewal": "Renewal",
     "seatChangeLabel": "Extra seats ({seats})",
-    "paymentPurposeInitial": "Subscription — {tier}",
-    "paymentPurposeRenewal": "Renewal — {tier}",
+    "paymentPurposeInitial": "Initial subscription",
+    "paymentPurposeRenewal": "Renewal",
     "billingInterval": {
       "MONTHLY": "Monthly",
       "YEARLY": "Yearly"

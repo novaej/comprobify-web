@@ -299,14 +299,22 @@ export function BillingManager({
           }
           return (
             <div className="divide-y divide-border">
-              {rows.map(({ payment: p, sub }) => {
+              {rows.map(({ payment: p }) => {
                 const paymentStatusKey = `paymentStatus.${p.status}` as Parameters<typeof t>[0];
-                const subTierKey = `tiers.${sub.tier}.name` as Parameters<typeof tPricing>[0];
-                const subTierName = tPricing.has(subTierKey) ? tPricing(subTierKey) : sub.tier;
                 const targetTierKey = p.target_tier
                   ? (`tiers.${p.target_tier}.name` as Parameters<typeof tPricing>[0])
                   : null;
 
+                // INITIAL/RENEWAL purpose labels used to interpolate the
+                // subscription's *current* tier (sub.tier) — wrong for any
+                // payment that predates a later tier change, since
+                // subscriptions.tier is mutated in place and payments has no
+                // column snapshotting what tier was active at INITIAL/RENEWAL
+                // time (only target_tier, TIER_CHANGE-only). A tenant who paid
+                // for Lite then changed to Starter would see their original
+                // Lite payment mislabeled "Suscripción — Starter". Only
+                // TIER_CHANGE has a reliable per-payment tier (target_tier),
+                // so that's the only purpose that still names one.
                 let purposeLabel: string;
                 if (p.purpose === 'TIER_CHANGE' && targetTierKey) {
                   const targetTierName = tPricing.has(targetTierKey) ? tPricing(targetTierKey) : p.target_tier ?? '';
@@ -321,9 +329,9 @@ export function BillingManager({
                 } else if (p.purpose === 'SEAT_CHANGE') {
                   purposeLabel = t('seatChangeLabel', { seats: p.seats_charged ?? p.target_extra_seats ?? 0 });
                 } else if (p.purpose === 'RENEWAL') {
-                  purposeLabel = t('paymentPurposeRenewal', { tier: subTierName });
+                  purposeLabel = t('paymentPurposeRenewal');
                 } else {
-                  purposeLabel = t('paymentPurposeInitial', { tier: subTierName });
+                  purposeLabel = t('paymentPurposeInitial');
                 }
 
                 const historyProofs = proofsByPaymentId[String(p.id)] ?? [];
@@ -338,6 +346,7 @@ export function BillingManager({
                           )}
                         </p>
                         <p className="mt-0.5 text-xs text-muted-foreground">{purposeLabel}</p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">{dateFormatter.format(new Date(p.created_at))}</p>
                       </div>
                       <Badge variant="outline" className={`shrink-0 ${PAYMENT_STATUS_STYLES[p.status] ?? ''}`}>
                         {t.has(paymentStatusKey) ? t(paymentStatusKey) : p.status}
@@ -350,7 +359,7 @@ export function BillingManager({
                             key={proof.id}
                             type="button"
                             onClick={() => setViewingHistoryProof({ paymentId: p.id, proof })}
-                            className="inline-flex items-center gap-1 rounded border border-border bg-muted px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground"
+                            className="inline-flex cursor-pointer items-center gap-1 rounded border border-border bg-muted px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground"
                           >
                             <FileIcon className="h-3 w-3 shrink-0" />
                             {proof.filename}
