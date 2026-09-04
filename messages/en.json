@@ -813,6 +813,7 @@
     "PROOF_FILE_LIMIT_REACHED": "This payment already has the maximum number of files (10). Delete one before uploading more.",
     "SUBSCRIPTION_NOT_FOUND": "Subscription not found.",
     "PAYMENT_NOT_FOUND": "Payment not found.",
+    "PAYMENT_NOT_CANCELLABLE": "This payment can no longer be cancelled — you already submitted proof, or it was already reviewed.",
     "PAYMENT_GATEWAY_NOT_CONFIGURED": "Card payment isn't available right now. Use the bank transfer instead.",
     "PAYPHONE_CONFIRM_FAILED": "We couldn't confirm the payment with the provider. It will be confirmed automatically within a few minutes — don't try again.",
     "PAYPHONE_SESSION_NOT_FOUND": "The card payment attempt wasn't found. Request a new one.",
@@ -1607,7 +1608,8 @@
       "REPORTED": "Reported",
       "VERIFIED": "Verified",
       "REJECTED": "Rejected",
-      "REFUNDED": "Refunded"
+      "REFUNDED": "Refunded",
+      "CANCELLED": "Cancelled"
     },
     "pendingPayment": {
       "title": "Pending payment",
@@ -1636,7 +1638,13 @@
       "referenceNumber": "SPI transfer reference number",
       "referenceNumberPlaceholder": "E.g. 20261234567890",
       "referenceNumberHint": "The reference number shown on your bank’s transfer receipt.",
-      "paymentCode": "Payment code"
+      "paymentCode": "Payment code",
+      "cancel": "Cancel payment",
+      "cancelling": "Cancelling...",
+      "cancelConfirmHint": "Use this if you picked the wrong plan or seat count and don't want to pay for this change. This doesn't reverse any transfer — only do this if you haven't sent anything yet.",
+      "cancelConfirm": "Yes, cancel payment",
+      "cancelKeep": "Go back",
+      "cancelled": "Payment cancelled."
     },
     "payphone": {
       "transferTab": "Bank transfer",

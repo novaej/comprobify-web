@@ -20,6 +20,7 @@ import {
   submitPaymentProofAction,
   listPaymentProofsAction,
   deletePaymentProofAction,
+  cancelPaymentAction,
   changeTierAction,
   changeSeatsAction,
   createSubscriptionAction,
@@ -49,6 +50,7 @@ const PAYMENT_STATUS_STYLES: Record<string, string> = {
   VERIFIED: 'bg-green-50 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-500/30',
   REJECTED: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/30',
   REFUNDED: 'bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-500/15 dark:text-zinc-300 dark:border-zinc-500/30',
+  CANCELLED: 'bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-500/15 dark:text-zinc-300 dark:border-zinc-500/30',
 };
 
 // Payphone's own widget form expires 10 minutes after load — reusing a session
@@ -109,8 +111,20 @@ export function BillingManager({
   // there's nothing left to pay for *this* payment. Without excluding it, the
   // pending-payment card kept demanding payment for an already-reversed
   // TIER_CHANGE instead of falling back to ChangeTierCard for a fresh attempt.
+  // CANCELLED (migration 098) is the same story from the opposite direction —
+  // the tenant backed out of the payment themselves before transferring
+  // anything, so there's nothing to collect and nothing to review; without
+  // excluding it, cancelling a TIER_CHANGE/SEAT_CHANGE payment (whose
+  // subscription stays ACTIVE throughout, unlike an INITIAL cancellation
+  // which cancels the subscription too and is already caught by
+  // isSubscriptionOver) would keep PendingPaymentCard stuck showing the
+  // cancelled payment instead of freeing ChangeTierCard/SeatsCard back up.
   // REJECTED stays included — that one genuinely needs a new proof upload.
-  const needsAction = !!latestPayment && latestPayment.status !== 'VERIFIED' && latestPayment.status !== 'REFUNDED' && !isSubscriptionOver;
+  const needsAction = !!latestPayment
+    && latestPayment.status !== 'VERIFIED'
+    && latestPayment.status !== 'REFUNDED'
+    && latestPayment.status !== 'CANCELLED'
+    && !isSubscriptionOver;
   // pending_tier = 'FREE' means cancellation scheduled; a paid tier means downgrade scheduled.
   const pendingCancellation = latestSubscription?.status === 'ACTIVE' && latestSubscription.pending_tier === 'FREE';
   const pendingDowngradeTier = latestSubscription?.status === 'ACTIVE' && latestSubscription.pending_tier !== 'FREE'
@@ -398,6 +412,26 @@ function PendingPaymentCard({
   const [referenceNumber, setReferenceNumber] = useState('');
   const [proofs, setProofs] = useState<ApiPaymentProof[]>(initialProofs);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Self-cancel a still-PENDING payment (migration 098) — wrong tier/seat
+  // count, tenant never transferred anything. Own transition, separate from
+  // the proof upload/delete one above, so cancelling doesn't gray out
+  // unrelated controls mid-flight. Only PENDING, non-RENEWAL payments
+  // qualify — see cancelPaymentAction/cancelPayment in src/lib/api.ts.
+  const [cancelConfirming, setCancelConfirming] = useState(false);
+  const [cancelPending, startCancelTransition] = useTransition();
+  const canCancelPayment = payment.status === 'PENDING' && payment.purpose !== 'RENEWAL';
+
+  function handleCancelPayment() {
+    startCancelTransition(async () => {
+      const result = await cancelPaymentAction(payment.id);
+      if ('error' in result) {
+        toastApiError(result.error, tError);
+        return;
+      }
+      setCancelConfirming(false);
+      toast.success(t('pendingPayment.cancelled'));
+    });
+  }
 
   // Card payment (Payphone, ADR-028) alongside the existing bank-transfer flow —
   // both stay first-class, offered side by side. The session is only minted the
@@ -702,6 +736,34 @@ function PendingPaymentCard({
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">{t('pendingPayment.uploadHint')}</p>
+        </div>
+      )}
+
+      {canManageBilling && canCancelPayment && (
+        <div className="mt-3 border-t border-border pt-3">
+          {!cancelConfirming ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-destructive/40 text-destructive hover:bg-destructive/5"
+              onClick={() => setCancelConfirming(true)}
+              disabled={cancelPending}
+            >
+              {t('pendingPayment.cancel')}
+            </Button>
+          ) : (
+            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm space-y-2">
+              <p>{t('pendingPayment.cancelConfirmHint')}</p>
+              <div className="flex gap-2">
+                <Button size="sm" variant="destructive" onClick={handleCancelPayment} disabled={cancelPending}>
+                  {cancelPending ? t('pendingPayment.cancelling') : t('pendingPayment.cancelConfirm')}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setCancelConfirming(false)} disabled={cancelPending}>
+                  {t('pendingPayment.cancelKeep')}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

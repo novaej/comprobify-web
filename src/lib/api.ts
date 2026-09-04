@@ -1007,7 +1007,11 @@ export interface ApiPaymentInfo {
   // present (NOT NULL DEFAULT) on every payment, old or new.
   payment_code: string;
   subscription_id?: string;
-  status: 'PENDING' | 'REPORTED' | 'VERIFIED' | 'REJECTED' | 'REFUNDED';
+  // 'CANCELLED' (migration 098) — the tenant backed out of a still-PENDING
+  // payment themselves (wrong tier/seats), distinct from REJECTED (operator
+  // reviewed submitted proof) and REFUNDED (money already moved). See
+  // cancelPayment() below.
+  status: 'PENDING' | 'REPORTED' | 'VERIFIED' | 'REJECTED' | 'REFUNDED' | 'CANCELLED';
   amount: string;            // base imponible; numeric → string by pg/JSON
   iva_rate?: number | null;
   iva_amount?: string | null;
@@ -1027,6 +1031,7 @@ export interface ApiPaymentInfo {
   rejection_reason_code?: 'AMOUNT_MISMATCH' | 'TRANSFER_NOT_FOUND' | 'WRONG_ACCOUNT' | 'ILLEGIBLE_PROOF' | 'DUPLICATE_SUBMISSION' | 'OTHER' | null;
   reported_at?: string | null;
   verified_at?: string | null;
+  cancelled_at?: string | null;
   created_at: string;  // NOT NULL DEFAULT NOW() (migration 052) — every payment has one
 }
 
@@ -1248,6 +1253,27 @@ export async function deletePaymentProof(ctx: ApiCtx, paymentId: string, proofId
     const problem: ProblemDetails = await res.json();
     throw new ApiError(problem);
   }
+}
+
+// Verified against: ../comprobify/src/controllers/payment.controller.js → cancelPayment()
+// and ../comprobify/src/services/subscription.service.js → cancelPayment() (migration 098).
+// Tenant-initiated: only a still-PENDING, non-RENEWAL payment qualifies (409
+// PAYMENT_NOT_CANCELLABLE otherwise). Cancelling an INITIAL payment also
+// cancels its still-PENDING_PAYMENT subscription — subscription is non-null
+// only in that case, and is the raw subscriptionModel.updateStatus() row
+// (no nested payments array, unlike ApiSubscriptionInfo).
+export interface CancelPaymentResult {
+  ok: true;
+  payment: ApiPaymentInfo;
+  subscription: { id: string; status: string } | null;
+}
+
+export async function cancelPayment(ctx: ApiCtx, paymentId: string): Promise<CancelPaymentResult> {
+  return request<CancelPaymentResult>(
+    `/v1/payments/${paymentId}`,
+    { apiKey: ctx.apiKey },
+    { method: 'DELETE' },
+  );
 }
 
 // Verified against: ../comprobify/src/controllers/payment.controller.js → createPayphoneSession()

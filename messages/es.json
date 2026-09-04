@@ -813,6 +813,7 @@
     "PROOF_FILE_LIMIT_REACHED": "Este pago ya tiene el máximo de archivos permitidos (10). Elimine uno antes de subir más.",
     "SUBSCRIPTION_NOT_FOUND": "No se encontró la suscripción.",
     "PAYMENT_NOT_FOUND": "No se encontró el pago.",
+    "PAYMENT_NOT_CANCELLABLE": "Este pago ya no se puede cancelar — ya reportaste un comprobante o ya fue revisado.",
     "PAYMENT_GATEWAY_NOT_CONFIGURED": "El pago con tarjeta no está disponible en este momento. Usa la transferencia bancaria.",
     "PAYPHONE_CONFIRM_FAILED": "No pudimos confirmar el pago con el proveedor. Se confirmará automáticamente en unos minutos — no vuelvas a intentarlo.",
     "PAYPHONE_SESSION_NOT_FOUND": "No se encontró el intento de pago con tarjeta. Solicita uno nuevo.",
@@ -1607,7 +1608,8 @@
       "REPORTED": "Reportado",
       "VERIFIED": "Verificado",
       "REJECTED": "Rechazado",
-      "REFUNDED": "Reembolsado"
+      "REFUNDED": "Reembolsado",
+      "CANCELLED": "Cancelado"
     },
     "pendingPayment": {
       "title": "Pago pendiente",
@@ -1636,7 +1638,13 @@
       "referenceNumber": "Número de referencia SPI",
       "referenceNumberPlaceholder": "Ej. 20261234567890",
       "referenceNumberHint": "El número de referencia que aparece en el comprobante de transferencia de tu banco.",
-      "paymentCode": "Código de pago"
+      "paymentCode": "Código de pago",
+      "cancel": "Cancelar pago",
+      "cancelling": "Cancelando...",
+      "cancelConfirmHint": "Úsalo si elegiste el plan o la cantidad de cupos equivocada y no quieres pagar por este cambio. Esto no revierte ninguna transferencia — solo hazlo si aún no has transferido nada.",
+      "cancelConfirm": "Sí, cancelar pago",
+      "cancelKeep": "Volver",
+      "cancelled": "Pago cancelado."
     },
     "payphone": {
       "transferTab": "Transferencia",

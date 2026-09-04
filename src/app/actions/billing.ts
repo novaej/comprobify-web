@@ -6,6 +6,7 @@ import {
   submitPaymentProof,
   listPaymentProofs,
   deletePaymentProof,
+  cancelPayment,
   changeTier,
   changeSeats,
   createSubscription,
@@ -14,6 +15,7 @@ import {
   confirmPayphonePayment,
   type ApiPaymentInfo,
   type ApiPaymentProof,
+  type CancelPaymentResult,
   type ChangeTierResult,
   type ChangeSeatsResult,
   type CreateSubscriptionResult,
@@ -33,6 +35,7 @@ export type ChangeTierActionResult = { error: string } | ChangeTierResult;
 export type ChangeSeatsActionResult = { error: string } | ChangeSeatsResult;
 export type CreateSubscriptionActionResult = { error: string } | CreateSubscriptionResult;
 export type CancelSubscriptionActionResult = { error: string } | CancelSubscriptionResult;
+export type CancelPaymentActionResult = { error: string } | CancelPaymentResult;
 export type PayphoneSessionActionResult = { error: string } | { session: ApiPayphoneSession };
 export type PayphoneConfirmActionResult = { error: string } | ApiPayphoneConfirmResult;
 
@@ -104,6 +107,25 @@ export async function deletePaymentProofAction(
     return { ok: true };
   } catch (err) {
     if (err instanceof ApiError) return { error: err.code };
+    throw err;
+  }
+}
+
+// Tenant backs out of their own still-PENDING payment (wrong tier/seat
+// count) — DELETE /v1/payments/:id, migration 098. Gated behind the same
+// requireNotSuspended/requireNotPastDue middleware as change-tier/seats, so
+// mirrors their syncTenantStatusFromError call.
+export async function cancelPaymentAction(paymentId: string): Promise<CancelPaymentActionResult> {
+  const ctx = await requirePermission('billing.manage', { skipIssuer: true });
+  try {
+    const result = await cancelPayment({ apiKey: ctx.apiKey }, paymentId);
+    revalidatePath('/settings/billing');
+    return result;
+  } catch (err) {
+    if (err instanceof ApiError) {
+      await syncTenantStatusFromError(ctx.tenant.id, err);
+      return { error: err.code };
+    }
     throw err;
   }
 }
