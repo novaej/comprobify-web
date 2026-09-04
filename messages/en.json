@@ -1824,6 +1824,12 @@
         "VERIFIED": "Verified",
         "REJECTED": "Rejected"
       },
+      "purpose": {
+        "INITIAL": "Initial subscription",
+        "TIER_CHANGE": "Plan change",
+        "RENEWAL": "Renewal",
+        "SEAT_CHANGE": "Extra seats"
+      },
       "reportedAt": "Reported on {date}",
       "verifiedAt": "Verified on {date}",
       "rejectedAt": "Rejected on {date}",
