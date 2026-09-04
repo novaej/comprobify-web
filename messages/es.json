@@ -2058,7 +2058,8 @@
       "purposes": {
         "INITIAL": "Suscripción inicial",
         "TIER_CHANGE": "Cambio de plan",
-        "RENEWAL": "Renovación"
+        "RENEWAL": "Renovación",
+        "SEAT_CHANGE": "Cupos adicionales ({seats})"
       },
       "linkInvoice": "Vincular factura",
       "invoiceLinked": "Factura vinculada correctamente.",

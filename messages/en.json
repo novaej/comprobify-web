@@ -2058,7 +2058,8 @@
       "purposes": {
         "INITIAL": "Initial subscription",
         "TIER_CHANGE": "Tier change",
-        "RENEWAL": "Renewal"
+        "RENEWAL": "Renewal",
+        "SEAT_CHANGE": "Extra seats ({seats})"
       },
       "linkInvoice": "Link invoice",
       "invoiceLinked": "Invoice linked successfully.",
