@@ -1276,7 +1276,7 @@
     "seatUsage": "{used} de {limit} cupos de usuario usados",
     "seatUsageUnlimited": "{used} cupos de usuario usados (ilimitado)",
     "seatLimitReached": "Alcanzaste el límite de usuarios de tu plan.",
-    "seatLimitReachedLink": "Comprar cupos adicionales",
+    "seatLimitReachedLink": "Agregar más usuarios",
     "removeSuccess": "Usuario eliminado de la organización.",
     "resendInvite": "Reenviar invitación",
     "resendInviteSuccess": "Correo de invitación reenviado.",

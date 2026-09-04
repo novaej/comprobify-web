@@ -260,6 +260,7 @@ export function BillingManager({
           emailVerified={emailVerified}
           intendedTier={intendedTier}
           intendedBillingInterval={intendedBillingInterval}
+          currentSubscriptionTier={tenantInfo.subscriptionTier}
         />
       )}
 
@@ -1252,11 +1253,13 @@ function SubscribeCard({
   emailVerified,
   intendedTier,
   intendedBillingInterval,
+  currentSubscriptionTier,
 }: {
   tiers: ApiTierInfo[];
   emailVerified: boolean;
   intendedTier?: PaidTier;
   intendedBillingInterval?: BillingInterval;
+  currentSubscriptionTier: string;
 }) {
   const t = useTranslations('billing');
   const tPricing = useTranslations('pricing');
@@ -1273,6 +1276,15 @@ function SubscribeCard({
   // need to resolve a selection regardless of the toggle's current position
   // (e.g. a pre-filled intendedTier of SOLO before the user touches the toggle).
   const visibleOptions = options.filter((tier) => tier.billingIntervals.includes(billingInterval));
+  // FREE is display-only (never purchased, billingIntervals: ['MONTHLY'] on
+  // the API — see subscription-tiers.js) but this card only ever renders
+  // while the tenant has no active/pending subscription, which means they
+  // are actually sitting on FREE right now — show it alongside the paid
+  // options, non-selectable, so the grid reads as "here's your current plan
+  // and what you could upgrade to" instead of silently omitting it.
+  const freeTier = currentSubscriptionTier === 'FREE'
+    ? tiers.find((tier) => tier.name === 'FREE' && tier.billingIntervals.includes(billingInterval))
+    : undefined;
 
   function selectTier(name: PaidTier) {
     setSelectedTier(name);
@@ -1337,6 +1349,9 @@ function SubscribeCard({
           </div>
 
           <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {freeTier && (
+              <PlanCard key={freeTier.name} tier={freeTier} interval={billingInterval} state="current" />
+            )}
             {visibleOptions.map((tier) => (
               <PlanCard
                 key={tier.name}

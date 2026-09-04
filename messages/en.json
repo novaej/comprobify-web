@@ -1176,7 +1176,7 @@
     "seatUsage": "{used} of {limit} user seats used",
     "seatUsageUnlimited": "{used} user seats used (unlimited)",
     "seatLimitReached": "You've reached your plan's user limit.",
-    "seatLimitReachedLink": "Buy additional seats",
+    "seatLimitReachedLink": "Add more users",
     "removeSuccess": "User removed from the organization.",
     "resendInvite": "Resend invite",
     "resendInviteSuccess": "Invitation email resent.",
