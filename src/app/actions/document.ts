@@ -2,7 +2,7 @@
 
 import { getLocale } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
-import { sendToSri, checkAuthorization, getDocument, retrySingleEmail, retrySend, retryAllFailedDocuments } from '@/lib/api';
+import { sendToSri, checkAuthorization, getDocument, retrySingleEmail, retrySend, retryAllFailedDocuments, voidDocument } from '@/lib/api';
 import type { DocumentDispatchStatus } from '@/lib/api';
 import { ApiError } from '@/lib/errors';
 import { requirePermission } from '@/lib/context';
@@ -118,6 +118,25 @@ export async function resendEmailAction(accessKey: string): Promise<ActionResult
   const apiCtx = { apiKey: ctx.apiKey, issuerId: ctx.issuer.apiIssuerId };
   try {
     await retrySingleEmail(apiCtx, accessKey, true);
+    return null;
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.code };
+    throw err;
+  }
+}
+
+// Manual void — only valid on an AUTHORIZED document; the caller (InvoiceActions)
+// gates the button/dialog to that status, but the API itself is the real boundary
+// (400 DOCUMENT_NOT_AUTHORIZED otherwise). confirmedSriVoid is always true here —
+// the dialog's checkbox is what actually gates whether this gets called at all.
+export async function voidDocumentAction(
+  accessKey: string,
+  reason: string,
+): Promise<ActionResult> {
+  const ctx = await requirePermission('documents.manage');
+  const apiCtx = { apiKey: ctx.apiKey, issuerId: ctx.issuer.apiIssuerId };
+  try {
+    await voidDocument(apiCtx, accessKey, reason, true);
     return null;
   } catch (err) {
     if (err instanceof ApiError) return { error: err.code };

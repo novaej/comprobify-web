@@ -162,7 +162,8 @@
     "RECEIVED": "Received by SRI",
     "AUTHORIZED": "Authorized",
     "RETURNED": "Returned",
-    "NOT_AUTHORIZED": "Not authorized"
+    "NOT_AUTHORIZED": "Not authorized",
+    "VOIDED": "Voided"
   },
   "emailStatus": {
     "PENDING": "Pending",
@@ -544,12 +545,24 @@
       "resendEmailSuccess": "Email resent successfully.",
       "sriErrors": "View SRI errors",
       "moreActions": "More actions",
+      "void": "Void document",
+      "voidSuccess": "Document voided.",
       "confirm": {
         "title": "Send to SRI",
         "description": "The document will be submitted to the SRI (Servicio de Rentas Internas) for authorization. The process will continue automatically until complete.",
         "cancel": "Cancel",
         "submit": "Send"
       }
+    },
+    "voidDialog": {
+      "title": "Void document",
+      "sriFirstWarning": "Important: you must void this document in SRI's own portal first.",
+      "reasonLabel": "Reason (max 500 characters)",
+      "reasonPlaceholder": "E.g. Duplicate invoice — the customer already received the original document 001-001-000000010",
+      "confirmCheckboxLabel": "I confirm I already voided this document in SRI's portal",
+      "cancel": "Cancel",
+      "submit": "Void",
+      "submitting": "Voiding..."
     },
     "sriRejection": {
       "title": "SRI rejection reason"
@@ -596,7 +609,8 @@
       "emailFailed": "Error sending email",
       "emailDelivered": "Email delivered",
       "emailTempFailed": "Temporary error delivering email",
-      "emailComplained": "Email marked as spam"
+      "emailComplained": "Email marked as spam",
+      "voided": "Document voided"
     },
     "eventTypes": {
       "CREATED": "Created",
@@ -608,7 +622,8 @@
       "EMAIL_FAILED": "Email failed",
       "EMAIL_DELIVERED": "Email delivered",
       "EMAIL_TEMP_FAILED": "Email temporary failure",
-      "EMAIL_COMPLAINED": "Email reported as spam"
+      "EMAIL_COMPLAINED": "Email reported as spam",
+      "VOIDED": "Voided"
     }
   },
   "settings": {
@@ -745,6 +760,7 @@
     "INVALID_STATE_TRANSITION": "This operation is not valid for the document's current status.",
     "NOTHING_TO_RETRY": "There's no failed send attempt to retry. The document may already be in progress or completed.",
     "DOCUMENT_NOT_AUTHORIZED": "The document is not yet authorized. This operation requires an authorized document.",
+    "DOCUMENT_VOID_CONFIRMATION_REQUIRED": "You must confirm you already voided this document in SRI's portal.",
     "CREDIT_NOTE_EXCEEDS_REMAINING": "The credit note amount exceeds the original invoice's remaining balance.",
     "CERTIFICATE_INVALID": "The P12 file is invalid or corrupted.",
     "CERTIFICATE_PASSWORD_INVALID": "The P12 certificate password is incorrect.",

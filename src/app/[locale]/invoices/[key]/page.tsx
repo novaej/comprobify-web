@@ -1,7 +1,7 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { ChevronLeft, ArrowRight } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
-import { getDocument, getDocumentEvents, getSriResponses } from '@/lib/api';
+import { getDocument, getDocumentEvents, getSriResponses, listIssuerDocumentTypes } from '@/lib/api';
 import { requirePermission } from '@/lib/context';
 import { ApiError } from '@/lib/errors';
 import { notFound } from 'next/navigation';
@@ -62,6 +62,14 @@ export default async function InvoiceDetailPage({
     }
     throw err;
   }
+
+  // Gates "Crear nota de crédito" — POST /v1/documents checks the ISSUER's
+  // actually-enabled document types at creation time (DOCUMENT_TYPE_NOT_ENABLED
+  // otherwise), which is itself capped by the tenant's tier (a FREE-plan issuer
+  // can never have '04' enabled) — so this is the one source of truth for both
+  // "the plan doesn't allow it" and "this issuer just never enabled it," rather
+  // than re-deriving the same answer from the tier's allowedDocumentTypes.
+  const issuerDocumentTypes = await listIssuerDocumentTypes(apiCtx, ctx.issuer.apiIssuerId).catch(() => ['01']);
 
   const rejectionMessages = (document.status === 'RETURNED' || document.status === 'NOT_AUTHORIZED')
     ? sriResponses.flatMap((r) => r.messages ?? []).filter((m) => m.message)
@@ -183,6 +191,7 @@ export default async function InvoiceDetailPage({
         from={backTargetKey}
         canManage={canManage}
         canCreate={canCreate}
+        issuerDocumentTypes={issuerDocumentTypes}
       />
 
       {/* Events timeline */}
