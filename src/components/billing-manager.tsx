@@ -34,7 +34,7 @@ import {
   cancelSubscriptionAction,
   createPayphoneSessionAction,
 } from '@/app/actions/billing';
-import type { ApiTenantInfo, ApiSubscriptionInfo, ApiPaymentInfo, ApiBankTransferInfo, ApiPaymentProof, ApiPayphoneSession } from '@/lib/api';
+import type { ApiTenantInfo, ApiSubscriptionInfo, ApiPaymentInfo, ApiBankTransferInfo, ApiPaymentProof, ApiPayphoneSession, PricingBreakdown } from '@/lib/api';
 import type { ApiTierInfo, ApiExtraSeatPricing } from '@/lib/public-api';
 import { TIER_RANK, resolveTierTotal, resolveSeatBasePrice, type PaidTier, type BillingInterval } from '@/lib/subscription-tiers';
 
@@ -399,6 +399,66 @@ export function BillingManager({
   );
 }
 
+// Line-item detail behind a prorated payment's pre-tax amount (migration
+// 101) — deliberately does NOT restate the resulting subtotal itself
+// (proratedBase/fullPrice), since PendingPaymentCard's existing
+// pendingPayment.ivaBreakdown line right below this already states that
+// exact figure (payment.amount) alongside the tax on top of it. This is
+// purely "here's how we got there." null/absent breakdown (INITIAL/RENEWAL,
+// or any sandbox-path payment) renders nothing — the caller checks first.
+function PricingBreakdownDetail({ breakdown }: { breakdown: PricingBreakdown }) {
+  const t = useTranslations('billing');
+  const rows: { label: string; value: string }[] = [];
+
+  switch (breakdown.model) {
+    case 'SAME_INTERVAL_UPGRADE':
+      rows.push(
+        { label: t('pendingPayment.breakdown.currentTierPrice'), value: currencyFormatter.format(breakdown.currentTierPrice) },
+        { label: t('pendingPayment.breakdown.newTierPrice'), value: currencyFormatter.format(breakdown.newTierPrice) },
+        { label: t('pendingPayment.breakdown.priceDifference'), value: currencyFormatter.format(breakdown.priceDifference) },
+        { label: t('pendingPayment.breakdown.remainingFraction'), value: `${Math.round(breakdown.remainingFraction * 100)}%` },
+      );
+      break;
+    case 'CROSS_INTERVAL_UPGRADE':
+      rows.push({ label: t('pendingPayment.breakdown.newTierPriceYearly'), value: currencyFormatter.format(breakdown.newTierPrice) });
+      if (breakdown.seatsCount > 0) {
+        rows.push({ label: t('pendingPayment.breakdown.seatsCost', { count: breakdown.seatsCount }), value: currencyFormatter.format(breakdown.seatsCost) });
+      }
+      rows.push(
+        { label: t('pendingPayment.breakdown.fullPrice'), value: currencyFormatter.format(breakdown.fullPrice) },
+        { label: t('pendingPayment.breakdown.credit'), value: `−${currencyFormatter.format(breakdown.credit)}` },
+      );
+      break;
+    case 'DEFERRED_FULL_PRICE':
+      rows.push({ label: t('pendingPayment.breakdown.newTierPrice'), value: currencyFormatter.format(breakdown.newTierPrice) });
+      if (breakdown.seatsCount > 0) {
+        rows.push({ label: t('pendingPayment.breakdown.seatsCost', { count: breakdown.seatsCount }), value: currencyFormatter.format(breakdown.seatsCost) });
+      }
+      rows.push({ label: t('pendingPayment.breakdown.fullPrice'), value: currencyFormatter.format(breakdown.fullPrice) });
+      break;
+    case 'SEAT_INCREASE':
+      rows.push(
+        { label: t('pendingPayment.breakdown.seatDelta', { count: breakdown.seatDelta }), value: currencyFormatter.format(breakdown.seatPrice) },
+        { label: t('pendingPayment.breakdown.remainingFraction'), value: `${Math.round(breakdown.remainingFraction * 100)}%` },
+      );
+      break;
+  }
+
+  return (
+    <div className="mt-2 rounded-md border border-border bg-muted/30 p-3 text-xs">
+      <p className="mb-1.5 font-medium text-muted-foreground">{t('pendingPayment.breakdown.title')}</p>
+      <dl className="space-y-1">
+        {rows.map((row) => (
+          <div key={row.label} className="flex items-center justify-between gap-3">
+            <dt className="text-muted-foreground">{row.label}</dt>
+            <dd className="font-medium">{row.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
 function PendingPaymentCard({
   payment,
   bankTransfer,
@@ -557,6 +617,7 @@ function PendingPaymentCard({
           })}
         </p>
       )}
+      {payment.pricing_breakdown && <PricingBreakdownDetail breakdown={payment.pricing_breakdown} />}
 
       {payment.rejection_reason_code && (
         <p className="mt-2 text-sm text-destructive">

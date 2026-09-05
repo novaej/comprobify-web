@@ -1618,6 +1618,18 @@
       "renewalTitle": "Pago pendiente de renovación",
       "amount": "Monto a transferir: {amount}",
       "ivaBreakdown": "Incluye {iva} de IVA ({rate}%) sobre un subtotal de {base}",
+      "breakdown": {
+        "title": "Detalle del cálculo",
+        "currentTierPrice": "Plan actual",
+        "newTierPrice": "Plan nuevo",
+        "newTierPriceYearly": "Plan nuevo (anual)",
+        "priceDifference": "Diferencia",
+        "remainingFraction": "Tiempo restante del periodo",
+        "seatsCost": "{count, plural, one {Cupo adicional} other {Cupos adicionales}} ({count})",
+        "fullPrice": "Precio completo",
+        "credit": "Crédito por tiempo restante de tu plan actual",
+        "seatDelta": "{count, plural, one {Cupo nuevo} other {Cupos nuevos}} ({count}) × precio unitario"
+      },
       "rejected": "Tu comprobante fue rechazado: {reason}",
       "bank": "Banco",
       "accountType": "Tipo de cuenta",

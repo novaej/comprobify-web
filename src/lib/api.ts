@@ -1032,6 +1032,11 @@ export interface ApiPaymentInfo {
   // effective total on a RENEWAL/interval-change TIER_CHANGE, 0 otherwise).
   target_extra_seats?: number | null;
   seats_charged?: number | null;
+  // Migration 101 — the same object requestTierChange/requestSeatChange
+  // return synchronously as `breakdown` (see PricingBreakdown below),
+  // persisted here so it survives past the original response. null for
+  // INITIAL/RENEWAL and any sandbox-path payment.
+  pricing_breakdown?: PricingBreakdown | null;
   rejection_reason_code?: 'AMOUNT_MISMATCH' | 'TRANSFER_NOT_FOUND' | 'WRONG_ACCOUNT' | 'ILLEGIBLE_PROOF' | 'DUPLICATE_SUBMISSION' | 'OTHER' | null;
   reported_at?: string | null;
   verified_at?: string | null;
@@ -1088,6 +1093,51 @@ export async function getMySubscriptions(ctx: ApiCtx): Promise<ApiSubscriptionIn
   return result.subscriptions;
 }
 
+// Verified against: ../comprobify/src/services/subscription.service.js — every
+// proration-capable path in requestTierChange/requestSeatChange builds one of
+// these (migration 101, payments.pricing_breakdown JSONB). All money fields
+// are pre-tax base amounts — payment.amount/iva_amount/total_amount carry the
+// tax breakdown on top separately. null for INITIAL/RENEWAL payments and for
+// any sandbox path (sandbox never builds one at all).
+export type PricingBreakdown =
+  | {
+      model: 'SAME_INTERVAL_UPGRADE';
+      currentTierPrice: number;
+      newTierPrice: number;
+      priceDifference: number;
+      remainingFraction: number;
+      proratedBase: number;
+    }
+  | {
+      model: 'CROSS_INTERVAL_UPGRADE';
+      newTierPrice: number;
+      seatsCount: number;
+      seatPrice: number;
+      seatsCost: number;
+      fullPrice: number;
+      previousPlanPrice: number;
+      remainingFraction: number;
+      credit: number;
+      proratedBase: number;
+    }
+  | {
+      model: 'DEFERRED_FULL_PRICE';
+      newTierPrice: number;
+      seatsCount: number;
+      seatPrice: number;
+      seatsCost: number;
+      fullPrice: number;
+      proratedBase: null;
+      credit: 0;
+    }
+  | {
+      model: 'SEAT_INCREASE';
+      seatDelta: number;
+      seatPrice: number;
+      remainingFraction: number;
+      proratedBase: number;
+    };
+
 // Verified against: ../comprobify/src/controllers/subscription.controller.js → changeTier()
 // and ../comprobify/src/services/subscription.service.js → requestTierChange().
 // Response shape varies by outcome — see docs/site/endpoints/change-tier.md:
@@ -1110,6 +1160,7 @@ export interface ChangeTierResult {
   bankTransfer?: ApiBankTransferInfo;
   amount?: number;
   effectiveAt?: string;
+  breakdown?: PricingBreakdown;
 }
 
 // Verified against: ../comprobify/src/routes/subscriptions.routes.js → POST /v1/subscriptions/change-tier
@@ -1146,6 +1197,7 @@ export interface ChangeSeatsResult {
   bankTransfer?: ApiBankTransferInfo;
   amount?: number;
   effectiveAt?: string;
+  breakdown?: PricingBreakdown;
 }
 
 // Verified against: ../comprobify/src/routes/subscriptions.routes.js → POST /v1/subscriptions/seats

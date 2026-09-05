@@ -1618,6 +1618,18 @@
       "renewalTitle": "Pending renewal payment",
       "amount": "Amount to transfer: {amount}",
       "ivaBreakdown": "Includes {iva} in VAT ({rate}%) on a subtotal of {base}",
+      "breakdown": {
+        "title": "Calculation breakdown",
+        "currentTierPrice": "Current plan",
+        "newTierPrice": "New plan",
+        "newTierPriceYearly": "New plan (yearly)",
+        "priceDifference": "Difference",
+        "remainingFraction": "Time left in period",
+        "seatsCost": "{count, plural, one {Extra seat} other {Extra seats}} ({count})",
+        "fullPrice": "Full price",
+        "credit": "Credit for time left on your current plan",
+        "seatDelta": "{count, plural, one {New seat} other {New seats}} ({count}) × unit price"
+      },
       "rejected": "Your proof was rejected: {reason}",
       "bank": "Bank",
       "accountType": "Account type",
