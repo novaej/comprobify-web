@@ -1063,7 +1063,14 @@ function ChangeTierCard({
         return;
       }
       setConfirming(false);
-      setSelectedTier(null);
+      // Never null — the dropdown's Select is controlled (value is never
+      // undefined after mount); switching it to uncontrolled mid-lifetime is
+      // a Base UI warning that also breaks its internal state. Falls back to
+      // the tenant's current tier, same as the initial state — once
+      // revalidatePath's fresh props land, isNoOp/the "plan actual" badge
+      // naturally reflect whatever actually changed (immediately, for an
+      // applied upgrade) or didn't (yet, for a scheduled downgrade).
+      setSelectedTier(currentSubscriptionTier);
       setSelectedInterval(currentBillingInterval);
       if (result.effectiveAt && !result.payment) {
         toast.success(t('changePlan.downgradeScheduled'));
