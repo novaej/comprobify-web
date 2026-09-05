@@ -1013,10 +1013,26 @@ function ChangeTierCard({
           - resolveTierTotal(currentTierInfo, currentBillingInterval).base)
     : 0;
 
-  type Scenario = 'upgrade' | 'downgrade' | 'interval-change';
+  // ADR-033 (migration 099): MONTHLY -> YEARLY is prorated and applied
+  // immediately, but only when it's a genuine upgrade by monthly-equivalent
+  // price — the one direction where a credit (at most one month of the
+  // cheaper old plan) can never mathematically exceed the new charge (a
+  // full year at the pricier new rate). Every other interval-change
+  // direction (YEARLY -> MONTHLY in either tier direction, or a MONTHLY ->
+  // YEARLY switch that's a downgrade/tie by monthly-equivalent price) still
+  // defers to current_period_end at full sticker price — mirrors
+  // requestTierChange's own eligibility check exactly (isCrossIntervalUpgrade
+  // in subscription.service.js) so the confirm copy shown here never
+  // promises something the API won't actually do.
+  const isCrossIntervalUpgradeEligible = !!targetTierInfo && !!currentTierInfo
+    && currentBillingInterval === 'MONTHLY'
+    && targetEffectiveInterval === 'YEARLY'
+    && (resolveTierTotal(targetTierInfo, 'YEARLY').base / 12) > resolveTierTotal(currentTierInfo, 'MONTHLY').base;
+
+  type Scenario = 'upgrade' | 'downgrade' | 'interval-change' | 'cross-interval-upgrade';
   let scenario: Scenario | null = null;
   if (selectedTier && !isNoOp) {
-    if (intervalChanged) scenario = 'interval-change';
+    if (intervalChanged) scenario = isCrossIntervalUpgradeEligible ? 'cross-interval-upgrade' : 'interval-change';
     else if (isTierUpgrade) scenario = 'upgrade';
     else if (isTierDowngrade) scenario = 'downgrade';
   }
@@ -1228,13 +1244,15 @@ function ChangeTierCard({
                           : t('changePlan.confirmHintSandboxCharge'))
                       : scenario === 'upgrade'
                         ? t('changePlan.confirmHintUpgrade')
-                        : scenario === 'downgrade'
-                          ? (periodEndFormatted
-                              ? t('changePlan.confirmHintDowngrade', { date: periodEndFormatted })
-                              : t('changePlan.confirmHintDowngradeNoDate'))
-                          : (periodEndFormatted
-                              ? t('changePlan.confirmHintIntervalChange', { date: periodEndFormatted })
-                              : t('changePlan.confirmHintIntervalChangeNoDate'))}
+                        : scenario === 'cross-interval-upgrade'
+                          ? t('changePlan.confirmHintCrossIntervalUpgrade')
+                          : scenario === 'downgrade'
+                            ? (periodEndFormatted
+                                ? t('changePlan.confirmHintDowngrade', { date: periodEndFormatted })
+                                : t('changePlan.confirmHintDowngradeNoDate'))
+                            : (periodEndFormatted
+                                ? t('changePlan.confirmHintIntervalChange', { date: periodEndFormatted })
+                                : t('changePlan.confirmHintIntervalChangeNoDate'))}
                   </p>
                   {isSandbox && !isTierDowngrade && (
                     <p className="font-medium">
@@ -1243,7 +1261,7 @@ function ChangeTierCard({
                       <span className="text-xs font-normal text-muted-foreground">{t('plusIva')}</span>
                     </p>
                   )}
-                  {!isSandbox && scenario !== 'upgrade' && (
+                  {!isSandbox && scenario !== 'upgrade' && scenario !== 'cross-interval-upgrade' && (
                     <p className="font-medium">
                       {currencyFormatter.format(resolveTierTotal(targetTierInfo, selectedInterval).base)}
                       {tPricing(targetEffectiveInterval === 'YEARLY' ? 'perYear' : 'perMonth')}

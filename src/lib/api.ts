@@ -1022,6 +1022,10 @@ export interface ApiPaymentInfo {
   purpose?: 'INITIAL' | 'TIER_CHANGE' | 'RENEWAL' | 'SEAT_CHANGE';
   target_tier?: PaidTier | null;
   target_billing_interval?: 'MONTHLY' | 'YEARLY' | null;
+  // Migration 099 (ADR-033) — only ever true for the MONTHLY -> YEARLY
+  // genuine-upgrade path requestTierChange takes; every other TIER_CHANGE
+  // with target_billing_interval set still defers to current_period_end.
+  interval_change_immediate?: boolean;
   // target_extra_seats: the new total seat count being purchased (mirrors
   // target_tier, SEAT_CHANGE only). seats_charged: audit snapshot of how many
   // seats' cost is baked into this payment (a delta on SEAT_CHANGE, the

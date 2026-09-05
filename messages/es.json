@@ -1679,6 +1679,7 @@
       "currentOptionSuffix": "(actual)",
       "button": "Cambiar plan",
       "confirmHintUpgrade": "El cambio se aplica de inmediato. Se generará un cobro proporcional al tiempo restante de tu periodo. Podrás pagarlo por transferencia bancaria o con tarjeta.",
+      "confirmHintCrossIntervalUpgrade": "El cambio se aplica de inmediato. Se te da crédito por el tiempo restante de tu plan mensual actual y se cobra el resto del precio anual completo del nuevo plan. Podrás pagarlo por transferencia bancaria o con tarjeta.",
       "confirmHintDowngrade": "Sin cobro adicional. Tu plan actual se mantiene hasta el {date} y el nuevo plan se aplica automáticamente después.",
       "confirmHintDowngradeNoDate": "Sin cobro adicional. Tu plan actual se mantiene hasta el final del periodo y el nuevo plan se aplica automáticamente después.",
       "confirmHintIntervalChange": "El cambio se aplica al finalizar tu periodo actual ({date}). Se cobrará el precio completo del nuevo plan, sin prorrateo.",

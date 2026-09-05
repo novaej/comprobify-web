@@ -1679,6 +1679,7 @@
       "currentOptionSuffix": "(current)",
       "button": "Change plan",
       "confirmHintUpgrade": "The change applies immediately. A prorated charge for the time remaining in your period will be generated. You'll be able to pay it by bank transfer or card.",
+      "confirmHintCrossIntervalUpgrade": "The change applies immediately. You get credit for the time remaining on your current monthly plan, and pay the rest of the new plan's full yearly price. You'll be able to pay it by bank transfer or card.",
       "confirmHintDowngrade": "No additional charge. Your current plan stays active until {date}, then the new plan applies automatically.",
       "confirmHintDowngradeNoDate": "No additional charge. Your current plan stays active until the end of your period, then the new plan applies automatically.",
       "confirmHintIntervalChange": "The change takes effect at the end of your current period ({date}). You'll be charged the full price of the new plan — no proration.",
