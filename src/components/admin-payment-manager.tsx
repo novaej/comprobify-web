@@ -117,6 +117,19 @@ export function AdminPaymentManager({
         {payments.map((payment) => {
           const id = payment.id;
           const rowPending = isPending && pendingId === id;
+          // For a TIER_CHANGE payment, subscriptions.tier (payment.tier) still
+          // holds the PRE-change tier until the payment is verified and
+          // applyVerifiedPayment runs — target_tier is what the payment is
+          // actually for (see subscription.service.js requestTierChange/
+          // applyVerifiedPayment). Every other purpose leaves target_tier
+          // null, so this falls back to payment.tier unchanged.
+          const displayTier = payment.purpose === 'TIER_CHANGE' && payment.target_tier
+            ? payment.target_tier
+            : payment.tier;
+          const displayTierKey = `tiers.${displayTier}.name` as Parameters<typeof tPricing>[0];
+          const tierName = tPricing.has(displayTierKey) ? tPricing(displayTierKey) : displayTier;
+          const purposeKey = `purpose.${payment.purpose}` as Parameters<typeof t>[0];
+          const purposeLabel = t.has(purposeKey) ? t(purposeKey) : payment.purpose;
           return (
             <div key={payment.id} className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -130,11 +143,9 @@ export function AdminPaymentManager({
                   <p className="mt-1 text-sm text-muted-foreground">
                     {currencyFormatter.format(Number(payment.total_amount))}
                     {' · '}
-                    {tPricing.has(`tiers.${payment.tier}.name` as Parameters<typeof tPricing>[0])
-                      ? tPricing(`tiers.${payment.tier}.name` as Parameters<typeof tPricing>[0])
-                      : payment.tier}
+                    {tierName}
                     {' · '}
-                    {payment.purpose}
+                    {purposeLabel}
                   </p>
                   {payment.reported_at && (
                     <p className="mt-0.5 text-xs text-muted-foreground">

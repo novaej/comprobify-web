@@ -1001,8 +1001,17 @@ export async function promoteTenant(
 // case amount itself was the all-in total — use total_amount ?? amount for display.
 export interface ApiPaymentInfo {
   id: string;
+  // Migration 097 — short, hand-typable identifier (e.g. "CB-4K7N9QRT") the
+  // tenant writes into the SPI transfer's description/glosa field instead of
+  // the UUID id, which is impractical to hand-copy. DB-generated, always
+  // present (NOT NULL DEFAULT) on every payment, old or new.
+  payment_code: string;
   subscription_id?: string;
-  status: 'PENDING' | 'REPORTED' | 'VERIFIED' | 'REJECTED' | 'REFUNDED';
+  // 'CANCELLED' (migration 098) — the tenant backed out of a still-PENDING
+  // payment themselves (wrong tier/seats), distinct from REJECTED (operator
+  // reviewed submitted proof) and REFUNDED (money already moved). See
+  // cancelPayment() below.
+  status: 'PENDING' | 'REPORTED' | 'VERIFIED' | 'REJECTED' | 'REFUNDED' | 'CANCELLED';
   amount: string;            // base imponible; numeric → string by pg/JSON
   iva_rate?: number | null;
   iva_amount?: string | null;
@@ -1013,15 +1022,26 @@ export interface ApiPaymentInfo {
   purpose?: 'INITIAL' | 'TIER_CHANGE' | 'RENEWAL' | 'SEAT_CHANGE';
   target_tier?: PaidTier | null;
   target_billing_interval?: 'MONTHLY' | 'YEARLY' | null;
+  // Migration 099 (ADR-033) — only ever true for the MONTHLY -> YEARLY
+  // genuine-upgrade path requestTierChange takes; every other TIER_CHANGE
+  // with target_billing_interval set still defers to current_period_end.
+  interval_change_immediate?: boolean;
   // target_extra_seats: the new total seat count being purchased (mirrors
   // target_tier, SEAT_CHANGE only). seats_charged: audit snapshot of how many
   // seats' cost is baked into this payment (a delta on SEAT_CHANGE, the
   // effective total on a RENEWAL/interval-change TIER_CHANGE, 0 otherwise).
   target_extra_seats?: number | null;
   seats_charged?: number | null;
+  // Migration 101 — the same object requestTierChange/requestSeatChange
+  // return synchronously as `breakdown` (see PricingBreakdown below),
+  // persisted here so it survives past the original response. null for
+  // INITIAL/RENEWAL and any sandbox-path payment.
+  pricing_breakdown?: PricingBreakdown | null;
   rejection_reason_code?: 'AMOUNT_MISMATCH' | 'TRANSFER_NOT_FOUND' | 'WRONG_ACCOUNT' | 'ILLEGIBLE_PROOF' | 'DUPLICATE_SUBMISSION' | 'OTHER' | null;
   reported_at?: string | null;
   verified_at?: string | null;
+  cancelled_at?: string | null;
+  created_at: string;  // NOT NULL DEFAULT NOW() (migration 052) — every payment has one
 }
 
 // Verified against: ../comprobify/src/services/subscription.service.js → formatPaymentProof()
@@ -1073,6 +1093,51 @@ export async function getMySubscriptions(ctx: ApiCtx): Promise<ApiSubscriptionIn
   return result.subscriptions;
 }
 
+// Verified against: ../comprobify/src/services/subscription.service.js — every
+// proration-capable path in requestTierChange/requestSeatChange builds one of
+// these (migration 101, payments.pricing_breakdown JSONB). All money fields
+// are pre-tax base amounts — payment.amount/iva_amount/total_amount carry the
+// tax breakdown on top separately. null for INITIAL/RENEWAL payments and for
+// any sandbox path (sandbox never builds one at all).
+export type PricingBreakdown =
+  | {
+      model: 'SAME_INTERVAL_UPGRADE';
+      currentTierPrice: number;
+      newTierPrice: number;
+      priceDifference: number;
+      remainingFraction: number;
+      proratedBase: number;
+    }
+  | {
+      model: 'CROSS_INTERVAL_UPGRADE';
+      newTierPrice: number;
+      seatsCount: number;
+      seatPrice: number;
+      seatsCost: number;
+      fullPrice: number;
+      previousPlanPrice: number;
+      remainingFraction: number;
+      credit: number;
+      proratedBase: number;
+    }
+  | {
+      model: 'DEFERRED_FULL_PRICE';
+      newTierPrice: number;
+      seatsCount: number;
+      seatPrice: number;
+      seatsCost: number;
+      fullPrice: number;
+      proratedBase: null;
+      credit: 0;
+    }
+  | {
+      model: 'SEAT_INCREASE';
+      seatDelta: number;
+      seatPrice: number;
+      remainingFraction: number;
+      proratedBase: number;
+    };
+
 // Verified against: ../comprobify/src/controllers/subscription.controller.js → changeTier()
 // and ../comprobify/src/services/subscription.service.js → requestTierChange().
 // Response shape varies by outcome — see docs/site/endpoints/change-tier.md:
@@ -1095,6 +1160,7 @@ export interface ChangeTierResult {
   bankTransfer?: ApiBankTransferInfo;
   amount?: number;
   effectiveAt?: string;
+  breakdown?: PricingBreakdown;
 }
 
 // Verified against: ../comprobify/src/routes/subscriptions.routes.js → POST /v1/subscriptions/change-tier
@@ -1131,6 +1197,7 @@ export interface ChangeSeatsResult {
   bankTransfer?: ApiBankTransferInfo;
   amount?: number;
   effectiveAt?: string;
+  breakdown?: PricingBreakdown;
 }
 
 // Verified against: ../comprobify/src/routes/subscriptions.routes.js → POST /v1/subscriptions/seats
@@ -1242,6 +1309,27 @@ export async function deletePaymentProof(ctx: ApiCtx, paymentId: string, proofId
     const problem: ProblemDetails = await res.json();
     throw new ApiError(problem);
   }
+}
+
+// Verified against: ../comprobify/src/controllers/payment.controller.js → cancelPayment()
+// and ../comprobify/src/services/subscription.service.js → cancelPayment() (migration 098).
+// Tenant-initiated: only a still-PENDING, non-RENEWAL payment qualifies (409
+// PAYMENT_NOT_CANCELLABLE otherwise). Cancelling an INITIAL payment also
+// cancels its still-PENDING_PAYMENT subscription — subscription is non-null
+// only in that case, and is the raw subscriptionModel.updateStatus() row
+// (no nested payments array, unlike ApiSubscriptionInfo).
+export interface CancelPaymentResult {
+  ok: true;
+  payment: ApiPaymentInfo;
+  subscription: { id: string; status: string } | null;
+}
+
+export async function cancelPayment(ctx: ApiCtx, paymentId: string): Promise<CancelPaymentResult> {
+  return request<CancelPaymentResult>(
+    `/v1/payments/${paymentId}`,
+    { apiKey: ctx.apiKey },
+    { method: 'DELETE' },
+  );
 }
 
 // Verified against: ../comprobify/src/controllers/payment.controller.js → createPayphoneSession()

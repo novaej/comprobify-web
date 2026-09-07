@@ -7,25 +7,34 @@ import { toastApiError } from '@/lib/api-error-toast';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { FileIcon, DownloadIcon, Trash2Icon, Info, Ban, CreditCard, Landmark } from 'lucide-react';
+import { FileIcon, DownloadIcon, Trash2Icon, Info, Ban, CreditCard, Landmark, Check } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { PayphoneCheckout } from '@/components/payphone-checkout';
+import { AccessKeyCopy } from '@/components/access-key-copy';
 import {
   submitPaymentProofAction,
   listPaymentProofsAction,
   deletePaymentProofAction,
+  cancelPaymentAction,
   changeTierAction,
   changeSeatsAction,
   createSubscriptionAction,
   cancelSubscriptionAction,
   createPayphoneSessionAction,
 } from '@/app/actions/billing';
-import type { ApiTenantInfo, ApiSubscriptionInfo, ApiPaymentInfo, ApiBankTransferInfo, ApiPaymentProof, ApiPayphoneSession } from '@/lib/api';
+import type { ApiTenantInfo, ApiSubscriptionInfo, ApiPaymentInfo, ApiBankTransferInfo, ApiPaymentProof, ApiPayphoneSession, PricingBreakdown } from '@/lib/api';
 import type { ApiTierInfo, ApiExtraSeatPricing } from '@/lib/public-api';
 import { TIER_RANK, resolveTierTotal, resolveSeatBasePrice, type PaidTier, type BillingInterval } from '@/lib/subscription-tiers';
 
@@ -48,6 +57,7 @@ const PAYMENT_STATUS_STYLES: Record<string, string> = {
   VERIFIED: 'bg-green-50 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-500/30',
   REJECTED: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/30',
   REFUNDED: 'bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-500/15 dark:text-zinc-300 dark:border-zinc-500/30',
+  CANCELLED: 'bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-500/15 dark:text-zinc-300 dark:border-zinc-500/30',
 };
 
 // Payphone's own widget form expires 10 minutes after load — reusing a session
@@ -108,8 +118,20 @@ export function BillingManager({
   // there's nothing left to pay for *this* payment. Without excluding it, the
   // pending-payment card kept demanding payment for an already-reversed
   // TIER_CHANGE instead of falling back to ChangeTierCard for a fresh attempt.
+  // CANCELLED (migration 098) is the same story from the opposite direction —
+  // the tenant backed out of the payment themselves before transferring
+  // anything, so there's nothing to collect and nothing to review; without
+  // excluding it, cancelling a TIER_CHANGE/SEAT_CHANGE payment (whose
+  // subscription stays ACTIVE throughout, unlike an INITIAL cancellation
+  // which cancels the subscription too and is already caught by
+  // isSubscriptionOver) would keep PendingPaymentCard stuck showing the
+  // cancelled payment instead of freeing ChangeTierCard/SeatsCard back up.
   // REJECTED stays included — that one genuinely needs a new proof upload.
-  const needsAction = !!latestPayment && latestPayment.status !== 'VERIFIED' && latestPayment.status !== 'REFUNDED' && !isSubscriptionOver;
+  const needsAction = !!latestPayment
+    && latestPayment.status !== 'VERIFIED'
+    && latestPayment.status !== 'REFUNDED'
+    && latestPayment.status !== 'CANCELLED'
+    && !isSubscriptionOver;
   // pending_tier = 'FREE' means cancellation scheduled; a paid tier means downgrade scheduled.
   const pendingCancellation = latestSubscription?.status === 'ACTIVE' && latestSubscription.pending_tier === 'FREE';
   const pendingDowngradeTier = latestSubscription?.status === 'ACTIVE' && latestSubscription.pending_tier !== 'FREE'
@@ -260,6 +282,7 @@ export function BillingManager({
           emailVerified={emailVerified}
           intendedTier={intendedTier}
           intendedBillingInterval={intendedBillingInterval}
+          currentSubscriptionTier={tenantInfo.subscriptionTier}
         />
       )}
 
@@ -289,22 +312,33 @@ export function BillingManager({
         {(() => {
           // Flatten all payments across subscriptions, oldest subscription last so newest
           // payments (from the most recent subscription) appear at the top.
+          // CANCELLED (migration 098) is excluded — the tenant backed out before
+          // ever transferring anything, so it's not a real event in the billing
+          // history, just an abandoned attempt.
           const rows = subscriptions.flatMap((sub) =>
-            sub.payments.map((p) => ({ payment: p, sub }))
+            sub.payments.filter((p) => p.status !== 'CANCELLED').map((p) => ({ payment: p, sub }))
           );
           if (rows.length === 0) {
             return <p className="text-sm text-muted-foreground">{t('noHistory')}</p>;
           }
           return (
             <div className="divide-y divide-border">
-              {rows.map(({ payment: p, sub }) => {
+              {rows.map(({ payment: p }) => {
                 const paymentStatusKey = `paymentStatus.${p.status}` as Parameters<typeof t>[0];
-                const subTierKey = `tiers.${sub.tier}.name` as Parameters<typeof tPricing>[0];
-                const subTierName = tPricing.has(subTierKey) ? tPricing(subTierKey) : sub.tier;
                 const targetTierKey = p.target_tier
                   ? (`tiers.${p.target_tier}.name` as Parameters<typeof tPricing>[0])
                   : null;
 
+                // INITIAL/RENEWAL purpose labels used to interpolate the
+                // subscription's *current* tier (sub.tier) — wrong for any
+                // payment that predates a later tier change, since
+                // subscriptions.tier is mutated in place and payments has no
+                // column snapshotting what tier was active at INITIAL/RENEWAL
+                // time (only target_tier, TIER_CHANGE-only). A tenant who paid
+                // for Lite then changed to Starter would see their original
+                // Lite payment mislabeled "Suscripción — Starter". Only
+                // TIER_CHANGE has a reliable per-payment tier (target_tier),
+                // so that's the only purpose that still names one.
                 let purposeLabel: string;
                 if (p.purpose === 'TIER_CHANGE' && targetTierKey) {
                   const targetTierName = tPricing.has(targetTierKey) ? tPricing(targetTierKey) : p.target_tier ?? '';
@@ -319,9 +353,9 @@ export function BillingManager({
                 } else if (p.purpose === 'SEAT_CHANGE') {
                   purposeLabel = t('seatChangeLabel', { seats: p.seats_charged ?? p.target_extra_seats ?? 0 });
                 } else if (p.purpose === 'RENEWAL') {
-                  purposeLabel = t('paymentPurposeRenewal', { tier: subTierName });
+                  purposeLabel = t('paymentPurposeRenewal');
                 } else {
-                  purposeLabel = t('paymentPurposeInitial', { tier: subTierName });
+                  purposeLabel = t('paymentPurposeInitial');
                 }
 
                 const historyProofs = proofsByPaymentId[String(p.id)] ?? [];
@@ -336,6 +370,7 @@ export function BillingManager({
                           )}
                         </p>
                         <p className="mt-0.5 text-xs text-muted-foreground">{purposeLabel}</p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">{dateFormatter.format(new Date(p.created_at))}</p>
                       </div>
                       <Badge variant="outline" className={`shrink-0 ${PAYMENT_STATUS_STYLES[p.status] ?? ''}`}>
                         {t.has(paymentStatusKey) ? t(paymentStatusKey) : p.status}
@@ -348,7 +383,7 @@ export function BillingManager({
                             key={proof.id}
                             type="button"
                             onClick={() => setViewingHistoryProof({ paymentId: p.id, proof })}
-                            className="inline-flex items-center gap-1 rounded border border-border bg-muted px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground"
+                            className="inline-flex cursor-pointer items-center gap-1 rounded border border-border bg-muted px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground"
                           >
                             <FileIcon className="h-3 w-3 shrink-0" />
                             {proof.filename}
@@ -363,6 +398,66 @@ export function BillingManager({
           );
         })()}
       </div>
+    </div>
+  );
+}
+
+// Line-item detail behind a prorated payment's pre-tax amount (migration
+// 101) — deliberately does NOT restate the resulting subtotal itself
+// (proratedBase/fullPrice), since PendingPaymentCard's existing
+// pendingPayment.ivaBreakdown line right below this already states that
+// exact figure (payment.amount) alongside the tax on top of it. This is
+// purely "here's how we got there." null/absent breakdown (INITIAL/RENEWAL,
+// or any sandbox-path payment) renders nothing — the caller checks first.
+function PricingBreakdownDetail({ breakdown }: { breakdown: PricingBreakdown }) {
+  const t = useTranslations('billing');
+  const rows: { label: string; value: string }[] = [];
+
+  switch (breakdown.model) {
+    case 'SAME_INTERVAL_UPGRADE':
+      rows.push(
+        { label: t('pendingPayment.breakdown.currentTierPrice'), value: currencyFormatter.format(breakdown.currentTierPrice) },
+        { label: t('pendingPayment.breakdown.newTierPrice'), value: currencyFormatter.format(breakdown.newTierPrice) },
+        { label: t('pendingPayment.breakdown.priceDifference'), value: currencyFormatter.format(breakdown.priceDifference) },
+        { label: t('pendingPayment.breakdown.remainingFraction'), value: `${Math.round(breakdown.remainingFraction * 100)}%` },
+      );
+      break;
+    case 'CROSS_INTERVAL_UPGRADE':
+      rows.push({ label: t('pendingPayment.breakdown.newTierPriceYearly'), value: currencyFormatter.format(breakdown.newTierPrice) });
+      if (breakdown.seatsCount > 0) {
+        rows.push({ label: t('pendingPayment.breakdown.seatsCost', { count: breakdown.seatsCount }), value: currencyFormatter.format(breakdown.seatsCost) });
+      }
+      rows.push(
+        { label: t('pendingPayment.breakdown.fullPrice'), value: currencyFormatter.format(breakdown.fullPrice) },
+        { label: t('pendingPayment.breakdown.credit'), value: `−${currencyFormatter.format(breakdown.credit)}` },
+      );
+      break;
+    case 'DEFERRED_FULL_PRICE':
+      rows.push({ label: t('pendingPayment.breakdown.newTierPrice'), value: currencyFormatter.format(breakdown.newTierPrice) });
+      if (breakdown.seatsCount > 0) {
+        rows.push({ label: t('pendingPayment.breakdown.seatsCost', { count: breakdown.seatsCount }), value: currencyFormatter.format(breakdown.seatsCost) });
+      }
+      rows.push({ label: t('pendingPayment.breakdown.fullPrice'), value: currencyFormatter.format(breakdown.fullPrice) });
+      break;
+    case 'SEAT_INCREASE':
+      rows.push(
+        { label: t('pendingPayment.breakdown.seatDelta', { count: breakdown.seatDelta }), value: currencyFormatter.format(breakdown.seatPrice) },
+        { label: t('pendingPayment.breakdown.remainingFraction'), value: `${Math.round(breakdown.remainingFraction * 100)}%` },
+      );
+      break;
+  }
+
+  return (
+    <div className="mt-2 rounded-md border border-border bg-muted/30 p-3 text-xs">
+      <p className="mb-1.5 font-medium text-muted-foreground">{t('pendingPayment.breakdown.title')}</p>
+      <dl className="space-y-1">
+        {rows.map((row) => (
+          <div key={row.label} className="flex items-center justify-between gap-3">
+            <dt className="text-muted-foreground">{row.label}</dt>
+            <dd className="font-medium">{row.value}</dd>
+          </div>
+        ))}
+      </dl>
     </div>
   );
 }
@@ -387,6 +482,26 @@ function PendingPaymentCard({
   const [referenceNumber, setReferenceNumber] = useState('');
   const [proofs, setProofs] = useState<ApiPaymentProof[]>(initialProofs);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Self-cancel a still-PENDING payment (migration 098) — wrong tier/seat
+  // count, tenant never transferred anything. Own transition, separate from
+  // the proof upload/delete one above, so cancelling doesn't gray out
+  // unrelated controls mid-flight. Only PENDING, non-RENEWAL payments
+  // qualify — see cancelPaymentAction/cancelPayment in src/lib/api.ts.
+  const [cancelConfirming, setCancelConfirming] = useState(false);
+  const [cancelPending, startCancelTransition] = useTransition();
+  const canCancelPayment = payment.status === 'PENDING' && payment.purpose !== 'RENEWAL';
+
+  function handleCancelPayment() {
+    startCancelTransition(async () => {
+      const result = await cancelPaymentAction(payment.id);
+      if ('error' in result) {
+        toastApiError(result.error, tError);
+        return;
+      }
+      setCancelConfirming(false);
+      toast.success(t('pendingPayment.cancelled'));
+    });
+  }
 
   // Card payment (Payphone, ADR-028) alongside the existing bank-transfer flow —
   // both stay first-class, offered side by side. The session is only minted the
@@ -496,6 +611,16 @@ function PendingPaymentCard({
           <span className="ml-2 text-sm font-normal text-muted-foreground">{t('ivaIncluded')}</span>
         )}
       </p>
+      {payment.total_amount && payment.iva_amount != null && payment.iva_rate != null && (
+        <p className="mt-1 text-xs text-muted-foreground">
+          {t('pendingPayment.ivaBreakdown', {
+            rate: Math.round(payment.iva_rate * 100),
+            iva: currencyFormatter.format(Number(payment.iva_amount)),
+            base: currencyFormatter.format(Number(payment.amount)),
+          })}
+        </p>
+      )}
+      {payment.pricing_breakdown && <PricingBreakdownDetail breakdown={payment.pricing_breakdown} />}
 
       {payment.rejection_reason_code && (
         <p className="mt-2 text-sm text-destructive">
@@ -539,9 +664,10 @@ function PendingPaymentCard({
       {payMethod === 'transfer' && (
         bankTransfer ? (
           <div className="mt-3 space-y-1 rounded-md border border-border bg-background p-3 text-sm">
-            <p>
-              <span className="text-muted-foreground">{t('pendingPayment.paymentId')}:</span>{' '}
-              <span className="font-mono font-medium">#{payment.id}</span>
+            <p className="flex items-center gap-1">
+              <span className="text-muted-foreground">{t('pendingPayment.paymentCode')}:</span>{' '}
+              <span className="font-mono font-medium">{payment.payment_code}</span>
+              <AccessKeyCopy value={payment.payment_code} />
             </p>
             <p>
               <span className="text-muted-foreground">{t('pendingPayment.bank')}:</span> {bankTransfer.bankName}
@@ -563,7 +689,7 @@ function PendingPaymentCard({
               {bankTransfer.identification}
             </p>
             <p className="mt-2 border-t border-border pt-2 text-xs text-muted-foreground">
-              {t('pendingPayment.transferNote', { id: payment.id })}
+              {t('pendingPayment.transferNote', { code: payment.payment_code })}
             </p>
           </div>
         ) : (
@@ -681,6 +807,34 @@ function PendingPaymentCard({
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">{t('pendingPayment.uploadHint')}</p>
+        </div>
+      )}
+
+      {canManageBilling && canCancelPayment && (
+        <div className="mt-3 border-t border-border pt-3">
+          {!cancelConfirming ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-destructive/40 text-destructive hover:bg-destructive/5"
+              onClick={() => setCancelConfirming(true)}
+              disabled={cancelPending}
+            >
+              {t('pendingPayment.cancel')}
+            </Button>
+          ) : (
+            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm space-y-2">
+              <p>{t('pendingPayment.cancelConfirmHint')}</p>
+              <div className="flex gap-2">
+                <Button size="sm" variant="destructive" onClick={handleCancelPayment} disabled={cancelPending}>
+                  {cancelPending ? t('pendingPayment.cancelling') : t('pendingPayment.cancelConfirm')}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setCancelConfirming(false)} disabled={cancelPending}>
+                  {t('pendingPayment.cancelKeep')}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -871,11 +1025,15 @@ function ChangeTierCard({
 }) {
   const t = useTranslations('billing');
   const tPricing = useTranslations('pricing');
+  const tIssuers = useTranslations('issuers');
   const tError = useTranslations('apiError');
   const [isPending, startTransition] = useTransition();
   const [confirming, setConfirming] = useState(false);
   const [cancelConfirming, setCancelConfirming] = useState(false);
-  const [selectedTier, setSelectedTier] = useState<PaidTier | null>(null);
+  // Defaults to the tenant's own current tier (rather than nothing selected)
+  // so the details panel always shows something on first render instead of
+  // an empty state — reads as "here's your plan" until they pick a different one.
+  const [selectedTier, setSelectedTier] = useState<PaidTier | null>(currentSubscriptionTier);
   const [selectedInterval, setSelectedInterval] = useState<'MONTHLY' | 'YEARLY'>(currentBillingInterval);
 
   const options = tiers.filter((tier): tier is ApiTierInfo & { name: PaidTier } => tier.name !== 'FREE');
@@ -919,10 +1077,26 @@ function ChangeTierCard({
           - resolveTierTotal(currentTierInfo, currentBillingInterval).base)
     : 0;
 
-  type Scenario = 'upgrade' | 'downgrade' | 'interval-change';
+  // ADR-033 (migration 099): MONTHLY -> YEARLY is prorated and applied
+  // immediately, but only when it's a genuine upgrade by monthly-equivalent
+  // price — the one direction where a credit (at most one month of the
+  // cheaper old plan) can never mathematically exceed the new charge (a
+  // full year at the pricier new rate). Every other interval-change
+  // direction (YEARLY -> MONTHLY in either tier direction, or a MONTHLY ->
+  // YEARLY switch that's a downgrade/tie by monthly-equivalent price) still
+  // defers to current_period_end at full sticker price — mirrors
+  // requestTierChange's own eligibility check exactly (isCrossIntervalUpgrade
+  // in subscription.service.js) so the confirm copy shown here never
+  // promises something the API won't actually do.
+  const isCrossIntervalUpgradeEligible = !!targetTierInfo && !!currentTierInfo
+    && currentBillingInterval === 'MONTHLY'
+    && targetEffectiveInterval === 'YEARLY'
+    && (resolveTierTotal(targetTierInfo, 'YEARLY').base / 12) > resolveTierTotal(currentTierInfo, 'MONTHLY').base;
+
+  type Scenario = 'upgrade' | 'downgrade' | 'interval-change' | 'cross-interval-upgrade';
   let scenario: Scenario | null = null;
   if (selectedTier && !isNoOp) {
-    if (intervalChanged) scenario = 'interval-change';
+    if (intervalChanged) scenario = isCrossIntervalUpgradeEligible ? 'cross-interval-upgrade' : 'interval-change';
     else if (isTierUpgrade) scenario = 'upgrade';
     else if (isTierDowngrade) scenario = 'downgrade';
   }
@@ -953,7 +1127,14 @@ function ChangeTierCard({
         return;
       }
       setConfirming(false);
-      setSelectedTier(null);
+      // Never null — the dropdown's Select is controlled (value is never
+      // undefined after mount); switching it to uncontrolled mid-lifetime is
+      // a Base UI warning that also breaks its internal state. Falls back to
+      // the tenant's current tier, same as the initial state — once
+      // revalidatePath's fresh props land, isNoOp/the "plan actual" badge
+      // naturally reflect whatever actually changed (immediately, for an
+      // applied upgrade) or didn't (yet, for a scheduled downgrade).
+      setSelectedTier(currentSubscriptionTier);
       setSelectedInterval(currentBillingInterval);
       if (result.effectiveAt && !result.payment) {
         toast.success(t('changePlan.downgradeScheduled'));
@@ -977,6 +1158,20 @@ function ChangeTierCard({
     });
   }
 
+  // Dropdown option label: tier name + price at the currently toggled
+  // interval, tagged as the current plan when it's the exact tier+interval
+  // combo already active — same condition the old PlanCard grid used to mark
+  // one tile 'current', just evaluated per-option instead of per-tile.
+  function tierOptionLabel(tier: ApiTierInfo): string {
+    const name = tPricing.has(`tiers.${tier.name}.name` as Parameters<typeof tPricing>[0])
+      ? tPricing(`tiers.${tier.name}.name` as Parameters<typeof tPricing>[0])
+      : tier.name;
+    const { base, effectiveInterval } = resolveTierTotal(tier, selectedInterval);
+    const price = `${currencyFormatter.format(base)}${tPricing(effectiveInterval === 'YEARLY' ? 'perYear' : 'perMonth')}`;
+    const isCurrentOption = tier.name === currentSubscriptionTier && selectedInterval === currentBillingInterval;
+    return isCurrentOption ? `${name} — ${price} ${t('changePlan.currentOptionSuffix')}` : `${name} — ${price}`;
+  }
+
   return (
     <div className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-4">
       <div>
@@ -991,81 +1186,173 @@ function ChangeTierCard({
           />
         </div>
 
-        <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {visibleOptions.map((tier) => {
-            const isCurrent = tier.name === currentSubscriptionTier && selectedInterval === currentBillingInterval;
-            const isSelected = selectedTier === tier.name && !isCurrent;
-            return (
-              <PlanCard
-                key={tier.name}
-                tier={tier}
-                interval={selectedInterval}
-                state={isCurrent ? 'current' : isSelected ? 'selected' : 'default'}
-                onClick={() => selectTier(tier.name as PaidTier)}
-              />
-            );
-          })}
-        </div>
-
-        {selectedTier && !isNoOp && !confirming && (
-          <div className="mt-3 flex justify-end">
-            <Button size="sm" variant="outline" onClick={() => setConfirming(true)} disabled={isPending}>
-              {t('changePlan.button')}
-            </Button>
+        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[240px_1fr]">
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-muted-foreground" htmlFor="change-tier-select">
+              {t('changePlan.placeholder')}
+            </label>
+            <Select
+              value={selectedTier ?? undefined}
+              onValueChange={(value) => selectTier(value as PaidTier)}
+              disabled={isPending}
+            >
+              <SelectTrigger id="change-tier-select" className="w-full">
+                <SelectValue>
+                  {(value: string | null) => {
+                    const tier = tiers.find((ti) => ti.name === value);
+                    return tier ? tierOptionLabel(tier) : value;
+                  }}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {visibleOptions.map((tier) => (
+                  <SelectItem key={tier.name} value={tier.name}>
+                    {tierOptionLabel(tier)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        )}
 
-        {isNoOp && selectedTier && (
-          <p className="mt-3 text-xs text-muted-foreground">{t('changePlan.noOp')}</p>
-        )}
+          {targetTierInfo && (
+            <div
+              className={cn(
+                'flex flex-col gap-3 rounded-lg border p-4',
+                isNoOp ? 'border-muted bg-muted/30' : 'border-primary/30 bg-primary/5',
+              )}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-sm font-semibold">
+                  {tPricing(`tiers.${targetTierInfo.name}.name` as Parameters<typeof tPricing>[0])}
+                </p>
+                {isNoOp ? (
+                  <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                    {t('changePlan.currentPlan')}
+                  </span>
+                ) : targetTierInfo.name === 'GROWTH' ? (
+                  <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                    {tPricing('badge.popular')}
+                  </span>
+                ) : null}
+              </div>
 
-        {confirming && selectedTier && scenario && (
-          <div className="mt-3 rounded-md border border-border bg-muted/40 p-3 text-sm space-y-2">
-            <p>
-              {/* Sandbox never prorates and never defers to period end (see
-                  requestSandboxTierChange) — it only branches on isTierDowngrade,
-                  ignoring the production upgrade/downgrade/interval-change
-                  distinction entirely, so it needs its own two-way copy here
-                  rather than reusing the production hints above. */}
-              {isSandbox
-                ? (isTierDowngrade
-                    ? t('changePlan.confirmHintSandboxFree')
-                    : t('changePlan.confirmHintSandboxCharge'))
-                : scenario === 'upgrade'
-                  ? t('changePlan.confirmHintUpgrade')
-                  : scenario === 'downgrade'
-                    ? (periodEndFormatted
-                        ? t('changePlan.confirmHintDowngrade', { date: periodEndFormatted })
-                        : t('changePlan.confirmHintDowngradeNoDate'))
-                    : (periodEndFormatted
-                        ? t('changePlan.confirmHintIntervalChange', { date: periodEndFormatted })
-                        : t('changePlan.confirmHintIntervalChangeNoDate'))}
-            </p>
-            {targetTierInfo && isSandbox && !isTierDowngrade && (
-              <p className="font-medium">
-                {currencyFormatter.format(sandboxNetPrice)}
-                {' '}
-                <span className="text-xs font-normal text-muted-foreground">{t('plusIva')}</span>
+              <div>
+                <p className="text-2xl font-bold">
+                  {currencyFormatter.format(resolveTierTotal(targetTierInfo, selectedInterval).base)}
+                  <span className="text-sm font-normal text-muted-foreground">
+                    {tPricing(targetEffectiveInterval === 'YEARLY' ? 'perYear' : 'perMonth')}
+                  </span>
+                </p>
+                <p className="text-xs text-muted-foreground">{t('plusIva')}</p>
+              </div>
+
+              <p className="text-sm text-muted-foreground">
+                {tPricing(`tiers.${targetTierInfo.name}.description` as Parameters<typeof tPricing>[0])}
               </p>
-            )}
-            {targetTierInfo && !isSandbox && scenario !== 'upgrade' && (
-              <p className="font-medium">
-                {currencyFormatter.format(resolveTierTotal(targetTierInfo, selectedInterval).base)}
-                {tPricing(targetEffectiveInterval === 'YEARLY' ? 'perYear' : 'perMonth')}
-                {' '}
-                <span className="text-xs font-normal text-muted-foreground">{t('plusIva')}</span>
-              </p>
-            )}
-            <div className="flex gap-2">
-              <Button size="sm" onClick={handleChange} disabled={isPending}>
-                {isPending ? t('changePlan.confirming') : t('changePlan.confirm')}
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => setConfirming(false)} disabled={isPending}>
-                {t('changePlan.cancel')}
-              </Button>
+
+              <ul className="flex flex-col gap-1.5 text-xs">
+                <li className="flex items-start gap-2">
+                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                  {targetTierInfo.documentQuota === null
+                    ? tPricing('features.unlimitedQuota')
+                    : selectedInterval === 'YEARLY'
+                      ? tPricing('features.quotaYearly', { count: targetTierInfo.documentQuota * 12 })
+                      : tPricing('features.quota', { count: targetTierInfo.documentQuota })}
+                </li>
+                <li className="flex items-start gap-2">
+                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                  {targetTierInfo.maxBranches === null
+                    ? tPricing('features.unlimitedBranches')
+                    : tPricing('features.branches', { count: targetTierInfo.maxBranches })}
+                </li>
+                <li className="flex items-start gap-2">
+                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                  {targetTierInfo.maxIssuePointsPerBranch === null
+                    ? tPricing('features.unlimitedIssuePoints')
+                    : tPricing('features.issuePoints', { count: targetTierInfo.maxIssuePointsPerBranch })}
+                </li>
+                <li className="flex items-start gap-2">
+                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                  {tPricing('features.docTypes', {
+                    types: targetTierInfo.allowedDocumentTypes
+                      .map((code) =>
+                        tIssuers.has(`docType.${code}` as Parameters<typeof tIssuers>[0])
+                          ? tIssuers(`docType.${code}` as Parameters<typeof tIssuers>[0])
+                          : code,
+                      )
+                      .join(', '),
+                  })}
+                </li>
+                <li className="flex items-start gap-2">
+                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                  {tPricing('features.webhooks', { count: targetTierInfo.maxWebhookEndpoints })}
+                </li>
+                <li className="flex items-start gap-2">
+                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                  {targetTierInfo.maxUsers === null
+                    ? tPricing('features.unlimitedUsers')
+                    : tPricing('features.users', { count: targetTierInfo.maxUsers })}
+                </li>
+              </ul>
+
+              {!isNoOp && !confirming && (
+                <Button size="sm" onClick={() => setConfirming(true)} disabled={isPending} className="mt-1 self-start">
+                  {t('changePlan.button')}
+                </Button>
+              )}
+
+              {confirming && scenario && (
+                <div className="mt-1 rounded-md border border-border bg-background p-3 text-sm space-y-2">
+                  <p>
+                    {/* Sandbox never prorates and never defers to period end (see
+                        requestSandboxTierChange) — it only branches on isTierDowngrade,
+                        ignoring the production upgrade/downgrade/interval-change
+                        distinction entirely, so it needs its own two-way copy here
+                        rather than reusing the production hints above. */}
+                    {isSandbox
+                      ? (isTierDowngrade
+                          ? t('changePlan.confirmHintSandboxFree')
+                          : t('changePlan.confirmHintSandboxCharge'))
+                      : scenario === 'upgrade'
+                        ? t('changePlan.confirmHintUpgrade')
+                        : scenario === 'cross-interval-upgrade'
+                          ? t('changePlan.confirmHintCrossIntervalUpgrade')
+                          : scenario === 'downgrade'
+                            ? (periodEndFormatted
+                                ? t('changePlan.confirmHintDowngrade', { date: periodEndFormatted })
+                                : t('changePlan.confirmHintDowngradeNoDate'))
+                            : (periodEndFormatted
+                                ? t('changePlan.confirmHintIntervalChange', { date: periodEndFormatted })
+                                : t('changePlan.confirmHintIntervalChangeNoDate'))}
+                  </p>
+                  {isSandbox && !isTierDowngrade && (
+                    <p className="font-medium">
+                      {currencyFormatter.format(sandboxNetPrice)}
+                      {' '}
+                      <span className="text-xs font-normal text-muted-foreground">{t('plusIva')}</span>
+                    </p>
+                  )}
+                  {!isSandbox && scenario !== 'upgrade' && scenario !== 'cross-interval-upgrade' && (
+                    <p className="font-medium">
+                      {currencyFormatter.format(resolveTierTotal(targetTierInfo, selectedInterval).base)}
+                      {tPricing(targetEffectiveInterval === 'YEARLY' ? 'perYear' : 'perMonth')}
+                      {' '}
+                      <span className="text-xs font-normal text-muted-foreground">{t('plusIva')}</span>
+                    </p>
+                  )}
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={handleChange} disabled={isPending}>
+                      {isPending ? t('changePlan.confirming') : t('changePlan.confirm')}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setConfirming(false)} disabled={isPending}>
+                      {t('changePlan.cancel')}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {!isSandbox && (
@@ -1134,6 +1421,7 @@ function SeatsCard({
   isSandbox: boolean;
 }) {
   const t = useTranslations('billing');
+  const tPricing = useTranslations('pricing');
   const tError = useTranslations('apiError');
   const [isPending, startTransition] = useTransition();
   const [confirming, setConfirming] = useState(false);
@@ -1174,6 +1462,12 @@ function SeatsCard({
       <div>
         <h2 className="text-sm font-semibold">{t('changeSeats.title')}</h2>
         <p className="mt-1 text-xs text-muted-foreground">{t('changeSeats.hint')}</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {t('changeSeats.unitPrice', {
+            price: currencyFormatter.format(seatUnitBasePrice),
+            interval: tPricing(currentBillingInterval === 'YEARLY' ? 'perYear' : 'perMonth'),
+          })}
+        </p>
       </div>
 
       {pendingExtraSeats !== null && periodEndFormatted && (
@@ -1252,11 +1546,13 @@ function SubscribeCard({
   emailVerified,
   intendedTier,
   intendedBillingInterval,
+  currentSubscriptionTier,
 }: {
   tiers: ApiTierInfo[];
   emailVerified: boolean;
   intendedTier?: PaidTier;
   intendedBillingInterval?: BillingInterval;
+  currentSubscriptionTier: string;
 }) {
   const t = useTranslations('billing');
   const tPricing = useTranslations('pricing');
@@ -1273,6 +1569,15 @@ function SubscribeCard({
   // need to resolve a selection regardless of the toggle's current position
   // (e.g. a pre-filled intendedTier of SOLO before the user touches the toggle).
   const visibleOptions = options.filter((tier) => tier.billingIntervals.includes(billingInterval));
+  // FREE is display-only (never purchased, billingIntervals: ['MONTHLY'] on
+  // the API — see subscription-tiers.js) but this card only ever renders
+  // while the tenant has no active/pending subscription, which means they
+  // are actually sitting on FREE right now — show it alongside the paid
+  // options, non-selectable, so the grid reads as "here's your current plan
+  // and what you could upgrade to" instead of silently omitting it.
+  const freeTier = currentSubscriptionTier === 'FREE'
+    ? tiers.find((tier) => tier.name === 'FREE' && tier.billingIntervals.includes(billingInterval))
+    : undefined;
 
   function selectTier(name: PaidTier) {
     setSelectedTier(name);
@@ -1337,6 +1642,9 @@ function SubscribeCard({
           </div>
 
           <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {freeTier && (
+              <PlanCard key={freeTier.name} tier={freeTier} interval={billingInterval} state="current" />
+            )}
             {visibleOptions.map((tier) => (
               <PlanCard
                 key={tier.name}

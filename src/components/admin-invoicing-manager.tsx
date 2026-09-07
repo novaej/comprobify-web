@@ -88,7 +88,9 @@ export function AdminInvoicingManager({ items: initialItems }: { items: AdminPen
                       ? tPricing(`tiers.${subscription.tier}.name` as Parameters<typeof tPricing>[0])
                       : subscription.tier}
                     {' · '}
-                    {t(`purposes.${payment.purpose}` as 'purposes.INITIAL' | 'purposes.TIER_CHANGE' | 'purposes.RENEWAL')}
+                    {payment.purpose === 'SEAT_CHANGE'
+                      ? t('purposes.SEAT_CHANGE', { seats: payment.seatsCharged ?? payment.targetExtraSeats ?? 0 })
+                      : t(`purposes.${payment.purpose}` as 'purposes.INITIAL' | 'purposes.TIER_CHANGE' | 'purposes.RENEWAL')}
                   </p>
                   {subscription.currentPeriodStart && subscription.currentPeriodEnd && (
                     <p className="text-xs text-muted-foreground">

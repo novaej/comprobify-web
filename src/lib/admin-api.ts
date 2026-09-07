@@ -276,6 +276,14 @@ export interface AdminPendingInvoiceItem {
     ivaAmount: string;
     totalAmount: string;
     verifiedAt: string | null;
+    // A SEAT_CHANGE payment has no target_tier at all — subscription.tier
+    // below stays the tenant's unaffected current tier for this purpose, so
+    // these are what actually say the invoice is for extra seats. Verified
+    // against subscription.service.js's listPendingInvoices() — present on
+    // every item already, just never typed (Common Mistake #58's "type it
+    // even if unused" gap, except this one was actually needed).
+    seatsCharged: number | null;
+    targetExtraSeats: number | null;
   };
   subscription: {
     id: string;

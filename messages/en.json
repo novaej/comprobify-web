@@ -813,6 +813,7 @@
     "PROOF_FILE_LIMIT_REACHED": "This payment already has the maximum number of files (10). Delete one before uploading more.",
     "SUBSCRIPTION_NOT_FOUND": "Subscription not found.",
     "PAYMENT_NOT_FOUND": "Payment not found.",
+    "PAYMENT_NOT_CANCELLABLE": "This payment can no longer be cancelled — you already submitted proof, or it was already reviewed.",
     "PAYMENT_GATEWAY_NOT_CONFIGURED": "Card payment isn't available right now. Use the bank transfer instead.",
     "PAYPHONE_CONFIRM_FAILED": "We couldn't confirm the payment with the provider. It will be confirmed automatically within a few minutes — don't try again.",
     "PAYPHONE_SESSION_NOT_FOUND": "The card payment attempt wasn't found. Request a new one.",
@@ -1176,7 +1177,7 @@
     "seatUsage": "{used} of {limit} user seats used",
     "seatUsageUnlimited": "{used} user seats used (unlimited)",
     "seatLimitReached": "You've reached your plan's user limit.",
-    "seatLimitReachedLink": "Buy additional seats",
+    "seatLimitReachedLink": "Add more users",
     "removeSuccess": "User removed from the organization.",
     "resendInvite": "Resend invite",
     "resendInviteSuccess": "Invitation email resent.",
@@ -1587,8 +1588,8 @@
     "tierChangeToWithInterval": "Change to {tier} ({interval})",
     "renewal": "Renewal",
     "seatChangeLabel": "Extra seats ({seats})",
-    "paymentPurposeInitial": "Subscription — {tier}",
-    "paymentPurposeRenewal": "Renewal — {tier}",
+    "paymentPurposeInitial": "Initial subscription",
+    "paymentPurposeRenewal": "Renewal",
     "billingInterval": {
       "MONTHLY": "Monthly",
       "YEARLY": "Yearly"
@@ -1607,7 +1608,8 @@
       "REPORTED": "Reported",
       "VERIFIED": "Verified",
       "REJECTED": "Rejected",
-      "REFUNDED": "Refunded"
+      "REFUNDED": "Refunded",
+      "CANCELLED": "Cancelled"
     },
     "pendingPayment": {
       "title": "Pending payment",
@@ -1615,7 +1617,19 @@
       "seatChangeTitle": "Pending payment for {seats} extra seats",
       "renewalTitle": "Pending renewal payment",
       "amount": "Amount to transfer: {amount}",
-      "ivaBreakdown": "Includes {rate}% VAT ({iva}) on taxable base {base}",
+      "ivaBreakdown": "Includes {iva} in VAT ({rate}%) on a subtotal of {base}",
+      "breakdown": {
+        "title": "Calculation breakdown",
+        "currentTierPrice": "Current plan",
+        "newTierPrice": "New plan",
+        "newTierPriceYearly": "New plan (yearly)",
+        "priceDifference": "Difference",
+        "remainingFraction": "Time left in period",
+        "seatsCost": "{count, plural, one {Extra seat} other {Extra seats}} ({count})",
+        "fullPrice": "Full price",
+        "credit": "Credit for time left on your current plan",
+        "seatDelta": "{count, plural, one {New seat} other {New seats}} ({count}) × unit price"
+      },
       "rejected": "Your proof was rejected: {reason}",
       "bank": "Bank",
       "accountType": "Account type",
@@ -1632,11 +1646,17 @@
       "download": "Download",
       "deleteProof": "Delete file",
       "proofDeleted": "File deleted.",
-      "transferNote": "Include payment ID #{id} in the description or note of your transfer to help us verify it faster.",
+      "transferNote": "Include code {code} in the description or note of your transfer to help us verify it faster.",
       "referenceNumber": "SPI transfer reference number",
       "referenceNumberPlaceholder": "E.g. 20261234567890",
       "referenceNumberHint": "The reference number shown on your bank’s transfer receipt.",
-      "paymentId": "Payment ID"
+      "paymentCode": "Payment code",
+      "cancel": "Cancel payment",
+      "cancelling": "Cancelling...",
+      "cancelConfirmHint": "Use this if you picked the wrong plan or seat count and don't want to pay for this change. This doesn't reverse any transfer — only do this if you haven't sent anything yet.",
+      "cancelConfirm": "Yes, cancel payment",
+      "cancelKeep": "Go back",
+      "cancelled": "Payment cancelled."
     },
     "payphone": {
       "transferTab": "Bank transfer",
@@ -1668,9 +1688,10 @@
       "hint": "Upgrading takes effect immediately (prorated for the time left in your period). Downgrading or changing billing frequency is scheduled for the end of your current period.",
       "placeholder": "Select a plan",
       "currentPlan": "current plan",
-      "noOp": "You're already on this plan with this billing frequency.",
+      "currentOptionSuffix": "(current)",
       "button": "Change plan",
       "confirmHintUpgrade": "The change applies immediately. A prorated charge for the time remaining in your period will be generated. You'll be able to pay it by bank transfer or card.",
+      "confirmHintCrossIntervalUpgrade": "The change applies immediately. You get credit for the time remaining on your current monthly plan, and pay the rest of the new plan's full yearly price. You'll be able to pay it by bank transfer or card.",
       "confirmHintDowngrade": "No additional charge. Your current plan stays active until {date}, then the new plan applies automatically.",
       "confirmHintDowngradeNoDate": "No additional charge. Your current plan stays active until the end of your period, then the new plan applies automatically.",
       "confirmHintIntervalChange": "The change takes effect at the end of your current period ({date}). You'll be charged the full price of the new plan — no proration.",
@@ -1687,6 +1708,7 @@
     "changeSeats": {
       "title": "Extra seats",
       "hint": "Buy extra seats to invite more dashboard users beyond your plan's included limit.",
+      "unitPrice": "{price}{interval} + VAT per additional seat",
       "seatsLabel": "Extra seats",
       "currentCount": "You currently have {count}",
       "button": "Change seats",
@@ -1822,6 +1844,12 @@
         "REPORTED": "Pending",
         "VERIFIED": "Verified",
         "REJECTED": "Rejected"
+      },
+      "purpose": {
+        "INITIAL": "Initial subscription",
+        "TIER_CHANGE": "Plan change",
+        "RENEWAL": "Renewal",
+        "SEAT_CHANGE": "Extra seats"
       },
       "reportedAt": "Reported on {date}",
       "verifiedAt": "Verified on {date}",
@@ -2043,7 +2071,8 @@
       "purposes": {
         "INITIAL": "Initial subscription",
         "TIER_CHANGE": "Tier change",
-        "RENEWAL": "Renewal"
+        "RENEWAL": "Renewal",
+        "SEAT_CHANGE": "Extra seats ({seats})"
       },
       "linkInvoice": "Link invoice",
       "invoiceLinked": "Invoice linked successfully.",

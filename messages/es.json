@@ -813,6 +813,7 @@
     "PROOF_FILE_LIMIT_REACHED": "Este pago ya tiene el máximo de archivos permitidos (10). Elimine uno antes de subir más.",
     "SUBSCRIPTION_NOT_FOUND": "No se encontró la suscripción.",
     "PAYMENT_NOT_FOUND": "No se encontró el pago.",
+    "PAYMENT_NOT_CANCELLABLE": "Este pago ya no se puede cancelar — ya reportaste un comprobante o ya fue revisado.",
     "PAYMENT_GATEWAY_NOT_CONFIGURED": "El pago con tarjeta no está disponible en este momento. Usa la transferencia bancaria.",
     "PAYPHONE_CONFIRM_FAILED": "No pudimos confirmar el pago con el proveedor. Se confirmará automáticamente en unos minutos — no vuelvas a intentarlo.",
     "PAYPHONE_SESSION_NOT_FOUND": "No se encontró el intento de pago con tarjeta. Solicita uno nuevo.",
@@ -1276,7 +1277,7 @@
     "seatUsage": "{used} de {limit} cupos de usuario usados",
     "seatUsageUnlimited": "{used} cupos de usuario usados (ilimitado)",
     "seatLimitReached": "Alcanzaste el límite de usuarios de tu plan.",
-    "seatLimitReachedLink": "Comprar cupos adicionales",
+    "seatLimitReachedLink": "Agregar más usuarios",
     "removeSuccess": "Usuario eliminado de la organización.",
     "resendInvite": "Reenviar invitación",
     "resendInviteSuccess": "Correo de invitación reenviado.",
@@ -1587,8 +1588,8 @@
     "tierChangeToWithInterval": "Cambio a {tier} ({interval})",
     "renewal": "Renovación",
     "seatChangeLabel": "Cupos adicionales ({seats})",
-    "paymentPurposeInitial": "Suscripción — {tier}",
-    "paymentPurposeRenewal": "Renovación — {tier}",
+    "paymentPurposeInitial": "Suscripción inicial",
+    "paymentPurposeRenewal": "Renovación",
     "billingInterval": {
       "MONTHLY": "Mensual",
       "YEARLY": "Anual"
@@ -1607,7 +1608,8 @@
       "REPORTED": "Reportado",
       "VERIFIED": "Verificado",
       "REJECTED": "Rechazado",
-      "REFUNDED": "Reembolsado"
+      "REFUNDED": "Reembolsado",
+      "CANCELLED": "Cancelado"
     },
     "pendingPayment": {
       "title": "Pago pendiente",
@@ -1615,7 +1617,19 @@
       "seatChangeTitle": "Pago pendiente por {seats} cupos adicionales",
       "renewalTitle": "Pago pendiente de renovación",
       "amount": "Monto a transferir: {amount}",
-      "ivaBreakdown": "Incluye IVA {rate}% ({iva}) sobre base imponible de {base}",
+      "ivaBreakdown": "Incluye {iva} de IVA ({rate}%) sobre un subtotal de {base}",
+      "breakdown": {
+        "title": "Detalle del cálculo",
+        "currentTierPrice": "Plan actual",
+        "newTierPrice": "Plan nuevo",
+        "newTierPriceYearly": "Plan nuevo (anual)",
+        "priceDifference": "Diferencia",
+        "remainingFraction": "Tiempo restante del periodo",
+        "seatsCost": "{count, plural, one {Cupo adicional} other {Cupos adicionales}} ({count})",
+        "fullPrice": "Precio completo",
+        "credit": "Crédito por tiempo restante de tu plan actual",
+        "seatDelta": "{count, plural, one {Cupo nuevo} other {Cupos nuevos}} ({count}) × precio unitario"
+      },
       "rejected": "Tu comprobante fue rechazado: {reason}",
       "bank": "Banco",
       "accountType": "Tipo de cuenta",
@@ -1632,11 +1646,17 @@
       "download": "Descargar",
       "deleteProof": "Eliminar archivo",
       "proofDeleted": "Archivo eliminado.",
-      "transferNote": "Incluye el ID de pago #{id} en la descripción o nota de la transferencia para facilitar la verificación.",
+      "transferNote": "Incluye el código {code} en la descripción o nota de la transferencia para facilitar la verificación.",
       "referenceNumber": "Número de referencia SPI",
       "referenceNumberPlaceholder": "Ej. 20261234567890",
       "referenceNumberHint": "El número de referencia que aparece en el comprobante de transferencia de tu banco.",
-      "paymentId": "ID de pago"
+      "paymentCode": "Código de pago",
+      "cancel": "Cancelar pago",
+      "cancelling": "Cancelando...",
+      "cancelConfirmHint": "Úsalo si elegiste el plan o la cantidad de cupos equivocada y no quieres pagar por este cambio. Esto no revierte ninguna transferencia — solo hazlo si aún no has transferido nada.",
+      "cancelConfirm": "Sí, cancelar pago",
+      "cancelKeep": "Volver",
+      "cancelled": "Pago cancelado."
     },
     "payphone": {
       "transferTab": "Transferencia",
@@ -1668,9 +1688,10 @@
       "hint": "Subir de plan se aplica de inmediato (con un cobro proporcional al tiempo restante de tu periodo). Bajar de plan o cambiar la frecuencia se programa para el final de tu periodo actual.",
       "placeholder": "Selecciona un plan",
       "currentPlan": "plan actual",
-      "noOp": "Ya estás en este plan con esta frecuencia de facturación.",
+      "currentOptionSuffix": "(actual)",
       "button": "Cambiar plan",
       "confirmHintUpgrade": "El cambio se aplica de inmediato. Se generará un cobro proporcional al tiempo restante de tu periodo. Podrás pagarlo por transferencia bancaria o con tarjeta.",
+      "confirmHintCrossIntervalUpgrade": "El cambio se aplica de inmediato. Se te da crédito por el tiempo restante de tu plan mensual actual y se cobra el resto del precio anual completo del nuevo plan. Podrás pagarlo por transferencia bancaria o con tarjeta.",
       "confirmHintDowngrade": "Sin cobro adicional. Tu plan actual se mantiene hasta el {date} y el nuevo plan se aplica automáticamente después.",
       "confirmHintDowngradeNoDate": "Sin cobro adicional. Tu plan actual se mantiene hasta el final del periodo y el nuevo plan se aplica automáticamente después.",
       "confirmHintIntervalChange": "El cambio se aplica al finalizar tu periodo actual ({date}). Se cobrará el precio completo del nuevo plan, sin prorrateo.",
@@ -1687,6 +1708,7 @@
     "changeSeats": {
       "title": "Cupos adicionales",
       "hint": "Compra cupos adicionales para invitar más usuarios al panel, por encima del límite incluido en tu plan.",
+      "unitPrice": "{price}{interval} + IVA por cupo adicional",
       "seatsLabel": "Cupos adicionales",
       "currentCount": "Actualmente tienes {count}",
       "button": "Cambiar cupos",
@@ -1822,6 +1844,12 @@
         "REPORTED": "Pendientes",
         "VERIFIED": "Verificados",
         "REJECTED": "Rechazados"
+      },
+      "purpose": {
+        "INITIAL": "Suscripción inicial",
+        "TIER_CHANGE": "Cambio de plan",
+        "RENEWAL": "Renovación",
+        "SEAT_CHANGE": "Cupos adicionales"
       },
       "reportedAt": "Reportado el {date}",
       "verifiedAt": "Verificado el {date}",
@@ -2043,7 +2071,8 @@
       "purposes": {
         "INITIAL": "Suscripción inicial",
         "TIER_CHANGE": "Cambio de plan",
-        "RENEWAL": "Renovación"
+        "RENEWAL": "Renovación",
+        "SEAT_CHANGE": "Cupos adicionales ({seats})"
       },
       "linkInvoice": "Vincular factura",
       "invoiceLinked": "Factura vinculada correctamente.",
