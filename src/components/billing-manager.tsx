@@ -312,8 +312,11 @@ export function BillingManager({
         {(() => {
           // Flatten all payments across subscriptions, oldest subscription last so newest
           // payments (from the most recent subscription) appear at the top.
+          // CANCELLED (migration 098) is excluded — the tenant backed out before
+          // ever transferring anything, so it's not a real event in the billing
+          // history, just an abandoned attempt.
           const rows = subscriptions.flatMap((sub) =>
-            sub.payments.map((p) => ({ payment: p, sub }))
+            sub.payments.filter((p) => p.status !== 'CANCELLED').map((p) => ({ payment: p, sub }))
           );
           if (rows.length === 0) {
             return <p className="text-sm text-muted-foreground">{t('noHistory')}</p>;
