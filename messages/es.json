@@ -331,7 +331,8 @@
       "email": "Correo electrónico",
       "emailHint": "Recuerde revisar el correo electrónico para garantizar que el comprobante sea entregado exitosamente",
       "address": "Dirección",
-      "searchClient": "Buscar en clientes guardados"
+      "searchClient": "Buscar en clientes guardados",
+      "newClient": "Nuevo cliente"
     },
     "idTypes": {
       "04": "RUC",
@@ -360,7 +361,8 @@
         "add": "Agregar detalle",
         "name": "Nombre",
         "value": "Valor"
-      }
+      },
+      "newProduct": "Nuevo producto"
     },
     "taxOptions": {
       "2-4": "IVA 15%",
@@ -473,7 +475,8 @@
       "name": "Razón social",
       "email": "Correo electrónico",
       "address": "Dirección",
-      "searchClient": "Buscar en clientes guardados"
+      "searchClient": "Buscar en clientes guardados",
+      "newClient": "Nuevo cliente"
     },
     "items": {
       "title": "Detalle",
@@ -493,7 +496,8 @@
         "add": "Agregar detalle",
         "name": "Nombre",
         "value": "Valor"
-      }
+      },
+      "newProduct": "Nuevo producto"
     },
     "motivo": {
       "title": "Motivo",

@@ -331,7 +331,8 @@
       "email": "Email address",
       "emailHint": "Please verify the email address to ensure the document is delivered successfully",
       "address": "Address",
-      "searchClient": "Search saved clients"
+      "searchClient": "Search saved clients",
+      "newClient": "New client"
     },
     "idTypes": {
       "04": "RUC",
@@ -360,7 +361,8 @@
         "add": "Add detail",
         "name": "Name",
         "value": "Value"
-      }
+      },
+      "newProduct": "New product"
     },
     "taxOptions": {
       "2-4": "VAT 15%",
@@ -473,7 +475,8 @@
       "name": "Legal name",
       "email": "Email address",
       "address": "Address",
-      "searchClient": "Search saved clients"
+      "searchClient": "Search saved clients",
+      "newClient": "New client"
     },
     "items": {
       "title": "Line items",
@@ -493,7 +496,8 @@
         "add": "Add detail",
         "name": "Name",
         "value": "Value"
-      }
+      },
+      "newProduct": "New product"
     },
     "motivo": {
       "title": "Reason",
