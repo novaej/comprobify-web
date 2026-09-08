@@ -65,7 +65,7 @@ async function sendInviteEmail(email: string, businessName: string, token: strin
     const text = `${t('greeting', { businessName })}\n\n${t('cta')}\n\n${link}`;
     const html = `<p>${t('greeting', { businessName })}</p><p>${t('cta')}</p><p><a href="${link}">${link}</a></p>`;
 
-    await sendMail({ to: email, subject, text, html });
+    await sendMail({ to: email, subject, text, html, locale });
   } catch (err) {
     Sentry.captureException(err, { extra: { email } });
   }
@@ -230,7 +230,7 @@ async function sendPasswordResetEmail(email: string, businessName: string, token
     const subject = t('subject');
     const text = `${t('greeting', { businessName })}\n\n${t('cta')}\n\n${link}`;
     const html = `<p>${t('greeting', { businessName })}</p><p>${t('cta')}</p><p><a href="${link}">${link}</a></p>`;
-    await sendMail({ to: email, subject, text, html });
+    await sendMail({ to: email, subject, text, html, locale });
   } catch (err) {
     Sentry.captureException(err, { extra: { email } });
   }

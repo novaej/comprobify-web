@@ -196,7 +196,7 @@ async function sendPasswordResetRequestEmail(email: string, token: string) {
     const text = `${t('greeting')}\n\n${t('cta')}\n\n${link}`;
     const html = `<p>${t('greeting')}</p><p>${t('cta')}</p><p><a href="${link}">${link}</a></p>`;
 
-    await sendMail({ to: email, subject, text, html });
+    await sendMail({ to: email, subject, text, html, locale });
   } catch (err) {
     Sentry.captureException(err, { extra: { email } });
   }
