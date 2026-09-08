@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
-import { Trash2, Plus, Search, Send, FolderOpen, Save, ClipboardSignature, Hammer, Building2, AlertTriangle } from 'lucide-react';
+import { Trash2, Plus, Search, UserPlus, PackagePlus, Send, FolderOpen, Save, ClipboardSignature, Hammer, Building2, AlertTriangle } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -41,6 +41,8 @@ import {
 import { Link } from '@/i18n/navigation';
 import type { InvoiceCatalogs } from '@/app/[locale]/invoices/new/page';
 import type { SavedClient } from '@/app/actions/clients';
+import { NewClientDialog } from '@/components/new-client-dialog';
+import { NewProductDialog } from '@/components/new-product-dialog';
 import type { BackTargetKey } from '@/lib/back-targets';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -276,6 +278,7 @@ function ItemRow({
   ivaRates,
   defaultTaxOption,
   products,
+  onRequestNewProduct,
   canRemove,
   onRemove,
   t,
@@ -287,6 +290,7 @@ function ItemRow({
   ivaRates: CatalogTaxRate[];
   defaultTaxOption: string;
   products: CatalogProduct[];
+  onRequestNewProduct: () => void;
   canRemove: boolean;
   onRemove: () => void;
   t: ReturnType<typeof useTranslations>;
@@ -305,20 +309,32 @@ function ItemRow({
     <>
       <tr className="border-b last:border-0">
         <td className="py-2 pr-2">
-          <ProductSearch
-            value={item?.mainCode ?? ''}
-            onChange={(v) => form.setValue(`items.${index}.mainCode`, v, { shouldValidate: true })}
-            onSelect={(p) => {
-              form.setValue(`items.${index}.mainCode`, p.mainCode, { shouldValidate: true });
-              form.setValue(`items.${index}.auxCode`, p.auxCode ?? '');
-              form.setValue(`items.${index}.description`, p.description, { shouldValidate: true });
-              form.setValue(`items.${index}.unitPrice`, Number(p.unitPrice).toFixed(2), { shouldValidate: true });
-              form.setValue(`items.${index}.taxOption`, p.taxOption);
-            }}
-            products={products}
-            className="h-8 w-24"
-            aria-invalid={!!errors.items?.[index]?.mainCode}
-          />
+          <div className="flex gap-1">
+            <ProductSearch
+              value={item?.mainCode ?? ''}
+              onChange={(v) => form.setValue(`items.${index}.mainCode`, v, { shouldValidate: true })}
+              onSelect={(p) => {
+                form.setValue(`items.${index}.mainCode`, p.mainCode, { shouldValidate: true });
+                form.setValue(`items.${index}.auxCode`, p.auxCode ?? '');
+                form.setValue(`items.${index}.description`, p.description, { shouldValidate: true });
+                form.setValue(`items.${index}.unitPrice`, Number(p.unitPrice).toFixed(2), { shouldValidate: true });
+                form.setValue(`items.${index}.taxOption`, p.taxOption);
+              }}
+              products={products}
+              className="h-8 w-20"
+              aria-invalid={!!errors.items?.[index]?.mainCode}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 shrink-0"
+              aria-label={t('items.newProduct')}
+              onClick={onRequestNewProduct}
+            >
+              <PackagePlus className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </td>
         <td className="py-2 pr-2">
           <Input {...form.register(`items.${index}.auxCode`)} className="h-8 w-20" />
@@ -477,6 +493,16 @@ export function InvoiceForm({ catalogs, defaultValues, rebuildFrom, backHref, fr
   const [isPending, startTransition] = useTransition();
   const [serverError, setServerError] = useState<string | null>(null);
   const isRebuild = Boolean(rebuildFrom);
+
+  // Saved clients start from the page's server fetch but grow locally when a
+  // new one is created from this form, without a full page refresh.
+  const [clients, setClients] = useState<SavedClient[]>(catalogs.clients);
+  const [newClientOpen, setNewClientOpen] = useState(false);
+
+  // Same idea for the product catalog. One shared dialog for every item row;
+  // newProductRowIndex tracks which row's fields to fill once a product is created.
+  const [products, setProducts] = useState<CatalogProduct[]>(catalogs.products);
+  const [newProductRowIndex, setNewProductRowIndex] = useState<number | null>(null);
 
   // Filter to IVA rates (tax code 2) in preferred display order
   const ivaRates = useMemo(
@@ -751,7 +777,7 @@ export function InvoiceForm({ catalogs, defaultValues, rebuildFrom, backHref, fr
                 className={watchedIdType === CONSUMIDOR_FINAL_CODE ? 'bg-muted text-muted-foreground' : ''}
                 aria-invalid={!!errors.buyer?.id}
               />
-              {watchedIdType !== CONSUMIDOR_FINAL_CODE && catalogs.clients.length > 0 && (
+              {watchedIdType !== CONSUMIDOR_FINAL_CODE && clients.length > 0 && (
                 <Button
                   type="button"
                   variant="outline"
@@ -759,7 +785,7 @@ export function InvoiceForm({ catalogs, defaultValues, rebuildFrom, backHref, fr
                   aria-label={t('buyer.searchClient')}
                   onClick={() => {
                     const idValue = form.getValues('buyer.id').trim();
-                    const match = catalogs.clients.find((c) => c.idNumber === idValue);
+                    const match = clients.find((c) => c.idNumber === idValue);
                     if (match) {
                       form.setValue('buyer.idType', match.idType);
                       form.setValue('buyer.name', match.name, { shouldValidate: true });
@@ -769,6 +795,17 @@ export function InvoiceForm({ catalogs, defaultValues, rebuildFrom, backHref, fr
                   }}
                 >
                   <Search className="h-4 w-4" />
+                </Button>
+              )}
+              {watchedIdType !== CONSUMIDOR_FINAL_CODE && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  aria-label={t('buyer.newClient')}
+                  onClick={() => setNewClientOpen(true)}
+                >
+                  <UserPlus className="h-4 w-4" />
                 </Button>
               )}
             </div>
@@ -827,7 +864,8 @@ export function InvoiceForm({ catalogs, defaultValues, rebuildFrom, backHref, fr
                         errors={errors}
                         ivaRates={ivaRates}
                         defaultTaxOption={defaultTaxOption}
-                        products={catalogs.products}
+                        products={products}
+                        onRequestNewProduct={() => setNewProductRowIndex(index)}
                         canRemove={itemFields.length > 1}
                         onRemove={() => removeItem(index)}
                         t={t}
@@ -1175,6 +1213,37 @@ export function InvoiceForm({ catalogs, defaultValues, rebuildFrom, backHref, fr
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <NewClientDialog
+      open={newClientOpen}
+      onOpenChange={setNewClientOpen}
+      defaultIdNumber={form.getValues('buyer.id')}
+      onCreated={(client) => {
+        setClients((prev) => [...prev, client]);
+        form.setValue('buyer.idType', client.idType);
+        form.setValue('buyer.id', client.idNumber, { shouldValidate: true });
+        form.setValue('buyer.name', client.name, { shouldValidate: true });
+        form.setValue('buyer.email', client.email, { shouldValidate: true });
+        form.setValue('buyer.address', client.address ?? '');
+      }}
+    />
+
+    <NewProductDialog
+      open={newProductRowIndex !== null}
+      onOpenChange={(open) => { if (!open) setNewProductRowIndex(null); }}
+      defaultMainCode={newProductRowIndex !== null ? form.getValues(`items.${newProductRowIndex}.mainCode`) : undefined}
+      onCreated={(product) => {
+        setProducts((prev) => [...prev, product]);
+        if (newProductRowIndex !== null) {
+          form.setValue(`items.${newProductRowIndex}.mainCode`, product.mainCode, { shouldValidate: true });
+          form.setValue(`items.${newProductRowIndex}.auxCode`, product.auxCode ?? '');
+          form.setValue(`items.${newProductRowIndex}.description`, product.description, { shouldValidate: true });
+          form.setValue(`items.${newProductRowIndex}.unitPrice`, Number(product.unitPrice).toFixed(2), { shouldValidate: true });
+          form.setValue(`items.${newProductRowIndex}.taxOption`, product.taxOption);
+        }
+        setNewProductRowIndex(null);
+      }}
+    />
     </>
   );
 }
