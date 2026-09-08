@@ -74,7 +74,10 @@ export function PricingPlans({ tiers, extraSeat }: { tiers: ApiTierInfo[]; extra
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Both tabs always show exactly 6 tiers (FREE is monthly-only, SOLO is
+          yearly-only — see visibleTiers' filter above), so 3 columns fills two
+          full rows instead of leaving a partial, left-aligned last row. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {visibleTiers.map((tier) => {
           const highlighted = tier.name === HIGHLIGHTED;
           // Every visible tier sells the selected interval (see visibleTiers'

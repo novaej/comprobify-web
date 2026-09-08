@@ -7,7 +7,7 @@ import { registerWebhookAction, deleteWebhookAction, activateCanonicalWebhookAct
 import { toastApiError } from '@/lib/api-error-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Webhook, Trash2, ChevronDown, ChevronUp, Bell } from 'lucide-react';
+import { AlertTriangle, Plus, Webhook, Trash2, ChevronDown, ChevronUp, Bell } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const ALL_EVENT_TYPES = [
@@ -33,9 +33,19 @@ interface WebhookManagerProps {
   endpoints: WebhookRow[];
   canonicalAvailability: CanonicalAvailability;
   canonicalEndpointId: string | null;
+  /** Active endpoints against the plan's self-service pool (includes the canonical slot). */
+  usedEndpoints: number;
+  /** null = unlimited. */
+  maxEndpoints: number | null;
 }
 
-export function WebhookManager({ endpoints: initial, canonicalAvailability, canonicalEndpointId }: WebhookManagerProps) {
+export function WebhookManager({
+  endpoints: initial,
+  canonicalAvailability,
+  canonicalEndpointId,
+  usedEndpoints,
+  maxEndpoints,
+}: WebhookManagerProps) {
   const t = useTranslations('webhooks');
   const tError = useTranslations('apiError');
   const format = useFormatter();
@@ -46,6 +56,8 @@ export function WebhookManager({ endpoints: initial, canonicalAvailability, cano
   const [url, setUrl] = useState('');
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]); // empty = all
   const [showEventPicker, setShowEventPicker] = useState(false);
+
+  const atEndpointLimit = maxEndpoints !== null && usedEndpoints >= maxEndpoints;
 
   function handleActivateCanonical() {
     startTransition(async () => {
@@ -115,6 +127,13 @@ export function WebhookManager({ endpoints: initial, canonicalAvailability, cano
 
   return (
     <div className="space-y-4">
+      {atEndpointLimit && (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 text-sm text-amber-700 dark:text-amber-400">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          {t('limitReached', { used: usedEndpoints, limit: maxEndpoints })}
+        </div>
+      )}
+
       {/* Canonical in-app notification webhook */}
       <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -142,7 +161,7 @@ export function WebhookManager({ endpoints: initial, canonicalAvailability, cano
                 </Button>
               </div>
             ) : (
-              <Button size="sm" onClick={handleActivateCanonical} disabled={isPending} className="shrink-0">
+              <Button size="sm" onClick={handleActivateCanonical} disabled={isPending || atEndpointLimit} className="shrink-0">
                 {isPending ? t('canonical.activating') : t('canonical.activate')}
               </Button>
             )
@@ -222,7 +241,7 @@ export function WebhookManager({ endpoints: initial, canonicalAvailability, cano
 
           {/* Actions */}
           <div className="flex items-center gap-2 pt-1">
-            <Button size="sm" onClick={handleRegister} disabled={isPending || !url.trim()}>
+            <Button size="sm" onClick={handleRegister} disabled={isPending || !url.trim() || atEndpointLimit}>
               {isPending ? t('registering') : t('register')}
             </Button>
             <Button
@@ -236,7 +255,7 @@ export function WebhookManager({ endpoints: initial, canonicalAvailability, cano
           </div>
         </div>
       ) : (
-        <Button size="sm" onClick={() => setShowForm(true)}>
+        <Button size="sm" onClick={() => setShowForm(true)} disabled={atEndpointLimit}>
           <Plus className="h-4 w-4 mr-1.5" />
           {t('add')}
         </Button>

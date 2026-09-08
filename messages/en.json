@@ -1321,6 +1321,7 @@
       "httpsRequired": "Requires a public HTTPS URL — won't work with localhost in local development."
     },
     "empty": "No webhooks registered.",
+    "limitReached": "You've reached your plan's webhook limit ({used} of {limit}). Remove an existing one or upgrade your plan to add more.",
     "add": "Register webhook",
     "delete": "Delete",
     "confirmDelete": "Delete this endpoint? It will stop receiving notifications immediately.",
@@ -1512,7 +1513,7 @@
     "tiers": {
       "FREE": {
         "name": "Free",
-        "description": "For developers and teams exploring the platform.",
+        "description": "For those just getting started with a few invoices a month.",
         "cta": "Get started free"
       },
       "SOLO": {

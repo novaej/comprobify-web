@@ -1576,13 +1576,20 @@ export async function registerWebhookEndpoint(
   return { endpoint: result.endpoint, secret: result.secret };
 }
 
-// Verified against: docs/site/endpoints/webhooks.md → GET /v1/webhooks
-export async function listWebhookEndpoints(ctx: ApiCtx): Promise<ApiWebhookEndpoint[]> {
-  const result = await request<{ ok: true; endpoints: ApiWebhookEndpoint[] }>(
-    '/v1/webhooks',
-    { apiKey: ctx.apiKey },
-  );
-  return result.endpoints;
+// Verified against webhook-endpoint.controller.js's list() — also returns the
+// tenant's self-service pool usage (max already includes comprobify-web's own
+// reserved canonical-webhook slot, see RESERVED_WEBHOOK_ENDPOINTS_FOR_FRONTEND
+// in subscription-tiers.js), so a plan's cap can be shown without the
+// frontend re-deriving it from the tier catalog itself.
+export async function listWebhookEndpoints(
+  ctx: ApiCtx,
+): Promise<{ endpoints: ApiWebhookEndpoint[]; limit: { max: number | null; used: number } }> {
+  const result = await request<{
+    ok: true;
+    endpoints: ApiWebhookEndpoint[];
+    limit: { max: number | null; used: number };
+  }>('/v1/webhooks', { apiKey: ctx.apiKey });
+  return { endpoints: result.endpoints, limit: result.limit };
 }
 
 // Verified against: docs/site/endpoints/webhooks.md → PATCH /v1/webhooks/:id
