@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { PageHeader } from '@/components/page-header';
 import { WebhookManager } from '@/components/webhook-manager';
 import { getCanonicalWebhookUrl, isPubliclyReachableHttpsUrl } from '@/lib/webhook-url';
+import { listWebhookEndpoints } from '@/lib/api';
 import type { CanonicalAvailability } from '@/components/webhook-manager';
 
 export default async function WebhooksPage({
@@ -18,11 +19,17 @@ export default async function WebhooksPage({
 
   const ctx = await requirePermission('webhooks.manage', { skipIssuer: true });
 
-  const endpoints = await db.webhookEndpoint.findMany({
-    where: { tenantId: ctx.tenant.id, active: true },
-    orderBy: { createdAt: 'desc' },
-    select: { id: true, url: true, eventTypes: true, active: true, createdAt: true },
-  });
+  const [endpoints, { limit }] = await Promise.all([
+    db.webhookEndpoint.findMany({
+      where: { tenantId: ctx.tenant.id, active: true },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, url: true, eventTypes: true, active: true, createdAt: true },
+    }),
+    // The API's own count/limit (used already includes comprobify-web's
+    // reserved canonical-webhook slot) — the authoritative source for what
+    // the tenant's plan actually allows, see listWebhookEndpoints' comment.
+    listWebhookEndpoints({ apiKey: ctx.apiKey }),
+  ]);
 
   const canonicalUrl = getCanonicalWebhookUrl();
   const canonicalAvailability: CanonicalAvailability =
@@ -47,6 +54,8 @@ export default async function WebhooksPage({
           active: e.active,
           createdAt: e.createdAt.toISOString(),
         }))}
+        usedEndpoints={limit.used}
+        maxEndpoints={limit.max}
       />
     </div>
   );

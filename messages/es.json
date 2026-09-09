@@ -938,6 +938,7 @@
       "httpsRequired": "Requiere una URL pública con HTTPS — no funciona con localhost en desarrollo local."
     },
     "empty": "No hay webhooks registrados.",
+    "limitReached": "Alcanzaste el límite de webhooks de tu plan ({used} de {limit}). Elimina uno existente o actualiza tu plan para agregar más.",
     "add": "Registrar webhook",
     "delete": "Eliminar",
     "confirmDelete": "¿Eliminar este endpoint? Dejará de recibir notificaciones de inmediato.",
@@ -1512,7 +1513,7 @@
     "tiers": {
       "FREE": {
         "name": "Gratis",
-        "description": "Para desarrolladores y equipos que quieren explorar la plataforma.",
+        "description": "Para quienes recién empiezan y facturan pocas veces al mes.",
         "cta": "Empezar gratis"
       },
       "SOLO": {
