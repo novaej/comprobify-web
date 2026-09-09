@@ -64,7 +64,13 @@ export async function bootstrapTenantAction(formData: FormData): Promise<Onboard
 
   const locale = await getLocale();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-  const verificationRedirectUrl = appUrl ? `${appUrl}/${locale}/verify-email` : undefined;
+  // Required by POST /v1/register now (comprobify's ADR-035 — there's no
+  // API-hosted verification page to fall back to any more), so a missing
+  // NEXT_PUBLIC_APP_URL must fail fast here with a clear config error
+  // instead of silently omitting the field and getting a generic
+  // VALIDATION_FAILED back from the API.
+  if (!appUrl) return { error: 'APP_URL_NOT_CONFIGURED' };
+  const verificationRedirectUrl = `${appUrl}/${locale}/verify-email`;
 
   const reqHeaders = await headers();
   const clientHeaders = { forwardedIp: extractForwardedIp(reqHeaders) };
@@ -107,7 +113,7 @@ export async function bootstrapTenantAction(formData: FormData): Promise<Onboard
   }
 
   // Fetch key metadata to get the API-side key ID
-  const keys = await listTenantApiKeys({ apiKey: plainApiKey }).catch(() => []);
+  const { keys } = await listTenantApiKeys({ apiKey: plainApiKey }).catch(() => ({ keys: [] }));
   const keyRecord = keys[0];
   if (!keyRecord) return { error: 'DB_WRITE_FAILED' };
 

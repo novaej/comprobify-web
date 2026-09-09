@@ -54,7 +54,12 @@ export async function registerTenant(
   fields: IssuerRegistrationFields,
   p12Buffer: Buffer,
   p12Password: string,
-  verificationRedirectUrl?: string,
+  // Required, not optional — comprobify's ADR-035 made this a required field
+  // on POST /v1/register (no more API-hosted verification page to fall back
+  // to), and the endpoint itself is now only reachable via
+  // X-Internal-Service-Secret (see buildClientForwardingHeaders), never a
+  // direct third-party caller.
+  verificationRedirectUrl: string,
   logoBuffer?: Buffer,
   logoType?: string,
   clientHeaders?: ClientForwardingInfo,
@@ -78,7 +83,7 @@ export async function registerTenant(
   }
   form.append('certPassword', p12Password);
   if (fields.language) form.append('language', fields.language);
-  if (verificationRedirectUrl) form.append('verificationRedirectUrl', verificationRedirectUrl);
+  form.append('verificationRedirectUrl', verificationRedirectUrl);
 
   const buf = p12Buffer.buffer.slice(
     p12Buffer.byteOffset,
@@ -198,11 +203,14 @@ export async function checkEmailVerificationToken(
 }
 
 // The actual consuming action — POST-only so an automated GET prefetch can
-// never trigger it. Call this only from an explicit user click.
+// never trigger it. Call this only from an explicit user click. Gated behind
+// X-Internal-Service-Secret on the API side (comprobify's ADR-035, same as
+// register/recover/resend-verification) — a missing/wrong secret now fails
+// with 403 INTERNAL_SERVICE_ONLY instead of activating the account.
 export async function confirmEmailVerification(token: string): Promise<{ email: string }> {
   const data = await publicRequest<{ ok: true; email: string }>('/v1/verify-email', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...buildClientForwardingHeaders({}) },
     body: JSON.stringify({ token }),
   });
   return { email: data.email };
@@ -312,14 +320,33 @@ export interface ApiExtraSeatPricing {
   yearlyPriceEffectiveAt: string | null;
 }
 
+// A tier-independent allowance added on top of every tier's own
+// maxApiKeys/maxWebhookEndpoints (comprobify's ADR-034), reserved for
+// comprobify-web's own internal per-role keys and its own webhook
+// subscription so those never eat into what a tenant actually purchased.
+// The API's own createKey()/webhook create() enforce
+// tier.maxApiKeys/maxWebhookEndpoints + this — see effectiveApiKeyLimit()/
+// effectiveWebhookEndpointLimit() in comprobify's subscription-tiers.js —
+// so resolveTenantLimits() (src/lib/tenant-limits.ts) adds it the same way
+// rather than comparing a tenant's key count against the raw tier value,
+// which is now 0 on FREE/SOLO/LITE and would otherwise make any self-service
+// key/webhook usage (including comprobify-web's own reserved ones) look
+// like it's already over the limit.
+export interface ApiReservedForFrontend {
+  apiKeys: number;
+  webhookEndpoints: number;
+}
+
 // Verified against: ../comprobify/src/controllers/tiers.controller.js → list()
 // GET /v1/tiers (public, no auth, no rate limit). Returns the full
-// { ok, ivaRate, limitScopes, tiers, extraSeat } envelope now — extraSeat/
-// limitScopes used to be silently discarded here.
+// { ok, ivaRate, limitScopes, tiers, extraSeat, reservedForFrontend }
+// envelope now — extraSeat/limitScopes/reservedForFrontend used to be
+// silently discarded here.
 export async function listTiers(): Promise<{
   tiers: ApiTierInfo[];
   extraSeat: ApiExtraSeatPricing;
   limitScopes: TierLimitScopes;
+  reservedForFrontend: ApiReservedForFrontend;
 }> {
   const result = await publicRequest<{
     ok: true;
@@ -327,6 +354,12 @@ export async function listTiers(): Promise<{
     limitScopes: TierLimitScopes;
     tiers: ApiTierInfo[];
     extraSeat: ApiExtraSeatPricing;
+    reservedForFrontend: ApiReservedForFrontend;
   }>('/v1/tiers');
-  return { tiers: result.tiers, extraSeat: result.extraSeat, limitScopes: result.limitScopes };
+  return {
+    tiers: result.tiers,
+    extraSeat: result.extraSeat,
+    limitScopes: result.limitScopes,
+    reservedForFrontend: result.reservedForFrontend,
+  };
 }

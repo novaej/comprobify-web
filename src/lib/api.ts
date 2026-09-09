@@ -1400,12 +1400,21 @@ export async function updateTenantLanguage(ctx: ApiCtx, language: string): Promi
 
 // ── API key management ────────────────────────────────────────────────────────
 
-export async function listTenantApiKeys(ctx: ApiCtx): Promise<ApiKeyInfo[]> {
-  const result = await request<{ ok: true; keys: ApiKeyInfo[] }>(
-    '/v1/keys',
-    { apiKey: ctx.apiKey },
-  );
-  return result.keys;
+// Verified against: ../comprobify/src/controllers/api-key.controller.js → list()
+// Also returns the tenant's self-service pool usage (max already includes
+// comprobify-web's own reserved per-role-key allowance — see
+// reservedForFrontend on GET /v1/tiers and ADR-034), the same ceiling
+// createKey() enforces, so callers needing the cap (resolveTenantLimits())
+// don't have to reimplement that arithmetic.
+export async function listTenantApiKeys(
+  ctx: ApiCtx,
+): Promise<{ keys: ApiKeyInfo[]; limit: { max: number | null; used: number } }> {
+  const result = await request<{
+    ok: true;
+    keys: ApiKeyInfo[];
+    limit: { max: number | null; used: number };
+  }>('/v1/keys', { apiKey: ctx.apiKey });
+  return { keys: result.keys, limit: result.limit };
 }
 
 export async function createTenantApiKey(
