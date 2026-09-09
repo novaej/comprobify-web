@@ -68,7 +68,7 @@ export async function recoverAccountAction(formData: FormData): Promise<RecoverA
   // stale. POST /v1/recover only returns the plaintext token, not its API-side
   // id (same limitation as POST /v1/keys — see CLAUDE.md Common Mistake #18),
   // so resolve it with a follow-up GET before persisting.
-  const keys = await listTenantApiKeys({ apiKey: result.apiKey }).catch(() => []);
+  const { keys } = await listTenantApiKeys({ apiKey: result.apiKey }).catch(() => ({ keys: [] }));
   const keyRecord = keys[0];
   if (!keyRecord) {
     console.error('[recovery] recovered key did not resolve via listTenantApiKeys', { apiTenantId });

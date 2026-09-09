@@ -91,7 +91,7 @@ export async function promoteTenantAction(
   const masterProductionKey = result.apiKeys.find((key) => key.label === masterLabel) ?? result.apiKeys[0];
   let keyInfoByLabel: Record<string, { id: string; scopes: string[] }> = {};
   if (masterProductionKey) {
-    const listedKeys = await listTenantApiKeys({ apiKey: masterProductionKey.apiKey }).catch(() => []);
+    const { keys: listedKeys } = await listTenantApiKeys({ apiKey: masterProductionKey.apiKey }).catch(() => ({ keys: [] }));
     for (const k of listedKeys) {
       if (k.label) keyInfoByLabel[k.label] = { id: k.id, scopes: k.scopes };
     }
