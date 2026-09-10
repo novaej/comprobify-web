@@ -1,0 +1,50 @@
+# Production Readiness Checklist
+
+Tracks what's left to take `comprobify-web` from staging-only to a live `APP_ENV=production` deployment. Not a replacement for `docs/deployment.md`'s "Production status"/"Production checklist" sections or `docs/terraform-digitalocean-setup.md`'s "What's intentionally still manual" — this is the top-level tracker; those have the actual step-by-step mechanics. Mirrors the equivalent doc in the Comprobify API repo (`../comprobify/docs/production-readiness-checklist.md`), whose production is already live — several items below exist only because that side went first.
+
+Items are grouped by whether they're currently blocked, and on what.
+
+---
+
+## Unblocked
+
+- [x] Fix `deploy/caddy/Caddyfile`'s hardcoded staging domains — was `staging.comprobify.com, app-staging.comprobify.com` literally in the file (a pre-existing, self-flagged TODO); now `{$PUBLIC_DOMAIN_PRIMARY}, {$PUBLIC_DOMAIN_ALIAS}`, Caddy's own env-var substitution, fed per-environment by `docker-compose.yml`'s `caddy` service and written by each `deploy-*.yml`. Mirrors the API repo's own `{$PUBLIC_DOMAIN}` fix, just with two vars instead of one since this app serves a marketing host and an app host from the same container
+- [x] Write `terraform/environments/production` (droplet + Cloudflare DNS, mirroring staging's setup exactly — same module, same variable shape, just `environment = "production"` and the `comprobify.com`/`app.comprobify.com` domains)
+- [x] Add the `plan-production`/`apply-production` job pair to `terraform.yml`
+- [x] Create `.github/workflows/deploy-production.yml`, mirroring `deploy-staging.yml` exactly (build/push GHCR/SCP/SSH shape, Caddy-reload step) — kept behind an `if: false` guard and a commented-out `push:` trigger, same disabled-workflow convention `release-production.yml` already used in this repo
+- [x] Fix `release-production.yml`'s stale comment block — it still described a Vercel-based deploy (native Git integration autodeploying on push to `production`) from before this app moved to a DigitalOcean droplet; corrected to describe the actual `deploy-production.yml` split
+- [x] Update `docs/architecture-staging.drawio` — it was still describing the pre-migration DigitalOcean App Platform architecture (CNAME DNS-only, no Terraform-managed firewall, no GHCR/SSH deploy step) despite this app having moved to a droplet+Caddy+Terraform setup months ago; now matches the actual current architecture
+- [x] Create `docs/architecture-production.drawio` (target architecture, "NOT YET LIVE" banner, mirroring the corrected staging diagram)
+- [x] Create `docs/deployment-reference-production.md` (target-configuration reference, mirrors `docs/deployment-reference-staging.md`'s structure)
+- [x] Update `docs/deployment-reference-staging.md`, `docs/deployment.md`, and `docs/terraform-digitalocean-setup.md` to reflect the above and cross-reference this checklist
+- [ ] **Generate the dedicated production SSH key pair.** `ssh-keygen -t ed25519 -C "comprobify-web-deploy-production" -f ~/.ssh/comprobify_web_deploy_production` — never reuse staging's `comprobify_web_deploy_staging` key or the comprobify API repo's own production key. Paste the public half into `terraform/environments/production/terraform.tfvars`'s `ssh_public_key` (currently a `REPLACE_WITH_PRODUCTION_SSH_PUBLIC_KEY` placeholder)
+- [ ] Generate a dedicated DigitalOcean API token and Cloudflare API token for this repo's production pipeline (never reuse staging's or the API repo's own)
+- [ ] Generate unique production secrets: `AUTH_SECRET`, `ENCRYPTION_KEY`, `CONTEXT_COOKIE_SECRET` (`openssl rand -hex 32` each — **never** reuse staging's values, see `docs/deployment.md`'s "Rotating secrets" section for why each one matters)
+- [ ] Create the `production-infra` GitHub Environment (`DO_TOKEN`/`CLOUDFLARE_TOKEN`) — required-reviewer rule added *before* the secrets, never after (same ordering the API repo's checklist calls out)
+- [ ] Create the `production` GitHub Environment and populate its Secrets/Variables per `docs/deployment-reference-production.md`'s tables — including `PUBLIC_DOMAIN_PRIMARY=comprobify.com`/`PUBLIC_DOMAIN_ALIAS=app.comprobify.com`, new as of the Caddyfile fix above
+- [ ] Confirm the "Comprobify Production" DigitalOcean Project already exists (looked up by name in Terraform, never created by it) — same project the comprobify API repo's own production droplet already lives in
+- [ ] `terraform apply` against `terraform/environments/production` — provisions the droplet + reserved IP + firewall + two Cloudflare A records
+- [ ] Decide the production database: dedicated DigitalOcean Managed Postgres cluster, shared with the Comprobify API's own production database, or a different provider entirely — see `docs/deployment-reference-production.md`'s "Architecture" section. Whatever it is, add the production droplet's reserved IP to its Trusted Sources (manual DO dashboard step, same as staging)
+- [ ] Create the `production` git branch (fast-forward-only, mirrors `staging`) and add branch protection (restrict pushes to automation, no force pushes)
+- [ ] Enable `release-production.yml` (uncomment the `release:` trigger, remove the `if: false` guard)
+- [ ] Enable `deploy-production.yml` (uncomment the `push:` trigger, remove the `if: false` guard)
+- [ ] Push the first production tag/release, verify the pipeline end-to-end (health check, a real login, a real invoice reaching `AUTHORIZED`)
+- [ ] Confirm `SENTRY_DSN`/`NEXT_PUBLIC_SENTRY_DSN` are set (can reuse staging's DSN — same Sentry project, `APP_ENV` distinguishes environments) and that `SENTRY_AUTH_TOKEN` is set so source maps upload; verify a test error appears in the dashboard tagged `production` before go-live
+- [ ] Confirm `NEXT_PUBLIC_APP_ENV=production` actually took effect post-deploy by checking `https://comprobify.com/robots.txt` **allows** indexing — the opposite of staging's blanket disallow (`SEO_INDEXABLE` in `src/lib/seo.ts`)
+- [ ] Full security review of this repo's own surface (auth, RBAC, secret handling, the three-layer permission pattern) before real tenant data flows through it — broader than the checklist items above, should happen before go-live
+
+## Blocked on coordination with the Comprobify API repo
+
+The Comprobify API's own production is **already live** (see `../comprobify/docs/production-readiness-checklist.md`) — that changes the shape of a few items here from "provision independently" to "match what's already running there."
+
+- [ ] **Coordinate `INTERNAL_SERVICE_SECRET` with the Comprobify API's already-live production value.** The API's production deployment already requires this secret at startup (ADR-035) — it boots fine with any value, but a mismatched one silently `403`s every `POST /v1/register`/`/recover`/`/resend-verification` call with `INTERNAL_SERVICE_ONLY` instead of failing loudly. This can't be generated unilaterally on this side; get the exact value the API's production `.env` already uses. See `docs/deployment-reference-production.md`'s "Coordination with the Comprobify API repo" section
+- [ ] Confirm `COMPROBIFY_API_URL=https://api.comprobify.com` and `COMPROBIFY_ADMIN_SECRET` matches the API's own production `ADMIN_SECRET` exactly
+- [ ] **Onboard the first real production tenant via this app**, not the API directly — direct `POST /v1/register` against the production API is no longer possible (ADR-035, registration is web-app-only), so the API repo's own "onboard the first real tenant" checklist item is gated on this app's production deployment going live first. Verify one real invoice against SRI's actual production endpoint through this app end-to-end
+- [ ] Once this app's production domain (`app.comprobify.com`) is live, ask whoever holds the Payphone production application (API repo's checklist, "Card payments in production") to register its Response URL against `https://app.comprobify.com/es/payphone/return` — the Cajita widget only renders on the domain registered in Payphone's console (ADR-028). Nothing to configure on this app's side; `PAYPHONE_TOKEN`/`PAYPHONE_STORE_ID` live entirely on the API side
+- [ ] Confirm whether `AGREEMENTS_ENABLED` is `true` or `false` on the API's production (currently `false` per the API's own checklist, launched without TERMS/PRIVACY/DPA) — if it's `false`, this app's "Documentos legales" card on `/settings` should correctly hide itself via `hasPublishedAgreements` (see CLAUDE.md's Common Mistake #46); verify this actually renders correctly against production once live, don't just assume the existing logic covers it
+
+---
+
+## Staging lifecycle once production is live
+
+Unlike the API repo (which tears staging's droplet down between uses once production carries real traffic — see its own checklist's "Staging lifecycle" section), **no decision has been made yet** on whether this app's staging droplet should keep running continuously after production launches. Revisit once production is live and real usage patterns on both environments are known.

@@ -16,6 +16,9 @@ services:
       - ./caddy:/etc/caddy
       - caddy_data:/data
       - caddy_config:/config
+    environment:
+      - PUBLIC_DOMAIN_PRIMARY=${PUBLIC_DOMAIN_PRIMARY}
+      - PUBLIC_DOMAIN_ALIAS=${PUBLIC_DOMAIN_ALIAS}
     depends_on:
       - web
 

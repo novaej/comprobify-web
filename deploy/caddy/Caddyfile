@@ -10,16 +10,17 @@
     }
 }
 
-# Staging only for now. When production is provisioned, this needs to become either
-# a second file (Caddyfile.production, picked by the production deploy workflow) or
-# a {$PUBLIC_DOMAIN}-substituted single file - revisit before the first production
-# deploy, same as the API repo's own Caddyfile note.
+# PUBLIC_DOMAIN_PRIMARY/PUBLIC_DOMAIN_ALIAS are written into .env per environment
+# (staging.comprobify.com / app-staging.comprobify.com, or comprobify.com /
+# app.comprobify.com in production) and passed to this container via
+# docker-compose.yml's caddy service - one file, both environments, mirroring the
+# comprobify API repo's own single-{$PUBLIC_DOMAIN}-var Caddyfile, just with two
+# vars instead of one since this app serves a marketing host and an app host from
+# the same container (src/proxy.ts's host-header logic routes between them, not
+# Caddy) - a single PUBLIC_DOMAIN var can't hold two hostnames at once.
 #
-# Both the marketing host and the app host are the same Next.js container - routing
-# between them happens inside the app itself (src/proxy.ts's host-header logic), not
-# here, so one block naming both hostnames is correct. Caddy requests separate
-# certificates for each SNI name automatically.
-staging.comprobify.com, app-staging.comprobify.com {
+# Caddy requests separate certificates for each SNI name automatically.
+{$PUBLIC_DOMAIN_PRIMARY}, {$PUBLIC_DOMAIN_ALIAS} {
     reverse_proxy web:3000 {
         header_up X-Real-Client-IP {client_ip}
     }

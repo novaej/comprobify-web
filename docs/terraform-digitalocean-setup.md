@@ -4,7 +4,7 @@ Reference for how this app's DigitalOcean compute layer is provisioned and deplo
 
 This repo's setup mirrors the `comprobify` (API) repo's own `docs/terraform-digitalocean-setup.md` closely — if you've read that one, most of it applies here directly. This doc calls out only what differs.
 
-**What lives on DigitalOcean, managed by this repo's Terraform:** one droplet (`comprobify-web-staging`), its reserved IP, its firewall, and its two Cloudflare DNS records.
+**What lives on DigitalOcean, managed by this repo's Terraform:** one droplet per environment (`comprobify-web-staging`, live; `comprobify-web-production`, written but never applied — see "What's intentionally still manual" below), each with its own reserved IP, firewall, and two Cloudflare DNS records.
 
 **What doesn't:** the Postgres database (DigitalOcean Managed Database, a Basic-plan cluster **shared with the Comprobify API** — provisioned and managed outside this repo's Terraform entirely, see `docs/deployment.md`'s "Database setup" section), Sentry, Mailgun, and the Comprobify API's own droplet (`comprobify/terraform`). All are grouped into the same `Comprobify Staging` DO Project as this app purely for dashboard purposes — see "DO Projects" below.
 
@@ -86,15 +86,21 @@ terraform/
 │       ├── outputs.tf
 │       └── cloud-init.yaml.tftpl
 ├── environments/
-│   └── staging/
-│       ├── main.tf                 # calls the droplet module with staging's variables
-│       ├── backend.tf              # staging's own remote state target
+│   ├── staging/
+│   │   ├── main.tf                 # calls the droplet module with staging's variables
+│   │   ├── backend.tf              # staging's own remote state target
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   └── terraform.tfvars        # non-secret values only
+│   └── production/                 # same shape as staging/ — see "What's intentionally still manual" below
+│       ├── main.tf
+│       ├── backend.tf
 │       ├── variables.tf
 │       ├── outputs.tf
-│       └── terraform.tfvars        # non-secret values only
+│       └── terraform.tfvars        # ssh_public_key is still a REPLACE_ME placeholder until the first apply
 ```
 
-`environments/production` doesn't exist yet — see "What's intentionally still manual" below.
+`environments/production` exists in the repo (mirrors `environments/staging` exactly, own state key, own domains/deploy user) but has never been `terraform apply`'d — no droplet, DNS record, or GitHub Environment exists for it yet. See "What's intentionally still manual" below and `docs/production-readiness-checklist.md` for the current status.
 
 ---
 
@@ -342,7 +348,7 @@ See `docs/deployment.md`'s "Environment variables" section for what each one doe
 13. Run the app deploy workflow once (push to `staging`, or `workflow_dispatch` on `deploy-staging.yml`) — it pushes the compose files, writes `.env`, and starts the containers.
 14. Verify: both domains resolve through Cloudflare (proxied); HTTPS works with a browser-trusted cert; `/api/health` responds; log in and load `/dashboard` (proves Trusted Sources was set up correctly).
 
-Repeating this for `environments/production` means: a new environment directory, a **separate** SSH key pair (see "SSH access model" above), its own `production-infra` GitHub Environment (`DO_TOKEN`/`CLOUDFLARE_TOKEN`) and `production` GitHub Environment (app secrets, `DROPLET_IP`, `INFRA_SSH_PRIVATE_KEY`) — never reused from staging's — and its own droplet.
+The same steps against `environments/production` (the directory already exists — see "Repo layout" above) provision production: replace the `REPLACE_WITH_PRODUCTION_SSH_PUBLIC_KEY` placeholder in its `terraform.tfvars` with a **separate** SSH key pair's public half (see "SSH access model" above), create its own `production-infra` GitHub Environment (`DO_TOKEN`/`CLOUDFLARE_TOKEN`) and `production` GitHub Environment (app secrets, `DROPLET_IP`, `INFRA_SSH_PRIVATE_KEY`) — never reused from staging's — then run `terraform apply` and `deploy-production.yml` (uncommenting its guards first, see `docs/production-readiness-checklist.md`) the same way.
 
 ---
 
@@ -403,4 +409,4 @@ Same operations as the API repo's droplet — destroy/recreate, resize, SSH key 
 - The Managed PostgreSQL database and the Comprobify API's own droplet — both provisioned and managed by infrastructure outside this repo's Terraform entirely.
 - Adding the droplet's reserved IP to the database's Trusted Sources — a manual DO dashboard step for both this repo and the API repo today.
 - `ENCRYPTION_KEY` rotation's data re-encryption step — no script or documented procedure exists yet.
-- **Production** — `terraform/environments/production` doesn't exist yet. Provisioning it means a new environment directory (own `backend.tf` state key, own `terraform.tfvars`), a **separate, dedicated** SSH key pair (see "SSH access model" above — do not reuse staging's), a `production-infra` GitHub Environment (`DO_TOKEN`/`CLOUDFLARE_TOKEN`) and a `production` GitHub Environment (app secrets, `DROPLET_IP`, `INFRA_SSH_PRIVATE_KEY`) — never reused from staging's — and `.github/workflows/deploy-production.yml`.
+- **Production** — the code scaffolding exists (`terraform/environments/production`, the `plan-production`/`apply-production` job pair in `terraform.yml`, `.github/workflows/deploy-production.yml`), but nothing has actually been provisioned: `terraform.tfvars`'s `ssh_public_key` is still a placeholder, no `production-infra` or `production` GitHub Environment exists, and `terraform apply` has never run against this directory. See `docs/production-readiness-checklist.md` for the exact remaining steps — generate a **separate, dedicated** SSH key pair (see "SSH access model" above — do not reuse staging's), create the `production-infra` GitHub Environment (`DO_TOKEN`/`CLOUDFLARE_TOKEN`) and the `production` GitHub Environment (app secrets, `DROPLET_IP`, `INFRA_SSH_PRIVATE_KEY`), then uncomment the disabled triggers on `release-production.yml`/`deploy-production.yml`.

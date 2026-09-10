@@ -1,44 +1,62 @@
 name: Terraform
 
-# Applies infrastructure changes under terraform/ - mirrors
-# comprobify/.github/workflows/terraform.yml's shape exactly, including the trigger and
-# the staging-infra Environment split.
+# Applies infrastructure changes under terraform/ - mirrors comprobify/.github/workflows/
+# terraform.yml's shape: one workflow, two job pairs (plan-staging/apply-staging,
+# plan-production/apply-production) sharing the same trigger below - terraform plan/apply
+# is idempotent, so an unrelated environment's pair just reports "no changes" against a
+# push that only touched the other environment's files.
 #
 # TRIGGER: push to `main` touching terraform/**, or manual workflow_dispatch. Terraform
 # only ever manages the droplet/firewall/DNS here - never app code or app secrets (those
-# are deploy-staging.yml's job, over SSH) - so there's no coupling between "which infra
-# spec is applied" and "which app code is currently deployed" the way there would be for
-# a PaaS's own app-spec resource. An infra change can be reviewed and applied the moment
-# it's merged, without waiting for the next tagged release.
+# are deploy-staging.yml's/deploy-production.yml's job, over SSH) - so there's no coupling
+# between "which infra spec is applied" and "which app code is currently deployed" the way
+# there would be for a PaaS's own app-spec resource. An infra change can be reviewed and
+# applied the moment it's merged, without waiting for the next tagged release.
 #
-# DO_TOKEN/CLOUDFLARE_TOKEN live in the `staging-infra` GitHub Environment (Settings ->
-# Environments -> staging-infra), unprefixed - same convention deploy-staging.yml uses
-# for its own secrets: one secret name, a different value per Environment, not a name per
-# environment. Deliberately a SEPARATE Environment from `staging` (which deploy-staging.yml
-# uses for app secrets + DROPLET_IP/INFRA_SSH_PRIVATE_KEY) - this is the credential/blast-
-# radius boundary: a required-reviewer rule can be added to staging-infra alone (repo
-# Settings -> Environments -> staging-infra -> Required reviewers) to gate infra changes
-# specifically, without also gating every app deploy.
+# DO_TOKEN/CLOUDFLARE_TOKEN live in each environment's own <env>-infra GitHub Environment
+# (staging-infra / production-infra), unprefixed - same secret name, a different value per
+# Environment, not a name per environment. This is the credential/blast-radius boundary: a
+# required-reviewer rule can be added to either -infra Environment alone (repo Settings ->
+# Environments -> <env>-infra -> Required reviewers) to gate that environment's infra
+# changes specifically, without also gating the other environment's infra or either
+# environment's app deploys (deploy-staging.yml/deploy-production.yml use the plain
+# `staging`/`production` Environments instead).
 #
-# Both `plan` and `apply` declare `environment: staging-infra` - not just `apply`. GitHub
-# only grants a job access to an Environment's secrets if that job declares it, which also
-# means that Environment's protection rules apply to that job too. Declaring it on both
-# means a required-reviewer rule on staging-infra gates `plan` as well as `apply` - you'd
-# approve before seeing the plan's diff, not after reading it. Deliberate trade-off for
-# staying consistent with deploy-staging.yml's single-environment-per-workflow shape,
-# rather than introducing a second, plan-only Environment just to keep `plan` ungated.
+# TF_VAR_do_token/TF_VAR_cloudflare_token are set per-step (not in a shared top-level
+# `env:` block) so each job pair only ever resolves its own -infra Environment's secret
+# value under that name - mirrors the API repo's own terraform.yml exactly, rather than
+# relying on a workflow-level env block to resolve differently per job.
 #
 # TERRAFORM_SPACES_ACCESS_KEY_ID/SECRET_ACCESS_KEY are repository secrets, not Environment
 # secrets, holding a Spaces access key scoped to the shared comprobify-terraform-state
-# bucket (see terraform/environments/staging/backend.tf) - dedicated to this repo's
-# pipeline, not the API repo's own Spaces key. They stay repository-scoped because every
-# job needs them regardless of which Environment (staging-infra today, production-infra
-# later) it declares - there's only ever one correct value.
+# bucket - dedicated to this repo's pipeline, not the API repo's own Spaces key. Staging
+# and production share one state bucket (different key prefixes, see each environment's
+# backend.tf) with one dedicated key, so there's only one correct value regardless of which
+# environment a job declares.
+#
+# Both plan and apply jobs (for either environment) declare the same -infra Environment,
+# not just apply. GitHub only grants a job access to an Environment's secrets - and only
+# applies that Environment's protection rules - to jobs that declare it. Declaring it on
+# both means a required-reviewer rule on an -infra Environment gates plan as well as apply -
+# you'd approve before seeing the plan's diff, not after reading it. Deliberate trade-off
+# for staying consistent with deploy-staging.yml's single-Environment-per-workflow shape,
+# rather than introducing a second, plan-only Environment just to keep plan ungated.
 #
 # Manual workflow_dispatch supports both apply (default) and destroy, so a teardown - or an
-# ad-hoc apply outside the normal push trigger - can be run deliberately through this
-# same audited pipeline instead of requiring local Terraform CLI access. destroy is only
-# ever reachable via an explicit manual dispatch, never the automatic push trigger.
+# ad-hoc apply outside the normal push trigger - can be run deliberately through this same
+# audited pipeline instead of requiring local Terraform CLI access. destroy is only ever
+# reachable via an explicit manual dispatch, never the automatic push trigger, and applies
+# to both environments' job pairs identically (there is no per-environment action input).
+#
+# Before the first push that touches terraform/environments/production/**: the
+# `production-infra` GitHub Environment must already exist with real DO_TOKEN/
+# CLOUDFLARE_TOKEN values, and the "Comprobify Production" DigitalOcean Project must
+# already exist (main.tf's data "digitalocean_project" only looks it up by name, never
+# creates it) - see docs/production-readiness-checklist.md and
+# docs/terraform-digitalocean-setup.md's Prerequisites. Missing either fails
+# plan-production safely (bad/absent credentials, or a lookup that finds nothing) - it
+# cannot touch real infra, since apply-production only runs if plan-production succeeds -
+# but it's a red check either way, so set both up first.
 
 on:
   push:
@@ -52,14 +70,8 @@ on:
         options: [apply, destroy]
         default: apply
 
-env:
-  TF_VAR_do_token: ${{ secrets.DO_TOKEN }}
-  TF_VAR_cloudflare_token: ${{ secrets.CLOUDFLARE_TOKEN }}
-  AWS_ACCESS_KEY_ID: ${{ secrets.TERRAFORM_SPACES_ACCESS_KEY_ID }}
-  AWS_SECRET_ACCESS_KEY: ${{ secrets.TERRAFORM_SPACES_SECRET_ACCESS_KEY }}
-
 jobs:
-  plan:
+  plan-staging:
     runs-on: ubuntu-latest
     environment: staging-infra
     steps:
@@ -68,15 +80,28 @@ jobs:
         with:
           terraform_version: 1.7.5
       - run: terraform -chdir=terraform/environments/staging init
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.TERRAFORM_SPACES_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.TERRAFORM_SPACES_SECRET_ACCESS_KEY }}
       - name: Plan (apply)
         if: github.event.inputs.action != 'destroy'
         run: terraform -chdir=terraform/environments/staging plan
+        env:
+          TF_VAR_do_token: ${{ secrets.DO_TOKEN }}
+          TF_VAR_cloudflare_token: ${{ secrets.CLOUDFLARE_TOKEN }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.TERRAFORM_SPACES_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.TERRAFORM_SPACES_SECRET_ACCESS_KEY }}
       - name: Plan (destroy)
         if: github.event.inputs.action == 'destroy'
         run: terraform -chdir=terraform/environments/staging plan -destroy
+        env:
+          TF_VAR_do_token: ${{ secrets.DO_TOKEN }}
+          TF_VAR_cloudflare_token: ${{ secrets.CLOUDFLARE_TOKEN }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.TERRAFORM_SPACES_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.TERRAFORM_SPACES_SECRET_ACCESS_KEY }}
 
-  apply:
-    needs: plan
+  apply-staging:
+    needs: plan-staging
     environment: staging-infra
     runs-on: ubuntu-latest
     steps:
@@ -85,9 +110,81 @@ jobs:
         with:
           terraform_version: 1.7.5
       - run: terraform -chdir=terraform/environments/staging init
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.TERRAFORM_SPACES_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.TERRAFORM_SPACES_SECRET_ACCESS_KEY }}
       - name: Apply
         if: github.event.inputs.action != 'destroy'
         run: terraform -chdir=terraform/environments/staging apply -auto-approve
+        env:
+          TF_VAR_do_token: ${{ secrets.DO_TOKEN }}
+          TF_VAR_cloudflare_token: ${{ secrets.CLOUDFLARE_TOKEN }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.TERRAFORM_SPACES_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.TERRAFORM_SPACES_SECRET_ACCESS_KEY }}
       - name: Destroy
         if: github.event.inputs.action == 'destroy'
         run: terraform -chdir=terraform/environments/staging destroy -auto-approve
+        env:
+          TF_VAR_do_token: ${{ secrets.DO_TOKEN }}
+          TF_VAR_cloudflare_token: ${{ secrets.CLOUDFLARE_TOKEN }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.TERRAFORM_SPACES_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.TERRAFORM_SPACES_SECRET_ACCESS_KEY }}
+
+  plan-production:
+    runs-on: ubuntu-latest
+    environment: production-infra
+    steps:
+      - uses: actions/checkout@v5
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.7.5
+      - run: terraform -chdir=terraform/environments/production init
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.TERRAFORM_SPACES_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.TERRAFORM_SPACES_SECRET_ACCESS_KEY }}
+      - name: Plan (apply)
+        if: github.event.inputs.action != 'destroy'
+        run: terraform -chdir=terraform/environments/production plan
+        env:
+          TF_VAR_do_token: ${{ secrets.DO_TOKEN }}
+          TF_VAR_cloudflare_token: ${{ secrets.CLOUDFLARE_TOKEN }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.TERRAFORM_SPACES_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.TERRAFORM_SPACES_SECRET_ACCESS_KEY }}
+      - name: Plan (destroy)
+        if: github.event.inputs.action == 'destroy'
+        run: terraform -chdir=terraform/environments/production plan -destroy
+        env:
+          TF_VAR_do_token: ${{ secrets.DO_TOKEN }}
+          TF_VAR_cloudflare_token: ${{ secrets.CLOUDFLARE_TOKEN }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.TERRAFORM_SPACES_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.TERRAFORM_SPACES_SECRET_ACCESS_KEY }}
+
+  apply-production:
+    needs: plan-production
+    environment: production-infra
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.7.5
+      - run: terraform -chdir=terraform/environments/production init
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.TERRAFORM_SPACES_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.TERRAFORM_SPACES_SECRET_ACCESS_KEY }}
+      - name: Apply
+        if: github.event.inputs.action != 'destroy'
+        run: terraform -chdir=terraform/environments/production apply -auto-approve
+        env:
+          TF_VAR_do_token: ${{ secrets.DO_TOKEN }}
+          TF_VAR_cloudflare_token: ${{ secrets.CLOUDFLARE_TOKEN }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.TERRAFORM_SPACES_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.TERRAFORM_SPACES_SECRET_ACCESS_KEY }}
+      - name: Destroy
+        if: github.event.inputs.action == 'destroy'
+        run: terraform -chdir=terraform/environments/production destroy -auto-approve
+        env:
+          TF_VAR_do_token: ${{ secrets.DO_TOKEN }}
+          TF_VAR_cloudflare_token: ${{ secrets.CLOUDFLARE_TOKEN }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.TERRAFORM_SPACES_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.TERRAFORM_SPACES_SECRET_ACCESS_KEY }}
