@@ -1165,6 +1165,9 @@ export interface ChangeTierResult {
 
 // Verified against: ../comprobify/src/routes/subscriptions.routes.js → POST /v1/subscriptions/change-tier
 // billingInterval is optional — omit to keep the current subscription interval.
+// requireInternalService (ADR-035's addendum) gates every subscription/payment mutation —
+// see the module-level note above submitPaymentProof for why buildClientForwardingHeaders({})
+// is passed here with no forwardedIp/userAgent.
 export async function changeTier(
   ctx: ApiCtx,
   tier: PaidTier,
@@ -1173,7 +1176,11 @@ export async function changeTier(
   return request<ChangeTierResult>(
     '/v1/subscriptions/change-tier',
     { apiKey: ctx.apiKey },
-    { method: 'POST', body: JSON.stringify({ tier, ...(billingInterval && { billingInterval }) }) },
+    {
+      method: 'POST',
+      body: JSON.stringify({ tier, ...(billingInterval && { billingInterval }) }),
+      headers: buildClientForwardingHeaders({}),
+    },
   );
 }
 
@@ -1207,7 +1214,7 @@ export async function changeSeats(ctx: ApiCtx, extraSeats: number): Promise<Chan
   return request<ChangeSeatsResult>(
     '/v1/subscriptions/seats',
     { apiKey: ctx.apiKey },
-    { method: 'POST', body: JSON.stringify({ extraSeats }) },
+    { method: 'POST', body: JSON.stringify({ extraSeats }), headers: buildClientForwardingHeaders({}) },
   );
 }
 
@@ -1225,7 +1232,7 @@ export async function cancelSubscription(ctx: ApiCtx): Promise<CancelSubscriptio
   return request<CancelSubscriptionResult>(
     '/v1/subscriptions',
     { apiKey: ctx.apiKey },
-    { method: 'DELETE' },
+    { method: 'DELETE', headers: buildClientForwardingHeaders({}) },
   );
 }
 
@@ -1251,7 +1258,11 @@ export async function createSubscription(
   return request<CreateSubscriptionResult>(
     '/v1/subscriptions',
     { apiKey: ctx.apiKey },
-    { method: 'POST', body: JSON.stringify({ tier, ...(billingInterval && { billingInterval }) }) },
+    {
+      method: 'POST',
+      body: JSON.stringify({ tier, ...(billingInterval && { billingInterval }) }),
+      headers: buildClientForwardingHeaders({}),
+    },
   );
 }
 
@@ -1259,6 +1270,19 @@ export async function createSubscription(
 // Field name "proof" repeated per file — multer.array('proof', 5); up to 5 per request,
 // cumulative cap of 10 active per payment (PROOF_FILE_LIMIT_REACHED if exceeded).
 // Returns only the proofs uploaded in this request; call listPaymentProofs for the full set.
+//
+// Every subscription/payment MUTATION (this function and every other one below that
+// writes, through cancelPayment/createPayphoneSession/confirmPayphonePayment) requires
+// requireInternalService on top of the normal tenant-API-key auth — comprobify's ADR-035
+// addendum, extending the same gate that already covered register/recover/resend-verification
+// to every subscriptions.routes.js/payments.routes.js mutation, so billing changes always
+// flow through this app's own checkout UX rather than a tenant's own API key directly. Unlike
+// the account-lifecycle calls in public-api.ts, no forwardedIp/userAgent is threaded through
+// here — the visitor-IP half of buildClientForwardingHeaders() only matters for anonymous,
+// unauthenticated calls (registrationLimiter, tenant_agreements.ip); these are all
+// already-authenticated, server-to-server tenant actions, so only the secret itself matters.
+// The 3 read-only routes (getMySubscriptions, listPaymentProofs, downloadPaymentProof) are
+// deliberately NOT gated on the API side and don't send this header.
 export async function submitPaymentProof(
   ctx: ApiCtx,
   paymentId: string,
@@ -1277,7 +1301,7 @@ export async function submitPaymentProof(
 
   const res = await fetch(`${getApiUrl()}/v1/payments/${paymentId}/proof`, {
     method: 'PATCH',
-    headers: { Authorization: `Bearer ${ctx.apiKey}` },
+    headers: { Authorization: `Bearer ${ctx.apiKey}`, ...buildClientForwardingHeaders({}) },
     body: form,
   });
   if (!res.ok) {
@@ -1303,7 +1327,7 @@ export async function listPaymentProofs(ctx: ApiCtx, paymentId: string): Promise
 export async function deletePaymentProof(ctx: ApiCtx, paymentId: string, proofId: string): Promise<void> {
   const res = await fetch(`${getApiUrl()}/v1/payments/${paymentId}/proofs/${proofId}`, {
     method: 'DELETE',
-    headers: { Authorization: `Bearer ${ctx.apiKey}` },
+    headers: { Authorization: `Bearer ${ctx.apiKey}`, ...buildClientForwardingHeaders({}) },
   });
   if (!res.ok) {
     const problem: ProblemDetails = await res.json();
@@ -1328,7 +1352,7 @@ export async function cancelPayment(ctx: ApiCtx, paymentId: string): Promise<Can
   return request<CancelPaymentResult>(
     `/v1/payments/${paymentId}`,
     { apiKey: ctx.apiKey },
-    { method: 'DELETE' },
+    { method: 'DELETE', headers: buildClientForwardingHeaders({}) },
   );
 }
 
@@ -1360,7 +1384,7 @@ export async function createPayphoneSession(ctx: ApiCtx, paymentId: string): Pro
   const result = await request<{ ok: true; session: ApiPayphoneSession }>(
     `/v1/payments/${paymentId}/payphone-session`,
     { apiKey: ctx.apiKey },
-    { method: 'POST' },
+    { method: 'POST', headers: buildClientForwardingHeaders({}) },
   );
   return result.session;
 }
@@ -1385,7 +1409,11 @@ export async function confirmPayphonePayment(
   return request<{ ok: true } & ApiPayphoneConfirmResult>(
     '/v1/payments/payphone/confirm',
     { apiKey: ctx.apiKey },
-    { method: 'POST', body: JSON.stringify({ id: payphoneId, clientTransactionId }) },
+    {
+      method: 'POST',
+      body: JSON.stringify({ id: payphoneId, clientTransactionId }),
+      headers: buildClientForwardingHeaders({}),
+    },
   );
 }
 
