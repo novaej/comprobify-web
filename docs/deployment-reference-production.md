@@ -116,6 +116,12 @@ The production droplet's reserved IP (`143.244.213.97`) has been added to the cl
 
 **Not independently re-verified by any session** — no DB credentials are available here to check live; this reflects what was done, on the repo owner's word, same as the other manual-dashboard checklist items.
 
+### Backups
+
+DigitalOcean Managed Database's own built-in automated backups — not SnapShooter, the separate DO product the Comprobify API repo relies on for its own backup layer (`../comprobify/docs/guides/database-backups.md`). DO's native backups restore at the **whole-cluster level only**, always into a **new** cluster from a backup/point in time — no selective per-database or in-place restore exists.
+
+**This has a real consequence from sharing the cluster with the Comprobify API's own production database (see above): a restore for either app's benefit rolls back both databases together to the same point in time.** There is no way to recover only comprobify-web's data independently of the API's, or vice versa. Make sure whoever owns the API's production data is aware of and accepts this before treating it as comprobify-web's actual disaster-recovery plan — see `docs/production-readiness-checklist.md` for the still-open item to actually test a restore before going live.
+
 ## GitHub Actions — Workflows
 
 | File | Trigger | Effect |
