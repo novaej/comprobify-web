@@ -1,28 +1,20 @@
 name: Release to Production
 
-# DISABLED — the production droplet and `production` branch do not exist yet. This
-# comment used to describe a Vercel-based deploy (Vercel's native Git integration
-# watching `production` and deploying automatically on push) — stale since this app
-# moved off Vercel/App Platform onto a DigitalOcean droplet. There is no
-# autodeploy-on-push anymore: `deploy-production.yml` (a separate workflow, currently
-# also disabled) is what actually builds and ships the image once this workflow's
-# fast-forward push lands, the same split staging already uses.
-#
 # Promotes a released tag to the `production` branch by fast-forwarding it to
-# the tag the release was published from.
+# the tag the release was published from. `deploy-production.yml` (a separate
+# workflow) is what actually builds and ships the image once this workflow's
+# fast-forward push lands, the same split staging already uses.
 #
 # A published GitHub Release (created from a tag already validated in staging)
 # means: "staging confirmed it, ship to production." Publishing the release is
 # the deliberate approval gate between staging and production.
 #
-# See docs/production-readiness-checklist.md for the full list of what's left. To
-# enable this specific workflow once production is provisioned:
-#   1. Create the `production` branch (see docs/deployment.md)
-#   2. Uncomment the `release:` trigger below
-#   3. Remove the `if: false` guard on the `promote` job
+# See docs/production-readiness-checklist.md for the full history of what was
+# needed to enable this (production branch/ruleset, GitHub Environment,
+# terraform apply, database setup) — all done as of 2026-09-14.
 on:
-  # release:
-  #   types: [published]
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
@@ -32,7 +24,6 @@ jobs:
   promote:
     runs-on: ubuntu-latest
     environment: production
-    if: false  # remove this line to re-enable
     steps:
       - uses: actions/checkout@v7
         with:

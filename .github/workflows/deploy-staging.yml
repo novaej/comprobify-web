@@ -1,5 +1,15 @@
 name: Deploy Staging
 
+# DISABLED — staging's droplet is destroyed (STAGING_INFRA_ENABLED=false, see
+# terraform.yml/terraform-digitalocean-setup.md's "Toggling staging infra on/off").
+# release-staging.yml keeps fast-forwarding the `staging` branch on every tag push
+# regardless - that's harmless, just git branch bookkeeping - but this workflow would
+# SSH to a DROPLET_IP that no longer resolves to anything, failing every single run
+# until the droplet exists again. Re-enable in the same cycle as flipping
+# STAGING_INFRA_ENABLED back to true and re-provisioning: uncomment the `push` trigger
+# below and remove the `if: false` guard on the `deploy` job. Mirrors the identical
+# pattern the comprobify API repo adopted once its own production went live.
+#
 # Builds the Next.js app into a Docker image and ships it to the staging droplet.
 # comprobify-web had no equivalent of this workflow before the App Platform -> droplet
 # migration - App Platform's own GitHub-source autodeploy watched the `staging` branch
@@ -7,14 +17,15 @@ name: Deploy Staging
 # Mirrors comprobify/.github/workflows/deploy-staging.yml's shape.
 
 on:
-  push:
-    branches: [staging]
+  # push:
+  #   branches: [staging]
   workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: staging
+    if: false  # remove this line to re-enable
     permissions:
       contents: read
       packages: write
