@@ -2,7 +2,7 @@
 
 Last updated: 2026-09-14
 
-**Droplet not yet provisioned; GitHub-side setup is done.** This is the target-configuration reference for production — mirrors `docs/deployment-reference-staging.md`'s structure, with production's own concrete values. The `production`/`production-infra` GitHub Environments now exist and are populated (14/14 documented Variables, 10/11 documented Secrets — only `DROPLET_IP` is missing, since that's `terraform apply`'s output and it hasn't run yet), and both carry a required-reviewer protection rule. The droplet itself, DNS records, and app deploy have not been applied. `docs/production-readiness-checklist.md` is the authoritative, actively-maintained tracker of exactly what's done versus still pending — don't infer status from this file, it's the configuration target, not a progress log. For the step-by-step guide on how this is set up (and *why*, in detail), see `docs/deployment.md` and `docs/terraform-digitalocean-setup.md`.
+**Droplet + DNS provisioned; app not yet deployed.** This is the target-configuration reference for production — mirrors `docs/deployment-reference-staging.md`'s structure, with production's own concrete values. `terraform apply` against `terraform/environments/production` ran for real (triggered automatically when PR #131 merged) — the droplet, reserved IP (`143.244.213.97`), firewall, and both Cloudflare A records all exist, live-verified (`dig comprobify.com`/`dig app.comprobify.com` both resolve through Cloudflare's proxy). The `production`/`production-infra` GitHub Environments exist and are fully populated (14/14 documented Variables, 11/11 documented Secrets, live-verified), both carrying a required-reviewer protection rule. **What's still missing: nothing has actually been deployed to the droplet yet** — `deploy-production.yml`/`release-production.yml` are both still behind their `if: false` guards, and the `production` branch doesn't exist. `docs/production-readiness-checklist.md` is the authoritative, actively-maintained tracker of exactly what's done versus still pending — don't infer status from this file, it's the configuration target, not a progress log. For the step-by-step guide on how this is set up (and *why*, in detail), see `docs/deployment.md` and `docs/terraform-digitalocean-setup.md`.
 
 ## Architecture
 
@@ -21,7 +21,7 @@ Identical shape to staging (see `docs/deployment-reference-staging.md`'s own Arc
 
 | Component | Platform | Service / Project name |
 |---|---|---|
-| Web app | DigitalOcean Droplet | `comprobify-web-production` (Terraform, `terraform/environments/production`, `s-1vcpu-1gb` to start) |
+| Web app | DigitalOcean Droplet | `comprobify-web-production` (Terraform, `terraform/environments/production`, `s-1vcpu-1gb`) — **provisioned and running**, reserved IP `143.244.213.97`; no app deployed to it yet |
 | Database | DigitalOcean Managed PostgreSQL | Dedicated production cluster — TBD, see "Architecture" above |
 | Error monitoring | Sentry | `comprobify-web` (org slug: `novaej`) — same project as staging, `environment: production` |
 | DNS | Cloudflare | Domain: `comprobify.com` — proxied |
@@ -33,7 +33,7 @@ Identical shape to staging (see `docs/deployment-reference-staging.md`'s own Arc
 
 | Setting | Value |
 |---|---|
-| Deployed by | `deploy-production.yml` on push to `production` — currently disabled (`if: false`, trigger commented out) |
+| Deployed by | `deploy-production.yml` on push to `production` — droplet exists and is running (see "Architecture" above), but the workflow itself is still disabled (`if: false`, trigger commented out) — nothing has been deployed to it yet |
 | Framework | Next.js 16, built into a Docker image (`Dockerfile`, repo root) — same image build as staging |
 | Build command (inside the image) | `npm run build:deploy` (`prisma generate && next build`) |
 | Run command (container `CMD`) | `npm run start:deploy` (`prisma migrate deploy && next start`) — migrations run here, at container startup |
@@ -110,11 +110,11 @@ Same tenant-isolation model as staging (application-layer, no PostgreSQL RLS, no
 | `DO_TOKEN` | Dedicated production token — never reuse staging's |
 | `CLOUDFLARE_TOKEN` | Dedicated production token — never reuse staging's |
 
-**`production` GitHub Environment secrets** (consumed only by `deploy-production.yml`) — **exists, populated, live-verified**: 10 of 11 documented Secrets present
+**`production` GitHub Environment secrets** (consumed only by `deploy-production.yml`) — **exists, fully populated, live-verified**: all 11 documented Secrets present
 
 | Secret | Value |
 |---|---|
-| `DROPLET_IP` | Terraform's `reserved_ip` output, once applied — **the one secret still missing**, since `terraform apply` hasn't run against `environments/production` yet |
+| `DROPLET_IP` | `143.244.213.97` — Terraform's `reserved_ip` output, set right after the real `terraform apply` completed |
 | `INFRA_SSH_PRIVATE_KEY` | Private half of `comprobify_web_deploy_production` — a **dedicated** key pair, generated and set |
 | `DATABASE_URL` | Set |
 | `AUTH_SECRET` | Set |
@@ -149,10 +149,10 @@ Same tenant-isolation model as staging (application-layer, no PostgreSQL RLS, no
 
 | Record | Type | Name | Target | Proxy |
 |---|---|---|---|---|
-| App | A | `app` | Production droplet's reserved IP (Terraform output, not hardcoded) | **On (proxied)** |
+| App | A | `app` | Production droplet's reserved IP (`143.244.213.97`, Terraform output) | **On (proxied)** |
 | Marketing | A | `@` (bare `comprobify.com`) | Production droplet's reserved IP (same target — one droplet/container serves both hosts) | **On (proxied)** |
 
-Both proxied through Cloudflare, matching the Comprobify API's own `api.comprobify.com` record.
+Both proxied through Cloudflare, matching the Comprobify API's own `api.comprobify.com` record — live-verified: `dig comprobify.com`/`dig app.comprobify.com` both resolve to Cloudflare's proxy IPs, not the droplet's own address directly.
 
 ## System dependencies
 
