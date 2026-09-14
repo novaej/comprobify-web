@@ -85,7 +85,7 @@ jobs:
       # their mutable version tags — see deploy-staging.yml's matching comment for why
       # (docs/security-audit-2026-09-12.md finding #4 in the comprobify API repo).
       - name: Copy compose files to droplet
-        uses: appleboy/scp-action@917f8b81dfc1ccd331fef9e2d61bdc6c8be94634 # v0.1.7
+        uses: appleboy/scp-action@ff85246acaad7bdce478db94a363cd2bf7c90345 # v1.0.0
         with:
           host: ${{ secrets.DROPLET_IP }}
           username: cpfywebdeploy4c7a
