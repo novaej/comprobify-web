@@ -37,6 +37,13 @@ jobs:
 
       - run: npm ci
 
+      # tsc --noEmit needs @prisma/client's generated types to exist first -
+      # without this, every Prisma-typed import resolves to `any`/"has no
+      # exported member", cascading into ~60 unrelated-looking errors across
+      # the codebase. `npm run build:deploy` runs this same step before
+      # `next build` for the identical reason - see Dockerfile.
+      - run: npx prisma generate
+
       - name: Type-check
         run: npm run type-check
 
