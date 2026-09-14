@@ -191,7 +191,7 @@ Current version as of this writing: **v0.9.16** (staging branch HEAD). Several f
 | All users redirected to `/login` in a loop | `AUTH_SECRET` missing or wrong — session JWTs can't be verified. |
 | Every request logs `[auth][error] UntrustedHost` | Auth.js rejects requests from hosts it doesn't recognize by default. Confirm `trustHost: true` is set on the `NextAuth()` config. |
 | 500 on login / registration | `DATABASE_URL` misconfigured, migration not applied, or the droplet's reserved IP isn't in the database's Trusted Sources yet — check `docker compose logs web` for the `start:deploy` step. |
-| Onboarding fails with a generic error, nothing in Sentry | Check `ENCRYPTION_KEY` — must be exactly 64 hex chars (`openssl rand -hex 32`, not `-base64`). |
+| Onboarding fails with a generic error, nothing in Sentry | Check `ENCRYPTION_KEY` — must be exactly 64 hex chars (`node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`, not base64). |
 | API calls return 401 after issuer setup | Provisioned API key invalid or revoked — re-run setup. |
 | Invoice status polling stuck | Proxy route can't reach Comprobify API — check `COMPROBIFY_API_URL`. |
 | Build fails with `Project not found` on source-map upload | `org` in `next.config.ts` → `withSentryConfig()` is the numeric DSN ID, not the org slug (`novaej`) — fix in Settings → General Settings. |

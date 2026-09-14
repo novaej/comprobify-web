@@ -51,9 +51,9 @@ Everything will live in the `production` GitHub Environment, as either a Secret 
 | `DATABASE_SSL` | Variable | `true` |
 | `DATABASE_SSL_CA` | Secret | |
 | `COMPROBIFY_API_URL` | Variable | `https://api.comprobify.com` |
-| `AUTH_SECRET` | Secret | **Freshly generated** — never reuse staging's value (`openssl rand -hex 32`) |
-| `ENCRYPTION_KEY` | Secret | **Freshly generated** — never reuse staging's value (`openssl rand -hex 32`) |
-| `CONTEXT_COOKIE_SECRET` | Secret | **Freshly generated** — never reuse staging's value (`openssl rand -hex 32`) |
+| `AUTH_SECRET` | Secret | **Freshly generated** — never reuse staging's value (`node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`) |
+| `ENCRYPTION_KEY` | Secret | **Freshly generated** — never reuse staging's value (`node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`) |
+| `CONTEXT_COOKIE_SECRET` | Secret | **Freshly generated** — never reuse staging's value (`node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`) |
 | `NEXT_PUBLIC_APP_URL` | Variable | `https://app.comprobify.com` |
 | `NEXT_PUBLIC_MARKETING_URL` | Variable | `https://comprobify.com` |
 | `PUBLIC_DOMAIN_PRIMARY` | Variable | `comprobify.com` — bare hostname, consumed only by `caddy`'s Caddyfile |
