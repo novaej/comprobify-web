@@ -9,7 +9,7 @@ Last updated: 2026-09-14
 Identical shape to staging (see `docs/deployment-reference-staging.md`'s own Architecture section and `docs/architecture-production.drawio`), with these differences:
 
 - **DigitalOcean Droplet** — `comprobify-web-production`, its own dedicated resource, not sharing anything with staging's droplet.
-- **DigitalOcean Managed PostgreSQL** — a **dedicated production cluster**, separate from staging's shared Basic-plan cluster. Exact plan/topology (whether it's shared with the Comprobify API's own production database the way staging shares one, or fully independent) is not yet decided — see `docs/production-readiness-checklist.md`. Whatever the final shape, the same `?connection_limit=N` discipline documented in `docs/deployment.md`'s "DATABASE_URL connection budget on a shared cluster" section applies if the cluster ends up shared with anything else.
+- **DigitalOcean Managed PostgreSQL** — shares the same cluster as the Comprobify API's own **production** database (separate cluster from the staging one, which shares with the API's staging database instead — same shared-per-environment pattern, just the production instance of it). See "Database setup" below for the actual provisioning procedure. The same `?connection_limit=N` discipline documented in `docs/deployment.md`'s "DATABASE_URL connection budget on a shared cluster" section applies here too.
 - **Comprobify API (production)** — `api.comprobify.com`, **already live** (the API repo's own production went live first; see `../comprobify/docs/production-readiness-checklist.md`). This app's production launch must coordinate `INTERNAL_SERVICE_SECRET` with the API's already-live production value — see "Coordination with the Comprobify API repo" below.
 - **Cloudflare** — `comprobify.com` / `app.comprobify.com`, both proxied A records pointing at the production droplet's own reserved IP (distinct from staging's).
 - **Sentry** — same project as staging (`comprobify-web`, org `novaej`), environment tagged `production` via `APP_ENV`/`NEXT_PUBLIC_APP_ENV`.
@@ -22,7 +22,7 @@ Identical shape to staging (see `docs/deployment-reference-staging.md`'s own Arc
 | Component | Platform | Service / Project name |
 |---|---|---|
 | Web app | DigitalOcean Droplet | `comprobify-web-production` (Terraform, `terraform/environments/production`, `s-1vcpu-1gb`) — **provisioned and running**, reserved IP `143.244.213.97`; no app deployed to it yet |
-| Database | DigitalOcean Managed PostgreSQL | Dedicated production cluster — TBD, see "Architecture" above |
+| Database | DigitalOcean Managed PostgreSQL | Shared with the Comprobify API's own production database cluster, see "Database setup" below |
 | Error monitoring | Sentry | `comprobify-web` (org slug: `novaej`) — same project as staging, `environment: production` |
 | DNS | Cloudflare | Domain: `comprobify.com` — proxied |
 | Upstream API | DigitalOcean Droplet | `comprobify-production` — already live, see the `comprobify` repo's own `docs/deployment-reference-production.md` |
@@ -89,7 +89,32 @@ Plus two infra-only Secrets with no runtime `.env` entry — `DROPLET_IP` (the T
 
 Same tenant-isolation model as staging (application-layer, no PostgreSQL RLS, no separate schemas — see `docs/deployment-reference-staging.md`'s "Database setup" section). Migrations apply the same way, via `prisma migrate deploy` at container startup.
 
-**Not yet decided:** whether production's database is its own dedicated DigitalOcean Managed Postgres cluster, shares a cluster with the Comprobify API's own production database, or uses a different provider entirely. Whichever it is, the droplet's reserved IP must be added to that cluster's Trusted Sources before any query will succeed — same manual step staging requires.
+**Decided: shares the same DigitalOcean Managed Postgres cluster as the Comprobify API's own production database** — same pattern staging already uses (see `docs/deployment-reference-staging.md`'s own "Database setup" section), not a dedicated cluster or a different provider. This is the exact scenario the Comprobify API repo's own `docs/deployment-reference-production.md` flagged in advance, in its "Database setup" section: *"If this cluster ends up shared with comprobify-web's own production database, confirm with whoever owns that project's schema/role plan before changing grants — a change intended for comprobify's `public`/`sandbox` schemas should not accidentally widen or narrow access to whatever schema(s) comprobify-web uses on the same cluster."*
+
+**Provisioning done, mirroring the API's own tested runbook, adapted for this app's simpler schema (no `sandbox`-equivalent second schema — everything lives in `public`).** DigitalOcean Managed Postgres's "Users & Databases" dashboard tab creates a new database and role but does **not** grant that role `CREATE`/`USAGE` on the new database's `public` schema (PostgreSQL 15+ no longer grants that by default — only the database owner has it) — without the grant step below, `prisma migrate deploy` fails on the very first deploy. **Postgres roles are cluster-wide, not per-database**, so the production role's name had to be distinct from whatever staging's role is already called in this same cluster — collision was avoided by choosing a different name up front.
+
+1. DO Dashboard → the cluster → **Users & Databases** tab: added a new database and a new user/role, both with names distinct from staging's.
+2. Connected as **`doadmin`**, explicitly to the real new database (never `defaultdb` — DigitalOcean always provisions a database literally named that alongside any custom one, so an unsubstituted `\c defaultdb` silently succeeds against the wrong database instead of erroring):
+   ```sql
+   \c <the real production database name>
+
+   GRANT ALL PRIVILEGES ON DATABASE <database name> TO <role name>;
+   GRANT ALL ON SCHEMA public TO <role name>;
+   ALTER DEFAULT PRIVILEGES GRANT ALL ON TABLES TO <role name>;
+   ALTER DEFAULT PRIVILEGES GRANT ALL ON SEQUENCES TO <role name>;
+   ```
+3. Verified in a **separate, fresh query execution** — not the same one the grants ran in, since a GUI SQL client with auto-commit off can show `true` against your own uncommitted transaction, indistinguishable from a durable change until the session ends and it silently rolls back:
+   ```sql
+   SELECT current_database(); -- confirms the real database, not defaultdb
+   SELECT has_schema_privilege('<role name>', 'public', 'USAGE')  AS has_usage,
+          has_schema_privilege('<role name>', 'public', 'CREATE') AS has_create;
+   -- both true
+   ```
+4. `DATABASE_URL` (the `production` GitHub Environment secret) points at this database using this role's credentials.
+
+The production droplet's reserved IP (`143.244.213.97`) has been added to the cluster's Trusted Sources — same manual, non-Terraform-managed step staging requires.
+
+**Not independently re-verified by any session** — no DB credentials are available here to check live; this reflects what was done, on the repo owner's word, same as the other manual-dashboard checklist items.
 
 ## GitHub Actions — Workflows
 
