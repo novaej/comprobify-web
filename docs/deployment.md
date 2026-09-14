@@ -152,7 +152,7 @@ Redirects are permanent (301). Localhost and unknown hosts bypass hostname routi
 
 **Staging:** fully Terraform-managed (see "Terraform-managed infrastructure" below) — `terraform/modules/droplet/main.tf` creates two Cloudflare **A** records, `staging.comprobify.com` and `app-staging.comprobify.com`, both pointing at the droplet's reserved IP and both **proxied through Cloudflare** (`proxied = true`) — unlike the old App Platform setup, a droplet has no cert-verification conflict with Cloudflare's proxy, so these domains get the full WAF/DDoS/bot layer, matching the Comprobify API's own `api-staging.comprobify.com`. Nothing to do by hand. No extra env vars are required either way — the proxy reads the `host` header at runtime.
 
-**Production custom domain setup** *(no `terraform/environments/production` exists yet; once it is provisioned, this is fully Terraform-managed the same way staging is — see `docs/terraform-digitalocean-setup.md`)*: provisioning `environments/production` with the same `droplet` module (own droplet, own reserved IP, own `domain_primary`/`domain_alias` = `comprobify.com`/`app.comprobify.com`) creates both proxied A records automatically — no manual DNS console step, unlike the App Platform era's domain-verification dance.
+**Production custom domain setup** *(`terraform/environments/production` exists and is written, but has never been `terraform apply`'d — see `docs/production-readiness-checklist.md`)*: the same `droplet` module (own droplet, own reserved IP, own `domain_primary`/`domain_alias` = `comprobify.com`/`app.comprobify.com`) will create both proxied A records automatically once applied — no manual DNS console step, unlike the App Platform era's domain-verification dance.
 
 ---
 
@@ -206,6 +206,8 @@ The staging droplet itself — its `digitalocean_droplet`/`digitalocean_reserved
 **State backend:** unchanged by the droplet migration — the same `comprobify-terraform-state` DigitalOcean Spaces bucket the API repo uses, under key `staging/comprobify-web/terraform.tfstate` (production: `production/comprobify-web/terraform.tfstate`; the API repo uses `staging/comprobify/...` and `production/comprobify/...`).
 
 **Manual runs:** `workflow_dispatch` on `terraform.yml` supports both `apply` (re-run the normal reconciliation on demand, e.g. after changing `terraform.tfvars`) and `destroy` (tear everything down through the same audited pipeline, rather than deleting resources by hand in the DO/Cloudflare consoles) — both run against every job pair, since there's no per-environment `action` input. `destroy` is only ever reachable via this explicit manual dispatch, never the automatic post-release trigger.
+
+**`plan-staging`/`apply-staging` are gated behind the `STAGING_INFRA_ENABLED` repository variable** (mirrors the comprobify API repo's own toggle) — off by default, since that variable doesn't exist yet, which stops CI from automatically reconciling staging's infra on every `terraform/**`-touching push without affecting the currently-running staging droplet or `deploy-staging.yml`'s own app-deploy pipeline at all. `plan-production`/`apply-production` carry no such gate. See `docs/terraform-digitalocean-setup.md`'s "Toggling staging infra on/off" section for the full mechanics.
 
 ### Production status
 

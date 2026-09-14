@@ -57,6 +57,15 @@ name: Terraform
 # plan-production safely (bad/absent credentials, or a lookup that finds nothing) - it
 # cannot touch real infra, since apply-production only runs if plan-production succeeds -
 # but it's a red check either way, so set both up first.
+#
+# plan-staging/apply-staging are gated on the STAGING_INFRA_ENABLED repository variable
+# (mirrors the API repo's own terraform.yml exactly), off by default since no such
+# variable exists yet - this stops CI from reconciling terraform/environments/staging
+# automatically, it does NOT touch the staging droplet that's currently running; that
+# keeps existing until someone actually runs a destroy. plan-production/apply-production
+# are deliberately never gated this way, same as the API repo. Set
+# STAGING_INFRA_ENABLED=true (Settings -> Secrets and variables -> Actions -> Variables)
+# to re-enable staging's own infra pipeline when a real change needs to land there.
 
 on:
   push:
@@ -72,6 +81,7 @@ on:
 
 jobs:
   plan-staging:
+    if: vars.STAGING_INFRA_ENABLED == 'true'
     runs-on: ubuntu-latest
     environment: staging-infra
     steps:
@@ -102,6 +112,12 @@ jobs:
 
   apply-staging:
     needs: plan-staging
+    # This job always runs once plan-staging succeeds - unlike the API repo's own
+    # terraform.yml, this workflow's workflow_dispatch has no 'plan'-only dry-run choice
+    # (options: [apply, destroy] here, vs. [plan, apply, destroy] there), so there's no
+    # third case to skip apply for. ANDed with STAGING_INFRA_ENABLED so a manual
+    # destroy/apply run still no-ops while staging's infra pipeline is disabled.
+    if: vars.STAGING_INFRA_ENABLED == 'true'
     environment: staging-infra
     runs-on: ubuntu-latest
     steps:

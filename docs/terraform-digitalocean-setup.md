@@ -360,32 +360,48 @@ Two workflows, gated by path/branch so neither triggers the other.
 
 **Trigger: push to `main` touching `terraform/**`, or manual `workflow_dispatch`.** `terraform apply` is idempotent — it diffs the `.tf`/`.tftpl` files against the last-applied state and only touches what actually changed; a push that doesn't alter any resource's configuration produces a "no changes" plan.
 
-**One real exception: a few resource attributes are Terraform "ForceNew,"** meaning a change destroys and recreates the droplet instead of updating it in place — `user_data` (the cloud-init script) and the SSH key's `public_key`. Thanks to the Reserved IP, this doesn't change the public address the droplet is reachable at, so `DROPLET_IP` and DNS stay untouched across the replacement — but the app still needs redeploying afterward (`deploy-staging.yml`), since the new droplet has Docker installed but nothing running yet.
+**One real exception: a few resource attributes are Terraform "ForceNew,"** meaning a change destroys and recreates the droplet instead of updating it in place — `user_data` (the cloud-init script) and the SSH key's `public_key`. Thanks to the Reserved IP, this doesn't change the public address the droplet is reachable at, so `DROPLET_IP` and DNS stay untouched across the replacement — but the app still needs redeploying afterward (`deploy-staging.yml`/`deploy-production.yml`), since the new droplet has Docker installed but nothing running yet.
+
+**One workflow, two job pairs — `plan-staging`/`apply-staging` and `plan-production`/`apply-production`** — sharing the same trigger, mirroring the comprobify API repo's own `terraform.yml` exactly:
 
 ```yaml
-env:
-  TF_VAR_do_token: ${{ secrets.DO_TOKEN }}
-  TF_VAR_cloudflare_token: ${{ secrets.CLOUDFLARE_TOKEN }}
-  AWS_ACCESS_KEY_ID: ${{ secrets.TERRAFORM_SPACES_ACCESS_KEY_ID }}
-  AWS_SECRET_ACCESS_KEY: ${{ secrets.TERRAFORM_SPACES_SECRET_ACCESS_KEY }}
-
 jobs:
-  plan:
+  plan-staging:
+    if: vars.STAGING_INFRA_ENABLED == 'true'
     environment: staging-infra
     steps: [checkout, setup-terraform, init, plan (or plan -destroy)]
-  apply:
-    needs: plan
+  apply-staging:
+    needs: plan-staging
+    if: vars.STAGING_INFRA_ENABLED == 'true'
     environment: staging-infra
+    steps: [checkout, setup-terraform, init, apply -auto-approve (or destroy -auto-approve)]
+
+  plan-production:
+    environment: production-infra
+    steps: [checkout, setup-terraform, init, plan (or plan -destroy)]
+  apply-production:
+    needs: plan-production
+    environment: production-infra
     steps: [checkout, setup-terraform, init, apply -auto-approve (or destroy -auto-approve)]
 ```
 
-**`DO_TOKEN`/`CLOUDFLARE_TOKEN` live in a dedicated `staging-infra` GitHub Environment — deliberately separate from `staging`** (which `deploy-staging.yml` uses for app secrets, `DROPLET_IP`, and `INFRA_SSH_PRIVATE_KEY`). This is the actual credential/blast-radius boundary between infra and app deploys: a required-reviewer protection rule can be added to `staging-infra` alone to gate infra changes specifically, without also gating every app deploy through `staging`.
+Each job's own `TF_VAR_do_token`/`TF_VAR_cloudflare_token`/`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` are set per-step, not in a shared top-level `env:` block, so each job pair only ever resolves its own `<env>-infra` Environment's secret value under that name.
 
-**Both `plan` and `apply` declare `environment: staging-infra`, not just `apply`.** GitHub only grants a job access to an Environment's secrets — and only applies that Environment's protection rules — to jobs that declare it. Declaring it on both means a required-reviewer rule added to `staging-infra` gates `plan` as well as `apply`: you'd approve before seeing the plan's diff, not after reading it. Deliberate trade-off for staying consistent with `deploy-staging.yml`'s single-Environment-per-workflow shape, rather than introducing a second, plan-only Environment just to keep `plan` ungated.
+**`DO_TOKEN`/`CLOUDFLARE_TOKEN` live in each environment's own `<env>-infra` GitHub Environment — deliberately separate from `staging`/`production`** (which `deploy-staging.yml`/`deploy-production.yml` use for app secrets, `DROPLET_IP`, and `INFRA_SSH_PRIVATE_KEY`). This is the actual credential/blast-radius boundary between infra and app deploys: a required-reviewer protection rule can be added to either `<env>-infra` Environment alone to gate that environment's infra changes specifically, without also gating the other environment's infra or either environment's app deploys.
 
-**`TERRAFORM_SPACES_ACCESS_KEY_ID`/`TERRAFORM_SPACES_SECRET_ACCESS_KEY` are repository secrets, not Environment secrets** — there's only one correct value, and every job needs it regardless of which Environment (`staging-infra` today, `production-infra` later) it declares.
+**Both `plan` and `apply` declare the same `<env>-infra` Environment, not just `apply`.** GitHub only grants a job access to an Environment's secrets — and only applies that Environment's protection rules — to jobs that declare it. Declaring it on both means a required-reviewer rule added to `staging-infra`/`production-infra` gates `plan` as well as `apply`: you'd approve before seeing the plan's diff, not after reading it. Deliberate trade-off for staying consistent with `deploy-staging.yml`'s single-Environment-per-workflow shape, rather than introducing a second, plan-only Environment just to keep `plan` ungated.
 
-**Manual `workflow_dispatch` supports both `apply` (default) and `destroy`**, so a teardown or an ad-hoc apply outside the normal push trigger can run through this same audited pipeline instead of requiring local Terraform CLI access. `destroy` is only ever reachable via explicit manual dispatch, never the automatic push trigger.
+**`TERRAFORM_SPACES_ACCESS_KEY_ID`/`TERRAFORM_SPACES_SECRET_ACCESS_KEY` are repository secrets, not Environment secrets** — there's only one correct value, and every job needs it regardless of which Environment (`staging-infra`/`production-infra`) it declares.
+
+**Manual `workflow_dispatch` supports both `apply` (default) and `destroy`**, so a teardown or an ad-hoc apply outside the normal push trigger can run through this same audited pipeline instead of requiring local Terraform CLI access. `destroy` is only ever reachable via explicit manual dispatch, never the automatic push trigger, and applies to both environments' job pairs identically — there's no per-environment `action` input.
+
+### Toggling staging infra on/off — `STAGING_INFRA_ENABLED`
+
+`plan-staging`/`apply-staging` are gated on `if: vars.STAGING_INFRA_ENABLED == 'true'` — a plain **repository variable** (Settings → Secrets and variables → Actions → Variables tab, not Environment-scoped, since a job's own `if:` is evaluated before its `environment:` context resolves), not a code change, so flipping it needs no PR. `plan-production`/`apply-production` carry no such gate — production always applies. This mirrors the comprobify API repo's own `terraform.yml` toggle exactly.
+
+**As of this writing, `STAGING_INFRA_ENABLED` doesn't exist as a repository variable, so `plan-staging`/`apply-staging` are off by default.** This stops CI from automatically reconciling `terraform/environments/staging` on every `terraform/**`-touching push to `main` — it does **not** destroy or otherwise affect the staging droplet that's currently running. `deploy-staging.yml` (the separate app-deploy pipeline) has no dependency on this variable and keeps shipping tag releases to staging normally. To make a real infra change to staging: set `STAGING_INFRA_ENABLED=true`, let the change land (or `workflow_dispatch` the workflow manually), then decide whether to flip it back off.
+
+**This is a different decision from actually destroying staging's droplet between uses**, which is what the API repo does once its production carries real traffic (its own staging droplet and DB get torn down by hand, recreated only when a change needs validating there — see `comprobify/docs/terraform-digitalocean-setup.md`'s own "Toggling staging infra on/off" section for that full cycle). This repo has only adopted the on/off switch itself, not that destroy-between-uses policy — see `docs/production-readiness-checklist.md`'s "Staging lifecycle once production is live" section for the current state of that separate decision.
 
 ### App deploy workflow — `.github/workflows/deploy-staging.yml`
 
