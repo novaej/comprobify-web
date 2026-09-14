@@ -1,0 +1,52 @@
+name: CI
+
+# Runs a build-correctness and dependency-audit gate on every PR and push to main.
+# Mirrors the comprobify API repo's own ci.yml (added per its
+# docs/security-audit-2026-09-12.md finding #6) adapted to what this repo actually
+# has: no test runner is configured here (package.json has no `test` script, no
+# Jest/Vitest, no tests/ directory — see docs/guides/encryption-key-rotation.md's
+# note on the same gap for scripts/rotate-encryption-key.js) — `tsc --noEmit` is the
+# closest available correctness gate, so that's what runs instead of a unit suite.
+#
+# npm audit is deliberately NOT --audit-level=high blocking yet, unlike the API
+# repo's equivalent. A real run against this repo's production dependencies (see
+# docs/production-readiness-checklist.md) found active HIGH/CRITICAL findings,
+# including next/next-auth/@auth/core themselves — not just a dev-only build
+# toolchain the way the API repo's 3 findings were. Making this block immediately
+# would red-X every PR for a backlog nobody has triaged yet. Flip
+# `continue-on-error` to false (or add --audit-level=high back as a hard failure)
+# once that backlog is reviewed and either fixed or explicitly accepted — see
+# docs/production-readiness-checklist.md.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    name: Type-check and audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # tsc --noEmit needs @prisma/client's generated types to exist first -
+      # without this, every Prisma-typed import resolves to `any`/"has no
+      # exported member", cascading into ~60 unrelated-looking errors across
+      # the codebase. `npm run build:deploy` runs this same step before
+      # `next build` for the identical reason - see Dockerfile.
+      - run: npx prisma generate
+
+      - name: Type-check
+        run: npm run type-check
+
+      - name: Audit production dependencies
+        continue-on-error: true
+        run: npm audit --omit=dev --audit-level=high

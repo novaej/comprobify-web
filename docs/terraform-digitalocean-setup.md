@@ -4,7 +4,7 @@ Reference for how this app's DigitalOcean compute layer is provisioned and deplo
 
 This repo's setup mirrors the `comprobify` (API) repo's own `docs/terraform-digitalocean-setup.md` closely — if you've read that one, most of it applies here directly. This doc calls out only what differs.
 
-**What lives on DigitalOcean, managed by this repo's Terraform:** one droplet (`comprobify-web-staging`), its reserved IP, its firewall, and its two Cloudflare DNS records.
+**What lives on DigitalOcean, managed by this repo's Terraform:** one droplet per environment (`comprobify-web-staging`, live; `comprobify-web-production`, written but never applied — see "What's intentionally still manual" below), each with its own reserved IP, firewall, and two Cloudflare DNS records.
 
 **What doesn't:** the Postgres database (DigitalOcean Managed Database, a Basic-plan cluster **shared with the Comprobify API** — provisioned and managed outside this repo's Terraform entirely, see `docs/deployment.md`'s "Database setup" section), Sentry, Mailgun, and the Comprobify API's own droplet (`comprobify/terraform`). All are grouped into the same `Comprobify Staging` DO Project as this app purely for dashboard purposes — see "DO Projects" below.
 
@@ -86,15 +86,21 @@ terraform/
 │       ├── outputs.tf
 │       └── cloud-init.yaml.tftpl
 ├── environments/
-│   └── staging/
-│       ├── main.tf                 # calls the droplet module with staging's variables
-│       ├── backend.tf              # staging's own remote state target
+│   ├── staging/
+│   │   ├── main.tf                 # calls the droplet module with staging's variables
+│   │   ├── backend.tf              # staging's own remote state target
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   └── terraform.tfvars        # non-secret values only
+│   └── production/                 # same shape as staging/ — see "What's intentionally still manual" below
+│       ├── main.tf
+│       ├── backend.tf
 │       ├── variables.tf
 │       ├── outputs.tf
-│       └── terraform.tfvars        # non-secret values only
+│       └── terraform.tfvars        # ssh_public_key is still a REPLACE_ME placeholder until the first apply
 ```
 
-`environments/production` doesn't exist yet — see "What's intentionally still manual" below.
+`environments/production` exists in the repo (mirrors `environments/staging` exactly, own state key, own domains/deploy user) but has never been `terraform apply`'d — no droplet, DNS record, or GitHub Environment exists for it yet. See "What's intentionally still manual" below and `docs/production-readiness-checklist.md` for the current status.
 
 ---
 
@@ -342,7 +348,7 @@ See `docs/deployment.md`'s "Environment variables" section for what each one doe
 13. Run the app deploy workflow once (push to `staging`, or `workflow_dispatch` on `deploy-staging.yml`) — it pushes the compose files, writes `.env`, and starts the containers.
 14. Verify: both domains resolve through Cloudflare (proxied); HTTPS works with a browser-trusted cert; `/api/health` responds; log in and load `/dashboard` (proves Trusted Sources was set up correctly).
 
-Repeating this for `environments/production` means: a new environment directory, a **separate** SSH key pair (see "SSH access model" above), its own `production-infra` GitHub Environment (`DO_TOKEN`/`CLOUDFLARE_TOKEN`) and `production` GitHub Environment (app secrets, `DROPLET_IP`, `INFRA_SSH_PRIVATE_KEY`) — never reused from staging's — and its own droplet.
+The same steps against `environments/production` (the directory already exists — see "Repo layout" above) provision production: replace the `REPLACE_WITH_PRODUCTION_SSH_PUBLIC_KEY` placeholder in its `terraform.tfvars` with a **separate** SSH key pair's public half (see "SSH access model" above), create its own `production-infra` GitHub Environment (`DO_TOKEN`/`CLOUDFLARE_TOKEN`) and `production` GitHub Environment (app secrets, `DROPLET_IP`, `INFRA_SSH_PRIVATE_KEY`) — never reused from staging's — then run `terraform apply` and `deploy-production.yml` (uncommenting its guards first, see `docs/production-readiness-checklist.md`) the same way.
 
 ---
 
@@ -354,32 +360,48 @@ Two workflows, gated by path/branch so neither triggers the other.
 
 **Trigger: push to `main` touching `terraform/**`, or manual `workflow_dispatch`.** `terraform apply` is idempotent — it diffs the `.tf`/`.tftpl` files against the last-applied state and only touches what actually changed; a push that doesn't alter any resource's configuration produces a "no changes" plan.
 
-**One real exception: a few resource attributes are Terraform "ForceNew,"** meaning a change destroys and recreates the droplet instead of updating it in place — `user_data` (the cloud-init script) and the SSH key's `public_key`. Thanks to the Reserved IP, this doesn't change the public address the droplet is reachable at, so `DROPLET_IP` and DNS stay untouched across the replacement — but the app still needs redeploying afterward (`deploy-staging.yml`), since the new droplet has Docker installed but nothing running yet.
+**One real exception: a few resource attributes are Terraform "ForceNew,"** meaning a change destroys and recreates the droplet instead of updating it in place — `user_data` (the cloud-init script) and the SSH key's `public_key`. Thanks to the Reserved IP, this doesn't change the public address the droplet is reachable at, so `DROPLET_IP` and DNS stay untouched across the replacement — but the app still needs redeploying afterward (`deploy-staging.yml`/`deploy-production.yml`), since the new droplet has Docker installed but nothing running yet.
+
+**One workflow, two job pairs — `plan-staging`/`apply-staging` and `plan-production`/`apply-production`** — sharing the same trigger, mirroring the comprobify API repo's own `terraform.yml` exactly:
 
 ```yaml
-env:
-  TF_VAR_do_token: ${{ secrets.DO_TOKEN }}
-  TF_VAR_cloudflare_token: ${{ secrets.CLOUDFLARE_TOKEN }}
-  AWS_ACCESS_KEY_ID: ${{ secrets.TERRAFORM_SPACES_ACCESS_KEY_ID }}
-  AWS_SECRET_ACCESS_KEY: ${{ secrets.TERRAFORM_SPACES_SECRET_ACCESS_KEY }}
-
 jobs:
-  plan:
+  plan-staging:
+    if: vars.STAGING_INFRA_ENABLED == 'true'
     environment: staging-infra
     steps: [checkout, setup-terraform, init, plan (or plan -destroy)]
-  apply:
-    needs: plan
+  apply-staging:
+    needs: plan-staging
+    if: vars.STAGING_INFRA_ENABLED == 'true'
     environment: staging-infra
+    steps: [checkout, setup-terraform, init, apply -auto-approve (or destroy -auto-approve)]
+
+  plan-production:
+    environment: production-infra
+    steps: [checkout, setup-terraform, init, plan (or plan -destroy)]
+  apply-production:
+    needs: plan-production
+    environment: production-infra
     steps: [checkout, setup-terraform, init, apply -auto-approve (or destroy -auto-approve)]
 ```
 
-**`DO_TOKEN`/`CLOUDFLARE_TOKEN` live in a dedicated `staging-infra` GitHub Environment — deliberately separate from `staging`** (which `deploy-staging.yml` uses for app secrets, `DROPLET_IP`, and `INFRA_SSH_PRIVATE_KEY`). This is the actual credential/blast-radius boundary between infra and app deploys: a required-reviewer protection rule can be added to `staging-infra` alone to gate infra changes specifically, without also gating every app deploy through `staging`.
+Each job's own `TF_VAR_do_token`/`TF_VAR_cloudflare_token`/`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` are set per-step, not in a shared top-level `env:` block, so each job pair only ever resolves its own `<env>-infra` Environment's secret value under that name.
 
-**Both `plan` and `apply` declare `environment: staging-infra`, not just `apply`.** GitHub only grants a job access to an Environment's secrets — and only applies that Environment's protection rules — to jobs that declare it. Declaring it on both means a required-reviewer rule added to `staging-infra` gates `plan` as well as `apply`: you'd approve before seeing the plan's diff, not after reading it. Deliberate trade-off for staying consistent with `deploy-staging.yml`'s single-Environment-per-workflow shape, rather than introducing a second, plan-only Environment just to keep `plan` ungated.
+**`DO_TOKEN`/`CLOUDFLARE_TOKEN` live in each environment's own `<env>-infra` GitHub Environment — deliberately separate from `staging`/`production`** (which `deploy-staging.yml`/`deploy-production.yml` use for app secrets, `DROPLET_IP`, and `INFRA_SSH_PRIVATE_KEY`). This is the actual credential/blast-radius boundary between infra and app deploys: a required-reviewer protection rule can be added to either `<env>-infra` Environment alone to gate that environment's infra changes specifically, without also gating the other environment's infra or either environment's app deploys.
 
-**`TERRAFORM_SPACES_ACCESS_KEY_ID`/`TERRAFORM_SPACES_SECRET_ACCESS_KEY` are repository secrets, not Environment secrets** — there's only one correct value, and every job needs it regardless of which Environment (`staging-infra` today, `production-infra` later) it declares.
+**Both `plan` and `apply` declare the same `<env>-infra` Environment, not just `apply`.** GitHub only grants a job access to an Environment's secrets — and only applies that Environment's protection rules — to jobs that declare it. Declaring it on both means a required-reviewer rule added to `staging-infra`/`production-infra` gates `plan` as well as `apply`: you'd approve before seeing the plan's diff, not after reading it. Deliberate trade-off for staying consistent with `deploy-staging.yml`'s single-Environment-per-workflow shape, rather than introducing a second, plan-only Environment just to keep `plan` ungated.
 
-**Manual `workflow_dispatch` supports both `apply` (default) and `destroy`**, so a teardown or an ad-hoc apply outside the normal push trigger can run through this same audited pipeline instead of requiring local Terraform CLI access. `destroy` is only ever reachable via explicit manual dispatch, never the automatic push trigger.
+**`TERRAFORM_SPACES_ACCESS_KEY_ID`/`TERRAFORM_SPACES_SECRET_ACCESS_KEY` are repository secrets, not Environment secrets** — there's only one correct value, and every job needs it regardless of which Environment (`staging-infra`/`production-infra`) it declares.
+
+**Manual `workflow_dispatch` supports both `apply` (default) and `destroy`**, so a teardown or an ad-hoc apply outside the normal push trigger can run through this same audited pipeline instead of requiring local Terraform CLI access. `destroy` is only ever reachable via explicit manual dispatch, never the automatic push trigger, and applies to both environments' job pairs identically — there's no per-environment `action` input.
+
+### Toggling staging infra on/off — `STAGING_INFRA_ENABLED`
+
+`plan-staging`/`apply-staging` are gated on `if: vars.STAGING_INFRA_ENABLED == 'true'` — a plain **repository variable** (Settings → Secrets and variables → Actions → Variables tab, not Environment-scoped, since a job's own `if:` is evaluated before its `environment:` context resolves), not a code change, so flipping it needs no PR. `plan-production`/`apply-production` carry no such gate — production always applies. This mirrors the comprobify API repo's own `terraform.yml` toggle exactly.
+
+**As of this writing, `STAGING_INFRA_ENABLED` doesn't exist as a repository variable, so `plan-staging`/`apply-staging` are off by default.** This stops CI from automatically reconciling `terraform/environments/staging` on every `terraform/**`-touching push to `main` — it does **not** destroy or otherwise affect the staging droplet that's currently running. `deploy-staging.yml` (the separate app-deploy pipeline) has no dependency on this variable and keeps shipping tag releases to staging normally. To make a real infra change to staging: set `STAGING_INFRA_ENABLED=true`, let the change land (or `workflow_dispatch` the workflow manually), then decide whether to flip it back off.
+
+**This is a different decision from actually destroying staging's droplet between uses**, which is what the API repo does once its production carries real traffic (its own staging droplet and DB get torn down by hand, recreated only when a change needs validating there — see `comprobify/docs/terraform-digitalocean-setup.md`'s own "Toggling staging infra on/off" section for that full cycle). This repo has only adopted the on/off switch itself, not that destroy-between-uses policy — see `docs/production-readiness-checklist.md`'s "Staging lifecycle once production is live" section for the current state of that separate decision.
 
 ### App deploy workflow — `.github/workflows/deploy-staging.yml`
 
@@ -403,4 +425,4 @@ Same operations as the API repo's droplet — destroy/recreate, resize, SSH key 
 - The Managed PostgreSQL database and the Comprobify API's own droplet — both provisioned and managed by infrastructure outside this repo's Terraform entirely.
 - Adding the droplet's reserved IP to the database's Trusted Sources — a manual DO dashboard step for both this repo and the API repo today.
 - `ENCRYPTION_KEY` rotation's data re-encryption step — no script or documented procedure exists yet.
-- **Production** — `terraform/environments/production` doesn't exist yet. Provisioning it means a new environment directory (own `backend.tf` state key, own `terraform.tfvars`), a **separate, dedicated** SSH key pair (see "SSH access model" above — do not reuse staging's), a `production-infra` GitHub Environment (`DO_TOKEN`/`CLOUDFLARE_TOKEN`) and a `production` GitHub Environment (app secrets, `DROPLET_IP`, `INFRA_SSH_PRIVATE_KEY`) — never reused from staging's — and `.github/workflows/deploy-production.yml`.
+- **Production** — the code scaffolding exists (`terraform/environments/production`, the `plan-production`/`apply-production` job pair in `terraform.yml`, `.github/workflows/deploy-production.yml`), but nothing has actually been provisioned: `terraform.tfvars`'s `ssh_public_key` is still a placeholder, no `production-infra` or `production` GitHub Environment exists, and `terraform apply` has never run against this directory. See `docs/production-readiness-checklist.md` for the exact remaining steps — generate a **separate, dedicated** SSH key pair (see "SSH access model" above — do not reuse staging's), create the `production-infra` GitHub Environment (`DO_TOKEN`/`CLOUDFLARE_TOKEN`) and the `production` GitHub Environment (app secrets, `DROPLET_IP`, `INFRA_SSH_PRIVATE_KEY`), then uncomment the disabled triggers on `release-production.yml`/`deploy-production.yml`.

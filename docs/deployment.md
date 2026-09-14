@@ -30,7 +30,7 @@ Every push to `staging` or `production` (i.e. every fast-forward the release wor
 |--------|-------------|-------------|
 | `main` | — (trunk; CI only, no deploy) | PR merge |
 | `staging` | Staging (DigitalOcean droplet) | `release-staging.yml` — fast-forwarded on tag push `vX.Y.Z` |
-| `production` | Production (DigitalOcean droplet) — *not yet provisioned, pipeline disabled* | `release-production.yml` — fast-forwarded when a GitHub Release is published |
+| `production` | Production (DigitalOcean droplet) — *scaffolding written, not yet applied; pipeline disabled* | `release-production.yml` — fast-forwarded when a GitHub Release is published |
 
 **Rules:**
 - All development happens in feature/fix branches off `main`, merged via PR (1 approval required)
@@ -94,7 +94,7 @@ Once the tag has been validated in staging, promotion is a single deliberate act
 
 `release-production.yml` then fast-forwards `production` to that commit; `deploy-production.yml` builds and ships it to the production droplet.
 
-> **Currently disabled** — the production droplet, `production` branch, and secrets don't exist yet. See "Production status" below for what's needed to enable this.
+> **Currently disabled** — the production droplet, `production` branch, and secrets don't exist yet, even though `deploy-production.yml` and `terraform/environments/production` are now written. See "Production status" below for what's needed to enable this.
 
 ### Hotfix flow
 
@@ -152,7 +152,7 @@ Redirects are permanent (301). Localhost and unknown hosts bypass hostname routi
 
 **Staging:** fully Terraform-managed (see "Terraform-managed infrastructure" below) — `terraform/modules/droplet/main.tf` creates two Cloudflare **A** records, `staging.comprobify.com` and `app-staging.comprobify.com`, both pointing at the droplet's reserved IP and both **proxied through Cloudflare** (`proxied = true`) — unlike the old App Platform setup, a droplet has no cert-verification conflict with Cloudflare's proxy, so these domains get the full WAF/DDoS/bot layer, matching the Comprobify API's own `api-staging.comprobify.com`. Nothing to do by hand. No extra env vars are required either way — the proxy reads the `host` header at runtime.
 
-**Production custom domain setup** *(no `terraform/environments/production` exists yet; once it is provisioned, this is fully Terraform-managed the same way staging is — see `docs/terraform-digitalocean-setup.md`)*: provisioning `environments/production` with the same `droplet` module (own droplet, own reserved IP, own `domain_primary`/`domain_alias` = `comprobify.com`/`app.comprobify.com`) creates both proxied A records automatically — no manual DNS console step, unlike the App Platform era's domain-verification dance.
+**Production custom domain setup** *(`terraform/environments/production` exists and is written, but has never been `terraform apply`'d — see `docs/production-readiness-checklist.md`)*: the same `droplet` module (own droplet, own reserved IP, own `domain_primary`/`domain_alias` = `comprobify.com`/`app.comprobify.com`) will create both proxied A records automatically once applied — no manual DNS console step, unlike the App Platform era's domain-verification dance.
 
 ---
 
@@ -165,15 +165,16 @@ Redirects are permanent (301). Localhost and unknown hosts bypass hostname routi
 | `.github/workflows/release-staging.yml` | Push of tag `vX.Y.Z` | Fast-forwards `staging` to the tagged commit and pushes it |
 | `.github/workflows/release-production.yml` | *(disabled)* GitHub Release published | Fast-forwards `production` to the released commit and pushes it |
 | `.github/workflows/deploy-staging.yml` | Push to `staging`, or manual `workflow_dispatch` | Builds a Docker image, pushes it to GHCR, and SSHes into the staging droplet to write `.env` and restart the containers — see `docs/terraform-digitalocean-setup.md` |
-| `.github/workflows/deploy-production.yml` | *(not yet created)* | Same shape as `deploy-staging.yml`, once `environments/production` is provisioned |
-| `.github/workflows/terraform.yml` | Push to `main` touching `terraform/**`, or manual `workflow_dispatch` | Runs `terraform plan`/`apply` (or `destroy`) against `terraform/environments/staging` — see "Terraform-managed infrastructure" below |
+| `.github/workflows/deploy-production.yml` | *(disabled)* Push to `production`, or manual `workflow_dispatch` | Same shape as `deploy-staging.yml`, written but gated behind an `if: false` guard until `environments/production` is actually applied and its GitHub Environment is populated |
+| `.github/workflows/terraform.yml` | Push to `main` touching `terraform/**`, or manual `workflow_dispatch` | Runs `terraform plan`/`apply` (or `destroy`) against `terraform/environments/staging` (`plan-staging`/`apply-staging` jobs) and `terraform/environments/production` (`plan-production`/`apply-production` jobs) — see "Terraform-managed infrastructure" below |
+| `.github/workflows/ci.yml` | Pull request or push to `main` | Runs `npm run type-check` and `npm audit --omit=dev --audit-level=high` (informational only for now — see `docs/production-readiness-checklist.md`'s "Security & CI hardening" section). Not yet added as a required status check on `main`'s branch protection rule |
 
 This app now runs on a DigitalOcean droplet, same as the API — App Platform's own Autodeploy-on-push (which used to make this table one row shorter) doesn't apply anymore. Every push to `staging`/`production` needs its own `deploy-*.yml` to actually build and ship the code, same pattern the API repo has always used.
 
 | Branch | Droplet | URL |
 |--------|---------|-----|
 | `staging` | `comprobify-web-staging` | `staging.comprobify.com` + `app-staging.comprobify.com` |
-| `production` | `comprobify-web-production` — *not yet provisioned* | `comprobify.com` + `app.comprobify.com` |
+| `production` | `comprobify-web-production` — *defined in Terraform, never applied* | `comprobify.com` + `app.comprobify.com` |
 
 ### Build settings (both environments)
 
@@ -198,25 +199,21 @@ These two pipelines are fully independent — an infra-only PR (no app code chan
 
 ### Terraform-managed infrastructure
 
-The staging droplet itself — its `digitalocean_droplet`/`digitalocean_reserved_ip`/`digitalocean_firewall` resources, its DO Project assignment, and its two Cloudflare DNS records — is provisioned by Terraform (`terraform/environments/staging` → `terraform/modules/droplet`), mirroring the comprobify API repo's own `terraform/environments/staging` → `terraform/modules/droplet` split exactly. **Terraform never sets any app secret or env var** — those live only in `deploy-staging.yml`'s runtime `.env` heredoc (see `docs/terraform-digitalocean-setup.md`'s "Env vars" section), the same separation the API repo has always had between its infra and app-deploy pipelines.
+The staging droplet itself — its `digitalocean_droplet`/`digitalocean_reserved_ip`/`digitalocean_firewall` resources, its DO Project assignment, and its two Cloudflare DNS records — is provisioned by Terraform (`terraform/environments/staging` → `terraform/modules/droplet`), mirroring the comprobify API repo's own `terraform/environments/staging` → `terraform/modules/droplet` split exactly. **Terraform never sets any app secret or env var** — those live only in `deploy-staging.yml`'s runtime `.env` heredoc (see `docs/terraform-digitalocean-setup.md`'s "Env vars" section), the same separation the API repo has always had between its infra and app-deploy pipelines. `terraform/environments/production` mirrors this exactly (own state key, own `terraform.tfvars`) but has never been applied — see "Production status" below.
 
-**`terraform.yml` triggers off a push to `main` touching `terraform/**`**, mirroring the API repo's own `terraform.yml` exactly. Terraform here only ever manages the droplet/firewall/DNS — never app code or app secrets, which `deploy-staging.yml` handles independently over SSH — so an infra change can be reviewed and applied the moment it's merged, without waiting for the next tagged release.
+**`terraform.yml` triggers off a push to `main` touching `terraform/**`**, mirroring the API repo's own `terraform.yml` exactly — one workflow, two job pairs (`plan-staging`/`apply-staging`, `plan-production`/`apply-production`), each declaring its own `<env>-infra` GitHub Environment so a required-reviewer rule can gate one environment's infra changes without gating the other's. Terraform here only ever manages the droplet/firewall/DNS — never app code or app secrets, which `deploy-staging.yml`/`deploy-production.yml` handle independently over SSH — so an infra change can be reviewed and applied the moment it's merged, without waiting for the next tagged release.
 
-**State backend:** unchanged by the droplet migration — the same `comprobify-terraform-state` DigitalOcean Spaces bucket the API repo uses, under key `staging/comprobify-web/terraform.tfstate` (the API repo uses `staging/comprobify/...`).
+**State backend:** unchanged by the droplet migration — the same `comprobify-terraform-state` DigitalOcean Spaces bucket the API repo uses, under key `staging/comprobify-web/terraform.tfstate` (production: `production/comprobify-web/terraform.tfstate`; the API repo uses `staging/comprobify/...` and `production/comprobify/...`).
 
-**Manual runs:** `workflow_dispatch` on `terraform.yml` supports both `apply` (re-run the normal reconciliation on demand, e.g. after changing `terraform.tfvars`) and `destroy` (tear everything down through the same audited pipeline, rather than deleting resources by hand in the DO/Cloudflare consoles). `destroy` is only ever reachable via this explicit manual dispatch, never the automatic post-release trigger.
+**Manual runs:** `workflow_dispatch` on `terraform.yml` supports both `apply` (re-run the normal reconciliation on demand, e.g. after changing `terraform.tfvars`) and `destroy` (tear everything down through the same audited pipeline, rather than deleting resources by hand in the DO/Cloudflare consoles) — both run against every job pair, since there's no per-environment `action` input. `destroy` is only ever reachable via this explicit manual dispatch, never the automatic post-release trigger.
+
+**`plan-staging`/`apply-staging` are gated behind the `STAGING_INFRA_ENABLED` repository variable** (mirrors the comprobify API repo's own toggle) — off by default, since that variable doesn't exist yet, which stops CI from automatically reconciling staging's infra on every `terraform/**`-touching push without affecting the currently-running staging droplet or `deploy-staging.yml`'s own app-deploy pipeline at all. `plan-production`/`apply-production` carry no such gate. See `docs/terraform-digitalocean-setup.md`'s "Toggling staging infra on/off" section for the full mechanics.
 
 ### Production status
 
-The production pipeline is **written but disabled** — `release-production.yml` exists in the repo with its trigger commented out and an `if: false` guard on its job, because the production droplet, `production` branch, `deploy-production.yml`, and secrets don't exist yet.
+**Partially scaffolded, still disabled.** `terraform/environments/production` and the `plan-production`/`apply-production` job pair in `terraform.yml` exist and are written, and `.github/workflows/deploy-production.yml` mirrors `deploy-staging.yml` exactly — production is no longer purely hypothetical. But `release-production.yml`/`deploy-production.yml` both stay behind an `if: false` guard with their real triggers commented out, `terraform/environments/production/terraform.tfvars`'s `ssh_public_key` is still a placeholder, and the production droplet itself has never been `terraform apply`'d — no `production` branch, database, domain, or GitHub Environment secrets exist yet either. Production is deliberately on standby until the remaining setup steps are done, and it depends on coordinating one secret (`INTERNAL_SERVICE_SECRET`) with the Comprobify API's own already-live production deployment — see `docs/deployment-reference-production.md`'s "Coordination with the Comprobify API repo" section.
 
-To enable production once it's provisioned:
-1. Create the `production` branch (fast-forwarded only by the automation, same invariant as `staging`)
-2. Provision `terraform/environments/production` (own state key, own `terraform.tfvars`, own **dedicated SSH key pair — do not reuse staging's**, see `docs/terraform-digitalocean-setup.md`'s "SSH access model")
-3. Create `.github/workflows/deploy-production.yml`, mirroring `deploy-staging.yml` but triggered on push to `production`
-4. Populate the `production` GitHub Environment with **independent** `AUTH_SECRET` / `ENCRYPTION_KEY` / `CONTEXT_COOKIE_SECRET` / `DATABASE_URL` from staging — never share these between environments
-5. In `release-production.yml`: uncomment the `release: types: [published]` trigger and remove the `if: false` guard on the `promote` job
-6. Add branch protection to `production` (restrict who can push to the automation only; no force pushes) — see GitHub repository setup below
+`docs/production-readiness-checklist.md` is the authoritative, actively-maintained list of exactly what's done versus still pending for this app's production launch — don't rely on a step list here, since the API repo's own equivalent doc explicitly notes one drifted out of sync with reality once already. `docs/deployment-reference-production.md` is the target-configuration reference (mirrors `docs/deployment-reference-staging.md`'s structure) for every concrete value — droplet name, deploy user, GitHub Environment names, DB setup, DNS records — once each piece is ready to provision.
 
 ---
 
@@ -269,7 +266,7 @@ The droplet (and its firewall/DNS) is created entirely by `terraform.yml`; the a
 1. Create the `staging-infra` GitHub Environment (Settings → Environments → New environment) and add `DO_TOKEN`/`CLOUDFLARE_TOKEN` as Secrets. Optionally add a required-reviewer protection rule here — declared on both `terraform.yml`'s `plan` and `apply` jobs, so it gates both.
 2. Create the `staging` GitHub Environment (if it doesn't already exist) and populate it with:
    - **Secrets:** `DROPLET_IP` and `INFRA_SSH_PRIVATE_KEY` (from Terraform's `reserved_ip` output and the dedicated SSH key generated for this droplet, see `docs/terraform-digitalocean-setup.md`), and the app secrets (`DATABASE_URL`, `AUTH_SECRET`, `ENCRYPTION_KEY`, `CONTEXT_COOKIE_SECRET`, `DATABASE_SSL_CA`, `SENTRY_AUTH_TOKEN`, `MAILGUN_API_KEY`, `COMPROBIFY_ADMIN_SECRET`, `INTERNAL_SERVICE_SECRET`).
-   - **Variables:** `APP_ENV`, `NEXT_PUBLIC_APP_ENV`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_MARKETING_URL`, `COMPROBIFY_API_URL`, `DATABASE_SSL`, `MAILGUN_DOMAIN`, `MAILGUN_FROM`, `SUPPORT_EMAIL`, `SUPPORT_PHONE`, `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`.
+   - **Variables:** `APP_ENV`, `NEXT_PUBLIC_APP_ENV`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_MARKETING_URL`, `PUBLIC_DOMAIN_PRIMARY`, `PUBLIC_DOMAIN_ALIAS`, `COMPROBIFY_API_URL`, `DATABASE_SSL`, `MAILGUN_DOMAIN`, `MAILGUN_FROM`, `SUPPORT_EMAIL`, `SUPPORT_PHONE`, `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`.
 3. Fill in `terraform/environments/staging/terraform.tfvars` with `ssh_public_key` (from the key generated for this droplet) and confirm `droplet_size`/`region`/domains.
 4. Merge to `main`, then either wait for the next `terraform/**`-touching change, or run `workflow_dispatch` → `action: apply` manually to provision the droplet immediately.
 5. Add the droplet's reserved IP to the shared database's Trusted Sources (DO dashboard — not Terraform-managed).
@@ -288,9 +285,9 @@ All variables are required. Sourced from the `staging` GitHub Environment's Secr
 | `DATABASE_URL` | Yes | PostgreSQL connection string for the frontend users table. Use a separate logical database from the Comprobify API DB — on staging/production this app and the API share one DigitalOcean Postgres cluster with no server-side pooler in front of it, so connect to the cluster's direct primary connection (same as the API does) and append `?connection_limit=N` (see below) so this app's client-side pool stays within its share of the cluster's connection budget. |
 | `COMPROBIFY_API_URL` | Yes | Base URL of the Comprobify API — no trailing slash (e.g. `https://api.comprobify.com`) |
 | `NEXT_PUBLIC_APP_URL` | Yes | Full URL of this app — used to build absolute callback URLs (e.g. webhook receive URL, email verification link). Read server-side in `src/app/actions/{auth,onboarding,users}.ts` and `src/lib/webhook-url.ts`; several of those throw if it's unset. |
-| `AUTH_SECRET` | Yes | Random 32+ character string used to sign Auth.js JWTs. Generate: `openssl rand -hex 32`. Use a **different value** per environment. |
-| `ENCRYPTION_KEY` | Yes | 32-byte hex string used to encrypt `TenantApiKey` values at rest (AES-256-GCM). Generate: `openssl rand -hex 32`. Use a **different value** per environment. |
-| `CONTEXT_COOKIE_SECRET` | Yes | Secret used to HMAC-sign the `comprobify_ctx` issuer-selection cookie. Generate: `openssl rand -hex 32`. Use a **different value** per environment. |
+| `AUTH_SECRET` | Yes | Random 32+ character string used to sign Auth.js JWTs. Generate: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`. Use a **different value** per environment. |
+| `ENCRYPTION_KEY` | Yes | 32-byte hex string used to encrypt `TenantApiKey` values at rest (AES-256-GCM). Generate: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`. Use a **different value** per environment. |
+| `CONTEXT_COOKIE_SECRET` | Yes | Secret used to HMAC-sign the `comprobify_ctx` issuer-selection cookie. Generate: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`. Use a **different value** per environment. |
 | `SENTRY_DSN` | No | Sentry DSN for server-side error capture. Leave unset locally — Sentry is intentionally disabled in local dev. Same DSN value for staging and production; use `APP_ENV` to distinguish environments. |
 | `NEXT_PUBLIC_SENTRY_DSN` | No | Same DSN value as `SENTRY_DSN` — the `NEXT_PUBLIC_` prefix is required for the browser SDK to receive it. |
 | `APP_ENV` | No | Tags server-side errors with the deployment environment (`staging` or `production`). Used by `sentry.server.config.ts` and `sentry.edge.config.ts`. |
@@ -362,6 +359,8 @@ Not all of this app's secrets are equally safe to rotate — one of them can cau
 
 ## Production checklist
 
+This is a snapshot checklist of configuration to verify at go-live time — for the actively-maintained, up-to-date tracker of what's actually done versus still pending right now, see `docs/production-readiness-checklist.md` instead (this list has drifted before; don't treat an unchecked box here as current status without cross-checking that file).
+
 **Database**
 - [ ] `DATABASE_URL` points to a production PostgreSQL instance (separate from staging)
 - [ ] If production shares a connection budget with another service (see "DATABASE_URL connection budget on a shared cluster" above), `connection_limit` on `DATABASE_URL` is set deliberately to match the reserved split, not left unset or copied blindly from staging
@@ -378,23 +377,26 @@ Not all of this app's secrets are equally safe to rotate — one of them can cau
 - [ ] `ENCRYPTION_KEY` and `CONTEXT_COOKIE_SECRET` are set (generate fresh values per environment)
 
 **Auth**
-- [ ] `AUTH_SECRET` is a unique, randomly generated value — never reuse the staging secret (`openssl rand -hex 32`)
+- [ ] `AUTH_SECRET` is a unique, randomly generated value — never reuse the staging secret (`node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`)
 - [ ] No `COMPROBIFY_API_KEY` or `COMPROBIFY_SANDBOX` env vars set — these are removed
 
 **Droplet**
 - [ ] All env vars are set as server-only (no `NEXT_PUBLIC_` prefix on any secret — a Next.js build-time rule, not platform-specific, but easy to get wrong)
 - [ ] `Dockerfile`'s `builder` stage runs `npm run build:deploy` and the container's `CMD` is `npm run start:deploy` — verify by checking the built image directly, not just the workflow file, since a typo here fails silently until the container actually starts
 - [ ] A **dedicated, production-only** SSH key pair was generated — never the staging key (see `docs/terraform-digitalocean-setup.md`'s "SSH access model")
+- [ ] `terraform/environments/production/terraform.tfvars`'s `ssh_public_key` placeholder is replaced with that key's public half before the first `terraform apply`
+- [ ] `PUBLIC_DOMAIN_PRIMARY`/`PUBLIC_DOMAIN_ALIAS` GitHub Variables are set to `comprobify.com`/`app.comprobify.com` — `deploy/caddy/Caddyfile` reads these via Caddy's `{$VAR}` substitution, and an unset value means Caddy has no site block to match at all
 - [ ] Both custom domains resolve through Cloudflare **proxied** (`proxied = true`) to the production droplet's reserved IP
 - [ ] HTTPS enforced — Caddy provisions and renews certs automatically for both custom domains
-- [ ] The production droplet's reserved IP is in the shared database's Trusted Sources
+- [ ] The production droplet's reserved IP is in the production database's Trusted Sources
 - [ ] `production` branch is protected in GitHub (no force pushes, restricted push access)
 - [ ] Confirm `deploy-production.yml` only triggers on push to `production` — not `main` or any other branch — so unreviewed work can't reach it
 
 **Release pipeline**
-- [ ] `RELEASE_PUSH_TOKEN` secret added to the repository
+- [ ] `RELEASE_PUSH_TOKEN` secret added to the repository (already true — shared with staging)
 - [ ] `production` branch created and the `release-production.yml` trigger uncommented + `if: false` guard removed
-- [ ] `.github/workflows/deploy-production.yml` created (mirrors `deploy-staging.yml`, triggered on push to `production`)
+- [ ] `deploy-production.yml`'s trigger uncommented + `if: false` guard removed (the workflow file itself already exists, mirroring `deploy-staging.yml`)
+- [ ] `INTERNAL_SERVICE_SECRET` matches the Comprobify API's own already-live production value exactly — see `docs/deployment-reference-production.md`'s "Coordination with the Comprobify API repo"
 - [ ] A tag has been promoted through staging and validated before the first production release
 
 **Sentry**
@@ -423,6 +425,6 @@ Key things to monitor:
 | Build failing | Run `npm run build` locally and fix type errors before pushing |
 | API calls fail with `Unexpected token '<' ... is not valid JSON` | `COMPROBIFY_API_URL` has a trailing slash, producing a double slash (`...com//v1/...`) that the API's router doesn't match — it falls through to a generic HTML 404 instead of a JSON error. Remove the trailing slash and redeploy. |
 | Build fails source map upload with `Project not found` | `org` in `next.config.ts`'s `withSentryConfig()` call is the numeric ID from the DSN hostname (`o<id>.ingest...`) instead of the organization **slug** — find the slug under Sentry → Settings → General Settings. |
-| Onboarding fails with a generic internal-error message, nothing in Sentry | If the catch block doesn't call `Sentry.captureException` (see CLAUDE.md Common Mistake #23), check `ENCRYPTION_KEY` first — it must be exactly 64 hex characters (`openssl rand -hex 32`); a base64 value throws inside `encrypt()` before any DB write is attempted. |
+| Onboarding fails with a generic internal-error message, nothing in Sentry | If the catch block doesn't call `Sentry.captureException` (see CLAUDE.md Common Mistake #23), check `ENCRYPTION_KEY` first — it must be exactly 64 hex characters (`node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`); a base64 value throws inside `encrypt()` before any DB write is attempted. |
 | Every DB query fails at startup with `SELF_SIGNED_CERT_IN_CHAIN` | `DATABASE_SSL=true` is set but `DATABASE_SSL_CA` is missing (or wrong) for a provider with a private CA, e.g. DigitalOcean managed Postgres — download the cluster's CA certificate from its Connection Details page and set the full PEM content as `DATABASE_SSL_CA`. |
 | DB connections fail entirely, or TLS verification behaves unexpectedly despite `DATABASE_SSL_CA` being set correctly | `DATABASE_URL` has an `sslmode`/`sslcert`/`sslkey`/`sslrootcert` query param on it — node-postgres's connection-string parsing overwrites the explicit `ssl` config `src/lib/db.ts` builds from `DATABASE_SSL_CA`, silently undoing it. Remove any ssl-related param from the URL itself. |

@@ -1,20 +1,32 @@
-name: Deploy Staging
+name: Deploy Production
 
-# Builds the Next.js app into a Docker image and ships it to the staging droplet.
-# comprobify-web had no equivalent of this workflow before the App Platform -> droplet
-# migration - App Platform's own GitHub-source autodeploy watched the `staging` branch
-# directly, so release-staging.yml's fast-forward push was the entire deploy mechanism.
-# Mirrors comprobify/.github/workflows/deploy-staging.yml's shape.
-
+# DISABLED — the production droplet, `production` branch, and the `production` GitHub
+# Environment's secrets/variables don't exist yet. Mirrors deploy-staging.yml exactly
+# (same build/SCP/SSH shape, same GHCR image, same Caddy-reload retry) — only the
+# environment name, deploy user, and the .env values written on the droplet differ.
+#
+# `username:` below (cpfywebdeploy4c7a) must match `deploy_username` in
+# terraform/environments/production/terraform.tfvars — re-confirm if that value ever
+# changes.
+#
+# See docs/production-readiness-checklist.md for what's left before this can be enabled:
+#   1. Create the `production` branch (see docs/deployment.md)
+#   2. terraform apply terraform/environments/production (own dedicated SSH key pair —
+#      never reuse staging's)
+#   3. Populate the `production` GitHub Environment (DROPLET_IP, INFRA_SSH_PRIVATE_KEY,
+#      plus every app Secret/Variable — see docs/deployment-reference-production.md)
+#   4. Uncomment the `push:` trigger below and remove the `if: false` guard on the
+#      `deploy` job
 on:
-  push:
-    branches: [staging]
+  # push:
+  #   branches: [production]
   workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: staging
+    environment: production
+    if: false # remove this line to re-enable
     permissions:
       contents: read
       packages: write
@@ -47,12 +59,9 @@ jobs:
             --build-arg SENTRY_RELEASE="${{ github.sha }}" \
             -t ghcr.io/${{ github.repository }}:${{ github.sha }} .
 
-      # Informational only for now (exit-code 0) — the current base image
-      # (node:24-slim) may carry HIGH/CRITICAL upstream findings that haven't
-      # been individually triaged yet, same situation the comprobify API repo
-      # hit first (docs/security-audit-2026-09-12.md #5 over there). Flip to
-      # exit-code 1 once a baseline triage is done here too, so this actually
-      # gates the deploy instead of just reporting.
+      # Informational only for now (exit-code 0) — see deploy-staging.yml's matching
+      # step for why. Triage this baseline (and flip to exit-code 1) before the first
+      # real production deploy, not after — see docs/production-readiness-checklist.md.
       - name: Scan image for vulnerabilities
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
@@ -65,25 +74,21 @@ jobs:
         run: docker push ghcr.io/${{ github.repository }}:${{ github.sha }}
 
       # username here must match `deploy_username` in
-      # terraform/environments/staging/terraform.tfvars - the unprivileged user
+      # terraform/environments/production/terraform.tfvars - the unprivileged user
       # cloud-init creates on the droplet (docker group only, no sudo, no root login
       # at all). SSH itself is open to the internet (see terraform/modules/droplet's
       # firewall rule for port 22) - defense is key-only auth + this privilege
-      # separation + fail2ban, not IP restriction. Same model as the comprobify API
-      # repo's own droplet.
+      # separation + fail2ban, not IP restriction. Same model as staging and the
+      # comprobify API repo's own droplet.
       #
       # appleboy/scp-action and appleboy/ssh-action pinned to commit SHAs, not just
-      # their mutable version tags — both handle INFRA_SSH_PRIVATE_KEY and write the
-      # droplet's entire .env (every staging/production secret); a compromised
-      # maintainer account re-pointing a tag could otherwise exfiltrate everything
-      # with no diff in this repo to catch it in review. Mirrors the identical fix in
-      # the comprobify API repo (docs/security-audit-2026-09-12.md finding #4 over
-      # there).
+      # their mutable version tags — see deploy-staging.yml's matching comment for why
+      # (docs/security-audit-2026-09-12.md finding #4 in the comprobify API repo).
       - name: Copy compose files to droplet
         uses: appleboy/scp-action@917f8b81dfc1ccd331fef9e2d61bdc6c8be94634 # v0.1.7
         with:
           host: ${{ secrets.DROPLET_IP }}
-          username: cpfywebdeploy9x
+          username: cpfywebdeploy4c7a
           key: ${{ secrets.INFRA_SSH_PRIVATE_KEY }}
           source: "deploy/docker-compose.yml,deploy/caddy/Caddyfile"
           target: /opt/comprobify-web
@@ -93,7 +98,7 @@ jobs:
         uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1
         with:
           host: ${{ secrets.DROPLET_IP }}
-          username: cpfywebdeploy9x
+          username: cpfywebdeploy4c7a
           key: ${{ secrets.INFRA_SSH_PRIVATE_KEY }}
           script: |
             cat > /opt/comprobify-web/.env <<'EOF'
@@ -133,9 +138,8 @@ jobs:
             docker compose pull
             docker compose up -d
             # docker compose up -d only recreates a container when the service
-            # definition itself changes (image tag, env, volumes list) - Caddyfile
-            # is bind-mounted, so a content-only change on disk is invisible to
-            # Compose and the running caddy container keeps serving whatever config
-            # it loaded at startup. Reload explicitly so a Caddyfile-only change
-            # actually takes effect.
+            # definition itself changes - Caddyfile is bind-mounted, so a
+            # content-only change on disk is invisible to Compose and the running
+            # caddy container keeps serving whatever config it loaded at startup.
+            # Reload explicitly so a Caddyfile-only change actually takes effect.
             docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile

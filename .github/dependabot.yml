@@ -1,0 +1,58 @@
+version: 2
+updates:
+  # npm dependencies (package.json). Weekly, not daily - this is a small
+  # team, and a PR flood on every minor bump isn't actionable. Security
+  # updates land separately/immediately via the repo's own
+  # dependabot_security_updates setting, regardless of this schedule.
+  # Mirrors the comprobify API repo's own .github/dependabot.yml.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      # Only minor/patch bumps get grouped - a major version can carry real
+      # breaking changes and deserves its own reviewable PR regardless of
+      # which package it is, not buried in a dozen-package bundle. next,
+      # next-auth, @auth/core, and prisma/@prisma/client are excluded from
+      # the group entirely, major or not - the framework, the auth library,
+      # and the DB client are load-bearing enough to always get individual
+      # attention (also currently carrying real audit findings - see
+      # docs/production-readiness-checklist.md - so their updates need to be
+      # reviewed deliberately, not merged as part of a routine bundle).
+      routine:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "next"
+          - "next-auth"
+          - "@auth/core"
+          - "prisma"
+          - "@prisma/*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # GitHub Actions versions - keeps the SHA-pinned third-party actions
+  # (appleboy/*, hashicorp/setup-terraform, aquasecurity/trivy-action - see
+  # docs/production-readiness-checklist.md) current without anyone having to
+  # manually re-resolve a digest. Dependabot understands the
+  # `@<sha> # vX.Y.Z` comment convention used throughout this repo's
+  # workflows and bumps both together.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      # Same reasoning as npm's routine group above. appleboy/* (ssh-action,
+      # scp-action) handle the actual production/staging deploy's SSH/SCP
+      # steps - excluded from the group entirely (regardless of bump size)
+      # since a behavior change there wouldn't surface until a real deploy
+      # runs, not in CI.
+      routine:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "appleboy/*"
+        update-types:
+          - "minor"
+          - "patch"
