@@ -1,6 +1,9 @@
 services:
   caddy:
-    image: caddy:2-alpine
+    # Pinned by digest, not just the `2-alpine` tag - see the Dockerfile's own
+    # FROM line comment for why. Resolve a fresh digest via
+    # `docker buildx imagetools inspect caddy:2-alpine` before bumping this.
+    image: caddy:2-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
     restart: unless-stopped
     ports:
       - "80:80"

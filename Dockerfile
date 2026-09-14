@@ -4,13 +4,21 @@
 # to keep the number of new things that can go wrong as small as possible. A leaner
 # standalone image is a worthwhile follow-up once this is proven stable, not part of
 # the initial move.
+#
+# All three stages pinned by digest, not just the `24-slim` tag - a mutable tag can be
+# rebuilt upstream at any time with different contents, silently changing what ships to
+# production between builds with nothing in this repo's diffs to catch it. Update by
+# resolving the current digest for the tag (`docker buildx imagetools inspect
+# node:24-slim`) and bumping all three lines deliberately, not automatically. Mirrors
+# the same fix in the comprobify API repo's own Dockerfile
+# (docs/security-audit-2026-09-12.md finding #5 over there).
 
-FROM node:24-slim AS deps
+FROM node:24-slim@sha256:2fe369e969550cde8e867afc3fe370b260140cab4a23d467074295b42163d553 AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
-FROM node:24-slim AS builder
+FROM node:24-slim@sha256:2fe369e969550cde8e867afc3fe370b260140cab4a23d467074295b42163d553 AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -55,7 +63,7 @@ ENV DATABASE_URL=$DATABASE_URL
 # just the schema file, so this works fine in a network-isolated CI build.
 RUN npm run build:deploy
 
-FROM node:24-slim AS runner
+FROM node:24-slim@sha256:2fe369e969550cde8e867afc3fe370b260140cab4a23d467074295b42163d553 AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=builder /app ./

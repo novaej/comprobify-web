@@ -35,7 +35,7 @@ jobs:
       # the Dockerfile's ARG DATABASE_URL comment for why. None of these are read
       # again once the container starts. Everything else the app needs lives only in
       # the runtime .env file written below.
-      - name: Build and push image
+      - name: Build image
         run: |
           docker build \
             --build-arg NEXT_PUBLIC_APP_URL="${{ vars.NEXT_PUBLIC_APP_URL }}" \
@@ -46,7 +46,23 @@ jobs:
             --build-arg SENTRY_AUTH_TOKEN="${{ secrets.SENTRY_AUTH_TOKEN }}" \
             --build-arg SENTRY_RELEASE="${{ github.sha }}" \
             -t ghcr.io/${{ github.repository }}:${{ github.sha }} .
-          docker push ghcr.io/${{ github.repository }}:${{ github.sha }}
+
+      # Informational only for now (exit-code 0) — the current base image
+      # (node:24-slim) may carry HIGH/CRITICAL upstream findings that haven't
+      # been individually triaged yet, same situation the comprobify API repo
+      # hit first (docs/security-audit-2026-09-12.md #5 over there). Flip to
+      # exit-code 1 once a baseline triage is done here too, so this actually
+      # gates the deploy instead of just reporting.
+      - name: Scan image for vulnerabilities
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ghcr.io/${{ github.repository }}:${{ github.sha }}
+          format: table
+          severity: HIGH,CRITICAL
+          exit-code: '0'
+
+      - name: Push image
+        run: docker push ghcr.io/${{ github.repository }}:${{ github.sha }}
 
       # username here must match `deploy_username` in
       # terraform/environments/staging/terraform.tfvars - the unprivileged user
@@ -55,8 +71,16 @@ jobs:
       # firewall rule for port 22) - defense is key-only auth + this privilege
       # separation + fail2ban, not IP restriction. Same model as the comprobify API
       # repo's own droplet.
+      #
+      # appleboy/scp-action and appleboy/ssh-action pinned to commit SHAs, not just
+      # their mutable version tags — both handle INFRA_SSH_PRIVATE_KEY and write the
+      # droplet's entire .env (every staging/production secret); a compromised
+      # maintainer account re-pointing a tag could otherwise exfiltrate everything
+      # with no diff in this repo to catch it in review. Mirrors the identical fix in
+      # the comprobify API repo (docs/security-audit-2026-09-12.md finding #4 over
+      # there).
       - name: Copy compose files to droplet
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@917f8b81dfc1ccd331fef9e2d61bdc6c8be94634 # v0.1.7
         with:
           host: ${{ secrets.DROPLET_IP }}
           username: cpfywebdeploy9x
@@ -66,7 +90,7 @@ jobs:
           strip_components: 1
 
       - name: Write env and restart containers
-        uses: appleboy/ssh-action@v1
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1
         with:
           host: ${{ secrets.DROPLET_IP }}
           username: cpfywebdeploy9x
