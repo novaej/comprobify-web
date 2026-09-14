@@ -9,6 +9,20 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    ignore:
+      # TypeScript 6.x never had a real release (dev/beta channel only) - 5.x
+      # jumps straight to 7.x, which is "Project Corsa," a ground-up native
+      # Go rewrite of the compiler, not a routine major bump. Confirmed
+      # build-breaking against this repo's Next.js 16.2.4 toolchain (#138,
+      # closed 2026-09-14): next build's own TypeScript-detection logic
+      # doesn't recognize the native compiler as a valid install, tries to
+      # auto-reinstall typescript mid-build, then crashes. tsc --noEmit alone
+      # doesn't catch this - only a real `next build` does. Remove this once
+      # Next.js/this repo's toolchain has real TS7 support and someone
+      # deliberately re-tests it - don't just delete it because Dependabot
+      # stops proposing 5.x updates and it looks stale.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
     groups:
       # Only minor/patch bumps get grouped - a major version can carry real
       # breaking changes and deserves its own reviewable PR regardless of

@@ -1,26 +1,28 @@
 # Comprobify Web Deployment Reference (Production)
 
-Last updated: 2026-09-10
+Last updated: 2026-09-14
 
-**Not yet provisioned.** This is the target-configuration reference for production — mirrors `docs/deployment-reference-staging.md`'s structure, with production's own concrete values, but nothing here has been applied yet. `docs/production-readiness-checklist.md` is the authoritative, actively-maintained tracker of exactly what's done versus still pending — don't infer status from this file, it's the configuration target, not a progress log. For the step-by-step guide on how this is set up (and *why*, in detail), see `docs/deployment.md` and `docs/terraform-digitalocean-setup.md`.
+**Droplet + DNS provisioned; app not yet deployed.** This is the target-configuration reference for production — mirrors `docs/deployment-reference-staging.md`'s structure, with production's own concrete values. `terraform apply` against `terraform/environments/production` ran for real (triggered automatically when PR #131 merged) — the droplet, reserved IP (`143.244.213.97`), firewall, and both Cloudflare A records all exist, live-verified (`dig comprobify.com`/`dig app.comprobify.com` both resolve through Cloudflare's proxy). The `production`/`production-infra` GitHub Environments exist and are fully populated (14/14 documented Variables, 11/11 documented Secrets, live-verified), both carrying a required-reviewer protection rule. **What's still missing: nothing has actually been deployed to the droplet yet** — `deploy-production.yml`/`release-production.yml` are both still behind their `if: false` guards, and the `production` branch doesn't exist. `docs/production-readiness-checklist.md` is the authoritative, actively-maintained tracker of exactly what's done versus still pending — don't infer status from this file, it's the configuration target, not a progress log. For the step-by-step guide on how this is set up (and *why*, in detail), see `docs/deployment.md` and `docs/terraform-digitalocean-setup.md`.
 
 ## Architecture
 
 Identical shape to staging (see `docs/deployment-reference-staging.md`'s own Architecture section and `docs/architecture-production.drawio`), with these differences:
 
 - **DigitalOcean Droplet** — `comprobify-web-production`, its own dedicated resource, not sharing anything with staging's droplet.
-- **DigitalOcean Managed PostgreSQL** — a **dedicated production cluster**, separate from staging's shared Basic-plan cluster. Exact plan/topology (whether it's shared with the Comprobify API's own production database the way staging shares one, or fully independent) is not yet decided — see `docs/production-readiness-checklist.md`. Whatever the final shape, the same `?connection_limit=N` discipline documented in `docs/deployment.md`'s "DATABASE_URL connection budget on a shared cluster" section applies if the cluster ends up shared with anything else.
+- **DigitalOcean Managed PostgreSQL** — shares the same cluster as the Comprobify API's own **production** database (separate cluster from the staging one, which shares with the API's staging database instead — same shared-per-environment pattern, just the production instance of it). See "Database setup" below for the actual provisioning procedure. The same `?connection_limit=N` discipline documented in `docs/deployment.md`'s "DATABASE_URL connection budget on a shared cluster" section applies here too.
 - **Comprobify API (production)** — `api.comprobify.com`, **already live** (the API repo's own production went live first; see `../comprobify/docs/production-readiness-checklist.md`). This app's production launch must coordinate `INTERNAL_SERVICE_SECRET` with the API's already-live production value — see "Coordination with the Comprobify API repo" below.
 - **Cloudflare** — `comprobify.com` / `app.comprobify.com`, both proxied A records pointing at the production droplet's own reserved IP (distinct from staging's).
 - **Sentry** — same project as staging (`comprobify-web`, org `novaej`), environment tagged `production` via `APP_ENV`/`NEXT_PUBLIC_APP_ENV`.
 - **Search engine indexing** — unlike staging, `SEO_INDEXABLE` (`src/lib/seo.ts`) is `true` when `NEXT_PUBLIC_APP_ENV=production`, so `robots.txt`/`sitemap.xml` actually allow indexing of the marketing routes here. This is the *only* environment where that should be true — double-check `NEXT_PUBLIC_APP_ENV` is exactly `production` before the first real deploy, or the marketing site never gets indexed.
+- **`novaej/comprobify-web` is now a public repository** — made public to unblock the required-reviewer rule on `production-infra`/`staging-infra` (GitHub Team's billing plan rejected adding it while private, a known quirk mirrored from the Comprobify API repo's own experience). A full git-history secret scan was run first and came back clean — see `docs/production-readiness-checklist.md`.
+- **CI hardening applies to both environments identically**, not something to redo for production specifically: third-party GitHub Actions (`appleboy/scp-action`, `appleboy/ssh-action`, `hashicorp/setup-terraform`) are pinned to commit SHAs, `node:24-slim`/`caddy:2-alpine` are pinned by digest, and both `deploy-staging.yml`/`deploy-production.yml` scan the built image with Trivy (informational for now) — see `docs/production-readiness-checklist.md`'s "Security & CI hardening" section.
 
 ## Components and Platforms
 
 | Component | Platform | Service / Project name |
 |---|---|---|
-| Web app | DigitalOcean Droplet | `comprobify-web-production` (Terraform, `terraform/environments/production`, `s-1vcpu-1gb` to start) |
-| Database | DigitalOcean Managed PostgreSQL | Dedicated production cluster — TBD, see "Architecture" above |
+| Web app | DigitalOcean Droplet | `comprobify-web-production` (Terraform, `terraform/environments/production`, `s-1vcpu-1gb`) — **provisioned and running**, reserved IP `143.244.213.97`; no app deployed to it yet |
+| Database | DigitalOcean Managed PostgreSQL | Shared with the Comprobify API's own production database cluster, see "Database setup" below |
 | Error monitoring | Sentry | `comprobify-web` (org slug: `novaej`) — same project as staging, `environment: production` |
 | DNS | Cloudflare | Domain: `comprobify.com` — proxied |
 | Upstream API | DigitalOcean Droplet | `comprobify-production` — already live, see the `comprobify` repo's own `docs/deployment-reference-production.md` |
@@ -31,7 +33,7 @@ Identical shape to staging (see `docs/deployment-reference-staging.md`'s own Arc
 
 | Setting | Value |
 |---|---|
-| Deployed by | `deploy-production.yml` on push to `production` — currently disabled (`if: false`, trigger commented out) |
+| Deployed by | `deploy-production.yml` on push to `production` — droplet exists and is running (see "Architecture" above), but the workflow itself is still disabled (`if: false`, trigger commented out) — nothing has been deployed to it yet |
 | Framework | Next.js 16, built into a Docker image (`Dockerfile`, repo root) — same image build as staging |
 | Build command (inside the image) | `npm run build:deploy` (`prisma generate && next build`) |
 | Run command (container `CMD`) | `npm run start:deploy` (`prisma migrate deploy && next start`) — migrations run here, at container startup |
@@ -43,7 +45,7 @@ Identical shape to staging (see `docs/deployment-reference-staging.md`'s own Arc
 
 ### Environment variables
 
-Everything will live in the `production` GitHub Environment, as either a Secret or a Variable, and `deploy-production.yml` writes all of it into `/opt/comprobify-web/.env` on the droplet on every deploy — same mechanism as staging, nothing set by hand in a console. **Every value below marked with a value is a placeholder for what it will be, not what's currently configured** — the `production` GitHub Environment doesn't exist yet. See `docs/deployment.md`'s "Environment variables" section for what each one does.
+Everything lives in the `production` GitHub Environment, as either a Secret or a Variable, and `deploy-production.yml` writes all of it into `/opt/comprobify-web/.env` on the droplet on every deploy — same mechanism as staging, nothing set by hand in a console. **The `production` GitHub Environment now exists and is populated** (live-verified: all 14 documented Variables, 10 of 11 documented Secrets — only `DROPLET_IP` is missing, pending `terraform apply`) — the values below are what's documented/expected, not independently re-verified value-by-value from this session (secret values are never something to check by reading them back). See `docs/deployment.md`'s "Environment variables" section for what each one does.
 
 | Variable | Kind | Value |
 |---|---|---|
@@ -87,7 +89,38 @@ Plus two infra-only Secrets with no runtime `.env` entry — `DROPLET_IP` (the T
 
 Same tenant-isolation model as staging (application-layer, no PostgreSQL RLS, no separate schemas — see `docs/deployment-reference-staging.md`'s "Database setup" section). Migrations apply the same way, via `prisma migrate deploy` at container startup.
 
-**Not yet decided:** whether production's database is its own dedicated DigitalOcean Managed Postgres cluster, shares a cluster with the Comprobify API's own production database, or uses a different provider entirely. Whichever it is, the droplet's reserved IP must be added to that cluster's Trusted Sources before any query will succeed — same manual step staging requires.
+**Decided: shares the same DigitalOcean Managed Postgres cluster as the Comprobify API's own production database** — same pattern staging already uses (see `docs/deployment-reference-staging.md`'s own "Database setup" section), not a dedicated cluster or a different provider. This is the exact scenario the Comprobify API repo's own `docs/deployment-reference-production.md` flagged in advance, in its "Database setup" section: *"If this cluster ends up shared with comprobify-web's own production database, confirm with whoever owns that project's schema/role plan before changing grants — a change intended for comprobify's `public`/`sandbox` schemas should not accidentally widen or narrow access to whatever schema(s) comprobify-web uses on the same cluster."*
+
+**Provisioning done, mirroring the API's own tested runbook, adapted for this app's simpler schema (no `sandbox`-equivalent second schema — everything lives in `public`).** DigitalOcean Managed Postgres's "Users & Databases" dashboard tab creates a new database and role but does **not** grant that role `CREATE`/`USAGE` on the new database's `public` schema (PostgreSQL 15+ no longer grants that by default — only the database owner has it) — without the grant step below, `prisma migrate deploy` fails on the very first deploy. **Postgres roles are cluster-wide, not per-database**, so the production role's name had to be distinct from whatever staging's role is already called in this same cluster — collision was avoided by choosing a different name up front.
+
+1. DO Dashboard → the cluster → **Users & Databases** tab: added a new database and a new user/role, both with names distinct from staging's.
+2. Connected as **`doadmin`**, explicitly to the real new database (never `defaultdb` — DigitalOcean always provisions a database literally named that alongside any custom one, so an unsubstituted `\c defaultdb` silently succeeds against the wrong database instead of erroring):
+   ```sql
+   \c <the real production database name>
+
+   GRANT ALL PRIVILEGES ON DATABASE <database name> TO <role name>;
+   GRANT ALL ON SCHEMA public TO <role name>;
+   ALTER DEFAULT PRIVILEGES GRANT ALL ON TABLES TO <role name>;
+   ALTER DEFAULT PRIVILEGES GRANT ALL ON SEQUENCES TO <role name>;
+   ```
+3. Verified in a **separate, fresh query execution** — not the same one the grants ran in, since a GUI SQL client with auto-commit off can show `true` against your own uncommitted transaction, indistinguishable from a durable change until the session ends and it silently rolls back:
+   ```sql
+   SELECT current_database(); -- confirms the real database, not defaultdb
+   SELECT has_schema_privilege('<role name>', 'public', 'USAGE')  AS has_usage,
+          has_schema_privilege('<role name>', 'public', 'CREATE') AS has_create;
+   -- both true
+   ```
+4. `DATABASE_URL` (the `production` GitHub Environment secret) points at this database using this role's credentials.
+
+The production droplet's reserved IP (`143.244.213.97`) has been added to the cluster's Trusted Sources — same manual, non-Terraform-managed step staging requires.
+
+**Not independently re-verified by any session** — no DB credentials are available here to check live; this reflects what was done, on the repo owner's word, same as the other manual-dashboard checklist items.
+
+### Backups
+
+DigitalOcean Managed Database's own built-in automated backups — not SnapShooter, the separate DO product the Comprobify API repo relies on for its own backup layer (`../comprobify/docs/guides/database-backups.md`). DO's native backups restore at the **whole-cluster level only**, always into a **new** cluster from a backup/point in time — no selective per-database or in-place restore exists.
+
+**This has a real consequence from sharing the cluster with the Comprobify API's own production database (see above): a restore for either app's benefit rolls back both databases together to the same point in time.** There is no way to recover only comprobify-web's data independently of the API's, or vice versa. Make sure whoever owns the API's production data is aware of and accepts this before treating it as comprobify-web's actual disaster-recovery plan — see `docs/production-readiness-checklist.md` for the still-open item to actually test a restore before going live.
 
 ## GitHub Actions — Workflows
 
@@ -101,30 +134,30 @@ Same tenant-isolation model as staging (application-layer, no PostgreSQL RLS, no
 
 **Repository secrets** — shared with staging, nothing new needed (`RELEASE_PUSH_TOKEN`, `TERRAFORM_SPACES_ACCESS_KEY_ID`/`TERRAFORM_SPACES_SECRET_ACCESS_KEY`).
 
-**`production-infra` GitHub Environment secrets** (consumed only by `terraform.yml`'s `plan-production`/`apply-production` jobs) — **does not exist yet**
+**`production-infra` GitHub Environment secrets** (consumed only by `terraform.yml`'s `plan-production`/`apply-production` jobs) — **exists, populated, live-verified**; also carries a required-reviewer protection rule (same as `staging-infra`)
 
 | Secret | Value |
 |---|---|
 | `DO_TOKEN` | Dedicated production token — never reuse staging's |
 | `CLOUDFLARE_TOKEN` | Dedicated production token — never reuse staging's |
 
-**`production` GitHub Environment secrets** (consumed only by `deploy-production.yml`) — **does not exist yet**
+**`production` GitHub Environment secrets** (consumed only by `deploy-production.yml`) — **exists, fully populated, live-verified**: all 11 documented Secrets present
 
 | Secret | Value |
 |---|---|
-| `DROPLET_IP` | Terraform's `reserved_ip` output, once applied |
-| `INFRA_SSH_PRIVATE_KEY` | Private half of `comprobify_web_deploy_production` — a **dedicated** key pair, generated fresh |
-| `DATABASE_URL` | |
-| `AUTH_SECRET` | |
-| `ENCRYPTION_KEY` | |
-| `CONTEXT_COOKIE_SECRET` | |
-| `DATABASE_SSL_CA` | |
-| `SENTRY_AUTH_TOKEN` | |
-| `MAILGUN_API_KEY` | |
-| `COMPROBIFY_ADMIN_SECRET` | |
-| `INTERNAL_SERVICE_SECRET` | Must match the Comprobify API's own production value — see "Coordination with the Comprobify API repo" above |
+| `DROPLET_IP` | `143.244.213.97` — Terraform's `reserved_ip` output, set right after the real `terraform apply` completed |
+| `INFRA_SSH_PRIVATE_KEY` | Private half of `comprobify_web_deploy_production` — a **dedicated** key pair, generated and set |
+| `DATABASE_URL` | Set |
+| `AUTH_SECRET` | Set |
+| `ENCRYPTION_KEY` | Set |
+| `CONTEXT_COOKIE_SECRET` | Set |
+| `DATABASE_SSL_CA` | Set |
+| `SENTRY_AUTH_TOKEN` | Set |
+| `MAILGUN_API_KEY` | Set |
+| `COMPROBIFY_ADMIN_SECRET` | Set |
+| `INTERNAL_SERVICE_SECRET` | Set — must match the Comprobify API's own production value exactly (see "Coordination with the Comprobify API repo" above); the value itself hasn't been independently cross-checked against the API's, only confirmed present |
 
-**`production` GitHub Environment variables**
+**`production` GitHub Environment variables** — all 14 present, live-verified
 
 | Variable | Value |
 |---|---|
@@ -147,10 +180,10 @@ Same tenant-isolation model as staging (application-layer, no PostgreSQL RLS, no
 
 | Record | Type | Name | Target | Proxy |
 |---|---|---|---|---|
-| App | A | `app` | Production droplet's reserved IP (Terraform output, not hardcoded) | **On (proxied)** |
+| App | A | `app` | Production droplet's reserved IP (`143.244.213.97`, Terraform output) | **On (proxied)** |
 | Marketing | A | `@` (bare `comprobify.com`) | Production droplet's reserved IP (same target — one droplet/container serves both hosts) | **On (proxied)** |
 
-Both proxied through Cloudflare, matching the Comprobify API's own `api.comprobify.com` record.
+Both proxied through Cloudflare, matching the Comprobify API's own `api.comprobify.com` record — live-verified: `dig comprobify.com`/`dig app.comprobify.com` both resolve to Cloudflare's proxy IPs, not the droplet's own address directly.
 
 ## System dependencies
 

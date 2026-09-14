@@ -1,6 +1,6 @@
 # Comprobify Web Deployment Reference (Staging)
 
-Last updated: 2026-09-10
+Last updated: 2026-09-14
 
 This reference describes the staging deployment setup for `comprobify-web`, including infrastructure, required configuration, deployment steps, and post-deployment checks. For the step-by-step guide on how this is set up (and *why*, in detail), see `docs/deployment.md` and `docs/terraform-digitalocean-setup.md` — this file is the quick-reference sheet of concrete project names and values for the environment that's actually running. See `docs/deployment-reference-production.md` for the equivalent (not-yet-provisioned) target configuration for production, and `docs/production-readiness-checklist.md` for the tracker of what's left before that goes live.
 
@@ -14,6 +14,9 @@ This reference describes the staging deployment setup for `comprobify-web`, incl
 - **Sentry** provides error monitoring with the environment tagged `staging`.
 - **Cloudflare** provides both DNS and proxying for `staging.comprobify.com` / `app-staging.comprobify.com` — both **A** records, pointing at the droplet's reserved IP, `proxied = true`, created by Terraform, giving both domains Cloudflare's WAF/DDoS/bot layer.
 - **Search engine indexing** — `robots.txt`/`sitemap.xml` (`src/app/robots.ts`/`sitemap.ts`) deliberately disallow everything on this environment: `SEO_INDEXABLE` (`src/lib/seo.ts`) is only true when `NEXT_PUBLIC_APP_ENV=production`, so the real, publicly-reachable staging domain never gets indexed by Google. This is intentional, not a gap to fix.
+- **`novaej/comprobify-web` is now a public repository** — made public to unblock a required-reviewer rule on `staging-infra`/`production-infra` (GitHub Team's billing plan rejected adding it while private). A full git-history secret scan was run first and came back clean — see `docs/production-readiness-checklist.md`.
+- **`terraform.yml`'s `plan-staging`/`apply-staging` jobs are gated behind the `STAGING_INFRA_ENABLED` repository variable** (mirrors the Comprobify API repo's own toggle) — off by default, since that variable doesn't currently exist. This only stops CI from auto-reconciling `terraform/environments/staging` on every `terraform/**`-touching push to `main`; it does **not** affect this droplet, which keeps running and receiving deploys via `deploy-staging.yml` exactly as before. See `docs/terraform-digitalocean-setup.md`'s "Toggling staging infra on/off" section.
+- **CI hardening**: third-party GitHub Actions (`appleboy/scp-action`, `appleboy/ssh-action`, `hashicorp/setup-terraform`) are pinned to commit SHAs, `node:24-slim`/`caddy:2-alpine` are pinned by digest, and `deploy-staging.yml` scans the built image with Trivy (informational for now) — see `docs/production-readiness-checklist.md`'s "Security & CI hardening" section.
 
 ## Components and Platforms
 
@@ -93,7 +96,7 @@ Staging's database is **DigitalOcean Managed Postgres, shared with the Comprobif
 |---|---|---|
 | `release-staging.yml` | Push of tag `vX.Y.Z` | Fast-forwards `staging` to the tagged commit and pushes it |
 | `deploy-staging.yml` | Push to `staging`, or manual `workflow_dispatch` | Builds a Docker image, pushes it to `ghcr.io/novaej/comprobify-web`, SCPs `deploy/docker-compose.yml`/`deploy/caddy/Caddyfile` to the droplet, writes `.env` over SSH, restarts the containers |
-| `terraform.yml` | Push to `main` touching `terraform/**`, or manual `workflow_dispatch` | Runs `terraform plan`/`apply` (or `destroy`) against `terraform/environments/staging` — droplet/firewall/DNS only, no app secrets |
+| `terraform.yml` (`plan-staging`/`apply-staging` jobs) | Push to `main` touching `terraform/**`, or manual `workflow_dispatch` — **gated behind the `STAGING_INFRA_ENABLED` repository variable, off by default** | Runs `terraform plan`/`apply` (or `destroy`) against `terraform/environments/staging` — droplet/firewall/DNS only, no app secrets |
 
 ### GitHub Actions — Secrets
 
@@ -104,7 +107,7 @@ Staging's database is **DigitalOcean Managed Postgres, shared with the Comprobif
 | `RELEASE_PUSH_TOKEN` | |
 | `TERRAFORM_SPACES_ACCESS_KEY_ID` / `TERRAFORM_SPACES_SECRET_ACCESS_KEY` | |
 
-**`staging-infra` GitHub Environment secrets** (consumed only by `terraform.yml`)
+**`staging-infra` GitHub Environment secrets** (consumed only by `terraform.yml`) — also carries a required-reviewer protection rule, live-verified
 
 | Secret | Value |
 |---|---|
