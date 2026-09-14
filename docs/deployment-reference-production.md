@@ -1,8 +1,8 @@
 # Comprobify Web Deployment Reference (Production)
 
-Last updated: 2026-09-10
+Last updated: 2026-09-14
 
-**Not yet provisioned.** This is the target-configuration reference for production — mirrors `docs/deployment-reference-staging.md`'s structure, with production's own concrete values, but nothing here has been applied yet. `docs/production-readiness-checklist.md` is the authoritative, actively-maintained tracker of exactly what's done versus still pending — don't infer status from this file, it's the configuration target, not a progress log. For the step-by-step guide on how this is set up (and *why*, in detail), see `docs/deployment.md` and `docs/terraform-digitalocean-setup.md`.
+**Droplet not yet provisioned; GitHub-side setup is done.** This is the target-configuration reference for production — mirrors `docs/deployment-reference-staging.md`'s structure, with production's own concrete values. The `production`/`production-infra` GitHub Environments now exist and are populated (14/14 documented Variables, 10/11 documented Secrets — only `DROPLET_IP` is missing, since that's `terraform apply`'s output and it hasn't run yet), and both carry a required-reviewer protection rule. The droplet itself, DNS records, and app deploy have not been applied. `docs/production-readiness-checklist.md` is the authoritative, actively-maintained tracker of exactly what's done versus still pending — don't infer status from this file, it's the configuration target, not a progress log. For the step-by-step guide on how this is set up (and *why*, in detail), see `docs/deployment.md` and `docs/terraform-digitalocean-setup.md`.
 
 ## Architecture
 
@@ -14,6 +14,8 @@ Identical shape to staging (see `docs/deployment-reference-staging.md`'s own Arc
 - **Cloudflare** — `comprobify.com` / `app.comprobify.com`, both proxied A records pointing at the production droplet's own reserved IP (distinct from staging's).
 - **Sentry** — same project as staging (`comprobify-web`, org `novaej`), environment tagged `production` via `APP_ENV`/`NEXT_PUBLIC_APP_ENV`.
 - **Search engine indexing** — unlike staging, `SEO_INDEXABLE` (`src/lib/seo.ts`) is `true` when `NEXT_PUBLIC_APP_ENV=production`, so `robots.txt`/`sitemap.xml` actually allow indexing of the marketing routes here. This is the *only* environment where that should be true — double-check `NEXT_PUBLIC_APP_ENV` is exactly `production` before the first real deploy, or the marketing site never gets indexed.
+- **`novaej/comprobify-web` is now a public repository** — made public to unblock the required-reviewer rule on `production-infra`/`staging-infra` (GitHub Team's billing plan rejected adding it while private, a known quirk mirrored from the Comprobify API repo's own experience). A full git-history secret scan was run first and came back clean — see `docs/production-readiness-checklist.md`.
+- **CI hardening applies to both environments identically**, not something to redo for production specifically: third-party GitHub Actions (`appleboy/scp-action`, `appleboy/ssh-action`, `hashicorp/setup-terraform`) are pinned to commit SHAs, `node:24-slim`/`caddy:2-alpine` are pinned by digest, and both `deploy-staging.yml`/`deploy-production.yml` scan the built image with Trivy (informational for now) — see `docs/production-readiness-checklist.md`'s "Security & CI hardening" section.
 
 ## Components and Platforms
 
@@ -43,7 +45,7 @@ Identical shape to staging (see `docs/deployment-reference-staging.md`'s own Arc
 
 ### Environment variables
 
-Everything will live in the `production` GitHub Environment, as either a Secret or a Variable, and `deploy-production.yml` writes all of it into `/opt/comprobify-web/.env` on the droplet on every deploy — same mechanism as staging, nothing set by hand in a console. **Every value below marked with a value is a placeholder for what it will be, not what's currently configured** — the `production` GitHub Environment doesn't exist yet. See `docs/deployment.md`'s "Environment variables" section for what each one does.
+Everything lives in the `production` GitHub Environment, as either a Secret or a Variable, and `deploy-production.yml` writes all of it into `/opt/comprobify-web/.env` on the droplet on every deploy — same mechanism as staging, nothing set by hand in a console. **The `production` GitHub Environment now exists and is populated** (live-verified: all 14 documented Variables, 10 of 11 documented Secrets — only `DROPLET_IP` is missing, pending `terraform apply`) — the values below are what's documented/expected, not independently re-verified value-by-value from this session (secret values are never something to check by reading them back). See `docs/deployment.md`'s "Environment variables" section for what each one does.
 
 | Variable | Kind | Value |
 |---|---|---|
@@ -101,30 +103,30 @@ Same tenant-isolation model as staging (application-layer, no PostgreSQL RLS, no
 
 **Repository secrets** — shared with staging, nothing new needed (`RELEASE_PUSH_TOKEN`, `TERRAFORM_SPACES_ACCESS_KEY_ID`/`TERRAFORM_SPACES_SECRET_ACCESS_KEY`).
 
-**`production-infra` GitHub Environment secrets** (consumed only by `terraform.yml`'s `plan-production`/`apply-production` jobs) — **does not exist yet**
+**`production-infra` GitHub Environment secrets** (consumed only by `terraform.yml`'s `plan-production`/`apply-production` jobs) — **exists, populated, live-verified**; also carries a required-reviewer protection rule (same as `staging-infra`)
 
 | Secret | Value |
 |---|---|
 | `DO_TOKEN` | Dedicated production token — never reuse staging's |
 | `CLOUDFLARE_TOKEN` | Dedicated production token — never reuse staging's |
 
-**`production` GitHub Environment secrets** (consumed only by `deploy-production.yml`) — **does not exist yet**
+**`production` GitHub Environment secrets** (consumed only by `deploy-production.yml`) — **exists, populated, live-verified**: 10 of 11 documented Secrets present
 
 | Secret | Value |
 |---|---|
-| `DROPLET_IP` | Terraform's `reserved_ip` output, once applied |
-| `INFRA_SSH_PRIVATE_KEY` | Private half of `comprobify_web_deploy_production` — a **dedicated** key pair, generated fresh |
-| `DATABASE_URL` | |
-| `AUTH_SECRET` | |
-| `ENCRYPTION_KEY` | |
-| `CONTEXT_COOKIE_SECRET` | |
-| `DATABASE_SSL_CA` | |
-| `SENTRY_AUTH_TOKEN` | |
-| `MAILGUN_API_KEY` | |
-| `COMPROBIFY_ADMIN_SECRET` | |
-| `INTERNAL_SERVICE_SECRET` | Must match the Comprobify API's own production value — see "Coordination with the Comprobify API repo" above |
+| `DROPLET_IP` | Terraform's `reserved_ip` output, once applied — **the one secret still missing**, since `terraform apply` hasn't run against `environments/production` yet |
+| `INFRA_SSH_PRIVATE_KEY` | Private half of `comprobify_web_deploy_production` — a **dedicated** key pair, generated and set |
+| `DATABASE_URL` | Set |
+| `AUTH_SECRET` | Set |
+| `ENCRYPTION_KEY` | Set |
+| `CONTEXT_COOKIE_SECRET` | Set |
+| `DATABASE_SSL_CA` | Set |
+| `SENTRY_AUTH_TOKEN` | Set |
+| `MAILGUN_API_KEY` | Set |
+| `COMPROBIFY_ADMIN_SECRET` | Set |
+| `INTERNAL_SERVICE_SECRET` | Set — must match the Comprobify API's own production value exactly (see "Coordination with the Comprobify API repo" above); the value itself hasn't been independently cross-checked against the API's, only confirmed present |
 
-**`production` GitHub Environment variables**
+**`production` GitHub Environment variables** — all 14 present, live-verified
 
 | Variable | Value |
 |---|---|
