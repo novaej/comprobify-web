@@ -8,6 +8,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [1.0.0] — 2026-09-15
+
+**First stable release — production is fully live.** comprobify-web has moved from staging-only to a complete, production-verified deployment: real production tenants onboarded, a real invoice confirmed reaching `AUTHORIZED` through SRI, the full CI/CD pipeline (Terraform-provisioned droplet, GHCR image build/scan/push, SSH deploy) proven across multiple real releases, error monitoring confirmed capturing real production incidents end-to-end, and a database disaster-recovery restore (including the app-level cutover) rehearsed against the real production cluster. A holistic application-code security review (tenant isolation, XSS, the three-layer permission pattern) is also complete, with every real finding fixed.
+
+### Added
+- **`deploy/docker-compose.yml`'s `web` service now has a real Docker healthcheck** against `/api/health`, and `caddy` waits for `web` to report healthy before routing traffic to it — closes a gap where nothing locally probed the app's own liveness since the droplet migration.
+
+### Fixed
+- **`extractForwardedIp()` was reading the wrong header.** It read `X-Forwarded-For`, an assumption carried over from the pre-Caddy App Platform hosting that never actually held once Caddy went in front — Caddy instead sets `X-Real-Client-IP` (the same convention the Comprobify API's own Caddy-fronted droplet uses). The optional visitor-IP-override feature (`registrationLimiter`/`tenant_agreements.ip` resolving the real visitor instead of the droplet's shared egress IP) silently stayed inert until this fix; account registration/recovery/verification were unaffected either way, since those only depend on `INTERNAL_SERVICE_SECRET`.
+
 ## [0.11.0] — 2026-09-15
 
 ### Added
