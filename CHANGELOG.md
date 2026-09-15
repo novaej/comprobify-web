@@ -8,6 +8,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [1.0.0] — 2026-09-15
+
+**First stable release — production is fully live.** comprobify-web has moved from staging-only to a complete, production-verified deployment: real production tenants onboarded, a real invoice confirmed reaching `AUTHORIZED` through SRI, the full CI/CD pipeline (Terraform-provisioned droplet, GHCR image build/scan/push, SSH deploy) proven across multiple real releases, error monitoring confirmed capturing real production incidents end-to-end, and a database disaster-recovery restore (including the app-level cutover) rehearsed against the real production cluster. A holistic application-code security review (tenant isolation, XSS, the three-layer permission pattern) is also complete, with every real finding fixed.
+
+### Added
+- **`deploy/docker-compose.yml`'s `web` service now has a real Docker healthcheck** against `/api/health`, and `caddy` waits for `web` to report healthy before routing traffic to it — closes a gap where nothing locally probed the app's own liveness since the droplet migration.
+
+### Fixed
+- **`extractForwardedIp()` was reading the wrong header.** It read `X-Forwarded-For`, an assumption carried over from the pre-Caddy App Platform hosting that never actually held once Caddy went in front — Caddy instead sets `X-Real-Client-IP` (the same convention the Comprobify API's own Caddy-fronted droplet uses). The optional visitor-IP-override feature (`registrationLimiter`/`tenant_agreements.ip` resolving the real visitor instead of the droplet's shared egress IP) silently stayed inert until this fix; account registration/recovery/verification were unaffected either way, since those only depend on `INTERNAL_SERVICE_SECRET`.
+
 ## [0.11.0] — 2026-09-15
 
 ### Added
@@ -224,25 +234,30 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 - **Top bar** (`src/components/top-bar.tsx`) — new desktop-only (`hidden md:flex`) bar above the main content area holding the notification bell, language switcher, and theme toggle. These were previously in the sidebar footer, which is now used exclusively for user identity.
 - **Sidebar user identity footer** — replaces the bare email display with an avatar circle (initials from `firstName + lastName`, fallback to first two letters of email), the full display name, and a role badge (moved from the logo header). Sign-out is now a compact icon button at the end of the row.
 - **Notification bell on mobile top bar** — added to the `h-14` mobile top bar for quick access without opening the drawer.
-
-### Changed
-- **Sidebar tenant header shows `businessName`** — previously showed `tradeName ?? businessName`; now always shows the legal entity name. The issuer switcher continues to use `tradeName ?? businessName` per branch.
-- **Notification panel anchored to right edge** — `NotificationBell` now computes `right: window.innerWidth - r.right` instead of `left: r.left` when positioning the portal, preventing overflow when the bell sits on the right side of the top bar.
-- **Layout structure** — the authenticated layout wraps the main content in an inner `<div className="flex min-w-0 flex-1 flex-col overflow-hidden">` to host the `TopBar` above `<main>`. Sidebar is a sibling of this wrapper, not of `<main>` directly.
-
-### Added (previous)
 - **RBAC enforcement across pages, actions, and UI** — permission gates are now applied at every layer: pages use `requirePermission()` (shows "Página no encontrada" to unauthorized roles), Server Actions use `requirePermission()` (hard gate, cannot be bypassed by crafting requests), and UI elements are conditionally hidden for roles that lack the required permission. Affected surfaces: `/invoices/new` and `/credit-notes/new` (require `documents.create`); `/invoices/[key]` (requires `documents.read`); all `createInvoice`/`createCreditNote` actions (require `documents.create`); all `rebuildInvoice`/`rebuildCreditNote`/`sendToSri`/`resendEmail` actions (require `documents.manage`); template save/delete (require `documents.create`); credit-note read lookups (require `documents.read`). Viewer and Developer roles cannot create or send documents.
 - **`/no-issuer-assigned` page** (`src/app/[locale]/no-issuer-assigned/page.tsx`) — shown to non-Owner/Admin users who have no issuer assignment yet (e.g. newly invited users waiting for an admin to set them up). Previously they were redirected to `/settings`, which gave no guidance. The new page explains the situation and tells them to contact their administrator. Replaces the redirect target in both `requireContext()` (cookie and no-cookie paths) and `postLoginRedirect`.
 - **Nav sidebar filtered by permission** — `navItems` in `src/components/nav.tsx` is now filtered by the user's permissions before rendering, so restricted roles (Viewer, Developer, BillingOperator) only see the links they can actually use. Users and API Keys nav entries appear only for roles with `users.read` / `apikeys.read`.
 
 ### Changed
+- **Sidebar tenant header shows `businessName`** — previously showed `tradeName ?? businessName`; now always shows the legal entity name. The issuer switcher continues to use `tradeName ?? businessName` per branch.
+- **Notification panel anchored to right edge** — `NotificationBell` now computes `right: window.innerWidth - r.right` instead of `left: r.left` when positioning the portal, preventing overflow when the bell sits on the right side of the top bar.
+- **Layout structure** — the authenticated layout wraps the main content in an inner `<div className="flex min-w-0 flex-1 flex-col overflow-hidden">` to host the `TopBar` above `<main>`. Sidebar is a sibling of this wrapper, not of `<main>` directly.
 - **Forbidden pages show "Página no encontrada"** — `requirePermission()` and `requireSuperAdmin()` now call `notFound()` instead of throwing `Error('FORBIDDEN')`, so unauthorized access renders the locale-aware 404 page instead of the error boundary ("Algo salió mal").
 - **"Nueva factura" and "Nuevo" buttons hidden for roles without `documents.create`** — the create-document button on `/dashboard`, `/documents`, and `/documents/[type]` is no longer rendered for Viewer and Developer roles. "Enviar", "Corregir", resend email, and "Crear nota de crédito" in `InvoiceActions` are similarly hidden based on `documents.manage` / `documents.create`.
 - **404 page redesigned** — large muted "404" numeral as typographic anchor, icon circle overlapping it, primary action button instead of outline. `FileSearch2` replaces `FileQuestionMark`.
 
+---
+
+## [0.5.0] — 2026-07-10
+
+*(Backfilled 2026-09-15 — this release's own version-bump commit never renamed `## [Unreleased]` to a real header, so its content silently kept accumulating under `## [0.6.0]` until the next release finally did the rename. Split out here from git history; see PRs #37/#38.)*
+
+### Added
 - **Super admin panel at `/admin`** — internal operator area gated by `User.isSuperAdmin = true`. `/admin/tenants` lists all tenants with controls to update tier, status, and trigger verification; `/admin/payments` lists `REPORTED` payments with an inline proof viewer (supports image and PDF rendering) and verify/reject actions; `/admin/agreements` provides a markdown editor to publish new TERMS/PRIVACY/DPA versions and activate previous ones. All mutations go through `src/app/actions/admin.ts`; all API calls use `src/lib/admin-api.ts` with `COMPROBIFY_ADMIN_SECRET`. Admin sidebar (`AdminNav`) uses the same structure as the regular `Nav` (sidebar, mobile hamburger, `ThemeToggle`).
 - **`prisma/seed.js`** — seeds `support@comprobify.com` as the super admin user; run with `npm run db:seed` after setting `ADMIN_SEED_PASSWORD` in `.env`.
 - **Admin-scoped error boundary** (`src/app/[locale]/admin/error.tsx`) — shows "Volver al panel de administración" → `/admin/tenants` instead of the generic "Volver al panel" → `/dashboard`, since super admins have no tenant.
+- **Agreement pending banner** (`src/components/agreement-pending-banner.tsx`) — fires `getAgreementStatusAction` on mount and shows a dismissible amber banner linking to `/agreements` whenever `needsAcceptance` is true; rendered on every authenticated page via the locale layout.
+- **Legal documents section on `/settings`** — lists TERMS, PRIVACY, and DPA with a pending badge and a "View" link per document. Agreement status is now fetched for every environment, not just sandbox.
 
 ### Fixed
 - **Admin API path prefix** — all paths in `src/lib/admin-api.ts` were missing the `/v1/` prefix (the Comprobify API mounts the admin router at `/v1/admin/`, not `/admin/`). Every admin page returned Express's default HTML 404. Fixed by prefixing all paths with `/v1`.
@@ -398,7 +413,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
-## [Unreleased — previous]
+## [0.0.1 – 0.1.0] — 2026-06-21 to 2026-06-23
+
+*(Backfilled 2026-09-15 — this whole early period predates the project's formal release process (no squash-merge PRs, no version-bump-then-tag pattern yet; `v0.1.0` itself is tagged directly on a feature commit, not a release commit). The content below was originally written as one continuous "Unreleased" scratchpad across all of `v0.0.1`–`v0.1.0` and was never actually organized by individual tag at the time, so it's kept here as one section rather than inventing five sets of boundaries the original entries don't actually support.)*
 
 ### Added
 - **Client management** — CRUD screen at `/clients` (Users icon in nav) to save frequent clients; fields: ID type, ID number, name, email, address (optional); stored in the app's own `clients` table (Prisma), scoped per user
@@ -426,6 +443,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 - **`SelectValue` in Base UI requires a render function** — `@base-ui/react` v1.4.1 `Select.Value` renders the raw value (the code) by default; fixed by passing a lookup function as children to map codes to descriptions
 - **`CatalogTaxRate.rate` typed as `string | number`** — PostgreSQL returns `DECIMAL` columns as strings; calling `.toFixed()` on the raw value caused a runtime error; fixed with `Number(r.rate)`
 
+### Added (earlier)
 - Email verification page at `GET /[locale]/verify-email` — public route, updates `emailVerified` in Prisma using the email returned by the API, works session-independently (any device/browser)
 - `resendVerificationAction` passes `verificationRedirectUrl` so re-sent emails link to the frontend instead of the raw API URL
 - Email verification notice (`EmailVerificationNotice`) shown proactively on Settings when the user's email is unverified
