@@ -939,6 +939,7 @@
     },
     "empty": "No hay webhooks registrados.",
     "limitReached": "Alcanzaste el límite de webhooks de tu plan ({used} de {limit}). Elimina uno existente o actualiza tu plan para agregar más.",
+    "noCustomAccess": "Tu plan no incluye webhooks personalizados. Actualiza tu plan para agregar uno.",
     "add": "Registrar webhook",
     "delete": "Eliminar",
     "confirmDelete": "¿Eliminar este endpoint? Dejará de recibir notificaciones de inmediato.",
@@ -1189,6 +1190,7 @@
     "showOnce": "Copia esta clave ahora. No podrás verla de nuevo.",
     "missingKeyWarning": "No tienes API keys activas. El sistema no puede autenticar solicitudes hasta que crees una.",
     "keyLimitReached": "Alcanzaste el límite de API keys de tu plan ({used} de {limit}). Revoca una clave sin uso o actualiza tu plan para crear más.",
+    "noCustomAccess": "Tu plan no incluye API keys personalizadas. Actualiza tu plan para crear una.",
     "table": {
       "label": "Etiqueta",
       "environment": "Ambiente",
@@ -1558,7 +1560,10 @@
       "webhooks": "{count, plural, one {# webhook} other {# webhooks}}",
       "users": "{count, plural, one {# usuario de la plataforma} other {# usuarios de la plataforma}}",
       "unlimitedUsers": "Usuarios de la plataforma ilimitados",
-      "docTypes": "Comprobantes: {types}"
+      "docTypes": "Comprobantes: {types}",
+      "noApiAccess": "Sin acceso a la API",
+      "apiAccess": "{count, plural, one {Acceso a la API (# API Key)} other {Acceso a la API (# API Keys)}}",
+      "unlimitedApiAccess": "Acceso a la API (API Keys ilimitadas)"
     }
   },
   "billing": {
@@ -1577,6 +1582,8 @@
       "users": "Usuarios del panel",
       "usersWithExtra": "{base} + {extra} adicionales",
       "apiKeys": "API keys",
+      "noApiAccess": "Sin acceso",
+      "apiAccessGranted": "Acceso otorgado ({count})",
       "allowedDocTypes": "Tipos de comprobantes disponibles",
       "unlimited": "Ilimitados"
     },
