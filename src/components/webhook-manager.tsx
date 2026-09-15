@@ -37,6 +37,14 @@ interface WebhookManagerProps {
   usedEndpoints: number;
   /** null = unlimited. */
   maxEndpoints: number | null;
+  /**
+   * Whether the tenant's own tier sells any self-service webhook slots at
+   * all (FREE/SOLO/LITE currently don't — see ADR-034). Independent of
+   * `usedEndpoints`/`maxEndpoints`, which fold in a reserved slot for the
+   * canonical in-app webhook that a FREE/SOLO/LITE tenant could otherwise
+   * spend on a custom webhook of their own before ever activating it.
+   */
+  customWebhooksAllowed: boolean;
 }
 
 export function WebhookManager({
@@ -45,6 +53,7 @@ export function WebhookManager({
   canonicalEndpointId,
   usedEndpoints,
   maxEndpoints,
+  customWebhooksAllowed,
 }: WebhookManagerProps) {
   const t = useTranslations('webhooks');
   const tError = useTranslations('apiError');
@@ -58,6 +67,7 @@ export function WebhookManager({
   const [showEventPicker, setShowEventPicker] = useState(false);
 
   const atEndpointLimit = maxEndpoints !== null && usedEndpoints >= maxEndpoints;
+  const customWebhookDisabled = atEndpointLimit || !customWebhooksAllowed;
 
   function handleActivateCanonical() {
     startTransition(async () => {
@@ -127,7 +137,12 @@ export function WebhookManager({
 
   return (
     <div className="space-y-4">
-      {atEndpointLimit && (
+      {!customWebhooksAllowed ? (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 text-sm text-amber-700 dark:text-amber-400">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          {t('noCustomAccess')}
+        </div>
+      ) : atEndpointLimit && (
         <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 text-sm text-amber-700 dark:text-amber-400">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           {t('limitReached', { used: usedEndpoints, limit: maxEndpoints })}
@@ -241,7 +256,7 @@ export function WebhookManager({
 
           {/* Actions */}
           <div className="flex items-center gap-2 pt-1">
-            <Button size="sm" onClick={handleRegister} disabled={isPending || !url.trim() || atEndpointLimit}>
+            <Button size="sm" onClick={handleRegister} disabled={isPending || !url.trim() || customWebhookDisabled}>
               {isPending ? t('registering') : t('register')}
             </Button>
             <Button
@@ -255,7 +270,7 @@ export function WebhookManager({
           </div>
         </div>
       ) : (
-        <Button size="sm" onClick={() => setShowForm(true)} disabled={atEndpointLimit}>
+        <Button size="sm" onClick={() => setShowForm(true)} disabled={customWebhookDisabled}>
           <Plus className="h-4 w-4 mr-1.5" />
           {t('add')}
         </Button>

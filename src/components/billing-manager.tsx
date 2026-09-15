@@ -918,7 +918,11 @@ function PlanDetailsGrid({ tier, extraSeats = 0 }: { tier: ApiTierInfo; extraSea
           },
           {
             label: t('planLimits.apiKeys'),
-            value: tier.maxApiKeys === null ? t('planLimits.unlimited') : String(tier.maxApiKeys),
+            value: tier.maxApiKeys === null
+              ? t('planLimits.unlimited')
+              : tier.maxApiKeys === 0
+                ? t('planLimits.noApiAccess')
+                : t('planLimits.apiAccessGranted', { count: tier.maxApiKeys }),
           },
         ].map(({ label, value }) => (
           <div key={label} className="flex items-center justify-between rounded-md bg-muted/40 px-3 py-2">
@@ -1129,7 +1133,7 @@ function ChangeTierCard({
               {t('changePlan.placeholder')}
             </label>
             <Select
-              value={selectedTier ?? undefined}
+              value={selectedTier}
               onValueChange={(value) => selectTier(value as PaidTier)}
               disabled={isPending}
             >
@@ -1584,7 +1588,7 @@ function SubscribeCard({
                 {t('subscribe.placeholder')}
               </label>
               <Select
-                value={selectedTier ?? undefined}
+                value={selectedTier}
                 onValueChange={(value) => selectTier(value as PaidTier)}
                 disabled={isPending}
               >
@@ -1677,6 +1681,14 @@ function SubscribeCard({
                     {selectedTierInfo.maxUsers === null
                       ? tPricing('features.unlimitedUsers')
                       : tPricing('features.users', { count: selectedTierInfo.maxUsers })}
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                    {selectedTierInfo.maxApiKeys === null
+                      ? tPricing('features.unlimitedApiAccess')
+                      : selectedTierInfo.maxApiKeys === 0
+                        ? tPricing('features.noApiAccess')
+                        : tPricing('features.apiAccess', { count: selectedTierInfo.maxApiKeys })}
                   </li>
                 </ul>
 

@@ -189,6 +189,14 @@ export function PricingPlans({ tiers, extraSeat }: { tiers: ApiTierInfo[]; extra
                     ? t('features.unlimitedUsers')
                     : t('features.users', { count: tier.maxUsers })}
                 </li>
+                <li className="flex items-start gap-2">
+                  <Check className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                  {tier.maxApiKeys === null
+                    ? t('features.unlimitedApiAccess')
+                    : tier.maxApiKeys === 0
+                      ? t('features.noApiAccess')
+                      : t('features.apiAccess', { count: tier.maxApiKeys })}
+                </li>
               </ul>
 
               {/* Plain <a> to force full-page navigation — Next.js <Link> intercepts

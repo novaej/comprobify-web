@@ -3,7 +3,8 @@ import { requirePermission } from '@/lib/context';
 import { db } from '@/lib/db';
 import { PageHeader } from '@/components/page-header';
 import { ApiKeyManager } from '@/components/api-key-manager';
-import { listTenantApiKeys } from '@/lib/api';
+import { listTenantApiKeys, getCurrentTenant } from '@/lib/api';
+import { listTiers } from '@/lib/public-api';
 import { computeApiScopesForRole } from '@/lib/role-api-scopes';
 
 export default async function ApiKeysPage({
@@ -18,7 +19,7 @@ export default async function ApiKeysPage({
 
   const ctx = await requirePermission('apikeys.read', { skipIssuer: true });
 
-  const [keys, { keys: apiKeyInfos, limit: apiKeyLimit }] = await Promise.all([
+  const [keys, { keys: apiKeyInfos, limit: apiKeyLimit }, tenantInfo, { tiers }] = await Promise.all([
     db.tenantApiKey.findMany({
       where: { tenantId: ctx.tenant.id },
       orderBy: { createdAt: 'desc' },
@@ -29,11 +30,25 @@ export default async function ApiKeysPage({
     // is the same ceiling resolveTenantLimits() would otherwise have to
     // re-fetch, so it's read directly from here instead.
     listTenantApiKeys({ apiKey: ctx.apiKey }),
+    getCurrentTenant({ apiKey: ctx.apiKey }),
+    listTiers(),
   ]);
 
   const usageByApiKeyId = new Map(apiKeyInfos.map((info) => [info.id, info]));
   const canManage = ctx.permissions.has('apikeys.manage');
   const hasActiveKey = keys.some((k) => k.isActive);
+
+  // apiKeyLimit.max already folds in reservedForFrontend.apiKeys (5 slots for
+  // comprobify-web's own master/per-role keys, ADR-034), so a FREE/SOLO/LITE
+  // tenant (0 self-service keys) with only its master key active shows
+  // used(1) < max(5) and would otherwise be free to spend the remaining
+  // reserved headroom on self-service keys of their own — the same class of
+  // gap as the webhook reserved-slot issue. Gate self-service key creation on
+  // the tier's own raw allowance instead, independent of that headroom.
+  const currentTier = tiers.find((tier) => tier.name === tenantInfo.subscriptionTier);
+  const customKeysAllowed = currentTier
+    ? currentTier.maxApiKeys === null || currentTier.maxApiKeys > 0
+    : false;
 
   return (
     <div>
@@ -64,6 +79,7 @@ export default async function ApiKeysPage({
         callerScopes={computeApiScopesForRole(ctx.user.role)}
         activeKeyCount={apiKeyLimit.used}
         maxApiKeys={apiKeyLimit.max}
+        customKeysAllowed={customKeysAllowed}
       />
     </div>
   );
