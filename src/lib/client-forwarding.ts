@@ -18,22 +18,22 @@ export interface ClientForwardingInfo {
   userAgent?: string;
 }
 
-// Written under the old App Platform hosting, assuming its ingress set
-// X-Forwarded-For with the real client IP as the first (leftmost) entry —
-// never empirically confirmed even then. Now Caddy sits in front instead
-// (deploy/caddy/Caddyfile) and forwards the resolved client IP as its own
-// X-Real-Client-IP header (same convention the Comprobify API's own
-// Caddy-fronted droplet uses) — X-Forwarded-For behind Caddy may not carry
-// what this function expects at all. Re-verify against Caddy's actual
-// forwarded headers (NEXT_STEPS.md #1). A wrong/missing value here only
-// affects the optional IP-override feature (see the module comment above) —
-// it no longer affects whether register/recover/resend-verification/
-// verify-email succeed at all, since those now depend only on the secret.
+// Reads the header Caddy actually sets on requests reaching this app
+// (deploy/caddy/Caddyfile: `header_up X-Real-Client-IP {client_ip}`, where
+// {client_ip} is Caddy's own trusted_proxies/client_ip_headers-resolved
+// value — verified against Cloudflare's real edge IP ranges, not the raw
+// TCP peer). This function used to read X-Forwarded-For instead, an
+// assumption carried over from the old App Platform hosting and never
+// empirically confirmed even then — Caddy's reverse_proxy doesn't populate
+// X-Forwarded-For with the trusted client IP the way that assumed, so it
+// silently never worked once this app moved behind Caddy (NEXT_STEPS.md #1,
+// now resolved). A wrong/missing value here only affects the optional
+// IP-override feature (see the module comment above) — it doesn't affect
+// whether register/recover/resend-verification/verify-email succeed at
+// all, since those now depend only on the secret.
 export function extractForwardedIp(headers: Headers): string | undefined {
-  const raw = headers.get('x-forwarded-for');
-  if (!raw) return undefined;
-  const first = raw.split(',')[0]?.trim();
-  return first || undefined;
+  const value = headers.get('x-real-client-ip');
+  return value?.trim() || undefined;
 }
 
 // INTERNAL_SERVICE_SECRET must match the Comprobify API's own env var of the

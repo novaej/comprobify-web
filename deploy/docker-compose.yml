@@ -23,7 +23,12 @@ services:
       - PUBLIC_DOMAIN_PRIMARY=${PUBLIC_DOMAIN_PRIMARY}
       - PUBLIC_DOMAIN_ALIAS=${PUBLIC_DOMAIN_ALIAS}
     depends_on:
-      - web
+      web:
+        # Waits for web's healthcheck below to pass before Caddy starts routing
+        # traffic to it, instead of racing prisma migrate deploy/next start on
+        # every deploy - Caddy itself already tolerates web being briefly
+        # unreachable (it queues/retries), but this avoids that window entirely.
+        condition: service_healthy
 
   web:
     image: ghcr.io/novaej/comprobify-web:${IMAGE_TAG:-latest}
@@ -38,6 +43,22 @@ services:
     # the comprobify API droplet needed a resize off its own equivalent starting
     # tier, this one likely will too.
     mem_limit: 384m
+    # node:24-slim has no curl/wget - node's own http module is the only HTTP
+    # client available in the image. /api/health does no DB/API call (see
+    # src/app/api/health/route.ts), so this only confirms the Next.js process
+    # itself is up and serving, same scope Sentry's external uptime monitor
+    # already checks. start_period covers prisma migrate deploy running first
+    # (start:deploy in package.json) before next start binds the port.
+    # Note: this makes `docker ps`/`docker inspect` report accurate health and
+    # gates Caddy's startup above - Compose (outside Swarm mode) does not
+    # itself restart an already-running container just because a healthcheck
+    # starts failing; restart: unless-stopped only reacts to the process exiting.
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
 volumes:
   caddy_data:
