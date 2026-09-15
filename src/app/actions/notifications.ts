@@ -38,24 +38,44 @@ export async function markNotificationReadAction(notificationId: string): Promis
   const userId = ctx.user.id;
   const tenantId = ctx.tenant.id;
 
-  // 1. Upsert per-user read row.
+  // 1. Verify the notification belongs to the caller's tenant BEFORE writing
+  // anything. notificationId is bare client input (the panel's mark-read
+  // click) — writing the NotificationRead row first and checking ownership
+  // second would let a caller mark an arbitrary tenant's notification as
+  // read by guessing/leaking its id, inflating that notification's
+  // reads.length (used below to decide when to mark it read at the API
+  // level) with a phantom read from a user who was never eligible for it.
+  // Only the fields needed for this check are selected — reads aren't
+  // fetched here since they'd be stale the moment the upsert below writes
+  // a new one; re-queried fresh in step 3 instead.
+  const notificationMeta = await db.notification.findUnique({
+    where: { id: notificationId },
+    select: { tenantId: true, apiReadAt: true, apiNotificationId: true, issuerId: true },
+  });
+
+  if (!notificationMeta || notificationMeta.tenantId !== tenantId) {
+    return; // Not our notification.
+  }
+
+  // 2. Upsert per-user read row.
   await db.notificationRead.upsert({
     where: { notificationId_userId: { notificationId, userId } },
     create: { notificationId, userId },
     update: {},
   });
 
-  // 2. Check if this notification is already marked read at API level.
-  const notification = await db.notification.findUnique({
-    where: { id: notificationId },
-    include: { reads: { select: { userId: true } } },
-  });
-
-  if (!notification || notification.tenantId !== tenantId || notification.apiReadAt) {
-    return; // Not our notification or already marked read at API level.
+  if (notificationMeta.apiReadAt) {
+    return; // Already marked read at API level.
   }
 
-  // 3. Count eligible users for this notification.
+  // 3. Count eligible users for this notification, and re-fetch reads fresh
+  // now that the upsert above has landed (a copy taken before it would
+  // permanently undercount by one — the caller's own just-written read).
+  const reads = await db.notificationRead.findMany({
+    where: { notificationId },
+    select: { userId: true },
+  });
+  const notification = { ...notificationMeta, reads };
   let eligibleCount: number;
   if (notification.issuerId === null) {
     eligibleCount = await db.user.count({ where: { tenantId, inviteStatus: 'ACTIVE' } });
