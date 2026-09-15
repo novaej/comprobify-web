@@ -1133,7 +1133,7 @@ function ChangeTierCard({
               {t('changePlan.placeholder')}
             </label>
             <Select
-              value={selectedTier ?? undefined}
+              value={selectedTier}
               onValueChange={(value) => selectTier(value as PaidTier)}
               disabled={isPending}
             >
@@ -1588,7 +1588,7 @@ function SubscribeCard({
                 {t('subscribe.placeholder')}
               </label>
               <Select
-                value={selectedTier ?? undefined}
+                value={selectedTier}
                 onValueChange={(value) => selectTier(value as PaidTier)}
                 disabled={isPending}
               >
