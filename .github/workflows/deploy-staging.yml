@@ -140,8 +140,19 @@ jobs:
             # daemon, pulling over this SSH session, has never logged into GHCR and
             # needs its own login. Reuses this job's own GITHUB_TOKEN rather than a
             # separate long-lived PAT - it's re-issued fresh every run anyway.
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            #
+            # A heredoc feeds the token to --password-stdin instead of `echo "$TOKEN" |
+            # docker login`: piping through echo puts the token in that process's own
+            # argv, visible via `ps` on this host for the run's duration; a heredoc
+            # delivers it straight to docker login's stdin, never appearing as a
+            # command-line argument anywhere. `docker logout` right after the pull (the
+            # only step that needs registry auth - `up`/`exec` don't) clears the token
+            # back out of ~/.docker/config.json instead of leaving it there indefinitely.
+            docker login ghcr.io -u ${{ github.actor }} --password-stdin <<'GHCR_LOGIN'
+            ${{ secrets.GITHUB_TOKEN }}
+            GHCR_LOGIN
             docker compose pull
+            docker logout ghcr.io
             docker compose up -d
             # docker compose up -d only recreates a container when the service
             # definition itself changes (image tag, env, volumes list) - Caddyfile
