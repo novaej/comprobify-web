@@ -20,9 +20,11 @@ const DOC_TYPES = [
 export function IssuerSetupForm({
   intendedTier,
   intendedBillingInterval,
+  showAgreementNotice,
 }: {
   intendedTier?: PaidTier;
   intendedBillingInterval?: BillingInterval;
+  showAgreementNotice: boolean;
 }) {
   const t = useTranslations('settings.setup');
   const tError = useTranslations('apiError');
@@ -213,10 +215,12 @@ export function IssuerSetupForm({
         </div>
       )}
 
-      <div className="flex items-start gap-2.5 rounded-md border border-border bg-muted/40 px-4 py-3 text-xs text-muted-foreground">
-        <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-        <p>{t('agreementNotice')}</p>
-      </div>
+      {showAgreementNotice && (
+        <div className="flex items-start gap-2.5 rounded-md border border-border bg-muted/40 px-4 py-3 text-xs text-muted-foreground">
+          <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+          <p>{t('agreementNotice')}</p>
+        </div>
+      )}
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 

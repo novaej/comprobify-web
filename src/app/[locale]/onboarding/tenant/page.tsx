@@ -9,6 +9,7 @@ import { LogoLockupStacked } from '@/components/logo';
 import { LocaleSwitcher } from '@/components/locale-switcher';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { parseIntendedPlan } from '@/lib/subscription-tiers';
+import { listAgreements } from '@/lib/public-api';
 
 export default async function OnboardingTenantPage({
   params,
@@ -41,6 +42,13 @@ export default async function OnboardingTenantPage({
 
   const t = await getTranslations('onboarding');
 
+  // listAgreements() is public and returns [] both when nothing is published
+  // yet and when AGREEMENTS_ENABLED=false on the API — either way there's
+  // genuinely nothing to accept, so an empty list is the right signal to hide
+  // the "we'll ask you to accept X" notice regardless of which case it is.
+  const publishedAgreements = await listAgreements();
+  const showAgreementNotice = publishedAgreements.length > 0;
+
   return (
     <div className="min-h-screen bg-muted/40 flex flex-col">
       <div className="flex items-center justify-end gap-2 px-6 py-5">
@@ -69,6 +77,7 @@ export default async function OnboardingTenantPage({
         <OnboardingTabs
           intendedTier={intendedPlan?.tier}
           intendedBillingInterval={intendedPlan?.interval}
+          showAgreementNotice={showAgreementNotice}
         />
       </div>
       </div>
