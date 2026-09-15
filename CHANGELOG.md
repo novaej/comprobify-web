@@ -8,6 +8,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [1.0.1] — 2026-09-15
+
+### Fixed
+- **Pricing/billing surfaces didn't show whether a tier includes API access.** `/pricing`, `/settings/billing`, and `/settings/api-keys`'s current-plan grid now show a clear API access status per tier ("no access" / "access granted (N)" / unlimited) instead of omitting the feature line or showing a bare, unlabeled key count.
+- **A FREE/SOLO/LITE tenant could create self-service API keys and webhooks despite the tier selling zero of either.** `GET /v1/keys`/`GET /v1/webhooks`'s `limit.max` already folds in comprobify's `reservedForFrontend` allowance (5 API key slots, 1 webhook slot) reserved for comprobify-web's own master/per-role keys and canonical in-app webhook. With only the master key or canonical webhook active, `used < max` still held, leaving the "create" UI enabled and letting a free tenant spend that reserved headroom on custom keys/webhooks of their own. `/settings/api-keys` and `/settings/webhooks` now additionally gate self-service creation on the tenant's own raw tier allowance (`maxApiKeys`/`maxWebhookEndpoints`), independent of the reserved headroom.
+- **Base UI `Select` warned about switching from uncontrolled to controlled in `SubscribeCard`/`ChangeTierCard`.** `value={selectedTier ?? undefined}` turned a `null` initial state into `undefined` (uncontrolled) on first render, then became a real string the moment a tier was picked. Base UI's `Select.Root` supports `null` as a controlled empty value, so passing `selectedTier` directly keeps it controlled for the component's whole lifetime.
+
 ## [1.0.0] — 2026-09-15
 
 **First stable release — production is fully live.** comprobify-web has moved from staging-only to a complete, production-verified deployment: real production tenants onboarded, a real invoice confirmed reaching `AUTHORIZED` through SRI, the full CI/CD pipeline (Terraform-provisioned droplet, GHCR image build/scan/push, SSH deploy) proven across multiple real releases, error monitoring confirmed capturing real production incidents end-to-end, and a database disaster-recovery restore (including the app-level cutover) rehearsed against the real production cluster. A holistic application-code security review (tenant isolation, XSS, the three-layer permission pattern) is also complete, with every real finding fixed.
