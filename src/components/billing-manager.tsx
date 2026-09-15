@@ -213,56 +213,7 @@ export function BillingManager({
             <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
               {t('planDetails')}
             </p>
-            <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {[
-                {
-                  label: t('planLimits.quota'),
-                  value: currentTier.documentQuota === null ? t('planLimits.unlimited') : String(currentTier.documentQuota),
-                },
-                {
-                  label: t('planLimits.branches'),
-                  value: currentTier.maxBranches === null ? t('planLimits.unlimited') : String(currentTier.maxBranches),
-                },
-                {
-                  label: t('planLimits.issuePoints'),
-                  value: currentTier.maxIssuePointsPerBranch === null ? t('planLimits.unlimited') : String(currentTier.maxIssuePointsPerBranch),
-                },
-                { label: t('planLimits.webhooks'), value: String(currentTier.maxWebhookEndpoints) },
-                {
-                  label: t('planLimits.users'),
-                  value: currentTier.maxUsers === null
-                    ? t('planLimits.unlimited')
-                    : tenantInfo.extraSeats > 0
-                      ? t('planLimits.usersWithExtra', { base: currentTier.maxUsers, extra: tenantInfo.extraSeats })
-                      : String(currentTier.maxUsers),
-                },
-                {
-                  label: t('planLimits.apiKeys'),
-                  value: currentTier.maxApiKeys === null ? t('planLimits.unlimited') : String(currentTier.maxApiKeys),
-                },
-              ].map(({ label, value }) => (
-                <div key={label} className="flex items-center justify-between rounded-md bg-muted/40 px-3 py-2">
-                  <dt className="text-xs text-muted-foreground">{label}</dt>
-                  <dd className="text-xs font-medium">{value}</dd>
-                </div>
-              ))}
-            </dl>
-            <div className="mt-2">
-              <p className="mb-1.5 text-xs text-muted-foreground">{t('planLimits.allowedDocTypes')}</p>
-              <div className="flex flex-wrap gap-1.5">
-                {currentTier.allowedDocumentTypes.map((code) => (
-                  <span
-                    key={code}
-                    className="rounded-md border border-border bg-muted px-2 py-0.5 text-xs font-medium"
-                  >
-                    {tIssuers.has(`docType.${code}` as Parameters<typeof tIssuers>[0])
-                      ? tIssuers(`docType.${code}` as Parameters<typeof tIssuers>[0])
-                      : code}
-                    {' '}({code})
-                  </span>
-                ))}
-              </div>
-            </div>
+            <PlanDetailsGrid tier={currentTier} extraSeats={tenantInfo.extraSeats} />
           </div>
         )}
       </div>
@@ -282,7 +233,6 @@ export function BillingManager({
           emailVerified={emailVerified}
           intendedTier={intendedTier}
           intendedBillingInterval={intendedBillingInterval}
-          currentSubscriptionTier={tenantInfo.subscriptionTier}
         />
       )}
 
@@ -935,78 +885,65 @@ function IntervalToggle({
   );
 }
 
-// Compact plan card used by both subscribe and change-plan grids
-function PlanCard({
-  tier,
-  interval,
-  state,
-  onClick,
-}: {
-  tier: ApiTierInfo;
-  interval: 'MONTHLY' | 'YEARLY';
-  state: 'current' | 'selected' | 'default';
-  onClick?: () => void;
-}) {
-  const tPricing = useTranslations('pricing');
+// Full limits breakdown for one tier — used by the current-plan section
+// above. extraSeats only makes sense against an already-active subscription.
+function PlanDetailsGrid({ tier, extraSeats = 0 }: { tier: ApiTierInfo; extraSeats?: number }) {
   const t = useTranslations('billing');
-  // Both callers (ChangeTierCard/SubscribeCard) filter their tier list to
-  // only tiers selling `interval` before rendering this card, so it never
-  // has to fall back to a different interval — the price is always shown
-  // at the actual selected interval.
-  const { base: price } = resolveTierTotal(tier, interval);
-  const perLabel = tPricing(interval === 'YEARLY' ? 'perYear' : 'perMonth');
-  const isHighlighted = tier.name === 'GROWTH';
-  // Mirrors the pricing page: a YEARLY subscription pools the full year's
-  // quota up front (documentQuota × 12) rather than resetting monthly.
-  const yearlyPooled = interval === 'YEARLY';
-  const quotaCount = (yearlyPooled ? (tier.documentQuota ?? 0) * 12 : tier.documentQuota) ?? 0;
+  const tIssuers = useTranslations('issuers');
 
   return (
-    <div
-      role={state !== 'current' ? 'button' : undefined}
-      tabIndex={state !== 'current' ? 0 : undefined}
-      onClick={state !== 'current' ? onClick : undefined}
-      onKeyDown={state !== 'current' ? (e) => e.key === 'Enter' && onClick?.() : undefined}
-      className={cn(
-        'rounded-lg border p-4 flex flex-col gap-3 transition-all',
-        state === 'current' && 'border-muted bg-muted/30 opacity-60 cursor-default',
-        state === 'selected' && 'border-primary ring-2 ring-primary/30 bg-primary/5 cursor-pointer',
-        state === 'default' && 'border-border cursor-pointer hover:border-primary/50',
-        isHighlighted && state === 'default' && 'border-primary/40',
-      )}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-sm font-semibold">
-          {tPricing(`tiers.${tier.name}.name` as Parameters<typeof tPricing>[0])}
-        </p>
-        {state === 'current' && (
-          <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-            {t('changePlan.currentPlan')}
-          </span>
-        )}
-        {isHighlighted && state !== 'current' && (
-          <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-            {tPricing('badge.popular')}
-          </span>
-        )}
+    <>
+      <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {[
+          {
+            label: t('planLimits.quota'),
+            value: tier.documentQuota === null ? t('planLimits.unlimited') : String(tier.documentQuota),
+          },
+          {
+            label: t('planLimits.branches'),
+            value: tier.maxBranches === null ? t('planLimits.unlimited') : String(tier.maxBranches),
+          },
+          {
+            label: t('planLimits.issuePoints'),
+            value: tier.maxIssuePointsPerBranch === null ? t('planLimits.unlimited') : String(tier.maxIssuePointsPerBranch),
+          },
+          { label: t('planLimits.webhooks'), value: String(tier.maxWebhookEndpoints) },
+          {
+            label: t('planLimits.users'),
+            value: tier.maxUsers === null
+              ? t('planLimits.unlimited')
+              : extraSeats > 0
+                ? t('planLimits.usersWithExtra', { base: tier.maxUsers, extra: extraSeats })
+                : String(tier.maxUsers),
+          },
+          {
+            label: t('planLimits.apiKeys'),
+            value: tier.maxApiKeys === null ? t('planLimits.unlimited') : String(tier.maxApiKeys),
+          },
+        ].map(({ label, value }) => (
+          <div key={label} className="flex items-center justify-between rounded-md bg-muted/40 px-3 py-2">
+            <dt className="text-xs text-muted-foreground">{label}</dt>
+            <dd className="text-xs font-medium">{value}</dd>
+          </div>
+        ))}
+      </dl>
+      <div className="mt-2">
+        <p className="mb-1.5 text-xs text-muted-foreground">{t('planLimits.allowedDocTypes')}</p>
+        <div className="flex flex-wrap gap-1.5">
+          {tier.allowedDocumentTypes.map((code) => (
+            <span
+              key={code}
+              className="rounded-md border border-border bg-muted px-2 py-0.5 text-xs font-medium"
+            >
+              {tIssuers.has(`docType.${code}` as Parameters<typeof tIssuers>[0])
+                ? tIssuers(`docType.${code}` as Parameters<typeof tIssuers>[0])
+                : code}
+              {' '}({code})
+            </span>
+          ))}
+        </div>
       </div>
-      <div>
-        <p className="text-xl font-bold">
-          {currencyFormatter.format(price)}
-          <span className="text-sm font-normal text-muted-foreground">{perLabel}</span>
-        </p>
-        <p className="text-xs text-muted-foreground">
-          {t('plusIva')}
-        </p>
-      </div>
-      <p className="text-xs text-muted-foreground">
-        {tier.documentQuota === null
-          ? tPricing('features.unlimitedQuota')
-          : yearlyPooled
-            ? tPricing('features.quotaYearly', { count: quotaCount })
-            : tPricing('features.quota', { count: quotaCount })}
-      </p>
-    </div>
+    </>
   );
 }
 
@@ -1546,16 +1483,15 @@ function SubscribeCard({
   emailVerified,
   intendedTier,
   intendedBillingInterval,
-  currentSubscriptionTier,
 }: {
   tiers: ApiTierInfo[];
   emailVerified: boolean;
   intendedTier?: PaidTier;
   intendedBillingInterval?: BillingInterval;
-  currentSubscriptionTier: string;
 }) {
   const t = useTranslations('billing');
   const tPricing = useTranslations('pricing');
+  const tIssuers = useTranslations('issuers');
   const tError = useTranslations('apiError');
   const [isPending, startTransition] = useTransition();
   const [confirming, setConfirming] = useState(false);
@@ -1569,15 +1505,16 @@ function SubscribeCard({
   // need to resolve a selection regardless of the toggle's current position
   // (e.g. a pre-filled intendedTier of SOLO before the user touches the toggle).
   const visibleOptions = options.filter((tier) => tier.billingIntervals.includes(billingInterval));
-  // FREE is display-only (never purchased, billingIntervals: ['MONTHLY'] on
-  // the API — see subscription-tiers.js) but this card only ever renders
-  // while the tenant has no active/pending subscription, which means they
-  // are actually sitting on FREE right now — show it alongside the paid
-  // options, non-selectable, so the grid reads as "here's your current plan
-  // and what you could upgrade to" instead of silently omitting it.
-  const freeTier = currentSubscriptionTier === 'FREE'
-    ? tiers.find((tier) => tier.name === 'FREE' && tier.billingIntervals.includes(billingInterval))
-    : undefined;
+  // Dropdown option label: tier name + price at the currently toggled
+  // interval — mirrors ChangeTierCard's tierOptionLabel.
+  function tierOptionLabel(tier: ApiTierInfo): string {
+    const name = tPricing.has(`tiers.${tier.name}.name` as Parameters<typeof tPricing>[0])
+      ? tPricing(`tiers.${tier.name}.name` as Parameters<typeof tPricing>[0])
+      : tier.name;
+    const { base, effectiveInterval } = resolveTierTotal(tier, billingInterval);
+    const price = `${currencyFormatter.format(base)}${tPricing(effectiveInterval === 'YEARLY' ? 'perYear' : 'perMonth')}`;
+    return `${name} — ${price}`;
+  }
 
   function selectTier(name: PaidTier) {
     setSelectedTier(name);
@@ -1641,48 +1578,130 @@ function SubscribeCard({
             />
           </div>
 
-          <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {freeTier && (
-              <PlanCard key={freeTier.name} tier={freeTier} interval={billingInterval} state="current" />
-            )}
-            {visibleOptions.map((tier) => (
-              <PlanCard
-                key={tier.name}
-                tier={tier}
-                interval={billingInterval}
-                state={selectedTier === tier.name ? 'selected' : 'default'}
-                onClick={() => selectTier(tier.name as PaidTier)}
-              />
-            ))}
-          </div>
-
-          {selectedTier && !confirming && (
-            <div className="mt-3 flex justify-end">
-              <Button size="sm" variant="outline" onClick={() => setConfirming(true)} disabled={isPending}>
-                {t('subscribe.button')}
-              </Button>
+          <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[240px_1fr]">
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground" htmlFor="subscribe-tier-select">
+                {t('subscribe.placeholder')}
+              </label>
+              <Select
+                value={selectedTier ?? undefined}
+                onValueChange={(value) => selectTier(value as PaidTier)}
+                disabled={isPending}
+              >
+                <SelectTrigger id="subscribe-tier-select" className="w-full">
+                  <SelectValue>
+                    {(value: string | null) => {
+                      const tier = visibleOptions.find((ti) => ti.name === value);
+                      return tier ? tierOptionLabel(tier) : value;
+                    }}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {visibleOptions.map((tier) => (
+                    <SelectItem key={tier.name} value={tier.name}>
+                      {tierOptionLabel(tier)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          )}
 
-          {confirming && selectedTier && selectedTierInfo && (
-            <div className="mt-3 rounded-md border border-border bg-muted/40 p-3 text-sm space-y-2">
-              <p className="font-medium">
-                {currencyFormatter.format(resolveTierTotal(selectedTierInfo, billingInterval).base)}
-                {tPricing(resolveTierTotal(selectedTierInfo, billingInterval).effectiveInterval === 'YEARLY' ? 'perYear' : 'perMonth')}
-                {' '}
-                <span className="text-xs font-normal text-muted-foreground">{t('plusIva')}</span>
-              </p>
-              <p>{t('subscribe.confirmHint')}</p>
-              <div className="flex gap-2">
-                <Button size="sm" onClick={handleSubscribe} disabled={isPending}>
-                  {isPending ? t('subscribe.confirming') : t('subscribe.confirm')}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setConfirming(false)} disabled={isPending}>
-                  {t('subscribe.cancel')}
-                </Button>
+            {selectedTierInfo && (
+              <div className="flex flex-col gap-3 rounded-lg border border-primary/30 bg-primary/5 p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-semibold">
+                    {tPricing(`tiers.${selectedTierInfo.name}.name` as Parameters<typeof tPricing>[0])}
+                  </p>
+                  {selectedTierInfo.name === 'GROWTH' && (
+                    <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                      {tPricing('badge.popular')}
+                    </span>
+                  )}
+                </div>
+
+                <div>
+                  <p className="text-2xl font-bold">
+                    {currencyFormatter.format(resolveTierTotal(selectedTierInfo, billingInterval).base)}
+                    <span className="text-sm font-normal text-muted-foreground">
+                      {tPricing(resolveTierTotal(selectedTierInfo, billingInterval).effectiveInterval === 'YEARLY' ? 'perYear' : 'perMonth')}
+                    </span>
+                  </p>
+                  <p className="text-xs text-muted-foreground">{t('plusIva')}</p>
+                </div>
+
+                <p className="text-sm text-muted-foreground">
+                  {tPricing(`tiers.${selectedTierInfo.name}.description` as Parameters<typeof tPricing>[0])}
+                </p>
+
+                <ul className="flex flex-col gap-1.5 text-xs">
+                  <li className="flex items-start gap-2">
+                    <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                    {selectedTierInfo.documentQuota === null
+                      ? tPricing('features.unlimitedQuota')
+                      : billingInterval === 'YEARLY'
+                        ? tPricing('features.quotaYearly', { count: selectedTierInfo.documentQuota * 12 })
+                        : tPricing('features.quota', { count: selectedTierInfo.documentQuota })}
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                    {selectedTierInfo.maxBranches === null
+                      ? tPricing('features.unlimitedBranches')
+                      : tPricing('features.branches', { count: selectedTierInfo.maxBranches })}
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                    {selectedTierInfo.maxIssuePointsPerBranch === null
+                      ? tPricing('features.unlimitedIssuePoints')
+                      : tPricing('features.issuePoints', { count: selectedTierInfo.maxIssuePointsPerBranch })}
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                    {tPricing('features.docTypes', {
+                      types: selectedTierInfo.allowedDocumentTypes
+                        .map((code) =>
+                          tIssuers.has(`docType.${code}` as Parameters<typeof tIssuers>[0])
+                            ? tIssuers(`docType.${code}` as Parameters<typeof tIssuers>[0])
+                            : code,
+                        )
+                        .join(', '),
+                    })}
+                  </li>
+                  {selectedTierInfo.maxWebhookEndpoints > 0 && (
+                    <li className="flex items-start gap-2">
+                      <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                      {tPricing('features.webhooks', { count: selectedTierInfo.maxWebhookEndpoints })}
+                    </li>
+                  )}
+                  <li className="flex items-start gap-2">
+                    <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                    {selectedTierInfo.maxUsers === null
+                      ? tPricing('features.unlimitedUsers')
+                      : tPricing('features.users', { count: selectedTierInfo.maxUsers })}
+                  </li>
+                </ul>
+
+                {!confirming && (
+                  <Button size="sm" onClick={() => setConfirming(true)} disabled={isPending} className="mt-1 self-start">
+                    {t('subscribe.button')}
+                  </Button>
+                )}
+
+                {confirming && (
+                  <div className="mt-1 rounded-md border border-border bg-background p-3 text-sm space-y-2">
+                    <p>{t('subscribe.confirmHint')}</p>
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={handleSubscribe} disabled={isPending}>
+                        {isPending ? t('subscribe.confirming') : t('subscribe.confirm')}
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => setConfirming(false)} disabled={isPending}>
+                        {t('subscribe.cancel')}
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </>
       )}
     </div>
