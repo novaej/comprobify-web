@@ -8,6 +8,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.11.0] — 2026-09-15
+
+### Added
+- **`/settings/billing`'s "Suscribirme a un plan" card now matches `ChangeTierCard`'s layout** — a dropdown lists each purchasable tier, and picking one expands its full feature breakdown (quota, branches, issue points, doc types, webhooks, users) on the right, instead of the old grid of compact plan tiles. Fixes an inconsistency where `ChangeTierCard` had already moved to this layout but `SubscribeCard` hadn't.
+
+### Fixed
+- **A tenant could plant a phantom "read" on another tenant's notification.** `markNotificationReadAction` wrote the caller's `NotificationRead` row *before* verifying the notification belonged to the caller's own tenant — a caller who knew or guessed another tenant's notification id could inflate the read count that decides when a notification is marked read at the API level, for a notification that was never theirs. Fixed by checking tenant ownership first.
+- **HTML/link injection via `businessName` in invite and password-reset emails.** A tenant's free-text `businessName` (set once at onboarding, no sanitization) was spliced unescaped into HTML email bodies via next-intl's `{placeholder}` interpolation, which doesn't HTML-escape. Any Owner could inject HTML/links into emails sent to their own coworkers or invitees. Fixed with a shared `escapeHtml()` helper.
+- **Unsanitized markdown rendering in the admin agreement editor.** `marked` renders raw HTML embedded in markdown source verbatim by default; the TERMS/PRIVACY/DPA editor's live preview and "View version" dialog rendered its output via `dangerouslySetInnerHTML` with no sanitization, so a pasted `<script>`/`<img onerror>` in a draft would execute in the viewing admin's session. Fixed by overriding `marked`'s HTML renderer to escape rather than pass through.
+- **Pricing page showed "0 webhooks" for tiers with no webhook allowance** instead of omitting the feature line.
+- **The onboarding form's legal-agreements notice showed even when the API has no agreements published yet** (`AGREEMENTS_ENABLED=false`) — now driven by the public `GET /v1/agreements` response instead of always rendering.
+
 ## [0.10.0] — 2026-09-14
 
 ### Added
