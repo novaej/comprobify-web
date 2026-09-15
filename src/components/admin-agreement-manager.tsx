@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { marked } from 'marked';
 import { toastApiError } from '@/lib/api-error-toast';
+import { escapeHtml } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -31,6 +32,21 @@ import type { AdminAgreementVersion, AdminAgreementDetail, AgreementDocumentType
 // ── Markdown renderer ─────────────────────────────────────────────────────────
 
 marked.setOptions({ breaks: true });
+// marked renders raw HTML embedded in the markdown source verbatim by
+// default (block-level and inline alike route through this one renderer
+// method) — a real XSS vector for both the live preview and the read-only
+// "View version" dialog, e.g. a pasted <script>/<img onerror> in an
+// admin-authored TERMS/PRIVACY/DPA draft. Overriding this to escape rather
+// than pass through mirrors the Comprobify API's own markdown-it html:false
+// setting for the copy tenants actually see (agreement.service.js) — this
+// app's admin editor/preview never had the equivalent guard.
+marked.use({
+  renderer: {
+    html({ text }) {
+      return escapeHtml(text);
+    },
+  },
+});
 
 function renderWithHighlights(markdown: string): string {
   const html = marked.parse(markdown) as string;

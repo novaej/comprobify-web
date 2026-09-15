@@ -5,6 +5,7 @@ import { requirePermission } from '@/lib/context';
 import { revalidatePath } from 'next/cache';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { sendMail } from '@/lib/mailgun';
+import { escapeHtml } from '@/lib/utils';
 import * as Sentry from '@sentry/nextjs';
 import { resolveApiKeyForRole, roleNeedsNewApiKey } from '@/lib/tenant-api-key';
 import { resolveTenantLimits } from '@/lib/tenant-limits';
@@ -63,7 +64,7 @@ async function sendInviteEmail(email: string, businessName: string, token: strin
     const link = `${appUrl}/${locale}/complete-registration?token=${token}`;
     const subject = t('subject', { businessName });
     const text = `${t('greeting', { businessName })}\n\n${t('cta')}\n\n${link}`;
-    const html = `<p>${t('greeting', { businessName })}</p><p>${t('cta')}</p><p><a href="${link}">${link}</a></p>`;
+    const html = `<p>${t('greeting', { businessName: escapeHtml(businessName) })}</p><p>${t('cta')}</p><p><a href="${link}">${link}</a></p>`;
 
     await sendMail({ to: email, subject, text, html, locale });
   } catch (err) {
@@ -229,7 +230,7 @@ async function sendPasswordResetEmail(email: string, businessName: string, token
     const link = `${appUrl}/${locale}/complete-registration?token=${token}`;
     const subject = t('subject');
     const text = `${t('greeting', { businessName })}\n\n${t('cta')}\n\n${link}`;
-    const html = `<p>${t('greeting', { businessName })}</p><p>${t('cta')}</p><p><a href="${link}">${link}</a></p>`;
+    const html = `<p>${t('greeting', { businessName: escapeHtml(businessName) })}</p><p>${t('cta')}</p><p><a href="${link}">${link}</a></p>`;
     await sendMail({ to: email, subject, text, html, locale });
   } catch (err) {
     Sentry.captureException(err, { extra: { email } });

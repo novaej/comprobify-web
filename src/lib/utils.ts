@@ -16,3 +16,20 @@ const UUID_RE =
 export function isUuid(value: string): boolean {
   return UUID_RE.test(value);
 }
+
+/**
+ * Escapes a string for safe interpolation into raw HTML — used wherever
+ * user-controlled text is spliced into an HTML string outside React's own
+ * JSX auto-escaping (an HTML email body, a custom markdown renderer's raw-
+ * HTML token). Shared here (not server-only) so both server code (email
+ * templates) and Client Components (the admin agreement editor's markdown
+ * renderer) can import it.
+ */
+export function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
