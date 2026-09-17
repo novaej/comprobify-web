@@ -8,6 +8,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Changed
+- **Staging now deploys directly and continuously off `main`**, mirroring the same change in the `comprobify` API repo. `release-staging.yml` (which used to fast-forward a `staging` branch on every tag push, burning a version number for even a throwaway test deploy) is retired; `deploy-staging.yml` triggers on push to `main` instead. Tags are now reserved exclusively for naming a production release candidate — publishing a GitHub Release from a tag is still the only thing that promotes to production.
+- **`docs/production-readiness-checklist.md` removed** — every item on it was resolved and production has been live since 2026-09-14; its content is now history rather than an actively-tracked list.
+
 ## [1.0.1] — 2026-09-15
 
 ### Fixed

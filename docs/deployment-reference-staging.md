@@ -2,11 +2,11 @@
 
 Last updated: 2026-09-14
 
-This reference describes the staging deployment setup for `comprobify-web`, including infrastructure, required configuration, deployment steps, and post-deployment checks. For the step-by-step guide on how this is set up (and *why*, in detail), see `docs/deployment.md` and `docs/terraform-digitalocean-setup.md` — this file is the quick-reference sheet of concrete project names and values for the environment that's actually running. See `docs/deployment-reference-production.md` for the equivalent (not-yet-provisioned) target configuration for production, and `docs/production-readiness-checklist.md` for the tracker of what's left before that goes live.
+This reference describes the staging deployment setup for `comprobify-web`, including infrastructure, required configuration, deployment steps, and post-deployment checks. For the step-by-step guide on how this is set up (and *why*, in detail), see `docs/deployment.md` and `docs/terraform-digitalocean-setup.md` — this file is the quick-reference sheet of concrete project names and values for the environment that's actually running (though staging's droplet is currently destroyed — see `docs/terraform-digitalocean-setup.md`'s "Toggling staging infra on/off"). See `docs/deployment-reference-production.md` for the equivalent configuration for production, live since 2026-09-14.
 
 ## Architecture
 
-- **GitHub Actions** manages two independent pipelines: the release pipeline (`release-staging.yml`, fast-forwarding the `staging` branch on a tag push) and the app deploy pipeline (`deploy-staging.yml`, triggered by that push — builds a Docker image, pushes it to GHCR, and SSHes into the droplet to restart the containers).
+- **GitHub Actions** manages application CI/CD: every push to `main` (any merged PR) triggers `deploy-staging.yml` directly, which builds a Docker image, pushes it to GHCR, and SSHes into the droplet to restart the containers — no intermediate branch or tag (`release-staging.yml` was retired, mirroring the same change in the `comprobify` API repo).
 - **DigitalOcean Droplet** hosts the Next.js 16 app (`comprobify-web-staging` droplet, `s-1vcpu-1gb`) behind a Caddy reverse proxy. The build command is `npm run build:deploy` (`prisma generate && next build`, run inside `Dockerfile`'s build stage); the run command is `npm run start:deploy` (`prisma migrate deploy && next start`) — migrations run at container startup, not at image-build time (the GitHub Actions runner building the image has no network route to the database).
 - **Terraform** provisions the droplet itself (`terraform/environments/staging` → `terraform/modules/droplet`) — the droplet, its reserved IP, its Cloudflare-only firewall, its DigitalOcean Project assignment, and its two Cloudflare DNS records. Terraform does **not** set any app secret/env var — those are written directly to the droplet's `.env` file by `deploy-staging.yml` over SSH. `terraform.yml` runs on push to `main` (path-filtered to `terraform/**`), applying against a DigitalOcean Spaces state backend (`comprobify-terraform-state` bucket, key `staging/comprobify-web/terraform.tfstate`).
 - **DigitalOcean Managed PostgreSQL** provides this app's own tables (`users`, `tenants`, `tenant_api_keys`, `issuers`, `notifications`, `notification_reads`, `webhook_endpoints`, `clients`, `products`, `document_templates`, `user_issuer_access`, etc. — see `prisma/schema.prisma`). Staging runs on a **Basic-plan cluster shared with the Comprobify API's own database** — not a dedicated instance, and not fronted by any connection pooler (no PgBouncer). Each consumer (this app, the API process, the API worker) caps its own `pg.Pool` concurrency via `?connection_limit=N` on `DATABASE_URL` to stay within its share of the cluster's ~22 backend connections. The droplet's reserved IP must be added to the cluster's **Trusted Sources** manually (DO dashboard) — not Terraform-managed for either repo.
@@ -14,9 +14,9 @@ This reference describes the staging deployment setup for `comprobify-web`, incl
 - **Sentry** provides error monitoring with the environment tagged `staging`.
 - **Cloudflare** provides both DNS and proxying for `staging.comprobify.com` / `app-staging.comprobify.com` — both **A** records, pointing at the droplet's reserved IP, `proxied = true`, created by Terraform, giving both domains Cloudflare's WAF/DDoS/bot layer.
 - **Search engine indexing** — `robots.txt`/`sitemap.xml` (`src/app/robots.ts`/`sitemap.ts`) deliberately disallow everything on this environment: `SEO_INDEXABLE` (`src/lib/seo.ts`) is only true when `NEXT_PUBLIC_APP_ENV=production`, so the real, publicly-reachable staging domain never gets indexed by Google. This is intentional, not a gap to fix.
-- **`novaej/comprobify-web` is now a public repository** — made public to unblock a required-reviewer rule on `staging-infra`/`production-infra` (GitHub Team's billing plan rejected adding it while private). A full git-history secret scan was run first and came back clean — see `docs/production-readiness-checklist.md`.
+- **`novaej/comprobify-web` is now a public repository** — made public to unblock a required-reviewer rule on `staging-infra`/`production-infra` (GitHub Team's billing plan rejected adding it while private). A full git-history secret scan was run first and came back clean.
 - **`terraform.yml`'s `plan-staging`/`apply-staging` jobs are gated behind the `STAGING_INFRA_ENABLED` repository variable** (mirrors the Comprobify API repo's own toggle) — off by default, since that variable doesn't currently exist. This only stops CI from auto-reconciling `terraform/environments/staging` on every `terraform/**`-touching push to `main`; it does **not** affect this droplet, which keeps running and receiving deploys via `deploy-staging.yml` exactly as before. See `docs/terraform-digitalocean-setup.md`'s "Toggling staging infra on/off" section.
-- **CI hardening**: third-party GitHub Actions (`appleboy/scp-action`, `appleboy/ssh-action`, `hashicorp/setup-terraform`) are pinned to commit SHAs, `node:24-slim`/`caddy:2-alpine` are pinned by digest, and `deploy-staging.yml` scans the built image with Trivy (informational for now) — see `docs/production-readiness-checklist.md`'s "Security & CI hardening" section.
+- **CI hardening**: third-party GitHub Actions (`appleboy/scp-action`, `appleboy/ssh-action`, `hashicorp/setup-terraform`) are pinned to commit SHAs, `node:24-slim`/`caddy:2-alpine` are pinned by digest, and `deploy-staging.yml` scans the built image with Trivy (informational for now) — see `docs/trivy-baseline-2026-09-15.md`.
 
 ## Components and Platforms
 
@@ -94,9 +94,8 @@ Staging's database is **DigitalOcean Managed Postgres, shared with the Comprobif
 
 | File | Trigger | Effect |
 |---|---|---|
-| `release-staging.yml` | Push of tag `vX.Y.Z` | Fast-forwards `staging` to the tagged commit and pushes it |
-| `deploy-staging.yml` | Push to `staging`, or manual `workflow_dispatch` | Builds a Docker image, pushes it to `ghcr.io/novaej/comprobify-web`, SCPs `deploy/docker-compose.yml`/`deploy/caddy/Caddyfile` to the droplet, writes `.env` over SSH, restarts the containers |
-| `terraform.yml` (`plan-staging`/`apply-staging` jobs) | Push to `main` touching `terraform/**`, or manual `workflow_dispatch` — **gated behind the `STAGING_INFRA_ENABLED` repository variable, off by default** | Runs `terraform plan`/`apply` (or `destroy`) against `terraform/environments/staging` — droplet/firewall/DNS only, no app secrets |
+| `deploy-staging.yml` | Push to `main`, or manual `workflow_dispatch` — *currently disabled, staging's droplet is destroyed* | Builds a Docker image, pushes it to `ghcr.io/novaej/comprobify-web`, SCPs `deploy/docker-compose.yml`/`deploy/caddy/Caddyfile` to the droplet, writes `.env` over SSH, restarts the containers |
+| `terraform.yml` (`plan-staging`/`apply-staging` jobs) | Push to `main` touching `terraform/**`, or manual `workflow_dispatch` — **gated behind the `STAGING_INFRA_ENABLED` repository variable, currently `false`** | Runs `terraform plan`/`apply` (or `destroy`) against `terraform/environments/staging` — droplet/firewall/DNS only, no app secrets |
 
 ### GitHub Actions — Secrets
 
@@ -164,18 +163,13 @@ None beyond Docker/Docker Compose on the droplet (installed by cloud-init) and C
 
 ## Deploying to staging
 
-1. Merge your feature/fix branch into `main` via PR.
-2. Cut a `chore/release` branch, run `npm --no-git-tag-version version <patch|minor|major>`, rename `CHANGELOG.md`'s `## [Unreleased]` to the new version with today's date (and open a fresh empty `## [Unreleased]` above it), open a PR, and merge it.
-3. Pull `main`, then tag the merge commit:
-   ```bash
-   git checkout main && git pull origin main
-   git tag -a vX.Y.Z -m vX.Y.Z
-   git push origin vX.Y.Z
-   ```
-4. `release-staging.yml` fast-forwards `staging`; `deploy-staging.yml` picks up the push, builds a Docker image, pushes it to GHCR, and restarts the containers on the droplet. Any merged `terraform/**` change is applied separately by `terraform.yml` on its own `main`-push trigger, independent of the release cadence.
-5. Monitor the run in the GitHub Actions tab (build/push/SCP/SSH steps); once it finishes, `docker compose logs -f web` on the droplet confirms `prisma migrate deploy` ran (migrations run at container startup, not in the CI build log).
+No manual step — every merge to `main` deploys to staging automatically via `deploy-staging.yml` (currently disabled since staging's droplet is destroyed, see `docs/terraform-digitalocean-setup.md`'s "Toggling staging infra on/off"). There's nothing to "release" to staging; it always runs whatever is currently on `main`.
 
-Current version as of this writing: **v0.9.16** (staging branch HEAD). Several features (Payphone card payments/ADR-028, the invoicing-queue/refunds/suspension-reasons work/ADR-027, per-document-type "canIssue" pause) have merged to `main` since but not yet been cut into a release — none of them require new env vars/secrets for this app, see below.
+1. Merge your feature/fix branch into `main` via PR.
+2. `deploy-staging.yml` picks up the push, builds a Docker image, pushes it to GHCR, and restarts the containers on the droplet. Any merged `terraform/**` change is applied separately by `terraform.yml` on its own `main`-push trigger, independent of any release.
+3. Monitor the run in the GitHub Actions tab (build/push/SCP/SSH steps); once it finishes, `docker compose logs -f web` on the droplet confirms `prisma migrate deploy` ran (migrations run at container startup, not in the CI build log).
+
+Cutting an actual version (tag + GitHub Release) is only needed to promote to production — see `docs/deployment.md`'s "Cut a release candidate" and "Promote to production" sections.
 
 ## Post-deployment checks
 

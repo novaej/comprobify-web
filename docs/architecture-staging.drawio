@@ -25,7 +25,7 @@
           <mxGeometry height="105" width="230" x="300" y="175" as="geometry" />
         </mxCell>
 
-        <mxCell id="web-platform" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;spacingLeft=8;" value="&lt;b&gt;DigitalOcean Droplet&lt;/b&gt;&lt;br/&gt;comprobify-web-staging (s-1vcpu-1gb)&lt;br/&gt;Caddy (TLS, reverse proxy) → web container&lt;br/&gt;Docker Compose · branch: staging&lt;br/&gt;build: prisma generate &amp;&amp; next build&lt;br/&gt;run: prisma migrate deploy &amp;&amp; next start&lt;br/&gt;proxy.ts routes marketing vs. app host" vertex="1">
+        <mxCell id="web-platform" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;spacingLeft=8;" value="&lt;b&gt;DigitalOcean Droplet&lt;/b&gt;&lt;br/&gt;comprobify-web-staging (s-1vcpu-1gb)&lt;br/&gt;Caddy (TLS, reverse proxy) → web container&lt;br/&gt;Docker Compose · deploys from: main&lt;br/&gt;build: prisma generate &amp;&amp; next build&lt;br/&gt;run: prisma migrate deploy &amp;&amp; next start&lt;br/&gt;proxy.ts routes marketing vs. app host" vertex="1">
           <mxGeometry height="140" width="270" x="600" y="160" as="geometry" />
         </mxCell>
 
@@ -45,11 +45,11 @@
           <mxGeometry height="60" width="120" x="70" y="575" as="geometry" />
         </mxCell>
 
-        <mxCell id="web-github" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#24292e;" value="&lt;b&gt;GitHub&lt;/b&gt;&lt;br/&gt;comprobify-web repo&lt;br/&gt;branches: main / staging" vertex="1">
+        <mxCell id="web-github" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#24292e;" value="&lt;b&gt;GitHub&lt;/b&gt;&lt;br/&gt;comprobify-web repo&lt;br/&gt;branches: main / production" vertex="1">
           <mxGeometry height="80" width="170" x="270" y="560" as="geometry" />
         </mxCell>
 
-        <mxCell id="web-actions" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#24292e;align=left;spacingLeft=10;fontSize=10;" value="&lt;b&gt;GitHub Actions&lt;/b&gt;&lt;br/&gt;&lt;br/&gt;release-staging.yml — tag vX.Y.Z → fast-forward staging branch (RELEASE_PUSH_TOKEN)&lt;br/&gt;deploy-staging.yml — push to staging → build+push GHCR, SCP compose files, SSH write .env + restart&lt;br/&gt;release-production.yml / deploy-production.yml — disabled until production is provisioned" vertex="1">
+        <mxCell id="web-actions" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#24292e;align=left;spacingLeft=10;fontSize=10;" value="&lt;b&gt;GitHub Actions&lt;/b&gt;&lt;br/&gt;&lt;br/&gt;deploy-staging.yml — push to main → build+push GHCR, SCP compose files, SSH write .env + restart (currently disabled, staging droplet destroyed)&lt;br/&gt;release-production.yml — GitHub Release published → fast-forward production branch (RELEASE_PUSH_TOKEN)&lt;br/&gt;deploy-production.yml — push to production → same shape, ships to production droplet — see architecture-production.drawio" vertex="1">
           <mxGeometry height="120" width="360" x="520" y="535" as="geometry" />
         </mxCell>
 
@@ -97,20 +97,12 @@
           </mxGeometry>
         </mxCell>
 
-        <mxCell id="web-e7" edge="1" parent="1" source="web-dev" style="edgeStyle=orthogonalEdgeStyle;html=1;" target="web-github" value="git push / tag vX.Y.Z">
+        <mxCell id="web-e7" edge="1" parent="1" source="web-dev" style="edgeStyle=orthogonalEdgeStyle;html=1;" target="web-github" value="git push (PR merge to main)">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
 
         <mxCell id="web-e8" edge="1" parent="1" source="web-github" style="edgeStyle=orthogonalEdgeStyle;html=1;" target="web-actions" value="triggers">
           <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <mxCell id="web-e9" edge="1" parent="1" source="web-actions" style="edgeStyle=orthogonalEdgeStyle;html=1;" target="web-github" value="fast-forward push to staging branch">
-          <mxGeometry relative="1" as="geometry">
-            <Array as="points">
-              <mxPoint x="455" y="610" />
-            </Array>
-          </mxGeometry>
         </mxCell>
 
         <mxCell id="web-e10" edge="1" parent="1" source="web-actions" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.85;entryDx=0;entryDy=0;" target="web-platform" value="build → push GHCR → SCP compose files → SSH write .env + docker compose up -d">

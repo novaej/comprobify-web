@@ -1,8 +1,8 @@
 # Comprobify Web Deployment Reference (Production)
 
-Last updated: 2026-09-14
+Last updated: 2026-09-16
 
-**Droplet + DNS provisioned; app not yet deployed.** This is the target-configuration reference for production — mirrors `docs/deployment-reference-staging.md`'s structure, with production's own concrete values. `terraform apply` against `terraform/environments/production` ran for real (triggered automatically when PR #131 merged) — the droplet, reserved IP (`143.244.213.97`), firewall, and both Cloudflare A records all exist, live-verified (`dig comprobify.com`/`dig app.comprobify.com` both resolve through Cloudflare's proxy). The `production`/`production-infra` GitHub Environments exist and are fully populated (14/14 documented Variables, 11/11 documented Secrets, live-verified), both carrying a required-reviewer protection rule. **What's still missing: nothing has actually been deployed to the droplet yet** — `deploy-production.yml`/`release-production.yml` are both still behind their `if: false` guards, and the `production` branch doesn't exist. `docs/production-readiness-checklist.md` is the authoritative, actively-maintained tracker of exactly what's done versus still pending — don't infer status from this file, it's the configuration target, not a progress log. For the step-by-step guide on how this is set up (and *why*, in detail), see `docs/deployment.md` and `docs/terraform-digitalocean-setup.md`.
+**Status: live since 2026-09-14** (`v0.10.0` was the first production release; `v1.0.0`, 2026-09-15, marked it a fully verified, stable deployment). This is the deployment reference for production — mirrors `docs/deployment-reference-staging.md`'s structure, with production's own concrete values. `terraform apply` against `terraform/environments/production` ran for real (triggered automatically when PR #131 merged) — the droplet, reserved IP (`143.244.213.97`), firewall, and both Cloudflare A records all exist, live-verified (`dig comprobify.com`/`dig app.comprobify.com` both resolve through Cloudflare's proxy). The `production`/`production-infra` GitHub Environments exist and are fully populated (14/14 documented Variables, 11/11 documented Secrets, live-verified), both carrying a required-reviewer protection rule. `deploy-production.yml`/`release-production.yml` are both enabled and have shipped multiple real releases. For the step-by-step guide on how this is set up (and *why*, in detail), see `docs/deployment.md` and `docs/terraform-digitalocean-setup.md`.
 
 ## Architecture
 
@@ -10,12 +10,12 @@ Identical shape to staging (see `docs/deployment-reference-staging.md`'s own Arc
 
 - **DigitalOcean Droplet** — `comprobify-web-production`, its own dedicated resource, not sharing anything with staging's droplet.
 - **DigitalOcean Managed PostgreSQL** — shares the same cluster as the Comprobify API's own **production** database (separate cluster from the staging one, which shares with the API's staging database instead — same shared-per-environment pattern, just the production instance of it). See "Database setup" below for the actual provisioning procedure. The same `?connection_limit=N` discipline documented in `docs/deployment.md`'s "DATABASE_URL connection budget on a shared cluster" section applies here too.
-- **Comprobify API (production)** — `api.comprobify.com`, **already live** (the API repo's own production went live first; see `../comprobify/docs/production-readiness-checklist.md`). This app's production launch must coordinate `INTERNAL_SERVICE_SECRET` with the API's already-live production value — see "Coordination with the Comprobify API repo" below.
+- **Comprobify API (production)** — `api.comprobify.com`, live since 2026-09-15 (the API repo's own production went live first; see `../comprobify/docs/deployment-reference-production.md`). This app's production launch coordinated `INTERNAL_SERVICE_SECRET` with the API's production value — see "Coordination with the Comprobify API repo" below.
 - **Cloudflare** — `comprobify.com` / `app.comprobify.com`, both proxied A records pointing at the production droplet's own reserved IP (distinct from staging's).
 - **Sentry** — same project as staging (`comprobify-web`, org `novaej`), environment tagged `production` via `APP_ENV`/`NEXT_PUBLIC_APP_ENV`.
 - **Search engine indexing** — unlike staging, `SEO_INDEXABLE` (`src/lib/seo.ts`) is `true` when `NEXT_PUBLIC_APP_ENV=production`, so `robots.txt`/`sitemap.xml` actually allow indexing of the marketing routes here. This is the *only* environment where that should be true — double-check `NEXT_PUBLIC_APP_ENV` is exactly `production` before the first real deploy, or the marketing site never gets indexed.
-- **`novaej/comprobify-web` is now a public repository** — made public to unblock the required-reviewer rule on `production-infra`/`staging-infra` (GitHub Team's billing plan rejected adding it while private, a known quirk mirrored from the Comprobify API repo's own experience). A full git-history secret scan was run first and came back clean — see `docs/production-readiness-checklist.md`.
-- **CI hardening applies to both environments identically**, not something to redo for production specifically: third-party GitHub Actions (`appleboy/scp-action`, `appleboy/ssh-action`, `hashicorp/setup-terraform`) are pinned to commit SHAs, `node:24-slim`/`caddy:2-alpine` are pinned by digest, and both `deploy-staging.yml`/`deploy-production.yml` scan the built image with Trivy (informational for now) — see `docs/production-readiness-checklist.md`'s "Security & CI hardening" section.
+- **`novaej/comprobify-web` is now a public repository** — made public to unblock the required-reviewer rule on `production-infra`/`staging-infra` (GitHub Team's billing plan rejected adding it while private, a known quirk mirrored from the Comprobify API repo's own experience). A full git-history secret scan was run first and came back clean.
+- **CI hardening applies to both environments identically**, not something to redo for production specifically: third-party GitHub Actions (`appleboy/scp-action`, `appleboy/ssh-action`, `hashicorp/setup-terraform`) are pinned to commit SHAs, `node:24-slim`/`caddy:2-alpine` are pinned by digest, and both `deploy-staging.yml`/`deploy-production.yml` scan the built image with Trivy (informational for now) — see `docs/trivy-baseline-2026-09-15.md`.
 
 ## Components and Platforms
 
@@ -33,7 +33,7 @@ Identical shape to staging (see `docs/deployment-reference-staging.md`'s own Arc
 
 | Setting | Value |
 |---|---|
-| Deployed by | `deploy-production.yml` on push to `production` — droplet exists and is running (see "Architecture" above), but the workflow itself is still disabled (`if: false`, trigger commented out) — nothing has been deployed to it yet |
+| Deployed by | `deploy-production.yml` on push to `production` — enabled, has shipped multiple real releases |
 | Framework | Next.js 16, built into a Docker image (`Dockerfile`, repo root) — same image build as staging |
 | Build command (inside the image) | `npm run build:deploy` (`prisma generate && next build`) |
 | Run command (container `CMD`) | `npm run start:deploy` (`prisma migrate deploy && next start`) — migrations run here, at container startup |
@@ -45,7 +45,7 @@ Identical shape to staging (see `docs/deployment-reference-staging.md`'s own Arc
 
 ### Environment variables
 
-Everything lives in the `production` GitHub Environment, as either a Secret or a Variable, and `deploy-production.yml` writes all of it into `/opt/comprobify-web/.env` on the droplet on every deploy — same mechanism as staging, nothing set by hand in a console. **The `production` GitHub Environment now exists and is populated** (live-verified: all 14 documented Variables, 10 of 11 documented Secrets — only `DROPLET_IP` is missing, pending `terraform apply`) — the values below are what's documented/expected, not independently re-verified value-by-value from this session (secret values are never something to check by reading them back). See `docs/deployment.md`'s "Environment variables" section for what each one does.
+Everything lives in the `production` GitHub Environment, as either a Secret or a Variable, and `deploy-production.yml` writes all of it into `/opt/comprobify-web/.env` on the droplet on every deploy — same mechanism as staging, nothing set by hand in a console. **The `production` GitHub Environment exists and is fully populated** — all 14 documented Variables and all 11 documented Secrets are present, live-verified. See `docs/deployment.md`'s "Environment variables" section for what each one does.
 
 | Variable | Kind | Value |
 |---|---|---|
@@ -77,13 +77,13 @@ Plus two infra-only Secrets with no runtime `.env` entry — `DROPLET_IP` (the T
 
 ## Coordination with the Comprobify API repo
 
-**`INTERNAL_SERVICE_SECRET` cannot be generated unilaterally on this side alone.** The Comprobify API's production deployment is already live and already requires this secret at startup (comprobify's ADR-035) — the API won't boot without it set to *something*, but a value that doesn't match this app's production config boots fine and silently `403`s every `POST /v1/register`/`/recover`/`/resend-verification` call with `INTERNAL_SERVICE_ONLY`. Both deployments must agree on the exact same value before this app's production goes live. See `../comprobify/docs/production-readiness-checklist.md`'s own note on this.
+**`INTERNAL_SERVICE_SECRET` could not be generated unilaterally on this side alone.** The Comprobify API's production deployment requires this secret at startup (comprobify's ADR-035) — the API won't boot without it set to *something*, but a value that doesn't match this app's production config boots fine and silently `403`s every `POST /v1/register`/`/recover`/`/resend-verification` call with `INTERNAL_SERVICE_ONLY`. Both deployments had to agree on the exact same value before this app's production went live — confirmed coordinated.
 
 **The same secret now also gates every subscription/payment mutation (ADR-035's addendum).** `POST /v1/subscriptions`, `.../change-tier`, `.../seats`, cancel a subscription, cancel a payment, submit/delete proof, and both Payphone routes all require `X-Internal-Service-Secret` in addition to the tenant's own Bearer key — not just the original four account-lifecycle routes. `src/lib/api.ts` already sends it on every one of those functions (see CLAUDE.md), so this is a configuration concern, not a code one: a wrong or missing `INTERNAL_SERVICE_SECRET` breaks the entire `/settings/billing` mutation surface (subscribe, change tier, change seats, cancel, submit proof, pay by card), not just registration. Verify a real tier change or proof upload succeeds against production as part of the post-deployment checks below, not just registration.
 
-**Onboarding the first real production tenant happens through this app, not the API directly.** Direct `POST /v1/register` against the production API is no longer possible (ADR-035, registration is web-app-only) — so the API repo's own "onboard the first real tenant" checklist item is *also* gated on this app's production deployment being live with a matching `INTERNAL_SERVICE_SECRET`.
+**Onboarding the first real production tenant happened through this app, not the API directly.** Direct `POST /v1/register` against the production API is no longer possible (ADR-035, registration is web-app-only) — so the API repo's own "onboard the first real tenant" step was gated on this app's production deployment being live with a matching `INTERNAL_SERVICE_SECRET`. Done — a real tenant was onboarded, promoted to production, and a real invoice verified reaching `AUTHORIZED` through SRI.
 
-**Card payments (Payphone, ADR-028)** need no additional configuration on this app's side — `PAYPHONE_TOKEN`/`PAYPHONE_STORE_ID` and the registered Web Domain/Response URL live entirely on the Comprobify API side, one application per environment. The production Payphone application must be registered against **this app's actual production domain** (`app.comprobify.com`, specifically `https://app.comprobify.com/es/payphone/return` — see CLAUDE.md's "Registering the return URL is per Payphone *application*") once this app's production domain is live — tracked in the API repo's own checklist, not duplicated here.
+**Card payments (Payphone, ADR-028)** need no additional configuration on this app's side — `PAYPHONE_TOKEN`/`PAYPHONE_STORE_ID` and the registered Web Domain/Response URL live entirely on the Comprobify API side, one application per environment. The production Payphone application is registered against **this app's actual production domain** (`app.comprobify.com`, specifically `https://app.comprobify.com/es/payphone/return` — see CLAUDE.md's "Registering the return URL is per Payphone *application*").
 
 ## Database setup
 
@@ -120,7 +120,7 @@ The production droplet's reserved IP (`143.244.213.97`) has been added to the cl
 
 DigitalOcean Managed Database's own built-in automated backups — not SnapShooter, the separate DO product the Comprobify API repo relies on for its own backup layer (`../comprobify/docs/guides/database-backups.md`). DO's native backups restore at the **whole-cluster level only**, always into a **new** cluster from a backup/point in time — no selective per-database or in-place restore exists.
 
-**This has a real consequence from sharing the cluster with the Comprobify API's own production database (see above): a restore for either app's benefit rolls back both databases together to the same point in time.** There is no way to recover only comprobify-web's data independently of the API's, or vice versa. Make sure whoever owns the API's production data is aware of and accepts this before treating it as comprobify-web's actual disaster-recovery plan — see `docs/production-readiness-checklist.md` for the still-open item to actually test a restore before going live.
+**This has a real consequence from sharing the cluster with the Comprobify API's own production database (see above): a restore for either app's benefit rolls back both databases together to the same point in time.** There is no way to recover only comprobify-web's data independently of the API's, or vice versa. This was confirmed accepted by whoever owns the API's production data, and a real DO-native restore (including the app-level cutover) was fully rehearsed against the actual production cluster before go-live.
 
 ## GitHub Actions — Workflows
 
@@ -191,7 +191,7 @@ Same as staging — nothing beyond Docker/Docker Compose (installed by cloud-ini
 
 ## Deploying to production
 
-Not yet possible — see `docs/production-readiness-checklist.md` for the full punch list. Once enabled, the flow is: promote a tag already validated in staging by publishing a GitHub Release from it (see `docs/deployment.md`'s "Promote to production" section) — `release-production.yml` fast-forwards `production`, `deploy-production.yml` picks up the push and ships it.
+Publish a GitHub Release from a tag (see `docs/deployment.md`'s "Promote to production" section) — `release-production.yml` fast-forwards `production`, `deploy-production.yml` picks up the push and ships it. Since staging deploys directly off `main`, the commit being released has typically already been running on staging for a while by the time it's tagged.
 
 ## Post-deployment checks
 

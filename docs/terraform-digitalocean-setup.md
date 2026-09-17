@@ -15,7 +15,7 @@ This repo's setup mirrors the `comprobify` (API) repo's own `docs/terraform-digi
 Two independent pipelines, same shape as the API repo:
 
 1. **Infrastructure pipeline (Terraform)** — rare, reviewed changes: create/resize/destroy the droplet, change a firewall rule, update a DNS record. `.github/workflows/terraform.yml`.
-2. **Application pipeline (GitHub Actions CD)** — frequent: every push to `staging` builds a Docker image, pushes it to GHCR, and tells the droplet to pull + restart the containers. `.github/workflows/deploy-staging.yml`. Never invokes Terraform.
+2. **Application pipeline (GitHub Actions CD)** — frequent: every push to `main` builds a Docker image, pushes it to GHCR, and tells the droplet to pull + restart the containers. `.github/workflows/deploy-staging.yml`. Never invokes Terraform.
 
 ```
                     +----------------------+
@@ -92,15 +92,15 @@ terraform/
 │   │   ├── variables.tf
 │   │   ├── outputs.tf
 │   │   └── terraform.tfvars        # non-secret values only
-│   └── production/                 # same shape as staging/ — see "What's intentionally still manual" below
+│   └── production/                 # same shape as staging/ — live since 2026-09-14
 │       ├── main.tf
 │       ├── backend.tf
 │       ├── variables.tf
 │       ├── outputs.tf
-│       └── terraform.tfvars        # ssh_public_key is still a REPLACE_ME placeholder until the first apply
+│       └── terraform.tfvars        # ssh_public_key holds the dedicated production key's public half
 ```
 
-`environments/production` exists in the repo (mirrors `environments/staging` exactly, own state key, own domains/deploy user) but has never been `terraform apply`'d — no droplet, DNS record, or GitHub Environment exists for it yet. See "What's intentionally still manual" below and `docs/production-readiness-checklist.md` for the current status.
+`environments/production` exists in the repo (mirrors `environments/staging` exactly, own state key, own domains/deploy user) and has been `terraform apply`'d — the droplet, DNS records, and GitHub Environment are all live, and production has been running since 2026-09-14 (see `docs/deployment-reference-production.md`).
 
 ---
 
@@ -345,10 +345,10 @@ See `docs/deployment.md`'s "Environment variables" section for what each one doe
 10. Verify: `terraform output` shows both `droplet_ip` (ephemeral) and `reserved_ip` (stable — use this one from here on); `ssh -i ~/.ssh/comprobify_web_deploy_staging cpfywebdeploy9x@$(terraform output -raw reserved_ip)` connects; `dig staging.comprobify.com` resolves through Cloudflare once the record propagates.
 11. In the DO dashboard: add the reserved IP to the shared Managed Postgres cluster's **Trusted Sources** (Database → Settings → Trusted Sources).
 12. Create (or reuse) the `staging` GitHub Environment and add `DROPLET_IP` (the `reserved_ip` output) and `INFRA_SSH_PRIVATE_KEY` (the private half from step 2) to its Secrets, plus the Variables listed in "Env vars" above. This is a **separate** Environment from `staging-infra` — `DO_TOKEN`/`CLOUDFLARE_TOKEN` don't belong here, and none of `staging`'s app secrets belong in `staging-infra`.
-13. Run the app deploy workflow once (push to `staging`, or `workflow_dispatch` on `deploy-staging.yml`) — it pushes the compose files, writes `.env`, and starts the containers.
+13. Run the app deploy workflow once (push to `main`, or `workflow_dispatch` on `deploy-staging.yml`) — it pushes the compose files, writes `.env`, and starts the containers.
 14. Verify: both domains resolve through Cloudflare (proxied); HTTPS works with a browser-trusted cert; `/api/health` responds; log in and load `/dashboard` (proves Trusted Sources was set up correctly).
 
-The same steps against `environments/production` (the directory already exists — see "Repo layout" above) provision production: replace the `REPLACE_WITH_PRODUCTION_SSH_PUBLIC_KEY` placeholder in its `terraform.tfvars` with a **separate** SSH key pair's public half (see "SSH access model" above), create its own `production-infra` GitHub Environment (`DO_TOKEN`/`CLOUDFLARE_TOKEN`) and `production` GitHub Environment (app secrets, `DROPLET_IP`, `INFRA_SSH_PRIVATE_KEY`) — never reused from staging's — then run `terraform apply` and `deploy-production.yml` (uncommenting its guards first, see `docs/production-readiness-checklist.md`) the same way.
+The same steps against `environments/production` (the directory already exists — see "Repo layout" above) provision production: replace the SSH public key placeholder in its `terraform.tfvars` with a **separate** SSH key pair's public half (see "SSH access model" above), create its own `production-infra` GitHub Environment (`DO_TOKEN`/`CLOUDFLARE_TOKEN`) and `production` GitHub Environment (app secrets, `DROPLET_IP`, `INFRA_SSH_PRIVATE_KEY`) — never reused from staging's — then run `terraform apply` and `deploy-production.yml` the same way. This is exactly what was already done to bring production live on 2026-09-14 — see `docs/deployment-reference-production.md`.
 
 ---
 
@@ -399,15 +399,17 @@ Each job's own `TF_VAR_do_token`/`TF_VAR_cloudflare_token`/`AWS_ACCESS_KEY_ID`/`
 
 `plan-staging`/`apply-staging` are gated on `if: vars.STAGING_INFRA_ENABLED == 'true'` — a plain **repository variable** (Settings → Secrets and variables → Actions → Variables tab, not Environment-scoped, since a job's own `if:` is evaluated before its `environment:` context resolves), not a code change, so flipping it needs no PR. `plan-production`/`apply-production` carry no such gate — production always applies. This mirrors the comprobify API repo's own `terraform.yml` toggle exactly.
 
-**As of this writing, `STAGING_INFRA_ENABLED` doesn't exist as a repository variable, so `plan-staging`/`apply-staging` are off by default.** This stops CI from automatically reconciling `terraform/environments/staging` on every `terraform/**`-touching push to `main` — it does **not** destroy or otherwise affect the staging droplet that's currently running. `deploy-staging.yml` (the separate app-deploy pipeline) has no dependency on this variable and keeps shipping tag releases to staging normally. To make a real infra change to staging: set `STAGING_INFRA_ENABLED=true`, let the change land (or `workflow_dispatch` the workflow manually), then decide whether to flip it back off.
+`STAGING_INFRA_ENABLED` is set to `false` — this stops CI from automatically reconciling `terraform/environments/staging` on every `terraform/**`-touching push to `main`. To make a real infra change to staging: set `STAGING_INFRA_ENABLED=true`, let the change land (or `workflow_dispatch` the workflow manually), then decide whether to flip it back off.
 
-**This is a different decision from actually destroying staging's droplet between uses**, which is what the API repo does once its production carries real traffic (its own staging droplet and DB get torn down by hand, recreated only when a change needs validating there — see `comprobify/docs/terraform-digitalocean-setup.md`'s own "Toggling staging infra on/off" section for that full cycle). This repo has only adopted the on/off switch itself, not that destroy-between-uses policy — see `docs/production-readiness-checklist.md`'s "Staging lifecycle once production is live" section for the current state of that separate decision.
+**Decided and done, mirroring the comprobify API repo's own end state exactly (see its `docs/terraform-digitalocean-setup.md`'s own "Toggling staging infra on/off" section): only production runs continuously.** Now that production carries real traffic, staging's droplet and its Managed Postgres cluster access are destroyed between uses instead of left running idle — `dig staging.comprobify.com`/`dig app-staging.comprobify.com` resolve to nothing while it's down. `deploy-staging.yml` is disabled (`if: false`, its `push` trigger commented out) for the same reason: with no droplet to SSH into, every run would just fail trying to reach a `DROPLET_IP` that resolves to nothing.
+
+**The re-provisioning cycle, when staging is needed again** (e.g. to validate an infra change before it reaches production): flip `STAGING_INFRA_ENABLED` to `true`, land or manually `workflow_dispatch` the `terraform/**` change, uncomment `deploy-staging.yml`'s `push` trigger and remove its `if: false` guard, validate, then reverse both once done.
 
 ### App deploy workflow — `.github/workflows/deploy-staging.yml`
 
-**Trigger: push to `staging`, or manual `workflow_dispatch`.** Builds the Docker image (with the `--build-arg`s described above), pushes it to `ghcr.io/novaej/comprobify-web:${{ github.sha }}`, copies `deploy/docker-compose.yml`/`deploy/caddy/Caddyfile` to the droplet, and SSHs in to write `.env` and restart the stack — same shape as `comprobify/.github/workflows/deploy-staging.yml` (the droplet needing its own separate `docker login` from the runner's, `docker compose exec caddy caddy reload` being necessary because a bind-mounted Caddyfile change is invisible to `docker compose up -d`'s own change detection, etc.).
+**Trigger: push to `main`, or manual `workflow_dispatch`.** Builds the Docker image (with the `--build-arg`s described above), pushes it to `ghcr.io/novaej/comprobify-web:${{ github.sha }}`, copies `deploy/docker-compose.yml`/`deploy/caddy/Caddyfile` to the droplet, and SSHs in to write `.env` and restart the stack — same shape as `comprobify/.github/workflows/deploy-staging.yml` (the droplet needing its own separate `docker login` from the runner's, `docker compose exec caddy caddy reload` being necessary because a bind-mounted Caddyfile change is invisible to `docker compose up -d`'s own change detection, etc.).
 
-For the app-code release path itself (tag → `release-staging.yml` → fast-forward `staging`), see `docs/deployment.md`'s "Branching strategy" — that's what triggers `deploy-staging.yml` to run.
+Staging deploys directly and continuously off `main` — no intermediate `staging` branch or tag, and no `release-staging.yml` (retired). See `docs/deployment.md`'s "Branching strategy" for the full model.
 
 ---
 
@@ -425,4 +427,3 @@ Same operations as the API repo's droplet — destroy/recreate, resize, SSH key 
 - The Managed PostgreSQL database and the Comprobify API's own droplet — both provisioned and managed by infrastructure outside this repo's Terraform entirely.
 - Adding the droplet's reserved IP to the database's Trusted Sources — a manual DO dashboard step for both this repo and the API repo today.
 - `ENCRYPTION_KEY` rotation's data re-encryption step — no script or documented procedure exists yet.
-- **Production** — the code scaffolding exists (`terraform/environments/production`, the `plan-production`/`apply-production` job pair in `terraform.yml`, `.github/workflows/deploy-production.yml`), but nothing has actually been provisioned: `terraform.tfvars`'s `ssh_public_key` is still a placeholder, no `production-infra` or `production` GitHub Environment exists, and `terraform apply` has never run against this directory. See `docs/production-readiness-checklist.md` for the exact remaining steps — generate a **separate, dedicated** SSH key pair (see "SSH access model" above — do not reuse staging's), create the `production-infra` GitHub Environment (`DO_TOKEN`/`CLOUDFLARE_TOKEN`) and the `production` GitHub Environment (app secrets, `DROPLET_IP`, `INFRA_SSH_PRIVATE_KEY`), then uncomment the disabled triggers on `release-production.yml`/`deploy-production.yml`.
