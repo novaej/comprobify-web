@@ -52,8 +52,8 @@ name: Terraform
 # `production-infra` GitHub Environment must already exist with real DO_TOKEN/
 # CLOUDFLARE_TOKEN values, and the "Comprobify Production" DigitalOcean Project must
 # already exist (main.tf's data "digitalocean_project" only looks it up by name, never
-# creates it) - see docs/production-readiness-checklist.md and
-# docs/terraform-digitalocean-setup.md's Prerequisites. Missing either fails
+# creates it) - see docs/terraform-digitalocean-setup.md's Prerequisites (already done,
+# production has been live since 2026-09-14). Missing either fails
 # plan-production safely (bad/absent credentials, or a lookup that finds nothing) - it
 # cannot touch real infra, since apply-production only runs if plan-production succeeds -
 # but it's a red check either way, so set both up first.

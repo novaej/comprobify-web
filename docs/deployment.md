@@ -4,40 +4,52 @@
 
 ## Branching strategy
 
-Two long-lived branches map to deployed environments. They are **automation-owned** — promoted forward by tags and GitHub Releases, never by direct or manual pushes. Feature/fix branches are always cut from `main` and merged back via pull request. This mirrors the release model used by the Comprobify API (`../comprobify/docs/deployment.md`) directly — both repos now run on a DigitalOcean droplet with the same SSH-based `deploy-staging.yml`/`deploy-production.yml` CD pattern (see `docs/terraform-digitalocean-setup.md`). This app ran on DigitalOcean App Platform until that migration; App Platform's own cert-verification requirements meant its Cloudflare DNS records could never be proxied, so this app got none of Cloudflare's WAF/DDoS/bot protection — the droplet closes that gap.
+`main` deploys to staging continuously — every merge, no tag or manual step involved.
+`production` is the one **automation-owned** long-lived branch — it only moves forward
+via a deliberate promotion (a published GitHub Release), never by direct or manual
+merges. Feature/fix branches are always cut from `main` and merged back via pull
+request. This mirrors the release model used by the Comprobify API (`../comprobify/docs/deployment.md`)
+directly — both repos now run on a DigitalOcean droplet with the same SSH-based
+`deploy-staging.yml`/`deploy-production.yml` CD pattern (see `docs/terraform-digitalocean-setup.md`),
+and both retired an intermediate `staging` branch + `release-staging.yml` fast-forward
+step in favor of staging tracking `main` directly. This app ran on DigitalOcean App
+Platform until the droplet migration; App Platform's own cert-verification requirements
+meant its Cloudflare DNS records could never be proxied, so this app got none of
+Cloudflare's WAF/DDoS/bot protection — the droplet closes that gap.
 
 ```
-  feature/xyz              main                                   staging                  production
-      │                     │                                       │                          │
-      │  PR + merge         │                                       │                          │
-      │────────────────────▶│                                       │                          │
-      │                     │  bump version (PR) → tag merge commit │                          │
-      │                     │── release-staging.yml (ff-merge) ────▶│                          │
-      │                     │                                       │                          │
-      │                     │  publish GitHub Release from the tag  │                          │
-      │                     │── release-production.yml (ff-merge) ──┼─────────────────────────▶│
-      │                     │                                                                   │
-  hotfix/xyz                │                                                                   │
-      │  branch off `production` (or `staging` until production exists),                       │
-      │  PR into the hotfix branch, tag vX.Y.Z+1 → same pipeline                                │
-      │  → cherry-pick the merged fix back into `main`                                          │
-      │─────────────────────────────────────────────────────────────────────────────────────▶  │
+  feature/xyz              main                                   production
+      │                     │                                          │
+      │  PR + merge         │                                          │
+      │────────────────────▶│                                          │
+      │                     │── deploy-staging.yml ──────────────────▶ comprobify-web-staging
+      │                     │   (every push to main)                   │
+      │                     │  bump version (PR)                       │
+      │                     │  → tag the merge commit (naming only —   │
+      │                     │    nothing automated reacts to the tag)  │
+      │                     │                                          │
+      │                     │  publish GitHub Release from the tag     │
+      │                     │── release-production.yml (ff-merge) ────▶│── deploy-production.yml ──▶ comprobify-web-production
+      │                     │                                          │
+  hotfix/xyz                │                                          │
+      │  branch off `production`, PR into the hotfix branch,           │
+      │  tag vX.Y.Z+1 → same pipeline                                  │
+      │  → cherry-pick the merged fix back into `main`                 │
+      │─────────────────────────────────────────────────────────────▶ │
 ```
-
-Every push to `staging` or `production` (i.e. every fast-forward the release workflows perform) triggers `deploy-staging.yml` / `deploy-production.yml` (see the CI/CD pipeline section below), which builds a Docker image, pushes it to GHCR, and SSHes into the corresponding droplet to pull and restart the containers.
 
 | Branch | Environment | Promoted by |
 |--------|-------------|-------------|
-| `main` | — (trunk; CI only, no deploy) | PR merge |
-| `staging` | Staging (DigitalOcean droplet) | `release-staging.yml` — fast-forwarded on tag push `vX.Y.Z` |
-| `production` | Production (DigitalOcean droplet) — *scaffolding written, not yet applied; pipeline disabled* | `release-production.yml` — fast-forwarded when a GitHub Release is published |
+| `main` | Staging (DigitalOcean droplet) — deploys directly, continuously | `deploy-staging.yml` — triggered on every push to `main` |
+| `production` | Production (DigitalOcean droplet) — live since 2026-09-14 | `release-production.yml` — fast-forwarded when a GitHub Release is published |
 
 **Rules:**
 - All development happens in feature/fix branches off `main`, merged via PR (1 approval required)
-- `staging` and `production` are **automation-owned** — never push to them directly; they only move forward via fast-forward merges performed by the release workflows. Branch protection restricts direct pushes
-- A **tag** (`vX.Y.Z`, semantic versioning) means *"build this, validate it in staging."* Pushing it triggers `release-staging.yml`, which fast-forwards `staging`; the push then triggers `deploy-staging.yml`, which builds/ships the image to the droplet
-- A **published GitHub Release**, created from a tag already validated in staging, means *"staging confirmed it, ship to production."* Publishing it is the deliberate, auditable approval gate between staging and production — no extra tooling needed
-- **Hotfixes** branch from the current `production` ref once it exists (until then, branch from `staging`, which is the only environment live today), flow through a PR + tag through the same pipeline, and **must be cherry-picked back into `main`** afterwards so the fix survives the next regular release
+- `main` deploys to staging automatically on every merge — there is no separate "release to staging" step, and staging always reflects whatever is currently on `main`
+- `production` is **automation-owned** — never push to it directly; it only moves forward via a fast-forward merge performed by `release-production.yml`. Branch protection restricts direct pushes
+- A **tag** (`vX.Y.Z`, semantic versioning) is a naming/versioning marker on a `main` commit — it records "this is what vX.Y.Z is," but pushing it doesn't trigger any deploy by itself
+- A **published GitHub Release**, created from a tag, means *"ship this to production."* Publishing it is the deliberate, auditable approval gate — and the only thing that actually triggers a production deploy
+- **Hotfixes** branch from the current `production` ref (not `main`, which may carry unreleased work), flow through a PR + tag through the same pipeline, and **must be cherry-picked back into `main`** afterwards so the fix survives the next regular release
 
 ---
 
@@ -63,7 +75,11 @@ git checkout main && git pull origin main
 git branch -d feature/my-feature
 ```
 
-### Release to staging
+### Staging
+
+No manual step — every merge to `main` deploys to staging automatically via `deploy-staging.yml`. There's nothing to "release" to staging; it's always running whatever is currently on `main`.
+
+### Cut a release candidate
 
 Every commit on `main` is a merged PR (often squash-merged, so the SHA on `main` differs from any local commit you made on the branch). That means **`npm version`'s built-in commit+tag step cannot run directly on `main`** — it would push a version-bump commit straight to `main`, bypassing review, and the tag would point at a commit that PR review never saw. `package.json`'s version and the git tag must move together, so bump it the same way every other change ships, then tag the result:
 
@@ -79,30 +95,28 @@ Every commit on `main` is a merged PR (often squash-merged, so the SHA on `main`
    git push origin vX.Y.Z
    ```
 
-`release-staging.yml` fast-forwards `staging` to `vX.Y.Z` and pushes it; `deploy-staging.yml` picks up the push, builds a Docker image, and ships it to the droplet. Use semantic versioning (`vMAJOR.MINOR.PATCH`) so it's obvious at a glance whether a tag is a feature release (`v1.5.0`) or a hotfix (`v1.4.1`).
+Pushing the tag doesn't trigger any automation by itself — it's just a name for a commit that's already been running on staging as part of `main`. Use semantic versioning (`vMAJOR.MINOR.PATCH`) so it's obvious at a glance whether a tag is a feature release (`v1.5.0`) or a hotfix (`v1.4.1`).
 
-The tag still tracks `package.json`'s version — there's just a merge step between bumping it and tagging it, because the squash-merge changes the commit SHA. **Never push a follow-up commit to `main` that changes the version after a tag is created** — that would leave the tagged commit's `package.json` permanently out of sync with its own tag name, and would race with `staging` already having been fast-forwarded to it. If `package.json`'s version and the latest git tag ever drift apart, fix it with a manual one-off sync commit (`chore:`), then resume this sequence for every release after that.
+The tag still tracks `package.json`'s version — there's just a merge step between bumping it and tagging it, because the squash-merge changes the commit SHA. **Never push a follow-up commit to `main` that changes the version after a tag is created** — that would leave the tagged commit's `package.json` permanently out of sync with its own tag name. If `package.json`'s version and the latest git tag ever drift apart, fix it with a manual one-off sync commit (`chore:`), then resume this sequence for every release after that.
 
 ### Promote to production
 
-Once the tag has been validated in staging, promotion is a single deliberate action — **publishing a GitHub Release from that tag**:
+Promotion is a single deliberate action — **publishing a GitHub Release from the tag**:
 
 1. GitHub UI → **Releases → Draft a new release**
 2. Choose the existing tag (e.g. `v1.4.0`) — do not create a new one
-3. Paste in that version's section from `CHANGELOG.md` as the release notes (it was already written when the version was bumped — see "Release to staging" above) — no need to regenerate from commits
+3. Paste in that version's section from `CHANGELOG.md` as the release notes (it was already written when the version was bumped — see "Cut a release candidate" above) — no need to regenerate from commits
 4. Click **Publish release**
 
 `release-production.yml` then fast-forwards `production` to that commit; `deploy-production.yml` builds and ships it to the production droplet.
 
-> **Currently disabled** — the production droplet, `production` branch, and secrets don't exist yet, even though `deploy-production.yml` and `terraform/environments/production` are now written. See "Production status" below for what's needed to enable this.
-
 ### Hotfix flow
 
-Branch from the **currently-deployed `production` ref** (not `main`, which may contain unreleased work). Until production is provisioned, branch from `staging` instead — it's the only environment that's actually live.
+Branch from the **currently-deployed `production` ref** (not `main`, which may contain unreleased work).
 
 ```bash
 # 1. Cut a short-lived integration branch from what's live in prod
-git checkout -b hotfix/payment-bug production   # or `staging`, until production exists
+git checkout -b hotfix/payment-bug production
 
 # 2. Make the fix on a sub-branch and PR it into the hotfix branch (same review rigor as any change)
 git checkout -b fix/payment-rounding hotfix/payment-bug
@@ -124,7 +138,7 @@ git tag -a v1.4.1 -m v1.4.1
 git push origin v1.4.1
 ```
 
-From here, run it through the normal tag → staging → release → production pipeline.
+From here, publish a Release from the tag through the normal pipeline — the fix has already been running on staging as part of `main`.
 
 **Don't skip this step:** cherry-pick the merged fix commit back into `main` so it isn't silently lost or reverted on the next regular release.
 
@@ -152,7 +166,7 @@ Redirects are permanent (301). Localhost and unknown hosts bypass hostname routi
 
 **Staging:** fully Terraform-managed (see "Terraform-managed infrastructure" below) — `terraform/modules/droplet/main.tf` creates two Cloudflare **A** records, `staging.comprobify.com` and `app-staging.comprobify.com`, both pointing at the droplet's reserved IP and both **proxied through Cloudflare** (`proxied = true`) — unlike the old App Platform setup, a droplet has no cert-verification conflict with Cloudflare's proxy, so these domains get the full WAF/DDoS/bot layer, matching the Comprobify API's own `api-staging.comprobify.com`. Nothing to do by hand. No extra env vars are required either way — the proxy reads the `host` header at runtime.
 
-**Production custom domain setup** *(`terraform/environments/production` exists and is written, but has never been `terraform apply`'d — see `docs/production-readiness-checklist.md`)*: the same `droplet` module (own droplet, own reserved IP, own `domain_primary`/`domain_alias` = `comprobify.com`/`app.comprobify.com`) will create both proxied A records automatically once applied — no manual DNS console step, unlike the App Platform era's domain-verification dance.
+**Production custom domain setup:** the same `droplet` module (own droplet, own reserved IP, own `domain_primary`/`domain_alias` = `comprobify.com`/`app.comprobify.com`) created both proxied A records automatically once applied — no manual DNS console step, unlike the App Platform era's domain-verification dance.
 
 ---
 
@@ -162,19 +176,18 @@ Redirects are permanent (301). Localhost and unknown hosts bypass hostname routi
 
 | File | Trigger | Effect |
 |------|---------|--------|
-| `.github/workflows/release-staging.yml` | Push of tag `vX.Y.Z` | Fast-forwards `staging` to the tagged commit and pushes it |
-| `.github/workflows/release-production.yml` | *(disabled)* GitHub Release published | Fast-forwards `production` to the released commit and pushes it |
-| `.github/workflows/deploy-staging.yml` | Push to `staging`, or manual `workflow_dispatch` | Builds a Docker image, pushes it to GHCR, and SSHes into the staging droplet to write `.env` and restart the containers — see `docs/terraform-digitalocean-setup.md` |
-| `.github/workflows/deploy-production.yml` | *(disabled)* Push to `production`, or manual `workflow_dispatch` | Same shape as `deploy-staging.yml`, written but gated behind an `if: false` guard until `environments/production` is actually applied and its GitHub Environment is populated |
+| `.github/workflows/release-production.yml` | GitHub Release published | Fast-forwards `production` to the released commit and pushes it |
+| `.github/workflows/deploy-staging.yml` | Push to `main`, or manual `workflow_dispatch` — *currently disabled, staging's droplet is destroyed* | Builds a Docker image, pushes it to GHCR, and SSHes into the staging droplet to write `.env` and restart the containers — see `docs/terraform-digitalocean-setup.md` |
+| `.github/workflows/deploy-production.yml` | Push to `production`, or manual `workflow_dispatch` | Same shape as `deploy-staging.yml`, deploying to the production droplet |
 | `.github/workflows/terraform.yml` | Push to `main` touching `terraform/**`, or manual `workflow_dispatch` | Runs `terraform plan`/`apply` (or `destroy`) against `terraform/environments/staging` (`plan-staging`/`apply-staging` jobs) and `terraform/environments/production` (`plan-production`/`apply-production` jobs) — see "Terraform-managed infrastructure" below |
-| `.github/workflows/ci.yml` | Pull request or push to `main` | Runs `npm run type-check` and `npm audit --omit=dev --audit-level=high` (informational only for now — see `docs/production-readiness-checklist.md`'s "Security & CI hardening" section). Not yet added as a required status check on `main`'s branch protection rule |
+| `.github/workflows/ci.yml` | Pull request or push to `main` | Runs `npm run type-check` and `npm audit --omit=dev --audit-level=high` (informational only for now). Not yet added as a required status check on `main`'s branch protection rule |
 
-This app now runs on a DigitalOcean droplet, same as the API — App Platform's own Autodeploy-on-push (which used to make this table one row shorter) doesn't apply anymore. Every push to `staging`/`production` needs its own `deploy-*.yml` to actually build and ship the code, same pattern the API repo has always used.
+This app now runs on a DigitalOcean droplet, same as the API — App Platform's own Autodeploy-on-push (which used to make this table one row shorter) doesn't apply anymore. Every push needs its own `deploy-*.yml` to actually build and ship the code, same pattern the API repo has always used.
 
 | Branch | Droplet | URL |
 |--------|---------|-----|
-| `staging` | `comprobify-web-staging` | `staging.comprobify.com` + `app-staging.comprobify.com` |
-| `production` | `comprobify-web-production` — *defined in Terraform, never applied* | `comprobify.com` + `app.comprobify.com` |
+| `main` | `comprobify-web-staging` — *currently destroyed, see "Toggling staging infra on/off" in `docs/terraform-digitalocean-setup.md`* | `staging.comprobify.com` + `app-staging.comprobify.com` |
+| `production` | `comprobify-web-production` — live since 2026-09-14 | `comprobify.com` + `app.comprobify.com` |
 
 ### Build settings (both environments)
 
@@ -189,17 +202,16 @@ This app now runs on a DigitalOcean droplet, same as the API — App Platform's 
 
 **`prisma migrate deploy` does not go through this app's `@prisma/adapter-pg` setup.** It spawns a separate native `schema-engine` binary that connects to `DATABASE_URL` with its own independent Postgres connector — none of `src/lib/db.ts`'s pool/SSL wiring applies to it. Watch the runtime logs on first deploy for this step specifically; if it fails with a certificate error while other runtime queries work fine, the fix has to target the schema-engine binary itself, not `DATABASE_SSL`/`DATABASE_SSL_CA`.
 
-### Pipeline stages (staging)
+### Pipeline stages
 
-1. **PR merged to `main`, touching `terraform/**`** — `terraform.yml` runs `plan`→`apply` against `terraform/environments/staging` independently of any release, reconciling the droplet/firewall/DNS config the moment the change lands
-2. **Tag pushed** (`vX.Y.Z`) — `release-staging.yml` checks out the tag and fast-forward-merges `staging` to it, then pushes
-3. **Push to `staging`** — `deploy-staging.yml` builds a Docker image, pushes it to GHCR, and SSHes into the droplet to write `.env` and restart the containers
+1. **Staging** — push to `main` (any merged PR) → `deploy-staging.yml` builds a Docker image, pushes it to GHCR, and SSHes into the droplet to write `.env` and restart the containers
+2. **Production** — publish a GitHub Release from a tag → `release-production.yml` fast-forwards `production` → push to `production` triggers `deploy-production.yml`, which mirrors the staging deploy step against the production droplet
 
-These two pipelines are fully independent — an infra-only PR (no app code change) ships through step 1 alone; a code-only release ships through steps 2–3 alone with no Terraform involvement at all.
+Independently of either: **PR merged to `main`, touching `terraform/**`** — `terraform.yml` runs `plan`→`apply` against `terraform/environments/staging`/`production` as applicable, reconciling the droplet/firewall/DNS config the moment the change lands. An infra-only PR (no app code change) ships through Terraform alone.
 
 ### Terraform-managed infrastructure
 
-The staging droplet itself — its `digitalocean_droplet`/`digitalocean_reserved_ip`/`digitalocean_firewall` resources, its DO Project assignment, and its two Cloudflare DNS records — is provisioned by Terraform (`terraform/environments/staging` → `terraform/modules/droplet`), mirroring the comprobify API repo's own `terraform/environments/staging` → `terraform/modules/droplet` split exactly. **Terraform never sets any app secret or env var** — those live only in `deploy-staging.yml`'s runtime `.env` heredoc (see `docs/terraform-digitalocean-setup.md`'s "Env vars" section), the same separation the API repo has always had between its infra and app-deploy pipelines. `terraform/environments/production` mirrors this exactly (own state key, own `terraform.tfvars`) but has never been applied — see "Production status" below.
+The staging droplet itself — its `digitalocean_droplet`/`digitalocean_reserved_ip`/`digitalocean_firewall` resources, its DO Project assignment, and its two Cloudflare DNS records — is provisioned by Terraform (`terraform/environments/staging` → `terraform/modules/droplet`), mirroring the comprobify API repo's own `terraform/environments/staging` → `terraform/modules/droplet` split exactly. **Terraform never sets any app secret or env var** — those live only in `deploy-staging.yml`'s runtime `.env` heredoc (see `docs/terraform-digitalocean-setup.md`'s "Env vars" section), the same separation the API repo has always had between its infra and app-deploy pipelines. `terraform/environments/production` mirrors this exactly (own state key, own `terraform.tfvars`) and has been applied — see "Production status" below.
 
 **`terraform.yml` triggers off a push to `main` touching `terraform/**`**, mirroring the API repo's own `terraform.yml` exactly — one workflow, two job pairs (`plan-staging`/`apply-staging`, `plan-production`/`apply-production`), each declaring its own `<env>-infra` GitHub Environment so a required-reviewer rule can gate one environment's infra changes without gating the other's. Terraform here only ever manages the droplet/firewall/DNS — never app code or app secrets, which `deploy-staging.yml`/`deploy-production.yml` handle independently over SSH — so an infra change can be reviewed and applied the moment it's merged, without waiting for the next tagged release.
 
@@ -207,13 +219,11 @@ The staging droplet itself — its `digitalocean_droplet`/`digitalocean_reserved
 
 **Manual runs:** `workflow_dispatch` on `terraform.yml` supports both `apply` (re-run the normal reconciliation on demand, e.g. after changing `terraform.tfvars`) and `destroy` (tear everything down through the same audited pipeline, rather than deleting resources by hand in the DO/Cloudflare consoles) — both run against every job pair, since there's no per-environment `action` input. `destroy` is only ever reachable via this explicit manual dispatch, never the automatic post-release trigger.
 
-**`plan-staging`/`apply-staging` are gated behind the `STAGING_INFRA_ENABLED` repository variable** (mirrors the comprobify API repo's own toggle) — off by default, since that variable doesn't exist yet, which stops CI from automatically reconciling staging's infra on every `terraform/**`-touching push without affecting the currently-running staging droplet or `deploy-staging.yml`'s own app-deploy pipeline at all. `plan-production`/`apply-production` carry no such gate. See `docs/terraform-digitalocean-setup.md`'s "Toggling staging infra on/off" section for the full mechanics.
+**`plan-staging`/`apply-staging` are gated behind the `STAGING_INFRA_ENABLED` repository variable** (mirrors the comprobify API repo's own toggle) — set to `false` now that only production runs continuously (staging's droplet is destroyed between uses, see `docs/terraform-digitalocean-setup.md`'s "Toggling staging infra on/off"), which stops CI from automatically reconciling staging's infra on every `terraform/**`-touching push. `plan-production`/`apply-production` carry no such gate — production always applies. See `docs/terraform-digitalocean-setup.md`'s "Toggling staging infra on/off" section for the full mechanics.
 
 ### Production status
 
-**Partially scaffolded, still disabled.** `terraform/environments/production` and the `plan-production`/`apply-production` job pair in `terraform.yml` exist and are written, and `.github/workflows/deploy-production.yml` mirrors `deploy-staging.yml` exactly — production is no longer purely hypothetical. But `release-production.yml`/`deploy-production.yml` both stay behind an `if: false` guard with their real triggers commented out, `terraform/environments/production/terraform.tfvars`'s `ssh_public_key` is still a placeholder, and the production droplet itself has never been `terraform apply`'d — no `production` branch, database, domain, or GitHub Environment secrets exist yet either. Production is deliberately on standby until the remaining setup steps are done, and it depends on coordinating one secret (`INTERNAL_SERVICE_SECRET`) with the Comprobify API's own already-live production deployment — see `docs/deployment-reference-production.md`'s "Coordination with the Comprobify API repo" section.
-
-`docs/production-readiness-checklist.md` is the authoritative, actively-maintained list of exactly what's done versus still pending for this app's production launch — don't rely on a step list here, since the API repo's own equivalent doc explicitly notes one drifted out of sync with reality once already. `docs/deployment-reference-production.md` is the target-configuration reference (mirrors `docs/deployment-reference-staging.md`'s structure) for every concrete value — droplet name, deploy user, GitHub Environment names, DB setup, DNS records — once each piece is ready to provision.
+**Live since 2026-09-14.** `terraform/environments/production` was applied, the `production` branch, database, domain, and GitHub Environment secrets all exist, and `release-production.yml`/`deploy-production.yml` are both fully enabled. `docs/deployment-reference-production.md` is the target-configuration reference (mirrors `docs/deployment-reference-staging.md`'s structure) for every concrete value — droplet name, deploy user, GitHub Environment names, DB setup, DNS records.
 
 ---
 
@@ -221,7 +231,7 @@ The staging droplet itself — its `digitalocean_droplet`/`digitalocean_reserved
 
 ### 1. Branches
 
-Only `staging` exists today (already created). `production` is created when the production environment is provisioned (see "Production status" above):
+`main` and `production` both exist. Staging deploys directly from `main`, no separate branch needed. `production` was created the same way any new environment branch would be:
 
 ```bash
 git checkout main
@@ -239,11 +249,11 @@ git checkout main
 - ✅ Dismiss stale pull request approvals when new commits are pushed
 - ✅ Do not allow bypassing the above settings
 
-### 3. Protect `staging` and `production` (Settings → Branches → Add rule, one for each)
+### 3. Protect `production` (Settings → Branches → Add rule)
 
-Both branches are **automation-owned** — they only move forward via fast-forward pushes from `release-staging.yml` / `release-production.yml`. Restrict direct human pushes so the fast-forward invariant can't be broken by a stray commit:
+`production` is **automation-owned** — it only moves forward via fast-forward pushes from `release-production.yml`. Restrict direct human pushes so the fast-forward invariant can't be broken by a stray commit:
 
-- **Branch name pattern:** `staging` (repeat for `production`)
+- **Branch name pattern:** `production`
 - ✅ Restrict who can push — limit to the automation (e.g. a bot account / fine-grained PAT, or repository admins only as a fallback)
 - ✅ Do not allow force pushes
 
@@ -251,7 +261,7 @@ Both branches are **automation-owned** — they only move forward via fast-forwa
 
 | Secret | Scope | Used by |
 |---|---|---|
-| `RELEASE_PUSH_TOKEN` | Repository | `release-staging.yml` / `release-production.yml` — a fine-grained PAT with `Contents: Read and write` on this repo, needed because the default `GITHUB_TOKEN` cannot push to a protected branch |
+| `RELEASE_PUSH_TOKEN` | Repository | `release-production.yml` — a fine-grained PAT with `Contents: Read and write` on this repo, needed because the default `GITHUB_TOKEN` cannot push to a protected branch |
 | `TERRAFORM_SPACES_ACCESS_KEY_ID` / `TERRAFORM_SPACES_SECRET_ACCESS_KEY` | Repository | `terraform.yml` — a Spaces access key scoped to the shared `comprobify-terraform-state` bucket, dedicated to this repo's pipeline (not the API repo's own key) |
 
 Two GitHub **Environments** (not repository-wide) hold everything else, deliberately kept separate — see "5. Provision via Terraform" below and `docs/terraform-digitalocean-setup.md`'s "Env vars" and "CI/CD" sections for the full list and reasoning:
@@ -359,52 +369,52 @@ Not all of this app's secrets are equally safe to rotate — one of them can cau
 
 ## Production checklist
 
-This is a snapshot checklist of configuration to verify at go-live time — for the actively-maintained, up-to-date tracker of what's actually done versus still pending right now, see `docs/production-readiness-checklist.md` instead (this list has drifted before; don't treat an unchecked box here as current status without cross-checking that file).
+This was the go-live checklist, worked through and completed for the first production deploy (`v0.10.0`, 2026-09-14) — kept here as a reference for what to re-verify if this environment is ever rebuilt from scratch, not as an actively-tracked pending list any more (`docs/production-readiness-checklist.md`, the actively-maintained tracker used to get here, was deleted once every item on it was resolved).
 
 **Database**
-- [ ] `DATABASE_URL` points to a production PostgreSQL instance (separate from staging)
-- [ ] If production shares a connection budget with another service (see "DATABASE_URL connection budget on a shared cluster" above), `connection_limit` on `DATABASE_URL` is set deliberately to match the reserved split, not left unset or copied blindly from staging
-- [ ] `DATABASE_SSL=true` is set (any real managed Postgres provider enforces TLS)
-- [ ] `DATABASE_SSL_CA` is set if the provider uses a private CA (e.g. DigitalOcean) — verify with a real deploy, not just that the var exists, since a missing/wrong CA fails at connection time with `SELF_SIGNED_CERT_IN_CHAIN`
-- [ ] `DATABASE_URL` itself has no `sslmode`/`sslcert`/`sslkey`/`sslrootcert` query param — see the note above on why that would silently override `DATABASE_SSL_CA`
-- [ ] `npx prisma migrate deploy` ran successfully on the first deploy (automatic via `start:deploy` at process startup, not the build command — check the runtime logs, and separately confirm this step itself succeeded, since it runs through a different connector than the app's other runtime queries — see the CI/CD pipeline section above)
-- [ ] Production database has backups enabled
-- [ ] `scripts/rotate-encryption-key.js` (see "Rotating secrets" above and `docs/guides/encryption-key-rotation.md`) has been dry-run against a restored copy of production-like data before go-live — don't let the first real run be during an actual incident
+- [x] `DATABASE_URL` points to a production PostgreSQL instance (separate from staging)
+- [x] If production shares a connection budget with another service (see "DATABASE_URL connection budget on a shared cluster" above), `connection_limit` on `DATABASE_URL` is set deliberately to match the reserved split, not left unset or copied blindly from staging
+- [x] `DATABASE_SSL=true` is set (any real managed Postgres provider enforces TLS)
+- [x] `DATABASE_SSL_CA` is set if the provider uses a private CA (e.g. DigitalOcean) — verify with a real deploy, not just that the var exists, since a missing/wrong CA fails at connection time with `SELF_SIGNED_CERT_IN_CHAIN`
+- [x] `DATABASE_URL` itself has no `sslmode`/`sslcert`/`sslkey`/`sslrootcert` query param — see the note above on why that would silently override `DATABASE_SSL_CA`
+- [x] `npx prisma migrate deploy` ran successfully on the first deploy (automatic via `start:deploy` at process startup, not the build command — check the runtime logs, and separately confirm this step itself succeeded, since it runs through a different connector than the app's other runtime queries — see the CI/CD pipeline section above)
+- [x] Production database has backups enabled
+- [x] `scripts/rotate-encryption-key.js` (see "Rotating secrets" above and `docs/guides/encryption-key-rotation.md`) has been dry-run against a restored copy of production-like data before go-live — don't let the first real run be during an actual incident
 
 **Comprobify API**
-- [ ] `COMPROBIFY_API_URL` points to the production Comprobify API (not staging)
-- [ ] The Comprobify API's registration rate limiter is active (5 req/hour per IP)
-- [ ] `ENCRYPTION_KEY` and `CONTEXT_COOKIE_SECRET` are set (generate fresh values per environment)
+- [x] `COMPROBIFY_API_URL` points to the production Comprobify API (not staging)
+- [x] The Comprobify API's registration rate limiter is active (5 req/hour per IP)
+- [x] `ENCRYPTION_KEY` and `CONTEXT_COOKIE_SECRET` are set (generate fresh values per environment)
 
 **Auth**
-- [ ] `AUTH_SECRET` is a unique, randomly generated value — never reuse the staging secret (`node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`)
-- [ ] No `COMPROBIFY_API_KEY` or `COMPROBIFY_SANDBOX` env vars set — these are removed
+- [x] `AUTH_SECRET` is a unique, randomly generated value — never reuse the staging secret (`node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`)
+- [x] No `COMPROBIFY_API_KEY` or `COMPROBIFY_SANDBOX` env vars set — these are removed
 
 **Droplet**
-- [ ] All env vars are set as server-only (no `NEXT_PUBLIC_` prefix on any secret — a Next.js build-time rule, not platform-specific, but easy to get wrong)
-- [ ] `Dockerfile`'s `builder` stage runs `npm run build:deploy` and the container's `CMD` is `npm run start:deploy` — verify by checking the built image directly, not just the workflow file, since a typo here fails silently until the container actually starts
-- [ ] A **dedicated, production-only** SSH key pair was generated — never the staging key (see `docs/terraform-digitalocean-setup.md`'s "SSH access model")
-- [ ] `terraform/environments/production/terraform.tfvars`'s `ssh_public_key` placeholder is replaced with that key's public half before the first `terraform apply`
-- [ ] `PUBLIC_DOMAIN_PRIMARY`/`PUBLIC_DOMAIN_ALIAS` GitHub Variables are set to `comprobify.com`/`app.comprobify.com` — `deploy/caddy/Caddyfile` reads these via Caddy's `{$VAR}` substitution, and an unset value means Caddy has no site block to match at all
-- [ ] Both custom domains resolve through Cloudflare **proxied** (`proxied = true`) to the production droplet's reserved IP
-- [ ] HTTPS enforced — Caddy provisions and renews certs automatically for both custom domains
-- [ ] The production droplet's reserved IP is in the production database's Trusted Sources
-- [ ] `production` branch is protected in GitHub (no force pushes, restricted push access)
-- [ ] Confirm `deploy-production.yml` only triggers on push to `production` — not `main` or any other branch — so unreviewed work can't reach it
+- [x] All env vars are set as server-only (no `NEXT_PUBLIC_` prefix on any secret — a Next.js build-time rule, not platform-specific, but easy to get wrong)
+- [x] `Dockerfile`'s `builder` stage runs `npm run build:deploy` and the container's `CMD` is `npm run start:deploy` — verify by checking the built image directly, not just the workflow file, since a typo here fails silently until the container actually starts
+- [x] A **dedicated, production-only** SSH key pair was generated — never the staging key (see `docs/terraform-digitalocean-setup.md`'s "SSH access model")
+- [x] `terraform/environments/production/terraform.tfvars`'s `ssh_public_key` holds that key's public half
+- [x] `PUBLIC_DOMAIN_PRIMARY`/`PUBLIC_DOMAIN_ALIAS` GitHub Variables are set to `comprobify.com`/`app.comprobify.com` — `deploy/caddy/Caddyfile` reads these via Caddy's `{$VAR}` substitution, and an unset value means Caddy has no site block to match at all
+- [x] Both custom domains resolve through Cloudflare **proxied** (`proxied = true`) to the production droplet's reserved IP
+- [x] HTTPS enforced — Caddy provisions and renews certs automatically for both custom domains
+- [x] The production droplet's reserved IP is in the production database's Trusted Sources
+- [x] `production` branch is protected in GitHub (no force pushes, restricted push access)
+- [x] Confirm `deploy-production.yml` only triggers on push to `production` — not `main` or any other branch — so unreviewed work can't reach it
 
 **Release pipeline**
-- [ ] `RELEASE_PUSH_TOKEN` secret added to the repository (already true — shared with staging)
-- [ ] `production` branch created and the `release-production.yml` trigger uncommented + `if: false` guard removed
-- [ ] `deploy-production.yml`'s trigger uncommented + `if: false` guard removed (the workflow file itself already exists, mirroring `deploy-staging.yml`)
-- [ ] `INTERNAL_SERVICE_SECRET` matches the Comprobify API's own already-live production value exactly — see `docs/deployment-reference-production.md`'s "Coordination with the Comprobify API repo"
-- [ ] A tag has been promoted through staging and validated before the first production release
+- [x] `RELEASE_PUSH_TOKEN` secret added to the repository
+- [x] `production` branch created and the `release-production.yml` trigger uncommented + `if: false` guard removed
+- [x] `deploy-production.yml`'s trigger uncommented + `if: false` guard removed (the workflow file itself already exists, mirroring `deploy-staging.yml`)
+- [x] `INTERNAL_SERVICE_SECRET` matches the Comprobify API's own production value exactly — see `docs/deployment-reference-production.md`'s "Coordination with the Comprobify API repo"
+- [x] A tag has been validated on staging before the first production release
 
 **Sentry**
-- [ ] `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN` set as GitHub Variables in each environment (same DSN value for both)
-- [ ] `APP_ENV` set to `staging` in the staging app and `production` in the production app
-- [ ] `NEXT_PUBLIC_APP_ENV` set to match `APP_ENV` in each app
-- [ ] `SENTRY_AUTH_TOKEN` set (obtain from sentry.io → Settings → Auth Tokens) so source maps are uploaded and stack traces show original TypeScript lines
-- [ ] Verified a test error appears in the Sentry dashboard before going live
+- [x] `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN` set as GitHub Variables in each environment (same DSN value for both)
+- [x] `APP_ENV` set to `staging` in the staging app and `production` in the production app
+- [x] `NEXT_PUBLIC_APP_ENV` set to match `APP_ENV` in each app
+- [x] `SENTRY_AUTH_TOKEN` set (obtain from sentry.io → Settings → Auth Tokens) so source maps are uploaded and stack traces show original TypeScript lines
+- [x] Verified a real error appears in the Sentry dashboard, tagged `production` — see `CHANGELOG.md`'s `[1.0.0]` entry
 
 ---
 

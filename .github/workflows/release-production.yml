@@ -3,15 +3,16 @@ name: Release to Production
 # Promotes a released tag to the `production` branch by fast-forwarding it to
 # the tag the release was published from. `deploy-production.yml` (a separate
 # workflow) is what actually builds and ships the image once this workflow's
-# fast-forward push lands, the same split staging already uses.
+# fast-forward push lands.
 #
-# A published GitHub Release (created from a tag already validated in staging)
-# means: "staging confirmed it, ship to production." Publishing the release is
-# the deliberate approval gate between staging and production.
+# Staging deploys directly and continuously off `main` (deploy-staging.yml, no
+# tag involved) — so by the time a commit is tagged, it's typically already
+# been running there for a while. A published GitHub Release means: "ship this
+# to production." Publishing the release is the deliberate approval gate.
 #
-# See docs/production-readiness-checklist.md for the full history of what was
-# needed to enable this (production branch/ruleset, GitHub Environment,
-# terraform apply, database setup) — all done as of 2026-09-14.
+# Production branch/ruleset, GitHub Environment, terraform apply, and database
+# setup were all completed as of 2026-09-14 — see
+# docs/deployment-reference-production.md.
 on:
   release:
     types: [published]

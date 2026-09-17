@@ -8,9 +8,8 @@ name: Deploy Production
 # terraform/environments/production/terraform.tfvars — re-confirm if that value ever
 # changes.
 #
-# See docs/production-readiness-checklist.md for the full history of what was needed
-# to enable this (production branch/ruleset, GitHub Environment, terraform apply,
-# database setup) — all done as of 2026-09-14.
+# Production branch/ruleset, GitHub Environment, terraform apply, and database setup
+# were all completed as of 2026-09-14 — see docs/deployment-reference-production.md.
 on:
   push:
     branches: [production]
@@ -53,8 +52,9 @@ jobs:
             -t ghcr.io/${{ github.repository }}:${{ github.sha }} .
 
       # Informational only for now (exit-code 0) — see deploy-staging.yml's matching
-      # step for why. Triage this baseline (and flip to exit-code 1) before the first
-      # real production deploy, not after — see docs/production-readiness-checklist.md.
+      # step for why. Baseline already triaged (docs/trivy-baseline-2026-09-15.md);
+      # nothing found is fixable by re-pinning today. Re-triage the next time either
+      # base image's digest is bumped.
       - name: Scan image for vulnerabilities
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:

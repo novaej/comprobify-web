@@ -9,14 +9,14 @@ name: CI
 # closest available correctness gate, so that's what runs instead of a unit suite.
 #
 # npm audit is deliberately NOT --audit-level=high blocking yet, unlike the API
-# repo's equivalent. A real run against this repo's production dependencies (see
-# docs/production-readiness-checklist.md) found active HIGH/CRITICAL findings,
-# including next/next-auth/@auth/core themselves — not just a dev-only build
-# toolchain the way the API repo's 3 findings were. Making this block immediately
-# would red-X every PR for a backlog nobody has triaged yet. Flip
-# `continue-on-error` to false (or add --audit-level=high back as a hard failure)
-# once that backlog is reviewed and either fixed or explicitly accepted — see
-# docs/production-readiness-checklist.md.
+# repo's equivalent. The backlog has since been triaged down from 24 findings (3
+# critical) to 4 HIGH/0 critical — all 4 collapse to two upstream advisories
+# bundled inside Prisma's own CLI tooling (deepmerge-ts stack exhaustion, not
+# reachable here; mysql2 auth-downgrade/DoS, irrelevant since this app's
+# schema.prisma is postgresql-only) with no available same-major patch yet.
+# Kept informational (continue-on-error: true) for these four specifically —
+# revisit once Prisma ships a 7.x patch, or as part of a deliberate Prisma 8
+# migration once it's GA.
 on:
   pull_request:
     branches: [main]

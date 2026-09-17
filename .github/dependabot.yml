@@ -30,9 +30,9 @@ updates:
       # next-auth, @auth/core, and prisma/@prisma/client are excluded from
       # the group entirely, major or not - the framework, the auth library,
       # and the DB client are load-bearing enough to always get individual
-      # attention (also currently carrying real audit findings - see
-      # docs/production-readiness-checklist.md - so their updates need to be
-      # reviewed deliberately, not merged as part of a routine bundle).
+      # attention (also historically carried real audit findings, since
+      # triaged - so their updates need to be reviewed deliberately, not
+      # merged as part of a routine bundle).
       routine:
         patterns:
           - "*"
@@ -47,9 +47,8 @@ updates:
           - "patch"
 
   # GitHub Actions versions - keeps the SHA-pinned third-party actions
-  # (appleboy/*, hashicorp/setup-terraform, aquasecurity/trivy-action - see
-  # docs/production-readiness-checklist.md) current without anyone having to
-  # manually re-resolve a digest. Dependabot understands the
+  # (appleboy/*, hashicorp/setup-terraform, aquasecurity/trivy-action)
+  # current without anyone having to manually re-resolve a digest. Dependabot understands the
   # `@<sha> # vX.Y.Z` comment convention used throughout this repo's
   # workflows and bumps both together.
   - package-ecosystem: "github-actions"
