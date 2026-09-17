@@ -357,56 +357,58 @@ export function ApiKeyManager({
         </div>
       )}
 
-      <div className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6">
-        <h2 className="text-sm font-semibold">{t('usage.title')}</h2>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {t('usage.description', { environment: t(`environmentNames.${environment}`) })}
-        </p>
+      {customKeysAllowed && (
+        <div className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6">
+          <h2 className="text-sm font-semibold">{t('usage.title')}</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {t('usage.description', { environment: t(`environmentNames.${environment}`) })}
+          </p>
 
-        <dl className="mt-4 space-y-3">
-          <div>
-            <dt className="text-xs font-medium text-muted-foreground">{t('usage.baseUrl')}</dt>
-            <dd className="mt-1 flex items-center gap-2">
-              <code className="min-w-0 flex-1 truncate rounded bg-muted px-2 py-1 font-mono text-xs">{apiBaseUrl}</code>
-              <Button size="sm" variant="outline" onClick={() => copy(apiBaseUrl, 'url')}>
-                {copied === 'url' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-              </Button>
-            </dd>
-          </div>
-          <div>
-            <dt className="text-xs font-medium text-muted-foreground">{t('usage.header')}</dt>
-            <dd className="mt-1 flex items-center gap-2">
-              <code className="min-w-0 flex-1 truncate rounded bg-muted px-2 py-1 font-mono text-xs">
-                Authorization: Bearer {t('usage.keyPlaceholder')}
-              </code>
-              <Button size="sm" variant="outline" onClick={() => copy('Authorization', 'header')}>
-                {copied === 'header' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-              </Button>
-            </dd>
-          </div>
-          <div>
-            <dt className="text-xs font-medium text-muted-foreground">{t('usage.curl')}</dt>
-            <dd className="mt-1 flex items-start gap-2">
-              <pre className="min-w-0 flex-1 overflow-x-auto rounded bg-muted px-2 py-1 font-mono text-xs">
-                {curlSnippet}
-              </pre>
-              <Button size="sm" variant="outline" onClick={() => copy(curlSnippet, 'curl')}>
-                {copied === 'curl' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-              </Button>
-            </dd>
-          </div>
-        </dl>
+          <dl className="mt-4 space-y-3">
+            <div>
+              <dt className="text-xs font-medium text-muted-foreground">{t('usage.baseUrl')}</dt>
+              <dd className="mt-1 flex items-center gap-2">
+                <code className="min-w-0 flex-1 truncate rounded bg-muted px-2 py-1 font-mono text-xs">{apiBaseUrl}</code>
+                <Button size="sm" variant="outline" onClick={() => copy(apiBaseUrl, 'url')}>
+                  {copied === 'url' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                </Button>
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium text-muted-foreground">{t('usage.header')}</dt>
+              <dd className="mt-1 flex items-center gap-2">
+                <code className="min-w-0 flex-1 truncate rounded bg-muted px-2 py-1 font-mono text-xs">
+                  Authorization: Bearer {t('usage.keyPlaceholder')}
+                </code>
+                <Button size="sm" variant="outline" onClick={() => copy('Authorization', 'header')}>
+                  {copied === 'header' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                </Button>
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium text-muted-foreground">{t('usage.curl')}</dt>
+              <dd className="mt-1 flex items-start gap-2">
+                <pre className="min-w-0 flex-1 overflow-x-auto rounded bg-muted px-2 py-1 font-mono text-xs">
+                  {curlSnippet}
+                </pre>
+                <Button size="sm" variant="outline" onClick={() => copy(curlSnippet, 'curl')}>
+                  {copied === 'curl' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                </Button>
+              </dd>
+            </div>
+          </dl>
 
-        <a
-          href={API_DOCS_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-4 inline-flex items-center gap-1 text-xs text-primary underline underline-offset-2 hover:opacity-80"
-        >
-          {t('usage.docsLink')}
-          <ExternalLink className="h-3 w-3" />
-        </a>
-      </div>
+          <a
+            href={API_DOCS_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-4 inline-flex items-center gap-1 text-xs text-primary underline underline-offset-2 hover:opacity-80"
+          >
+            {t('usage.docsLink')}
+            <ExternalLink className="h-3 w-3" />
+          </a>
+        </div>
+      )}
 
       <Dialog open={!!revokeTarget} onOpenChange={(open) => { if (!open) setRevokeTarget(null); }}>
         <DialogContent className="sm:max-w-sm">
