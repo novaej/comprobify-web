@@ -652,7 +652,8 @@
       "docType07": "Comprobante de retención",
       "submit": "Activar entorno de pruebas",
       "submitting": "Configurando...",
-      "agreementNotice": "En el siguiente paso te pediremos revisar y aceptar los Términos de Servicio, la Política de Privacidad y el Acuerdo de Procesamiento de Datos de Comprobify."
+      "agreementNotice": "En el siguiente paso te pediremos revisar y aceptar los Términos de Servicio, la Política de Privacidad y el Acuerdo de Procesamiento de Datos de Comprobify.",
+      "recoverAccountLink": "Ir a la página de recuperación de cuenta"
     },
     "environment": {
       "title": "Ambiente",

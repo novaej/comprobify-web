@@ -652,7 +652,8 @@
       "docType07": "Withholding receipt",
       "submit": "Activate test environment",
       "submitting": "Setting up...",
-      "agreementNotice": "In the next step we'll ask you to review and accept Comprobify's Terms of Service, Privacy Policy, and Data Processing Agreement."
+      "agreementNotice": "In the next step we'll ask you to review and accept Comprobify's Terms of Service, Privacy Policy, and Data Processing Agreement.",
+      "recoverAccountLink": "Go to the account recovery page"
     },
     "environment": {
       "title": "Environment",
