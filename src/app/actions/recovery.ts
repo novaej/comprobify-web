@@ -1,35 +1,47 @@
 'use server';
 
 import { headers } from 'next/headers';
-import { auth } from '@/auth';
 import { db } from '@/lib/db';
 import { recoverAccount, type RecoverAccountResult } from '@/lib/public-api';
 import { listTenantIssuers } from '@/lib/api';
 import { listAdminApiKeys } from '@/lib/admin-api';
 import { extractForwardedIp } from '@/lib/client-forwarding';
 import { encrypt, lastFour } from '@/lib/crypto';
-import { writeCtxCookie } from '@/lib/context-cookie';
-import { getLocale } from 'next-intl/server';
-import { redirect } from '@/i18n/navigation';
-import { revalidatePath } from 'next/cache';
 import { ApiError } from '@/lib/errors';
-import { isUuid } from '@/lib/utils';
 import * as Sentry from '@sentry/nextjs';
 
 export type RecoverAccountActionResult =
   | { ok: true; matched: false }
-  | { ok: true; matched: true }
+  | { ok: true; matched: true; outcome: 'alreadyLinked' }
+  | { ok: true; matched: true; outcome: 'resynced' }
+  | { ok: true; matched: true; outcome: 'justLinked' }
   | { error: string };
 
-type MatchedRecoverAccountResult = Extract<RecoverAccountResult, { matched: true }>;
+type MatchedRecoverAccountResult = Extract<RecoverAccountResult, { matched: true; alreadyLinked: false }>;
+
+type LocalUser = { id: string; tenantId: string | null };
 
 /**
- * Public, unauthenticated entry point for POST /v1/recover — no session is
- * required or checked here for the initial cert-match step, since a matching
- * certificate is the same proof of ownership the API itself already requires
- * before it ever returns a key. A session is only required past that point,
- * for the "never linked to this app yet" branch below, which creates a new
- * local Tenant/Issuer/TenantApiKey set and needs a user to attach it to.
+ * Public, unauthenticated entry point for POST /v1/recover. Despite the
+ * name, this isn't really "recover a lost API key" anymore — every key
+ * comprobify-web mints is `is_reserved` (comprobify migration 102) and
+ * never shown to a human, so there's no plaintext key to lose in the first
+ * place. The one thing that can still be broken and that nothing else can
+ * fix is the *local link* between a comprobify-web login and its Comprobify
+ * tenant — never linked to begin with, or lost/corrupted on this side.
+ *
+ * Entirely session-independent, on purpose — comprobify-web is the *only*
+ * path that can ever create a tenant at the API (POST /v1/register is
+ * gated behind X-Internal-Service-Secret, see CLAUDE.md's ADR-035 notes),
+ * and bootstrapTenantAction always creates the local User+Tenant link in
+ * the same transaction as registering. So a tenant with no local Tenant row
+ * still has a corresponding local User row *somewhere* (its own local data
+ * just fell out of sync — e.g. a DB restore gap) — there's no scenario
+ * where a real match needs a brand-new login created on the spot. The one
+ * local User lookup below (by the email typed into this form, not the
+ * currently-browsing session) resolves both what to tell the API
+ * (`alreadyLinked`) and, for a genuinely-unlinked match, which existing
+ * login to attach the tenant to.
  */
 export async function recoverAccountAction(formData: FormData): Promise<RecoverAccountActionResult> {
   const email = (formData.get('email') as string | null)?.trim() ?? '';
@@ -41,10 +53,15 @@ export async function recoverAccountAction(formData: FormData): Promise<RecoverA
 
   const p12Buffer = Buffer.from(await certFile.arrayBuffer());
 
+  const existingUser: LocalUser | null = await db.user.findFirst({
+    where: { email: { equals: email, mode: 'insensitive' } },
+    select: { id: true, tenantId: true },
+  });
+
   let result: RecoverAccountResult;
   try {
     const reqHeaders = await headers();
-    result = await recoverAccount(email, p12Buffer, certPassword, {
+    result = await recoverAccount(email, p12Buffer, certPassword, Boolean(existingUser?.tenantId), {
       forwardedIp: extractForwardedIp(reqHeaders),
     });
   } catch (err) {
@@ -56,22 +73,30 @@ export async function recoverAccountAction(formData: FormData): Promise<RecoverA
     return { ok: true, matched: false };
   }
 
+  if (result.alreadyLinked) {
+    return { ok: true, matched: true, outcome: 'alreadyLinked' };
+  }
+
   const apiTenantId = result.tenant.id;
   const localTenant = await db.tenant.findUnique({ where: { apiTenantId } });
 
   if (!localTenant) {
-    // Never linked to this app (or a previous attempt never finished) —
-    // automatically create the local Tenant/Issuer/TenantApiKey set and
-    // attach it to the signed-in user, the same way onboarding's "link
-    // existing account" tab used to (before it was replaced by this flow).
-    return autoLinkRecoveredTenant(result, apiTenantId);
+    // The link is missing entirely — never linked to this app, or a
+    // previous attempt never finished. Attach the local Tenant/Issuer/
+    // TenantApiKey set to the existing login found above (by the submitted
+    // email, not a session) — see the module doc comment for why there's
+    // always one to find.
+    return autoLinkRecoveredTenant(result, apiTenantId, existingUser);
   }
 
-  // Already linked locally — the API just revoked whichever key(s) it had for
-  // this environment and minted this one (reserved, see recoverAccount()), so
-  // the app's own stored copy is now stale. POST /v1/recover only returns the
-  // plaintext token, not its API-side id (CLAUDE.md Common Mistake #18) — and
-  // since the key is reserved, it's invisible to the tenant-facing GET
+  // The link already exists, but our local `alreadyLinked` hint above missed
+  // it (e.g. the tenant is linked under a different login email than the
+  // one typed here) — so the API ran its full match+rotate path after all.
+  // It revoked whichever key(s) it had for this environment and minted this
+  // one (reserved, see recoverAccount()), so the app's own stored copy is
+  // now genuinely stale and needs resyncing. POST /v1/recover only returns
+  // the plaintext token, not its API-side id (CLAUDE.md Common Mistake #18) —
+  // and since the key is reserved, it's invisible to the tenant-facing GET
   // /v1/keys (comprobify migration 102), so resolve it via the admin listing
   // instead. recover() just did a revoke-all-then-create-one for this
   // environment, so the newest active admin-listed row is exactly this one.
@@ -104,7 +129,7 @@ export async function recoverAccountAction(formData: FormData): Promise<RecoverA
     return { error: 'DB_WRITE_FAILED' };
   }
 
-  return { ok: true, matched: true };
+  return { ok: true, matched: true, outcome: 'resynced' };
 }
 
 /**
@@ -127,25 +152,33 @@ async function resolveRecoveredKeyRecord(apiTenantId: string, environment: 'sand
 
 /**
  * Creates the local Tenant/Issuer(s)/TenantApiKey rows for an API tenant
- * matched by recovery but never linked to this app, and attaches the
- * signed-in user as Owner — the automatic replacement for the old
- * "link existing account" onboarding tab (see CLAUDE.md's recovery notes).
- * Requires a session: someone with no comprobify-web login yet needs to sign
- * up first, then retry recovery.
+ * matched by recovery but never linked to this app, and attaches them to
+ * `existingUser` — the local login found by the *submitted* email, not any
+ * currently-browsing session (see the module doc comment for why one
+ * should always exist). Deliberately does not sign anyone in: a matching
+ * certificate proves ownership of the tenant, not knowledge of
+ * `existingUser`'s own comprobify-web password, so those two proofs stay
+ * separate — the user logs in normally afterward with their own
+ * credentials, same as the "already linked" branch already requires.
  */
 async function autoLinkRecoveredTenant(
   result: MatchedRecoverAccountResult,
   apiTenantId: string,
+  existingUser: LocalUser | null,
 ): Promise<RecoverAccountActionResult> {
-  const session = await auth();
-  if (!session?.user?.id || !isUuid(session.user.id)) {
-    return { error: 'RECOVERY_LOGIN_REQUIRED' };
+  if (!existingUser) {
+    // Should not be reachable in practice — comprobify-web is the only path
+    // that can ever create a tenant, and always creates its local User in
+    // the same transaction (see module doc comment) — so this signals a
+    // genuine local data anomaly (e.g. a restored-from-backup gap) worth
+    // investigating, not a normal user-facing outcome.
+    console.error('[recovery] no local User found for submitted email during auto-link', { apiTenantId });
+    Sentry.captureException(new Error('Recovery auto-link found no matching local User'), {
+      extra: { apiTenantId },
+    });
+    return { error: 'RECOVERY_ACCOUNT_NOT_FOUND' };
   }
-
-  const userId = session.user.id;
-  const user = await db.user.findUnique({ where: { id: userId } });
-  if (!user) return { error: 'RECOVERY_LOGIN_REQUIRED' };
-  if (user.tenantId) return { error: 'TENANT_ALREADY_EXISTS' };
+  if (existingUser.tenantId) return { error: 'TENANT_ALREADY_EXISTS' };
 
   let apiIssuers: Awaited<ReturnType<typeof listTenantIssuers>>;
   try {
@@ -161,9 +194,8 @@ async function autoLinkRecoveredTenant(
 
   const defaultIssuer = apiIssuers[0];
 
-  let defaultLocalIssuerId: string;
   try {
-    defaultLocalIssuerId = await db.$transaction(async (tx): Promise<string> => {
+    await db.$transaction(async (tx) => {
       const tenant = await tx.tenant.create({
         data: {
           apiTenantId,
@@ -189,9 +221,8 @@ async function autoLinkRecoveredTenant(
         },
       });
 
-      let firstLocalIssuerId: string | null = null;
       for (const apiIssuer of apiIssuers) {
-        const issuer: { id: string } = await tx.issuer.create({
+        await tx.issuer.create({
           data: {
             tenantId: tenant.id,
             apiIssuerId: apiIssuer.id,
@@ -200,18 +231,15 @@ async function autoLinkRecoveredTenant(
             businessName: apiIssuer.businessName,
             tradeName: apiIssuer.tradeName,
             branchAddress: apiIssuer.branchAddress,
-            isDefault: firstLocalIssuerId === null,
+            isDefault: apiIssuer.id === defaultIssuer.id,
           },
         });
-        if (firstLocalIssuerId === null) firstLocalIssuerId = issuer.id;
       }
 
       await tx.user.update({
-        where: { id: userId },
+        where: { id: existingUser.id },
         data: { tenantId: tenant.id, role: 'Owner' },
       });
-
-      return firstLocalIssuerId as string;
     });
   } catch (err) {
     // Sentry is a no-op locally (no DSN), so log too — otherwise this failure is
@@ -221,14 +249,5 @@ async function autoLinkRecoveredTenant(
     return { error: 'DB_WRITE_FAILED' };
   }
 
-  await writeCtxCookie({ issuerId: defaultLocalIssuerId, v: 2 });
-
-  revalidatePath('/', 'layout');
-  const locale = await getLocale();
-  // Redirect to /agreements so the tenant can review and accept legal documents,
-  // same as the old linkExistingTenantAction — safe even for a tenant that was
-  // never through POST /v1/register, since getStatus() lazily generates
-  // per-tenant documents for any published template version.
-  redirect({ href: '/agreements', locale });
-  return null as never;
+  return { ok: true, matched: true, outcome: 'justLinked' };
 }

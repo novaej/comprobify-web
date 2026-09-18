@@ -63,7 +63,7 @@
       "register": "Regístrate",
       "accountDisabled": "Tu cuenta ha sido desactivada por un administrador. Contacta al administrador para recuperar el acceso.",
       "idleTimeout": "Tu sesión se cerró por inactividad. Vuelve a iniciar sesión para continuar.",
-      "lostApiKey": "¿Perdiste tu API key?",
+      "lostApiKey": "¿Tienes un usuario pero no conectaste tu empresa?",
       "forgotPassword": "¿Olvidaste tu contraseña?"
     },
     "register": {
@@ -121,18 +121,22 @@
     "INVALID_OR_EXPIRED_RESET_TOKEN": "Este enlace para restablecer tu contraseña ya no es válido o expiró. Solicita uno nuevo."
   },
   "recoverAccount": {
-    "subtitle": "Recupera el acceso a tu API key",
+    "subtitle": "Conecta tu usuario con tu empresa",
     "backToLogin": "Volver a iniciar sesión",
-    "description": "Si perdiste tu API key, sube el mismo certificado P12 que usaste al registrarte junto con tu correo. Si coinciden con una cuenta existente, se emitirá una API key nueva.",
+    "description": "Si tu usuario de Comprobify Web no está conectado a tu empresa —por ejemplo, si te registraste con un correo distinto al de tu empresa, o el registro se interrumpió a mitad de camino— sube el certificado P12 y el correo con los que registraste tu empresa. Si coinciden, conectaremos tu usuario a ella automáticamente.",
+    "sideEffectNotice": "Si tu usuario ya está conectado a esa empresa, solo confirmaremos la conexión — no haremos ningún otro cambio.",
     "fields": {
       "email": "Correo electrónico",
       "certFile": "Archivo .p12",
       "certPassword": "Contraseña del certificado"
     },
-    "submit": "Recuperar acceso",
+    "submit": "Conectar",
     "submitting": "Verificando...",
-    "genericMessage": "Si ese correo y certificado coinciden con una cuenta existente, se emitió una API key nueva. Si no recibes ningún cambio, revisa que el correo y el certificado sean exactamente los que usaste al registrarte.",
-    "linkedMessage": "Tu API key fue renovada. Inicia sesión para continuar usando la aplicación con normalidad. También enviamos un correo de aviso a la dirección registrada."
+    "genericMessage": "Si ese correo y certificado coinciden con una empresa registrada, tu usuario quedará conectado a ella. Si no ves ningún cambio, revisa que el correo y el certificado sean exactamente los que usaste al registrar tu empresa.",
+    "alreadyLinkedMessage": "Tu usuario ya está conectado a esta empresa. Si no puedes ingresar, intenta recuperar tu contraseña o contáctanos.",
+    "goToForgotPassword": "Recuperar contraseña",
+    "justLinkedMessage": "Conectamos esta empresa al usuario con ese correo. Inicia sesión para continuar.",
+    "linkedMessage": "Tu usuario ya estaba conectado a esta empresa; verificamos la conexión. Como parte de este proceso deberás verificar tu correo electrónico nuevamente — revisa tu bandeja de entrada. Inicia sesión para continuar."
   },
   "sandbox": {
     "banner": "Estás en modo sandbox — los comprobantes se envían al ambiente de pruebas del SRI.",
@@ -653,7 +657,7 @@
       "submit": "Activar entorno de pruebas",
       "submitting": "Configurando...",
       "agreementNotice": "En el siguiente paso te pediremos revisar y aceptar los Términos de Servicio, la Política de Privacidad y el Acuerdo de Procesamiento de Datos de Comprobify.",
-      "recoverAccountLink": "Ir a la página de recuperación de cuenta"
+      "recoverAccountLink": "Conectar con una empresa existente"
     },
     "environment": {
       "title": "Ambiente",
@@ -743,7 +747,7 @@
     "UNAUTHORIZED": "No autorizado. Verifique que su API key sea válida.",
     "INSUFFICIENT_SCOPE": "Esta API key no tiene permiso para realizar esta acción.",
     "SCOPE_ESCALATION_FORBIDDEN": "No puede crear una API key con más permisos de los que tiene la suya propia.",
-    "CONFLICT": "Ya existe un registro con esos datos (RUC o correo electrónico). Si ya te registraste antes, usa la página de recuperación de cuenta.",
+    "CONFLICT": "Ya existe un registro con esos datos (RUC o correo electrónico). Si esa empresa ya es tuya, conecta tu usuario con ella desde la página de recuperación.",
     "TOO_MANY_REQUESTS": "Demasiadas solicitudes. Intente nuevamente en un momento.",
     "QUOTA_EXCEEDED": "Ha alcanzado el límite mensual de comprobantes. Actualice su plan.",
     "INTERNAL_ERROR": "Error interno del servidor. Contacte al soporte.",
@@ -801,7 +805,7 @@
     "API_KEY_REQUIRED": "Debe ingresar su API key.",
     "EMAIL_REQUIRED": "Debe ingresar su correo electrónico.",
     "NO_ISSUERS_FOUND": "Esa cuenta no tiene emisores activos. Verifique su API key e intente de nuevo.",
-    "RECOVERY_LOGIN_REQUIRED": "Inicia sesión o crea una cuenta y vuelve a intentar la recuperación para vincular esta empresa a tu usuario.",
+    "RECOVERY_ACCOUNT_NOT_FOUND": "No pudimos encontrar una cuenta asociada a ese correo. Contáctanos para resolverlo.",
     "TENANT_ALREADY_LINKED": "Esa cuenta de la API ya fue vinculada por otro usuario. Pida a su administrador que lo invite desde Usuarios.",
     "DB_WRITE_FAILED": "Su empresa fue registrada pero ocurrió un error interno al guardar la configuración. Contacte al soporte con su correo electrónico.",
     "ALREADY_PRODUCTION": "Su cuenta ya está en modo producción.",

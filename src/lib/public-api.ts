@@ -123,11 +123,15 @@ export async function registerTenant(
 // anti-enumeration: an unregistered email, an account with no issuer, and a mismatched
 // certificate all return { ok: true, message } with no tenant/issuer/apiKey/environment —
 // the presence of `apiKey` is what distinguishes a real match, never the HTTP status
-// (both cases are 200).
+// (both cases are 200). The `alreadyLinked` branch is a third, real-match outcome —
+// see recoverAccount()'s `alreadyLinked` param below — that also carries no
+// tenant/issuer/apiKey/environment, since the API deliberately did nothing to fetch.
 export type RecoverAccountResult =
   | { matched: false }
+  | { matched: true; alreadyLinked: true }
   | {
       matched: true;
+      alreadyLinked: false;
       tenant: { id: string; email: string; status: string };
       issuer: {
         id: string;
@@ -145,6 +149,15 @@ export async function recoverAccount(
   email: string,
   p12Buffer: Buffer,
   p12Password: string,
+  // Caller-computed hint (comprobify-web checks its own local User table
+  // before ever calling this) — never a security boundary, since the API
+  // only ever consults it *after* its own email+cert match succeeds (see
+  // comprobify's registration.service.js). true tells the API this tenant is
+  // already linked to a comprobify-web account locally, so there's nothing
+  // to recover: it skips rotating the tenant's key and skips forcing
+  // re-verification, both of which would otherwise be a disruptive,
+  // unrequested side effect on an account that already works fine.
+  alreadyLinked: boolean,
   clientHeaders?: ClientForwardingInfo,
 ): Promise<RecoverAccountResult> {
   const form = new FormData();
@@ -158,6 +171,7 @@ export async function recoverAccount(
   // same as every other key comprobify-web mints for itself. Sent as a
   // string since this is a multipart body (Common Mistake #25).
   form.append('reserved', 'true');
+  form.append('alreadyLinked', alreadyLinked ? 'true' : 'false');
 
   const buf = p12Buffer.buffer.slice(
     p12Buffer.byteOffset,
@@ -168,6 +182,8 @@ export async function recoverAccount(
   const result = await publicRequest<{
     ok: true;
     message?: string;
+    matched?: boolean;
+    alreadyLinked?: boolean;
     tenant?: { id: string; email: string; status: string };
     issuer?: {
       id: string;
@@ -185,12 +201,17 @@ export async function recoverAccount(
     headers: buildClientForwardingHeaders(clientHeaders ?? {}),
   });
 
+  if (result.alreadyLinked) {
+    return { matched: true, alreadyLinked: true };
+  }
+
   if (!result.apiKey || !result.tenant || !result.issuer || !result.environment) {
     return { matched: false };
   }
 
   return {
     matched: true,
+    alreadyLinked: false,
     tenant: result.tenant,
     issuer: result.issuer,
     apiKey: result.apiKey,

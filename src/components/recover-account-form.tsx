@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Link } from '@/i18n/navigation';
+import { logoutAction } from '@/app/actions/auth';
 import { recoverAccountAction, type RecoverAccountActionResult } from '@/app/actions/recovery';
 import { MailCheck } from 'lucide-react';
 
@@ -38,23 +39,55 @@ export function RecoverAccountForm() {
   }
 
   if (result) {
-    // A successful first-time link redirects the action itself (see
-    // recoverAccountAction) — a returned `matched: true` here always means
-    // the tenant was already linked and its key was just rotated.
+    // recoverAccountAction is entirely session-independent (see its own doc
+    // comment) — a match never signs anyone in, it only ever mutates local
+    // data, so every outcome here lands on a message + "back to login",
+    // never a redirect. `outcome` is one of three things on a real match:
+    // 'alreadyLinked' (the common case — our local hint caught it before
+    // calling the API, so nothing was rotated), 'justLinked' (a genuinely
+    // new link was just created and attached to the matching existing
+    // login), or 'resynced' (the rare fallback — our hint missed, so the
+    // API actually rotated the key and forced re-verification while
+    // resyncing an already-existing link).
+    const message = !result.matched
+      ? t('genericMessage')
+      : result.outcome === 'alreadyLinked'
+        ? t('alreadyLinkedMessage')
+        : result.outcome === 'justLinked'
+          ? t('justLinkedMessage')
+          : t('linkedMessage');
+
     return (
       <div className="space-y-4">
         <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/40 p-4">
           <MailCheck className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">
-            {result.matched ? t('linkedMessage') : t('genericMessage')}
-          </p>
+          <div className="space-y-2 text-sm text-muted-foreground">
+            <p>{message}</p>
+            {result.matched && result.outcome === 'alreadyLinked' && (
+              <Link
+                href="/forgot-password"
+                className="inline-block font-medium text-primary hover:underline underline-offset-4"
+              >
+                {t('goToForgotPassword')}
+              </Link>
+            )}
+          </div>
         </div>
-        <Link
-          href="/login"
-          className="block text-center text-sm font-medium text-primary hover:underline underline-offset-4"
-        >
-          {t('backToLogin')}
-        </Link>
+        {/* logoutAction, not a plain Link — recovery never checks who's
+            currently browsing (it matches by email+cert alone), so whoever
+            clicks this needs a clean slate regardless of what session
+            happens to be active. A plain Link to /login here would instead
+            hit /login's own "already authenticated → redirect away" logic
+            against the CURRENT session, which has nothing to do with the
+            account that was just recovered. */}
+        <form action={logoutAction}>
+          <button
+            type="submit"
+            className="block w-full text-center text-sm font-medium text-primary hover:underline underline-offset-4 cursor-pointer"
+          >
+            {t('backToLogin')}
+          </button>
+        </form>
       </div>
     );
   }
@@ -83,6 +116,8 @@ export function RecoverAccountForm() {
           disabled={isPending}
         />
       </div>
+
+      <p className="text-xs text-muted-foreground">{t('sideEffectNotice')}</p>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
