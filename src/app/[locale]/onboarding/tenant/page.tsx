@@ -1,5 +1,5 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
-import { Info } from 'lucide-react';
+import { Info, LogOut } from 'lucide-react';
 import { auth } from '@/auth';
 import { redirect } from '@/i18n/navigation';
 import { db } from '@/lib/db';
@@ -8,6 +8,7 @@ import { IssuerSetupForm } from '@/components/issuer-setup-form';
 import { LogoLockupStacked } from '@/components/logo';
 import { LocaleSwitcher } from '@/components/locale-switcher';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { logoutAction } from '@/app/actions/auth';
 import { parseIntendedPlan } from '@/lib/subscription-tiers';
 import { listAgreements } from '@/lib/public-api';
 
@@ -41,6 +42,7 @@ export default async function OnboardingTenantPage({
   }
 
   const t = await getTranslations('onboarding');
+  const tNav = await getTranslations('nav');
 
   // listAgreements() is public and returns [] both when nothing is published
   // yet and when AGREEMENTS_ENABLED=false on the API — either way there's
@@ -51,9 +53,26 @@ export default async function OnboardingTenantPage({
 
   return (
     <div className="min-h-screen bg-muted/40 flex flex-col">
-      <div className="flex items-center justify-end gap-2 px-6 py-5">
-        <ThemeToggle className="text-muted-foreground hover:bg-accent hover:text-accent-foreground" />
-        <LocaleSwitcher />
+      <div className="flex items-center justify-between gap-2 px-6 py-5">
+        {/* This page is only ever reached authenticated (redirects to /login
+            otherwise), and stays reachable for as long as the user has no
+            tenant — with no other exit route on the page itself, testing a
+            different account (or a stuck registration attempt) previously
+            meant no way back to a clean /login without leaving the flow via
+            the browser. */}
+        <form action={logoutAction}>
+          <button
+            type="submit"
+            className="flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
+          >
+            <LogOut className="h-4 w-4" aria-hidden />
+            {tNav('signOut')}
+          </button>
+        </form>
+        <div className="flex items-center gap-2">
+          <ThemeToggle className="text-muted-foreground hover:bg-accent hover:text-accent-foreground" />
+          <LocaleSwitcher />
+        </div>
       </div>
       <div className="flex flex-1 items-start justify-center p-4 pt-4">
       <div className="w-full max-w-2xl">
