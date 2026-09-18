@@ -834,7 +834,8 @@
     "WRONG_CURRENT_PASSWORD": "Current password is incorrect.",
     "PASSWORD_TOO_SHORT": "Password must be at least 8 characters.",
     "CANNOT_DISABLE_SELF": "You cannot disable your own account.",
-    "CANNOT_RESET_OWN_PASSWORD": "Use the account settings to change your own password."
+    "CANNOT_RESET_OWN_PASSWORD": "Use the account settings to change your own password.",
+    "RESERVED_KEY_NOT_FOUND": "That reserved key was not found, or has already been rotated."
   },
   "agreements": {
     "title": "Review and accept agreements",
@@ -1806,7 +1807,8 @@
         "email": "Email",
         "tier": "Tier",
         "status": "Status",
-        "usage": "Usage"
+        "usage": "Usage",
+        "actions": "Actions"
       },
       "statuses": {
         "PENDING_VERIFICATION": "Pending",
@@ -1835,6 +1837,25 @@
           "UNPAID_BALANCE": "Unpaid balance",
           "OTHER": "Other reason"
         }
+      },
+      "rotateKeysTooltip": "Rotate API keys",
+      "keyRotation": {
+        "title": "Rotate API keys",
+        "description": "{tenant}'s reserved keys, used internally by the app. Rotating a key invalidates its current token immediately.",
+        "empty": "This tenant has no local reserved keys to rotate.",
+        "masterLabel": "Master key",
+        "columns": {
+          "label": "Key",
+          "environment": "Environment",
+          "lastUsed": "Last used",
+          "actions": "Actions"
+        },
+        "createdOn": "Created on {date}",
+        "neverUsed": "Never",
+        "rotate": "Rotate",
+        "rotating": "Rotating...",
+        "confirmRotate": "This immediately invalidates \"{label}\"'s current token. Anything still using it will stop authenticating until the app picks up the new key. Continue?",
+        "rotateSuccess": "Key rotated successfully."
       }
     },
     "payments": {

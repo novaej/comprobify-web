@@ -834,7 +834,8 @@
     "WRONG_CURRENT_PASSWORD": "La contraseña actual es incorrecta.",
     "PASSWORD_TOO_SHORT": "La contraseña debe tener al menos 8 caracteres.",
     "CANNOT_DISABLE_SELF": "No puedes desactivar tu propia cuenta.",
-    "CANNOT_RESET_OWN_PASSWORD": "No puedes restablecer tu propia contraseña desde aquí."
+    "CANNOT_RESET_OWN_PASSWORD": "No puedes restablecer tu propia contraseña desde aquí.",
+    "RESERVED_KEY_NOT_FOUND": "No se encontró esa clave reservada, o ya fue rotada."
   },
   "agreements": {
     "title": "Revisa y acepta los acuerdos",
@@ -1806,7 +1807,8 @@
         "email": "Correo",
         "tier": "Plan",
         "status": "Estado",
-        "usage": "Uso"
+        "usage": "Uso",
+        "actions": "Acciones"
       },
       "statuses": {
         "PENDING_VERIFICATION": "Pendiente",
@@ -1835,6 +1837,25 @@
           "UNPAID_BALANCE": "Saldo pendiente de pago",
           "OTHER": "Otro motivo"
         }
+      },
+      "rotateKeysTooltip": "Rotar API keys",
+      "keyRotation": {
+        "title": "Rotar API keys",
+        "description": "Claves reservadas de {tenant} usadas internamente por la aplicación. Rotar una clave invalida su token actual de inmediato.",
+        "empty": "Este tenant no tiene claves reservadas locales para rotar.",
+        "masterLabel": "Clave maestra",
+        "columns": {
+          "label": "Clave",
+          "environment": "Ambiente",
+          "lastUsed": "Último uso",
+          "actions": "Acciones"
+        },
+        "createdOn": "Creada el {date}",
+        "neverUsed": "Nunca",
+        "rotate": "Rotar",
+        "rotating": "Rotando...",
+        "confirmRotate": "Esto invalida el token actual de \"{label}\" de inmediato. Cualquier proceso que aún lo use dejará de autenticar hasta que la aplicación obtenga la nueva clave. ¿Continuar?",
+        "rotateSuccess": "Clave rotada correctamente."
       }
     },
     "payments": {

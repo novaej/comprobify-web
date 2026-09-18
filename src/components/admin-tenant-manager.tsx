@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle, KeyRound } from 'lucide-react';
 import { toastApiError } from '@/lib/api-error-toast';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { updateTenantTierAction, updateTenantStatusAction, verifyTenantAction } from '@/app/actions/admin';
+import { AdminKeyRotationDialog } from '@/components/admin-key-rotation-dialog';
 import { cn } from '@/lib/utils';
 import type { AdminTenant, AdminTenantStatus, AdminSuspensionReason } from '@/lib/admin-api';
 import { ALL_TIERS } from '@/lib/subscription-tiers';
@@ -52,6 +53,7 @@ export function AdminTenantManager({ tenants }: { tenants: AdminTenantRow[] }) {
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [suspendTarget, setSuspendTarget] = useState<string | null>(null);
   const [suspensionReasonCode, setSuspensionReasonCode] = useState('');
+  const [rotationTarget, setRotationTarget] = useState<{ apiTenantId: string; label: string } | null>(null);
 
   function handleTierChange(id: string, tier: string) {
     setPendingId(id);
@@ -124,6 +126,7 @@ export function AdminTenantManager({ tenants }: { tenants: AdminTenantRow[] }) {
             <TableHead className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('columns.tier')}</TableHead>
             <TableHead className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('columns.status')}</TableHead>
             <TableHead className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('columns.usage')}</TableHead>
+            <TableHead className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('columns.actions')}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -201,6 +204,20 @@ export function AdminTenantManager({ tenants }: { tenants: AdminTenantRow[] }) {
                     ? t('usageValueUnlimited', { count: tenant.documentCount })
                     : t('usageValue', { count: tenant.documentCount, quota: tenant.documentQuota })}
                 </TableCell>
+
+                {/* Actions */}
+                <TableCell>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 w-7 p-0"
+                    title={t('rotateKeysTooltip')}
+                    aria-label={t('rotateKeysTooltip')}
+                    onClick={() => setRotationTarget({ apiTenantId: id, label: tenant.businessName ?? tenant.email })}
+                  >
+                    <KeyRound className="h-3.5 w-3.5" />
+                  </Button>
+                </TableCell>
               </TableRow>
             );
           })}
@@ -244,6 +261,14 @@ export function AdminTenantManager({ tenants }: { tenants: AdminTenantRow[] }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {rotationTarget && (
+        <AdminKeyRotationDialog
+          apiTenantId={rotationTarget.apiTenantId}
+          tenantLabel={rotationTarget.label}
+          onClose={() => setRotationTarget(null)}
+        />
+      )}
     </div>
   );
 }
