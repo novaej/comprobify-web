@@ -20,6 +20,11 @@ export function RecoverAccountForm() {
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    // Guard against a second fire beating the disabled button's re-render —
+    // this calls POST /v1/recover, which has its own strict, IP-keyed rate
+    // limit (5/hour, independent from register/resend-verification's own
+    // limiters — comprobify's 83c54ed).
+    if (isPending) return;
     const formData = new FormData(e.currentTarget);
     setError(null);
     startTransition(async () => {

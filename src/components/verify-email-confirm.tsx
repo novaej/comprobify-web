@@ -19,6 +19,11 @@ export function VerifyEmailConfirm({ token }: VerifyEmailConfirmProps) {
   const [errorCode, setErrorCode] = useState<string | null>(null);
 
   function handleConfirm() {
+    // Guard against a second fire beating the disabled button's re-render —
+    // POST /v1/verify-email has no rate limit at all (a single-use token
+    // makes it a poor abuse vector), so this is purely to avoid a wasted
+    // duplicate call, not a shared-budget concern.
+    if (isPending) return;
     startTransition(async () => {
       const result = await confirmEmailVerificationAction(token);
       if (result?.error) {

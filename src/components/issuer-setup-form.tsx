@@ -49,6 +49,11 @@ export function IssuerSetupForm({
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    // Guard against a second fire (double-click, Enter+click) landing before
+    // the disabled button re-renders — this calls POST /v1/register, which
+    // has its own strict, IP-keyed rate limit (5/hour, independent from
+    // recover/resend-verification's own limiters — comprobify's 83c54ed).
+    if (isPending) return;
     const formData = new FormData(e.currentTarget);
     setError(null);
     setErrorCode(null);

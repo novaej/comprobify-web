@@ -111,6 +111,11 @@ export function ProductionPromotion({
   }
 
   function handleResend() {
+    // Guard against a second fire beating the disabled button's re-render —
+    // this calls POST /v1/resend-verification, which has its own strict,
+    // IP-keyed rate limit (5/hour, independent from register/recover's own
+    // limiters — comprobify's 83c54ed).
+    if (isResendPending) return;
     startResendTransition(async () => {
       const result = await resendVerificationAction();
       if (!result) {
