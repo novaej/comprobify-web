@@ -23,6 +23,10 @@ This screen also displays — read-only, not creatable/editable here — the "ma
 
 Shown when the tenant has zero active keys (`missingKey` prop) — the app itself can't authenticate any request until one exists. `requireContext()` redirects here with `?missing=1` when it can't resolve an active `TenantApiKey` row for the signed-in user's role (see `src/lib/context.ts` → `resolveApiKeyForRole()`).
 
+### Usage counter and tier limit
+
+A persistent "X of Y API keys used" line (or "(ilimitado)"/"(unlimited)" for `maxApiKeys === null`) sits above the create form, sourced from `listTenantApiKeys()`'s own `limit: { max, used }` — a plain passthrough of the tier's `maxApiKeys` as of comprobify migration 102 (comprobify-web's own reserved master/per-role keys are excluded from this pool entirely, not padded headroom on top of it — see CLAUDE.md Common Mistake #65). If `max === 0` (the plan includes no self-service keys at all), the counter is hidden in favor of a `noCustomAccess` banner instead; if `used >= max`, a `keyLimitReached` banner appears alongside the counter and the create-key trigger disables.
+
 ### Create form
 
 A `label` field (defaults to `"default"` if left blank) plus a scope checklist. The checklist only offers the scopes the *caller's own* resolved key holds (`computeApiScopesForRole(ctx.user.role)`, passed down as `callerScopes`) — all checked by default, at least one required. On submit → `createTenantApiKeyAction(label, scopes)`:
@@ -35,7 +39,7 @@ There is no scope-editing UI for an existing key — scopes are immutable per ke
 
 One row per `TenantApiKey`, columns:
 - Label (+ "En uso por la app" / "En uso por la app ({role})" badge, on its own line below the label, for any `isManaged` row — the master key or a per-role key; revoke button disabled for that row, both in the UI and re-checked server-side in `revokeTenantApiKeyAction`)
-- Scopes — a single "Acceso total" badge if the key holds all 9 scopes, otherwise one small pill per scope; an em dash for a legacy key with no locally-recorded scopes
+- Scopes — a single "Acceso total" badge if the key holds all 11 scopes, otherwise one small pill per scope; an em dash for a legacy key with no locally-recorded scopes
 - Environment
 - Last four digits
 - Status (active/revoked)
