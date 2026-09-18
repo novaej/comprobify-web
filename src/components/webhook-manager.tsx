@@ -131,6 +131,14 @@ export function WebhookManager({
 
   return (
     <div className="space-y-4">
+      {customWebhooksAllowed && (
+        <p className="text-xs text-muted-foreground">
+          {maxEndpoints === null
+            ? t('endpointUsageUnlimited', { used: usedEndpoints })
+            : t('endpointUsage', { used: usedEndpoints, limit: maxEndpoints })}
+        </p>
+      )}
+
       {!customWebhooksAllowed ? (
         <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 text-sm text-amber-700 dark:text-amber-400">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />

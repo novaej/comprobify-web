@@ -1079,6 +1079,8 @@
     "createdSuccess": "API key \"{label}\" created successfully.",
     "showOnce": "Copy this key now. You won't be able to see it again.",
     "missingKeyWarning": "You have no active API keys. The system cannot authenticate requests until you create one.",
+    "keyUsage": "{used} of {limit} API keys used",
+    "keyUsageUnlimited": "{used} API keys used (unlimited)",
     "keyLimitReached": "You've reached your plan's API key limit ({used} of {limit}). Revoke an unused key or upgrade your plan to create more.",
     "noCustomAccess": "Your plan doesn't include custom API keys. Upgrade your plan to create one.",
     "table": {
@@ -1314,6 +1316,8 @@
       "httpsRequired": "Requires a public HTTPS URL — won't work with localhost in local development."
     },
     "empty": "No webhooks registered.",
+    "endpointUsage": "{used} of {limit} webhooks used",
+    "endpointUsageUnlimited": "{used} webhooks used (unlimited)",
     "limitReached": "You've reached your plan's webhook limit ({used} of {limit}). Remove an existing one or upgrade your plan to add more.",
     "noCustomAccess": "Your plan doesn't include custom webhooks. Upgrade your plan to add one.",
     "add": "Register webhook",
