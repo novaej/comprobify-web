@@ -47,7 +47,7 @@ export function AgreementAcceptance({ outdated }: { outdated: ApiOutdatedAgreeme
         );
         return;
       }
-      router.push('/dashboard');
+      router.push('/settings');
     });
   }
 
