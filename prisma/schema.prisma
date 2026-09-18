@@ -20,7 +20,13 @@ model User {
   acceptedAt    DateTime? @map("accepted_at")
   isSuperAdmin  Boolean   @default(false) @map("is_super_admin")
   createdAt     DateTime  @default(now()) @map("created_at")
-  tenant       Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  // SetNull, not Cascade — a User is an independent login that happens to be
+  // linked to a tenant, not tenant-owned data. Losing the local Tenant row
+  // (a genuine incident, or manual DB work) should orphan the User back to
+  // the same tenantId:null state a fresh no-tenant signup starts in — which
+  // the account-recovery auto-link flow (src/app/actions/recovery.ts) can
+  // then reattach — rather than destroy the login outright.
+  tenant       Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   issuerAccess UserIssuerAccess[]
   verificationTokens VerificationToken[]
 
