@@ -18,7 +18,15 @@ const navItems = [
   { href: '/admin/seat-prices', icon: Users, labelKey: 'seatPrices' as const },
 ] as const;
 
-export function AdminNav({ userEmail, pendingInvoicingCount }: { userEmail: string; pendingInvoicingCount: number }) {
+export function AdminNav({
+  userEmail,
+  pendingInvoicingCount,
+  pendingPaymentsCount,
+}: {
+  userEmail: string;
+  pendingInvoicingCount: number;
+  pendingPaymentsCount: number;
+}) {
   const t = useTranslations('admin.nav');
   const tNav = useTranslations('nav');
   const locale = useLocale();
@@ -32,6 +40,10 @@ export function AdminNav({ userEmail, pendingInvoicingCount }: { userEmail: stri
         <ul className="flex flex-col gap-0.5">
           {navItems.map(({ href, icon: Icon, labelKey }) => {
             const isActive = pathname.startsWith(href);
+            const badgeCount =
+              labelKey === 'invoicing' ? pendingInvoicingCount
+              : labelKey === 'payments' ? pendingPaymentsCount
+              : 0;
             return (
               <li key={href}>
                 <Link
@@ -46,9 +58,9 @@ export function AdminNav({ userEmail, pendingInvoicingCount }: { userEmail: stri
                 >
                   <Icon className="h-4 w-4 shrink-0" aria-hidden />
                   <span className="flex-1 truncate">{t(labelKey)}</span>
-                  {labelKey === 'invoicing' && pendingInvoicingCount > 0 && (
+                  {badgeCount > 0 && (
                     <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-semibold text-white">
-                      {pendingInvoicingCount > 99 ? '99+' : pendingInvoicingCount}
+                      {badgeCount > 99 ? '99+' : badgeCount}
                     </span>
                   )}
                 </Link>

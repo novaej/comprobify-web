@@ -1,7 +1,7 @@
 import { setRequestLocale } from 'next-intl/server';
 import { requireSuperAdmin } from '@/lib/admin-context';
 import { auth } from '@/auth';
-import { listPendingInvoicing } from '@/lib/admin-api';
+import { listPendingInvoicing, listPendingPayments } from '@/lib/admin-api';
 import { AdminNav } from '@/components/admin-nav';
 import { AuthSessionProvider } from '@/providers/auth-session-provider';
 import { IdleActivityTracker } from '@/components/idle-activity-tracker';
@@ -25,9 +25,12 @@ export default async function AdminLayout({
 
   // Best-effort, same pattern as other layout-visible fetches — an API hiccup
   // shouldn't take down the whole admin shell over a nav badge.
-  const pendingInvoicingCount = await listPendingInvoicing()
-    .then((r) => r.count)
-    .catch(() => 0);
+  const [pendingInvoicingCount, pendingPaymentsCount] = await Promise.all([
+    listPendingInvoicing().then((r) => r.count).catch(() => 0),
+    // Default status ('REPORTED') matches /admin/payments' own default filter
+    // — payments a tenant has reported and that still need a review decision.
+    listPendingPayments().then((payments) => payments.length).catch(() => 0),
+  ]);
 
   return (
     <AuthSessionProvider session={session}>
@@ -35,7 +38,11 @@ export default async function AdminLayout({
           this always uses the system default (see session-timeout.ts). */}
       <IdleActivityTracker idleTimeoutMinutes={DEFAULT_SESSION_IDLE_TIMEOUT_MINUTES} locale={locale} />
       <div className="flex h-full flex-col md:flex-row">
-        <AdminNav userEmail={ctx.user.email} pendingInvoicingCount={pendingInvoicingCount} />
+        <AdminNav
+          userEmail={ctx.user.email}
+          pendingInvoicingCount={pendingInvoicingCount}
+          pendingPaymentsCount={pendingPaymentsCount}
+        />
         <main className="flex-1 overflow-y-auto p-4 md:p-8">{children}</main>
       </div>
     </AuthSessionProvider>
