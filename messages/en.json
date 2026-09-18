@@ -802,7 +802,6 @@
     "EMAIL_REQUIRED": "Please enter your email address.",
     "NO_ISSUERS_FOUND": "That account has no active issuers. Check your API key and try again.",
     "RECOVERY_LOGIN_REQUIRED": "Sign in or create an account and retry recovery to link this company to your user.",
-    "CANONICAL_WEBHOOK_CANNOT_BE_DEACTIVATED": "This webhook is managed automatically by the app and can't be deactivated here.",
     "TENANT_ALREADY_LINKED": "That API account has already been linked by another user. Ask your administrator to invite you from Users.",
     "DB_WRITE_FAILED": "Your company was registered but an internal error occurred while saving the configuration. Please contact support with your email address.",
     "EMAIL_NOT_VERIFIED": "You must verify your email address before activating production.",

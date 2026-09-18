@@ -802,7 +802,6 @@
     "EMAIL_REQUIRED": "Debe ingresar su correo electrónico.",
     "NO_ISSUERS_FOUND": "Esa cuenta no tiene emisores activos. Verifique su API key e intente de nuevo.",
     "RECOVERY_LOGIN_REQUIRED": "Inicia sesión o crea una cuenta y vuelve a intentar la recuperación para vincular esta empresa a tu usuario.",
-    "CANONICAL_WEBHOOK_CANNOT_BE_DEACTIVATED": "Este webhook es gestionado automáticamente por la aplicación y no puede desactivarse desde aquí.",
     "TENANT_ALREADY_LINKED": "Esa cuenta de la API ya fue vinculada por otro usuario. Pida a su administrador que lo invite desde Usuarios.",
     "DB_WRITE_FAILED": "Su empresa fue registrada pero ocurrió un error interno al guardar la configuración. Contacte al soporte con su correo electrónico.",
     "EMAIL_NOT_VERIFIED": "Debe verificar su correo electrónico antes de activar producción.",
