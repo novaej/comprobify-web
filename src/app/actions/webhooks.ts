@@ -3,9 +3,9 @@
 import { requirePermission } from '@/lib/context';
 import {
   registerWebhookEndpoint,
-  updateWebhookEndpoint,
   deleteWebhookEndpoint,
 } from '@/lib/api';
+import { createReservedWebhookEndpoint } from '@/lib/admin-api';
 import { db } from '@/lib/db';
 import { encrypt } from '@/lib/crypto';
 import { ApiError } from '@/lib/errors';
@@ -64,6 +64,16 @@ export async function deleteWebhookAction(localId: string): Promise<WebhookActio
     return { error: 'WEBHOOK_ENDPOINT_NOT_FOUND' };
   }
 
+  // The canonical in-app webhook is now `is_reserved` at the API (comprobify
+  // migration 102) — the tenant-facing DELETE /v1/webhooks/:id 404s any
+  // reserved row on purpose (same as the API-key equivalent), and there is
+  // currently no admin-gated endpoint to deactivate one either (only mint a
+  // replacement). Fail with a clear code here rather than a confusing
+  // WEBHOOK_ENDPOINT_NOT_FOUND from the API.
+  if (endpoint.url === getCanonicalWebhookUrl()) {
+    return { error: 'CANONICAL_WEBHOOK_CANNOT_BE_DEACTIVATED' };
+  }
+
   try {
     await deleteWebhookEndpoint({ apiKey: ctx.apiKey }, endpoint.apiEndpointId);
   } catch (err) {
@@ -108,12 +118,16 @@ export async function listWebhooksAction(): Promise<{
  * notifications (document authorized, cert expiry, etc.) arrive in near-real
  * time instead of relying solely on the catch-up poll.
  *
- * Idempotent — a no-op if an active endpoint for this URL already exists. If
- * one exists but was previously deactivated, PATCHes it back to active rather
- * than registering a new API-side record, so a tenant never accumulates more
- * than one endpoint row for this same consumer (the API's `active` column is
- * a toggle, not a soft-delete marker — deregistering doesn't free the record
- * for reuse on its own).
+ * Idempotent — a no-op if an active local row for this URL already exists.
+ * Minted `is_reserved` through the admin-gated path (comprobify migration
+ * 102) — excluded from the tenant's own self-service GET /v1/webhooks
+ * listing/budget, same as comprobify-web's own API keys. Reserved endpoints
+ * can only be minted, never PATCHed back to active (no admin-gated endpoint
+ * for that exists), so re-activating after a prior deactivation mints a
+ * fresh reserved row and reuses the same local record rather than accumulating
+ * a duplicate — there's no `replaceEndpointId` involved, since that path
+ * requires the row being replaced to still be active at the API, which an
+ * already-deactivated one by definition isn't.
  */
 export async function activateCanonicalWebhookAction(): Promise<WebhookActionResult> {
   const receiveUrl = getCanonicalWebhookUrl();
@@ -127,19 +141,22 @@ export async function activateCanonicalWebhookAction(): Promise<WebhookActionRes
   if (existing?.active) return null;
 
   try {
+    const { endpoint, secret } = await createReservedWebhookEndpoint(ctx.tenant.apiTenantId, {
+      url: receiveUrl,
+      eventTypes: [], // subscribe to all event types
+    });
+
     if (existing) {
-      await updateWebhookEndpoint({ apiKey: ctx.apiKey }, existing.apiEndpointId, { active: true });
       await db.webhookEndpoint.update({
         where: { id: existing.id },
-        data: { active: true },
+        data: {
+          apiEndpointId: endpoint.id,
+          encryptedSecret: encrypt(secret),
+          eventTypes: endpoint.eventTypes,
+          active: endpoint.active,
+        },
       });
     } else {
-      const { endpoint, secret } = await registerWebhookEndpoint(
-        { apiKey: ctx.apiKey },
-        receiveUrl,
-        [], // subscribe to all event types
-      );
-
       await db.webhookEndpoint.create({
         data: {
           tenantId: ctx.tenant.id,

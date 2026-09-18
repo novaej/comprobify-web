@@ -132,13 +132,7 @@
     "submit": "Recuperar acceso",
     "submitting": "Verificando...",
     "genericMessage": "Si ese correo y certificado coinciden con una cuenta existente, se emitió una API key nueva. Si no recibes ningún cambio, revisa que el correo y el certificado sean exactamente los que usaste al registrarte.",
-    "linkedMessage": "Tu API key fue renovada. Inicia sesión para continuar usando la aplicación con normalidad. También enviamos un correo de aviso a la dirección registrada.",
-    "unlinkedTitle": "API key recuperada",
-    "unlinkedInstructions": "Esta cuenta aún no está vinculada a un usuario de esta aplicación. Inicia sesión (o crea una cuenta) y usa la pestaña \"Vincular cuenta existente\" al configurar tu empresa, pegando esta API key. También enviamos un correo de aviso a la dirección registrada.",
-    "showOnce": "Esta API key solo se muestra una vez. Guárdala en un lugar seguro.",
-    "show": "Mostrar",
-    "hide": "Ocultar",
-    "copy": "Copiar"
+    "linkedMessage": "Tu API key fue renovada. Inicia sesión para continuar usando la aplicación con normalidad. También enviamos un correo de aviso a la dirección registrada."
   },
   "sandbox": {
     "banner": "Estás en modo sandbox — los comprobantes se envían al ambiente de pruebas del SRI.",
@@ -807,6 +801,8 @@
     "API_KEY_REQUIRED": "Debe ingresar su API key.",
     "EMAIL_REQUIRED": "Debe ingresar su correo electrónico.",
     "NO_ISSUERS_FOUND": "Esa cuenta no tiene emisores activos. Verifique su API key e intente de nuevo.",
+    "RECOVERY_LOGIN_REQUIRED": "Inicia sesión o crea una cuenta y vuelve a intentar la recuperación para vincular esta empresa a tu usuario.",
+    "CANONICAL_WEBHOOK_CANNOT_BE_DEACTIVATED": "Este webhook es gestionado automáticamente por la aplicación y no puede desactivarse desde aquí.",
     "TENANT_ALREADY_LINKED": "Esa cuenta de la API ya fue vinculada por otro usuario. Pida a su administrador que lo invite desde Usuarios.",
     "DB_WRITE_FAILED": "Su empresa fue registrada pero ocurrió un error interno al guardar la configuración. Contacte al soporte con su correo electrónico.",
     "EMAIL_NOT_VERIFIED": "Debe verificar su correo electrónico antes de activar producción.",
@@ -1041,14 +1037,7 @@
   "onboarding": {
     "title": "Configura tu empresa",
     "description": "Completa la información de tu empresa para empezar a emitir comprobantes electrónicos.",
-    "sriNotice": "Antes de continuar, verifica que tu RUC tenga habilitado el ambiente de pruebas (certificación) en el portal del SRI. Sin este paso previo, el SRI rechazará los comprobantes de prueba que emitas desde aquí.",
-    "createNewTab": "Crear nueva empresa",
-    "linkExistingTab": "Vincular cuenta existente",
-    "linkTitle": "Vincula tu cuenta de la API",
-    "linkDescription": "¿Ya usas la API de Comprobify directamente? Ingresa tu API key existente para vincular esa cuenta a tu usuario. Tu API key no se reutiliza ni se guarda — solo se usa una vez para confirmar la vinculación y crear una clave nueva para esta aplicación.",
-    "apiKey": "API key",
-    "linkSubmit": "Vincular cuenta",
-    "linkSubmitting": "Vinculando..."
+    "sriNotice": "Antes de continuar, verifica que tu RUC tenga habilitado el ambiente de pruebas (certificación) en el portal del SRI. Sin este paso previo, el SRI rechazará los comprobantes de prueba que emitas desde aquí."
   },
   "issuerSelect": {
     "title": "Selecciona un punto de emisión",

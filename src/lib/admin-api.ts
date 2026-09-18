@@ -448,6 +448,92 @@ export async function publishTierPrice(id: string, noticeDays?: number): Promise
   return price;
 }
 
+// ── Reserved API keys (comprobify-web's own operational keys) ───────────────
+// A "reserved" key/endpoint is one comprobify-web mints for its own internal
+// use (the tenant's master key, a per-role key, its canonical webhook) —
+// excluded entirely from the tenant's own self-service GET /v1/keys listing
+// and maxApiKeys budget, and only mintable/revocable through this
+// ADMIN_SECRET-gated surface, never POST /v1/keys with a tenant's own Bearer
+// key. See CLAUDE.md "Per-role API key scopes" and tenant-api-key.ts.
+
+// Verified against: ../comprobify/src/services/api-key.service.js → formatKey()
+// — same shape the tenant-facing GET /v1/keys uses, plus isReserved.
+export interface AdminApiKeyInfo {
+  id: string;
+  label: string | null;
+  environment: 'sandbox' | 'production';
+  scopes: string[];
+  active: boolean;
+  createdAt: string;
+  revokedAt: string | null;
+  lastUsedAt: string | null;
+  requestCount: number;
+  isReserved: boolean;
+}
+
+// Verified against: ../comprobify/src/controllers/admin.controller.js → createApiKey()
+// Returns only the plaintext token (no id/label/scopes) — same limitation as
+// POST /v1/keys (CLAUDE.md Common Mistake #18). Resolve metadata with a
+// follow-up listAdminApiKeys() call. `replaceKeyId` atomically revokes that
+// one specific reserved key and mints its replacement — the admin-side
+// rotation tool's primitive; omit it for an ordinary first mint.
+export async function createReservedApiKey(
+  apiTenantId: string,
+  opts: { label?: string; environment?: 'sandbox' | 'production'; scopes?: string[]; replaceKeyId?: string },
+): Promise<string> {
+  const { apiKey } = await request<{ ok: true; apiKey: string }>(
+    `/v1/admin/tenants/${apiTenantId}/api-keys`,
+    { method: 'POST', body: JSON.stringify({ ...opts, isReserved: true }) },
+  );
+  return apiKey;
+}
+
+// Verified against: ../comprobify/src/controllers/admin.controller.js → listApiKeys()
+// Includes reserved keys (unlike the tenant-facing GET /v1/keys), ordered
+// newest-first — the same convention createTenantApiKey()'s own follow-up
+// GET relies on to pick "the one we just created".
+export async function listAdminApiKeys(apiTenantId: string): Promise<AdminApiKeyInfo[]> {
+  const { keys } = await request<{ ok: true; keys: AdminApiKeyInfo[] }>(
+    `/v1/admin/tenants/${apiTenantId}/api-keys`,
+  );
+  return keys;
+}
+
+// Verified against: ../comprobify/src/controllers/admin.controller.js → revokeApiKey()
+// Route: DELETE /v1/admin/api-keys/:id — no tenant-scoping check server-side
+// (ADMIN_SECRET is already the highest trust boundary), so callers must
+// verify the id belongs to the expected tenant before calling this.
+export async function revokeAdminApiKey(id: string): Promise<void> {
+  await request(`/v1/admin/api-keys/${id}`, { method: 'DELETE' });
+}
+
+// ── Reserved webhook endpoints (comprobify-web's own canonical webhook) ─────
+
+// Verified against: ../comprobify/src/services/webhook-endpoint.service.js → formatEndpoint()
+export interface AdminWebhookEndpointInfo {
+  id: string;
+  url: string;
+  eventTypes: string[];
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+  isReserved: boolean;
+}
+
+// Verified against: ../comprobify/src/controllers/admin.controller.js → createWebhookEndpoint()
+// Unlike createReservedApiKey, this returns the full endpoint (with id)
+// alongside the one-time secret — no follow-up list call needed.
+// `replaceEndpointId` mirrors `replaceKeyId` above.
+export async function createReservedWebhookEndpoint(
+  apiTenantId: string,
+  opts: { url: string; eventTypes?: string[]; replaceEndpointId?: string },
+): Promise<{ endpoint: AdminWebhookEndpointInfo; secret: string }> {
+  return request(`/v1/admin/tenants/${apiTenantId}/webhook-endpoints`, {
+    method: 'POST',
+    body: JSON.stringify({ ...opts, isReserved: true }),
+  });
+}
+
 // ── Seat prices (ADR-032) ────────────────────────────────────────────────────
 // Mirrors the tier-price functions above exactly, minus the `tier` param —
 // same DRAFT → publish workflow, same PRICE_NOT_DRAFT/PRICE_NOTICE_TOO_SHORT

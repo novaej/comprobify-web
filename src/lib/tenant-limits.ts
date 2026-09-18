@@ -1,6 +1,6 @@
 import 'server-only';
 import { db } from '@/lib/db';
-import { getCurrentTenant, listTenantApiKeys, type ApiCtx } from '@/lib/api';
+import { getCurrentTenant, type ApiCtx } from '@/lib/api';
 import { listTiers } from '@/lib/public-api';
 
 interface LimitCtx {
@@ -13,37 +13,22 @@ export interface TenantLimits {
   // own dashboard-seat cap, enforced entirely here since comprobify has no
   // users/session concept at all to check it against.
   seats: { used: number; limit: number | null; extraSeats: number; maxUsers: number | null };
-  // maxApiKeys (API-scoped, ADR-031) — comprobify enforces this itself at key
-  // creation, but every distinct role in use lazily mints its own key
-  // (resolveApiKeyForRole in tenant-api-key.ts), so a role-granting action on
-  // this side needs to know the same headroom before minting one silently
-  // fails (see roleNeedsNewApiKey). `used`/`limit` are read straight from the
-  // API's own GET /v1/keys response — `limit.max` already includes
-  // comprobify's reservedForFrontend.apiKeys allowance on top of the tier's
-  // raw self-service pool (ADR-034), so this can never drift from what
-  // createKey() actually enforces. The raw pool alone is 0 on
-  // FREE/SOLO/LITE, which would make comprobify-web's own reserved keys
-  // alone look like an over-limit tenant if compared against directly.
-  apiKeys: { used: number; limit: number | null };
 }
 
 /**
- * Resolves both tenant-wide caps that gate adding a new user: dashboard
- * seats (WEB-enforced) and API keys (API-enforced, but consumed indirectly
- * by comprobify-web's per-role key minting). Both need an API round-trip —
- * seats via getCurrentTenant()+listTiers(), API keys via listTenantApiKeys()
- * — so they're resolved together rather than as two separate helpers.
+ * Resolves the tenant-wide cap that gates adding a new user: dashboard seats
+ * (WEB-enforced). Every distinct role in use also lazily mints its own API
+ * key (resolveApiKeyForRole in tenant-api-key.ts), but that key is minted
+ * `is_reserved` through the admin-gated path (comprobify migration 102) and
+ * never competes for the tenant's own self-service maxApiKeys pool — see
+ * src/app/[locale]/settings/api-keys/page.tsx for the unrelated, real
+ * self-service key cap (which does still apply, just not here).
  */
 export async function resolveTenantLimits(ctx: LimitCtx): Promise<TenantLimits> {
-  const [userCount, { limit: apiKeyLimit }, tenantInfo, { tiers }] = await Promise.all([
+  const [userCount, tenantInfo, { tiers }] = await Promise.all([
     // Every seat regardless of active/inviteStatus — removeUserAction clears
     // tenantId on removal, so this already excludes removed users.
     db.user.count({ where: { tenantId: ctx.tenant.id } }),
-    // The API's own limit/used is tenant-wide across both environments (see
-    // apiKeyModel.countActiveByTenantId, no environment filter) and is the
-    // same ceiling createKey() checks against — read live from the API
-    // rather than reimplementing the tier + reserved-pool arithmetic here.
-    listTenantApiKeys(ctx),
     getCurrentTenant(ctx),
     listTiers(),
   ]);
@@ -57,10 +42,6 @@ export async function resolveTenantLimits(ctx: LimitCtx): Promise<TenantLimits> 
       limit: maxUsers === null ? null : maxUsers + tenantInfo.extraSeats,
       extraSeats: tenantInfo.extraSeats,
       maxUsers,
-    },
-    apiKeys: {
-      used: apiKeyLimit.used,
-      limit: apiKeyLimit.max,
     },
   };
 }

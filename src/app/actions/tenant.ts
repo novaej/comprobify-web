@@ -3,7 +3,8 @@
 import { headers } from 'next/headers';
 import { db } from '@/lib/db';
 import { requirePermission, requireContext, type MinimalContext } from '@/lib/context';
-import { promoteTenant, listTenantApiKeys, updateTenantLanguage } from '@/lib/api';
+import { promoteTenant, updateTenantLanguage } from '@/lib/api';
+import { listAdminApiKeys } from '@/lib/admin-api';
 import { resendVerificationEmail as publicResendVerificationEmail } from '@/lib/public-api';
 import { extractForwardedIp } from '@/lib/client-forwarding';
 import { encrypt, lastFour } from '@/lib/crypto';
@@ -82,24 +83,23 @@ export async function promoteTenantAction(
   }
 
   // The promote endpoint returns { label, apiKey } but no key ID or scopes.
-  // Fetch all active keys using one of the new production tokens to get them
-  // — this follow-up call requires `keys:manage`, so it must be authenticated
-  // with the master key's own new token, not just "the first" returned key
-  // (which may be a narrower per-role/self-service key without that scope
-  // and would 403 — see Common Mistake #48).
+  // Every one of comprobify-web's own keys (master + per-role) is minted
+  // `is_reserved` (comprobify migration 102) and is therefore invisible to
+  // the tenant-facing GET /v1/keys regardless of which token authenticates
+  // it — including a brand-new production one — so resolve metadata via the
+  // admin-gated listing instead. This also sidesteps Common Mistake #48's
+  // "which returned key has keys:manage" concern entirely, since admin auth
+  // doesn't depend on any particular key's scopes.
   const masterLabel = existingSandboxKeys.find((row) => row.isManaged && !row.managedRole)?.label;
-  const masterProductionKey = result.apiKeys.find((key) => key.label === masterLabel) ?? result.apiKeys[0];
-  let keyInfoByLabel: Record<string, { id: string; scopes: string[] }> = {};
-  if (masterProductionKey) {
-    const { keys: listedKeys } = await listTenantApiKeys({ apiKey: masterProductionKey.apiKey }).catch(() => ({ keys: [] }));
-    for (const k of listedKeys) {
-      if (k.label) keyInfoByLabel[k.label] = { id: k.id, scopes: k.scopes };
-    }
+  const adminKeys = await listAdminApiKeys(ctx.tenant.apiTenantId).catch(() => []);
+  const keyInfoByLabel: Record<string, { id: string; scopes: string[] }> = {};
+  for (const k of adminKeys) {
+    if (k.environment === 'production' && k.label) keyInfoByLabel[k.label] = { id: k.id, scopes: k.scopes };
   }
 
   // The API has already promoted the tenant and revoked its sandbox keys by
   // this point — that can't be undone from here. But if we couldn't resolve
-  // even the master key's id (e.g. a transient failure on the listTenantApiKeys
+  // even the master key's id (e.g. a transient failure on the listAdminApiKeys
   // follow-up call), inserting zero usable production rows while still
   // locally revoking the sandbox rows and flipping environment would leave
   // the tenant with no working key at all, and every subsequent requireContext()

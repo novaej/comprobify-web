@@ -132,13 +132,7 @@
     "submit": "Recover access",
     "submitting": "Checking...",
     "genericMessage": "If that email and certificate match an existing account, a new key has been issued. If nothing changes, double-check the email and certificate are exactly what you used to register.",
-    "linkedMessage": "Your API key has been refreshed. Sign in to keep using the app normally. We also sent a notice email to the registered address.",
-    "unlinkedTitle": "API key recovered",
-    "unlinkedInstructions": "This account isn't linked to a user of this app yet. Sign in (or create an account) and use the \"Link existing account\" tab when setting up your company, pasting this key. We also sent a notice email to the registered address.",
-    "showOnce": "This key is only shown once. Save it somewhere safe.",
-    "show": "Show",
-    "hide": "Hide",
-    "copy": "Copy"
+    "linkedMessage": "Your API key has been refreshed. Sign in to keep using the app normally. We also sent a notice email to the registered address."
   },
   "sandbox": {
     "banner": "You are in sandbox mode — documents are sent to the SRI test environment.",
@@ -807,6 +801,8 @@
     "API_KEY_REQUIRED": "Please enter your API key.",
     "EMAIL_REQUIRED": "Please enter your email address.",
     "NO_ISSUERS_FOUND": "That account has no active issuers. Check your API key and try again.",
+    "RECOVERY_LOGIN_REQUIRED": "Sign in or create an account and retry recovery to link this company to your user.",
+    "CANONICAL_WEBHOOK_CANNOT_BE_DEACTIVATED": "This webhook is managed automatically by the app and can't be deactivated here.",
     "TENANT_ALREADY_LINKED": "That API account has already been linked by another user. Ask your administrator to invite you from Users.",
     "DB_WRITE_FAILED": "Your company was registered but an internal error occurred while saving the configuration. Please contact support with your email address.",
     "EMAIL_NOT_VERIFIED": "You must verify your email address before activating production.",
@@ -939,14 +935,7 @@
   "onboarding": {
     "title": "Set up your company",
     "description": "Complete your company information to start issuing electronic invoices.",
-    "sriNotice": "Before continuing, make sure your RUC has the test (certification) environment enabled in the SRI portal. Without this step, SRI will reject the test invoices you issue from here.",
-    "createNewTab": "Create new company",
-    "linkExistingTab": "Link existing account",
-    "linkTitle": "Link your API account",
-    "linkDescription": "Already use the Comprobify API directly? Enter your existing API key to link that account to your user. Your API key isn't reused or stored — it's used once to confirm the link and create a new key dedicated to this app.",
-    "apiKey": "API key",
-    "linkSubmit": "Link account",
-    "linkSubmitting": "Linking..."
+    "sriNotice": "Before continuing, make sure your RUC has the test (certification) environment enabled in the SRI portal. Without this step, SRI will reject the test invoices you issue from here."
   },
   "issuerSelect": {
     "title": "Select an issue point",

@@ -4,7 +4,7 @@ import { auth } from '@/auth';
 import { redirect } from '@/i18n/navigation';
 import { db } from '@/lib/db';
 import { isUuid } from '@/lib/utils';
-import { OnboardingTabs } from '@/components/onboarding-tabs';
+import { IssuerSetupForm } from '@/components/issuer-setup-form';
 import { LogoLockupStacked } from '@/components/logo';
 import { LocaleSwitcher } from '@/components/locale-switcher';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -74,11 +74,13 @@ export default async function OnboardingTenantPage({
           <p>{t('sriNotice')}</p>
         </div>
 
-        <OnboardingTabs
-          intendedTier={intendedPlan?.tier}
-          intendedBillingInterval={intendedPlan?.interval}
-          showAgreementNotice={showAgreementNotice}
-        />
+        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+          <IssuerSetupForm
+            intendedTier={intendedPlan?.tier}
+            intendedBillingInterval={intendedPlan?.interval}
+            showAgreementNotice={showAgreementNotice}
+          />
+        </div>
       </div>
       </div>
     </div>
