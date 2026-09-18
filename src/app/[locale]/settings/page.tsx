@@ -4,7 +4,7 @@ import { EmailVerificationNotice } from '@/components/email-verification-notice'
 import { SessionTimeoutSettings } from '@/components/session-timeout-settings';
 import { PageHeader } from '@/components/page-header';
 import { requireContext } from '@/lib/context';
-import { listIssuerDocumentTypes, getMySubscriptions, getAgreementStatus } from '@/lib/api';
+import { listIssuerDocumentTypes, getMySubscriptions, getAgreementStatus, getCurrentTenant } from '@/lib/api';
 import { listTiers } from '@/lib/public-api';
 import { Link } from '@/i18n/navigation';
 import { db } from '@/lib/db';
@@ -21,7 +21,7 @@ export default async function SettingsPage({
 
   const ctx = await requireContext({ skipIssuer: true });
   const { environment, id: tenantId } = ctx.tenant;
-  const { email, emailVerified, firstName, lastName } = ctx.user;
+  const { email, firstName, lastName } = ctx.user;
   const displayName = [firstName, lastName].filter(Boolean).join(' ') || null;
   const tWebhooks = await getTranslations('webhooks');
   const tNotifPrefs = await getTranslations('notificationPreferences');
@@ -68,7 +68,7 @@ export default async function SettingsPage({
   // billingInterval entirely in that case, so don't offer the picker for it.
   // agreementsAccepted: false only when agreements are published AND the tenant
   // hasn't accepted them yet; pre-launch (no templates) always returns true.
-  const [activeSubscription, agreementStatus] = await Promise.all([
+  const [activeSubscription, agreementStatus, tenantInfo] = await Promise.all([
     environment === 'sandbox' && canPromoteTenant
       ? getMySubscriptions({ apiKey: ctx.apiKey })
           .then((subs) => subs.find((s) => s.status !== 'CANCELLED' && s.status !== 'EXPIRED') ?? null)
@@ -77,8 +77,17 @@ export default async function SettingsPage({
     canManageTenant
       ? getAgreementStatus({ apiKey: ctx.apiKey }).catch(() => null)
       : Promise.resolve(null),
+    // Email verification is a fact about the tenant (tenant.status at the
+    // API), not any one login — read it live instead of a local mirror,
+    // which drifted out of sync whenever the acting user's own email didn't
+    // match the tenant's registration email (an invited Admin, or a user
+    // attached via account recovery).
+    canManageTenant
+      ? getCurrentTenant({ apiKey: ctx.apiKey }).catch(() => null)
+      : Promise.resolve(null),
   ]);
   const agreementsAccepted = !agreementStatus?.needsAcceptance;
+  const isEmailVerified = tenantInfo ? tenantInfo.status !== 'PENDING_VERIFICATION' : true;
 
   const tenantSecurity = canManageTenant
     ? await db.tenant.findUnique({
@@ -92,7 +101,7 @@ export default async function SettingsPage({
       <PageHeader title={t('title')} />
 
       <div className="space-y-4">
-        {hasIssuer && !emailVerified && canManageTenant && <EmailVerificationNotice />}
+        {hasIssuer && !isEmailVerified && canManageTenant && <EmailVerificationNotice />}
 
         {hasIssuer && (
           <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
@@ -115,7 +124,7 @@ export default async function SettingsPage({
               <div className="mt-5 pt-5 border-t border-border">
                 <ProductionPromotion
                   issuers={issuersForPromotion}
-                  emailVerified={emailVerified}
+                  emailVerified={isEmailVerified}
                   tiers={tiers}
                   intendedTier={intendedPlan?.intendedTier ?? null}
                   intendedBillingInterval={intendedPlan?.intendedBillingInterval ?? null}

@@ -726,7 +726,6 @@
     "ALREADY_PRODUCTION": "Tu cuenta ya está en producción.",
     "ALREADY_VERIFIED": "Tu correo ya está verificado.",
     "ISSUER_NOT_CONFIGURED": "Primero debes configurar tu empresa.",
-    "EMAIL_NOT_VERIFIED": "Debes verificar tu correo electrónico antes de activar producción. Revisa tu bandeja de entrada.",
     "TOO_MANY_REQUESTS": "Demasiados intentos. Espera unos minutos e inténtalo de nuevo.",
     "INVALID_SESSION_TIMEOUT": "El tiempo de inactividad debe estar entre 5 y 480 minutos.",
     "UNEXPECTED_ERROR": "Ocurrió un error inesperado. Inténtalo de nuevo."
@@ -804,7 +803,6 @@
     "RECOVERY_LOGIN_REQUIRED": "Inicia sesión o crea una cuenta y vuelve a intentar la recuperación para vincular esta empresa a tu usuario.",
     "TENANT_ALREADY_LINKED": "Esa cuenta de la API ya fue vinculada por otro usuario. Pida a su administrador que lo invite desde Usuarios.",
     "DB_WRITE_FAILED": "Su empresa fue registrada pero ocurrió un error interno al guardar la configuración. Contacte al soporte con su correo electrónico.",
-    "EMAIL_NOT_VERIFIED": "Debe verificar su correo electrónico antes de activar producción.",
     "ALREADY_PRODUCTION": "Su cuenta ya está en modo producción.",
     "WEBHOOK_ENDPOINT_LIMIT_REACHED": "Ha alcanzado el límite de webhooks de su plan.",
     "WEBHOOK_ENDPOINT_NOT_FOUND": "El endpoint de webhook no fue encontrado.",

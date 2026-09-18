@@ -18,7 +18,7 @@ import type { Prisma } from '@prisma/client';
 import * as Sentry from '@sentry/nextjs';
 
 export type TenantResult = { error: string } | null;
-export type VerificationResult = { error: string } | { verified: true } | null;
+export type VerificationResult = { error: string } | null;
 
 // Each field is only written when the caller actually passed it — omitting a
 // key must leave that column untouched, not null it out. `sessionIdleTimeoutMinutes:
@@ -60,11 +60,13 @@ export async function promoteTenantAction(
   await requirePermission('tenant.promote', { skipIssuer: true });
   const ctx = await requireContext({ skipIssuer: true });
 
-  if (!ctx.user.emailVerified) return { error: 'EMAIL_NOT_VERIFIED' };
   if (ctx.tenant.environment === 'production') return { error: 'ALREADY_PRODUCTION' };
 
   let result: Awaited<ReturnType<typeof promoteTenant>>;
   try {
+    // No local email-verified pre-check — comprobify's own promote() already
+    // enforces tenant.status === ACTIVE and throws EMAIL_VERIFICATION_REQUIRED,
+    // the actual source of truth (see confirmEmailVerificationAction).
     result = await promoteTenant({ apiKey: ctx.apiKey }, initialSequentials, tier, billingInterval);
   } catch (err) {
     if (err instanceof ApiError) return { error: err.code };
@@ -196,7 +198,9 @@ export async function updateLanguageAction(language: string): Promise<TenantResu
 
 export async function resendVerificationAction(): Promise<VerificationResult> {
   const ctx = await requireContext({ skipIssuer: true });
-  if (ctx.user.emailVerified) return { verified: true };
+  // No local pre-check — the API's own resend endpoint already returns
+  // ALREADY_VERIFIED for a tenant that's already ACTIVE (see
+  // email-verification-notice.tsx, which treats that code as success).
   try {
     const reqHeaders = await headers();
     await publicResendVerificationEmail(ctx.user.email, undefined, {

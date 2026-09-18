@@ -55,13 +55,11 @@ async function main() {
       create: {
         email: ADMIN_EMAIL,
         passwordHash,
-        emailVerified: true,
         inviteStatus: 'ACTIVE',
         isSuperAdmin: true,
       },
       update: {
         passwordHash,
-        emailVerified: true,
         inviteStatus: 'ACTIVE',
         isSuperAdmin: true,
       },

@@ -31,7 +31,10 @@ export function EmailVerificationNotice() {
       const result = await resendVerificationAction();
       if (!result) {
         setSent(true);
-      } else if ('verified' in result) {
+      } else if (result.error === 'ALREADY_VERIFIED') {
+        // The page's own tenant-status check just hadn't caught up yet
+        // (e.g. verified in another tab) — treat it as verified rather than
+        // showing this as an error.
         setVerified(true);
       } else {
         setError(

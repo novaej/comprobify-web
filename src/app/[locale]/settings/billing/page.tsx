@@ -74,7 +74,7 @@ export default async function BillingPage({
         proofsByPaymentId={proofsByPaymentId}
         canManageBilling={ctx.permissions.has('billing.manage')}
         isSandbox={ctx.tenant.environment === 'sandbox'}
-        emailVerified={ctx.user.emailVerified}
+        emailVerified={tenantInfo.status !== 'PENDING_VERIFICATION'}
         intendedTier={intendedTier}
         intendedBillingInterval={intendedBillingInterval}
       />

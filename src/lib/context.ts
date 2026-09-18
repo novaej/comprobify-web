@@ -40,7 +40,7 @@ async function resolveApiKeyRowOrRedirect(
 }
 
 export interface Context {
-  user: { id: string; email: string; firstName: string | null; lastName: string | null; emailVerified: boolean; role: Role };
+  user: { id: string; email: string; firstName: string | null; lastName: string | null; role: Role };
   tenant: { id: string; apiTenantId: string; ruc: string; businessName: string; tradeName: string | null; status: string; environment: 'sandbox' | 'production' };
   permissions: ReadonlySet<Permission>;
   // id is the local UUID PK; apiIssuerId is the API-side UUID sent as ApiCtx.issuerId.
@@ -115,7 +115,6 @@ export async function requireContext(opts?: { skipIssuer?: boolean }): Promise<C
     email: user.email,
     firstName: user.firstName,
     lastName: user.lastName,
-    emailVerified: user.emailVerified,
     role,
   };
 

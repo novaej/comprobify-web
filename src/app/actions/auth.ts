@@ -6,6 +6,7 @@ import { db } from '@/lib/db';
 import { AuthError } from 'next-auth';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
+import { revalidatePath } from 'next/cache';
 import { writeCtxCookie, clearCtxCookie } from '@/lib/context-cookie';
 import { sendMail } from '@/lib/mailgun';
 import { issueVerificationToken, checkVerificationToken, consumeVerificationToken } from '@/lib/verification-token';
@@ -164,7 +165,6 @@ export async function completeRegistrationAction(
       passwordHash,
       inviteStatus: 'ACTIVE',
       acceptedAt: new Date(),
-      emailVerified: true,  // invite link sent to their address proves ownership
     },
   });
 
@@ -289,11 +289,25 @@ export async function resetPasswordAction(token: string, password: string): Prom
  * never from page render. This is what makes the flow safe against email
  * link-scanners that prefetch the link with an automated GET: their prefetch
  * only ever reaches the read-only check, never this action.
+ *
+ * No local write here — email verification is a fact about the *tenant*
+ * (tenant.status at the API), not any one comprobify-web login. It used to
+ * be mirrored onto `User.emailVerified` by matching the API's returned email
+ * against the local login email, which broke whenever the two diverged (the
+ * API normalizes emails on registration; an invited Admin or a user attached
+ * via account recovery never had a matching email to begin with). Every
+ * gate that used to read that column now reads live tenant status instead
+ * (see settings/page.tsx, settings/billing/page.tsx).
  */
 export async function confirmEmailVerificationAction(token: string): Promise<{ error?: string }> {
   try {
-    const { email } = await confirmEmailVerification(token);
-    await db.user.updateMany({ where: { email }, data: { emailVerified: true } });
+    await confirmEmailVerification(token);
+    // Layout-adjacent UI (EmailVerificationNotice, ProductionPromotion's
+    // button, billing-manager.tsx's SubscribeCard) all re-fetch live tenant
+    // status on render — without this, a <Link> navigation there (soft
+    // navigation) can serve the stale pre-verification RSC payload from the
+    // Router Cache instead of re-running the Server Component (rule 12).
+    revalidatePath('/', 'layout');
     return {};
   } catch (err) {
     if (!(err instanceof ApiError)) throw err;
