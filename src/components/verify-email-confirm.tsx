@@ -9,13 +9,17 @@ import { confirmEmailVerificationAction } from '@/app/actions/auth';
 
 interface VerifyEmailConfirmProps {
   token: string;
+  // Only consulted on first mount (see the useState initializer below) — a
+  // later parent re-render passing a different value must not retroactively
+  // flip a confirm that already succeeded. See verify-email/page.tsx.
+  initiallyValid: boolean;
 }
 
-export function VerifyEmailConfirm({ token }: VerifyEmailConfirmProps) {
+export function VerifyEmailConfirm({ token, initiallyValid }: VerifyEmailConfirmProps) {
   const t = useTranslations('verifyEmail');
   const tApiError = useTranslations('apiError');
   const [isPending, startTransition] = useTransition();
-  const [status, setStatus] = useState<'pending' | 'success' | 'error'>('pending');
+  const [status, setStatus] = useState<'pending' | 'success' | 'error'>(initiallyValid ? 'pending' : 'error');
   const [errorCode, setErrorCode] = useState<string | null>(null);
 
   function handleConfirm() {
