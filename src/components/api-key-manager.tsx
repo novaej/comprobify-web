@@ -7,7 +7,7 @@ import { createTenantApiKeyAction, revokeTenantApiKeyAction } from '@/app/action
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { AlertTriangle, BarChart3, Check, ChevronDown, ChevronUp, Copy, Eye, EyeOff, ExternalLink, Key, Lock, Plus } from 'lucide-react';
+import { AlertTriangle, BarChart3, Check, ChevronDown, ChevronUp, Copy, Eye, EyeOff, ExternalLink, Key, Lock, MailWarning, Plus } from 'lucide-react';
 import { toastApiError } from '@/lib/api-error-toast';
 import { ApiKeyUsageChart } from '@/components/api-key-usage-chart';
 import { ALL_API_SCOPES, type ApiKeyScope } from '@/lib/role-api-scopes';
@@ -40,6 +40,7 @@ export function ApiKeyManager({
   activeKeyCount,
   maxApiKeys,
   customKeysAllowed,
+  emailVerified,
 }: {
   keys: ApiKeyRow[];
   canManage: boolean;
@@ -60,6 +61,8 @@ export function ApiKeyManager({
    * could otherwise spend on self-service keys of their own.
    */
   customKeysAllowed: boolean;
+  /** POST /v1/keys needs a verified email. */
+  emailVerified: boolean;
 }) {
   const t = useTranslations('apiKeys');
   const tRole = useTranslations('users');
@@ -125,7 +128,7 @@ export function ApiKeyManager({
 
   const curlSnippet = `curl ${apiBaseUrl}/v1/documents \\\n  -H "Authorization: Bearer ${createdKey?.key ?? t('usage.keyPlaceholder')}"`;
   const atKeyLimit = maxApiKeys !== null && activeKeyCount >= maxApiKeys;
-  const createDisabled = atKeyLimit || !customKeysAllowed;
+  const createDisabled = atKeyLimit || !customKeysAllowed || !emailVerified;
 
   return (
     <div className="space-y-4">
@@ -148,6 +151,11 @@ export function ApiKeyManager({
         <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 text-sm text-amber-700 dark:text-amber-400">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           {t('noCustomAccess')}
+        </div>
+      ) : !emailVerified ? (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 text-sm text-amber-700 dark:text-amber-400">
+          <MailWarning className="mt-0.5 h-4 w-4 shrink-0" />
+          {t('emailNotVerified')}
         </div>
       ) : atKeyLimit && (
         <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 text-sm text-amber-700 dark:text-amber-400">

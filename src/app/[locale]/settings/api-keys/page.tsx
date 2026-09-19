@@ -3,7 +3,8 @@ import { requirePermission } from '@/lib/context';
 import { db } from '@/lib/db';
 import { PageHeader } from '@/components/page-header';
 import { ApiKeyManager } from '@/components/api-key-manager';
-import { listTenantApiKeys } from '@/lib/api';
+import { listTenantApiKeys, getCurrentTenant } from '@/lib/api';
+import { reconcileTenantStatus } from '@/lib/tenant-status-sync';
 import { computeApiScopesForRole } from '@/lib/role-api-scopes';
 
 export default async function ApiKeysPage({
@@ -18,7 +19,7 @@ export default async function ApiKeysPage({
 
   const ctx = await requirePermission('apikeys.read', { skipIssuer: true });
 
-  const [keys, { keys: apiKeyInfos, limit: apiKeyLimit }] = await Promise.all([
+  const [keys, { keys: apiKeyInfos, limit: apiKeyLimit }, tenantInfo] = await Promise.all([
     db.tenantApiKey.findMany({
       where: { tenantId: ctx.tenant.id },
       orderBy: { createdAt: 'desc' },
@@ -29,7 +30,12 @@ export default async function ApiKeysPage({
     // are minted through the admin-gated path and excluded entirely, see
     // tenant-api-key.ts), read directly here rather than re-derived.
     listTenantApiKeys({ apiKey: ctx.apiKey }),
+    // POST /v1/keys requires a verified email. Read live and fail open — the
+    // API stays the real gate.
+    getCurrentTenant({ apiKey: ctx.apiKey }).catch(() => null),
   ]);
+  const emailVerified = tenantInfo ? tenantInfo.status !== 'PENDING_VERIFICATION' : true;
+  if (tenantInfo) await reconcileTenantStatus(ctx.tenant.id, ctx.tenant.status, tenantInfo.status);
 
   const usageByApiKeyId = new Map(apiKeyInfos.map((info) => [info.id, info]));
   const canManage = ctx.permissions.has('apikeys.manage');
@@ -72,6 +78,7 @@ export default async function ApiKeysPage({
         activeKeyCount={apiKeyLimit.used}
         maxApiKeys={apiKeyLimit.max}
         customKeysAllowed={customKeysAllowed}
+        emailVerified={emailVerified}
       />
     </div>
   );
