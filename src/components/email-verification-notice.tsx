@@ -25,13 +25,21 @@ export function EmailVerificationNotice() {
   if (verified) return null;
 
   function handleResend() {
+    // Guard against a second fire beating the disabled button's re-render —
+    // this calls POST /v1/resend-verification, which has its own strict,
+    // IP-keyed rate limit (5/hour, independent from register/recover's own
+    // limiters — comprobify's 83c54ed).
+    if (isPending || cooldown > 0) return;
     setError(null);
     setCooldown(RESEND_COOLDOWN_SECONDS);
     startTransition(async () => {
       const result = await resendVerificationAction();
       if (!result) {
         setSent(true);
-      } else if ('verified' in result) {
+      } else if (result.error === 'ALREADY_VERIFIED') {
+        // The page's own tenant-status check just hadn't caught up yet
+        // (e.g. verified in another tab) — treat it as verified rather than
+        // showing this as an error.
         setVerified(true);
       } else {
         setError(

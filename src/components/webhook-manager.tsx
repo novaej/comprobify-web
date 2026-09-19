@@ -33,17 +33,11 @@ interface WebhookManagerProps {
   endpoints: WebhookRow[];
   canonicalAvailability: CanonicalAvailability;
   canonicalEndpointId: string | null;
-  /** Active endpoints against the plan's self-service pool (includes the canonical slot). */
+  /** Active endpoints against the plan's own self-service pool (comprobify-web's canonical webhook is excluded entirely, not counted). */
   usedEndpoints: number;
   /** null = unlimited. */
   maxEndpoints: number | null;
-  /**
-   * Whether the tenant's own tier sells any self-service webhook slots at
-   * all (FREE/SOLO/LITE currently don't — see ADR-034). Independent of
-   * `usedEndpoints`/`maxEndpoints`, which fold in a reserved slot for the
-   * canonical in-app webhook that a FREE/SOLO/LITE tenant could otherwise
-   * spend on a custom webhook of their own before ever activating it.
-   */
+  /** Whether the tenant's own tier sells any self-service webhook slots at all (FREE/SOLO/LITE currently don't). */
   customWebhooksAllowed: boolean;
 }
 
@@ -137,6 +131,14 @@ export function WebhookManager({
 
   return (
     <div className="space-y-4">
+      {customWebhooksAllowed && (
+        <p className="text-xs text-muted-foreground">
+          {maxEndpoints === null
+            ? t('endpointUsageUnlimited', { used: usedEndpoints })
+            : t('endpointUsage', { used: usedEndpoints, limit: maxEndpoints })}
+        </p>
+      )}
+
       {!customWebhooksAllowed ? (
         <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 text-sm text-amber-700 dark:text-amber-400">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />

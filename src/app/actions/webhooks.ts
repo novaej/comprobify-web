@@ -6,6 +6,7 @@ import {
   updateWebhookEndpoint,
   deleteWebhookEndpoint,
 } from '@/lib/api';
+import { createReservedWebhookEndpoint } from '@/lib/admin-api';
 import { db } from '@/lib/db';
 import { encrypt } from '@/lib/crypto';
 import { ApiError } from '@/lib/errors';
@@ -114,6 +115,14 @@ export async function listWebhooksAction(): Promise<{
  * than one endpoint row for this same consumer (the API's `active` column is
  * a toggle, not a soft-delete marker — deregistering doesn't free the record
  * for reuse on its own).
+ *
+ * First-time creation still has to go through the admin-gated path — the
+ * tenant-facing POST /v1/webhooks has no `isReserved` param at all, so it's
+ * the only way to mint a row excluded from the tenant's own self-service
+ * listing/budget. Toggling `active` on that row afterward is a plain
+ * tenant-facing call: comprobify's webhook-endpoint.service.js#update allows
+ * that for a reserved row (only `url`/`eventTypes` changes stay locked),
+ * unlike an API key, where the reserved row has to stay fully off-limits.
  */
 export async function activateCanonicalWebhookAction(): Promise<WebhookActionResult> {
   const receiveUrl = getCanonicalWebhookUrl();
@@ -134,11 +143,10 @@ export async function activateCanonicalWebhookAction(): Promise<WebhookActionRes
         data: { active: true },
       });
     } else {
-      const { endpoint, secret } = await registerWebhookEndpoint(
-        { apiKey: ctx.apiKey },
-        receiveUrl,
-        [], // subscribe to all event types
-      );
+      const { endpoint, secret } = await createReservedWebhookEndpoint(ctx.tenant.apiTenantId, {
+        url: receiveUrl,
+        eventTypes: [], // subscribe to all event types
+      });
 
       await db.webhookEndpoint.create({
         data: {

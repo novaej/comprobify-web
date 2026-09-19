@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Link } from '@/i18n/navigation';
 import { bootstrapTenantAction } from '@/app/actions/onboarding';
 import { ChevronDown, ChevronUp, FileText } from 'lucide-react';
 import type { PaidTier, BillingInterval } from '@/lib/subscription-tiers';
@@ -30,6 +31,7 @@ export function IssuerSetupForm({
   const tError = useTranslations('apiError');
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [enabledTypes, setEnabledTypes] = useState<Set<string>>(
     () => new Set(DOC_TYPES.filter((d) => d.defaultEnabled).map((d) => d.code))
@@ -47,13 +49,20 @@ export function IssuerSetupForm({
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    // Guard against a second fire (double-click, Enter+click) landing before
+    // the disabled button re-renders — this calls POST /v1/register, which
+    // has its own strict, IP-keyed rate limit (5/hour, independent from
+    // recover/resend-verification's own limiters — comprobify's 83c54ed).
+    if (isPending) return;
     const formData = new FormData(e.currentTarget);
     setError(null);
+    setErrorCode(null);
     startTransition(async () => {
       try {
         const result = await bootstrapTenantAction(formData);
         if (result && 'error' in result) {
           const code = result.error;
+          setErrorCode(code);
           setError(tError.has(code as Parameters<typeof tError>[0])
             ? tError(code as Parameters<typeof tError>[0])
             : tError('UNKNOWN'));
@@ -222,7 +231,16 @@ export function IssuerSetupForm({
         </div>
       )}
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && (
+        <div className="space-y-1">
+          <p className="text-sm text-destructive">{error}</p>
+          {errorCode === 'CONFLICT' && (
+            <Link href="/recover-account" className="text-sm underline underline-offset-4 hover:text-foreground">
+              {t('recoverAccountLink')}
+            </Link>
+          )}
+        </div>
+      )}
 
       <Button type="submit" disabled={isPending}>
         {isPending ? t('submitting') : t('submit')}

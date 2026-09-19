@@ -26,8 +26,19 @@ export default async function VerifyEmailPage({
     <div className="min-h-screen bg-muted/40 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="rounded-xl border border-border bg-card p-8 shadow-sm text-center">
-          {check.valid && token ? (
-            <VerifyEmailConfirm token={token} />
+          {token ? (
+            // Always the same component instance once a token is present —
+            // confirmEmailVerificationAction's revalidatePath('/', 'layout')
+            // (needed so /settings picks up the fresh tenant status) makes
+            // Next.js auto-refresh this very page after a successful confirm,
+            // which re-runs checkEmailVerificationToken() with the
+            // now-consumed token and would report it invalid. Switching which
+            // component renders based on that re-check would unmount
+            // VerifyEmailConfirm and discard its own already-'success' state.
+            // initiallyValid is only consulted on first mount, so that later,
+            // now-stale re-check can't retroactively invalidate a confirm
+            // that already succeeded.
+            <VerifyEmailConfirm token={token} initiallyValid={check.valid} />
           ) : (
             <>
               <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-destructive mb-4">

@@ -111,6 +111,11 @@ export function ProductionPromotion({
   }
 
   function handleResend() {
+    // Guard against a second fire beating the disabled button's re-render —
+    // this calls POST /v1/resend-verification, which has its own strict,
+    // IP-keyed rate limit (5/hour, independent from register/recover's own
+    // limiters — comprobify's 83c54ed).
+    if (isResendPending) return;
     startResendTransition(async () => {
       const result = await resendVerificationAction();
       if (!result) {
@@ -331,7 +336,7 @@ export function ProductionPromotion({
         <p className="text-xs text-muted-foreground">{t('emailRequired')}</p>
       )}
       {error && <p className="text-sm text-destructive">{error}</p>}
-      {errorCode === 'EMAIL_NOT_VERIFIED' && (
+      {errorCode === 'EMAIL_VERIFICATION_REQUIRED' && (
         resendSent ? (
           <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <MailCheck className="h-4 w-4 shrink-0" />

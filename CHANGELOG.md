@@ -8,9 +8,20 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Added
+- **Persistent usage counters on `/settings/api-keys` and `/settings/webhooks`** — "X of Y used" (or "unlimited"), mirroring the seat-usage line already on `/users`, shown whenever the plan allows any self-service keys/webhooks at all.
+- **Pending-payments count badge in the admin nav**, mirroring the existing "Facturas pendientes" badge.
+- **Sign-out button on `/onboarding/tenant`** — previously the only way back to a clean `/login` from mid-onboarding was leaving the flow via the browser.
+
 ### Changed
 - **Staging now deploys directly and continuously off `main`**, mirroring the same change in the `comprobify` API repo. `release-staging.yml` (which used to fast-forward a `staging` branch on every tag push, burning a version number for even a throwaway test deploy) is retired; `deploy-staging.yml` triggers on push to `main` instead. Tags are now reserved exclusively for naming a production release candidate — publishing a GitHub Release from a tag is still the only thing that promotes to production.
 - **`docs/production-readiness-checklist.md` removed** — every item on it was resolved and production has been live since 2026-09-14; its content is now history rather than an actively-tracked list.
+- **Account recovery reworked to be entirely session-independent.** `/recover-account` no longer requires or checks any session at any point — it resolves the local login to act on by the *submitted form email*, not a currently-browsing session. A new `alreadyLinked` request field on `POST /v1/recover` (comprobify side) lets an already-linked match skip key rotation and forced re-verification entirely, instead of unconditionally triggering both on every match; the rare case where the local hint misses still falls through to the old rotate-and-resync behavior correctly. The "never linked" case no longer redirects anywhere or signs anyone in — it attaches the recovered tenant to the matching existing login and shows a "sign in to continue" message, since a certificate proves tenant ownership, not knowledge of that login's password.
+- **Post-agreement-acceptance redirect changed from `/dashboard` to `/settings`.**
+
+### Fixed
+- **A lost/deleted local `Tenant` row cascade-deleted every `User` and reserved API key that pointed at it**, undermining the very point of the account-recovery redesign above (a `User` surviving its `Tenant` row going missing, so it can be reattached). `User.tenant`'s `onDelete` changed from `Cascade` to `SetNull` — every other `Tenant` relation stays `Cascade`, since only a `User` has an identity independent of its tenant. See CLAUDE.md Common Mistake #68 for what this does and doesn't recover.
+- **Five `apiError` codes returned by `/users` actions (`USER_BELONGS_TO_ANOTHER_TENANT`, `USER_ALREADY_IN_TENANT`, `USER_NOT_FOUND`, `CANNOT_CHANGE_OWN_ROLE`, `CANNOT_REMOVE_SELF`) had no translation in either locale file**, so they silently fell back to a generic "unexpected error" toast instead of the specific message. Surfaced by inviting a user whose email already belonged to a different tenant.
 
 ## [1.0.1] — 2026-09-15
 

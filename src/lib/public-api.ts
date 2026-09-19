@@ -123,11 +123,15 @@ export async function registerTenant(
 // anti-enumeration: an unregistered email, an account with no issuer, and a mismatched
 // certificate all return { ok: true, message } with no tenant/issuer/apiKey/environment —
 // the presence of `apiKey` is what distinguishes a real match, never the HTTP status
-// (both cases are 200).
+// (both cases are 200). The `alreadyLinked` branch is a third, real-match outcome —
+// see recoverAccount()'s `alreadyLinked` param below — that also carries no
+// tenant/issuer/apiKey/environment, since the API deliberately did nothing to fetch.
 export type RecoverAccountResult =
   | { matched: false }
+  | { matched: true; alreadyLinked: true }
   | {
       matched: true;
+      alreadyLinked: false;
       tenant: { id: string; email: string; status: string };
       issuer: {
         id: string;
@@ -145,11 +149,29 @@ export async function recoverAccount(
   email: string,
   p12Buffer: Buffer,
   p12Password: string,
+  // Caller-computed hint (comprobify-web checks its own local User table
+  // before ever calling this) — never a security boundary, since the API
+  // only ever consults it *after* its own email+cert match succeeds (see
+  // comprobify's registration.service.js). true tells the API this tenant is
+  // already linked to a comprobify-web account locally, so there's nothing
+  // to recover: it skips rotating the tenant's key and skips forcing
+  // re-verification, both of which would otherwise be a disruptive,
+  // unrequested side effect on an account that already works fine.
+  alreadyLinked: boolean,
   clientHeaders?: ClientForwardingInfo,
 ): Promise<RecoverAccountResult> {
   const form = new FormData();
   form.append('email', email);
   form.append('certPassword', p12Password);
+  // Only comprobify-web ever calls this endpoint — the recovered key always
+  // becomes comprobify-web's own operational key (either replacing a stale
+  // local master-key row, or seeding a brand-new tenant link), never a raw
+  // credential handed to a human. `reserved` tells the API to mint it
+  // excluded from the tenant's own self-service GET /v1/keys listing/budget,
+  // same as every other key comprobify-web mints for itself. Sent as a
+  // string since this is a multipart body (Common Mistake #25).
+  form.append('reserved', 'true');
+  form.append('alreadyLinked', alreadyLinked ? 'true' : 'false');
 
   const buf = p12Buffer.buffer.slice(
     p12Buffer.byteOffset,
@@ -160,6 +182,8 @@ export async function recoverAccount(
   const result = await publicRequest<{
     ok: true;
     message?: string;
+    matched?: boolean;
+    alreadyLinked?: boolean;
     tenant?: { id: string; email: string; status: string };
     issuer?: {
       id: string;
@@ -177,12 +201,17 @@ export async function recoverAccount(
     headers: buildClientForwardingHeaders(clientHeaders ?? {}),
   });
 
+  if (result.alreadyLinked) {
+    return { matched: true, alreadyLinked: true };
+  }
+
   if (!result.apiKey || !result.tenant || !result.issuer || !result.environment) {
     return { matched: false };
   }
 
   return {
     matched: true,
+    alreadyLinked: false,
     tenant: result.tenant,
     issuer: result.issuer,
     apiKey: result.apiKey,
@@ -320,33 +349,19 @@ export interface ApiExtraSeatPricing {
   yearlyPriceEffectiveAt: string | null;
 }
 
-// A tier-independent allowance added on top of every tier's own
-// maxApiKeys/maxWebhookEndpoints (comprobify's ADR-034), reserved for
-// comprobify-web's own internal per-role keys and its own webhook
-// subscription so those never eat into what a tenant actually purchased.
-// The API's own createKey()/webhook create() enforce
-// tier.maxApiKeys/maxWebhookEndpoints + this — see effectiveApiKeyLimit()/
-// effectiveWebhookEndpointLimit() in comprobify's subscription-tiers.js —
-// so resolveTenantLimits() (src/lib/tenant-limits.ts) adds it the same way
-// rather than comparing a tenant's key count against the raw tier value,
-// which is now 0 on FREE/SOLO/LITE and would otherwise make any self-service
-// key/webhook usage (including comprobify-web's own reserved ones) look
-// like it's already over the limit.
-export interface ApiReservedForFrontend {
-  apiKeys: number;
-  webhookEndpoints: number;
-}
-
 // Verified against: ../comprobify/src/controllers/tiers.controller.js → list()
-// GET /v1/tiers (public, no auth, no rate limit). Returns the full
-// { ok, ivaRate, limitScopes, tiers, extraSeat, reservedForFrontend }
-// envelope now — extraSeat/limitScopes/reservedForFrontend used to be
-// silently discarded here.
+// GET /v1/tiers (public, no auth, no rate limit). Returns
+// { ok, ivaRate, limitScopes, tiers, extraSeat } — comprobify-web's own
+// internal keys/webhook endpoint no longer add reserved headroom on top of
+// maxApiKeys/maxWebhookEndpoints (comprobify migration 102: they're minted
+// `is_reserved` through the admin-gated path instead and excluded from the
+// tenant's own pool entirely), so there's no separate "reserved" allowance
+// left to publish here — a tenant's own limit.max on GET /v1/keys or
+// GET /v1/webhooks already equals maxApiKeys/maxWebhookEndpoints exactly.
 export async function listTiers(): Promise<{
   tiers: ApiTierInfo[];
   extraSeat: ApiExtraSeatPricing;
   limitScopes: TierLimitScopes;
-  reservedForFrontend: ApiReservedForFrontend;
 }> {
   const result = await publicRequest<{
     ok: true;
@@ -354,12 +369,10 @@ export async function listTiers(): Promise<{
     limitScopes: TierLimitScopes;
     tiers: ApiTierInfo[];
     extraSeat: ApiExtraSeatPricing;
-    reservedForFrontend: ApiReservedForFrontend;
   }>('/v1/tiers');
   return {
     tiers: result.tiers,
     extraSeat: result.extraSeat,
     limitScopes: result.limitScopes,
-    reservedForFrontend: result.reservedForFrontend,
   };
 }

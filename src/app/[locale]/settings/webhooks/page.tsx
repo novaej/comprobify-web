@@ -4,8 +4,7 @@ import { db } from '@/lib/db';
 import { PageHeader } from '@/components/page-header';
 import { WebhookManager } from '@/components/webhook-manager';
 import { getCanonicalWebhookUrl, isPubliclyReachableHttpsUrl } from '@/lib/webhook-url';
-import { listWebhookEndpoints, getCurrentTenant } from '@/lib/api';
-import { listTiers } from '@/lib/public-api';
+import { listWebhookEndpoints } from '@/lib/api';
 import type { CanonicalAvailability } from '@/components/webhook-manager';
 
 export default async function WebhooksPage({
@@ -20,30 +19,24 @@ export default async function WebhooksPage({
 
   const ctx = await requirePermission('webhooks.manage', { skipIssuer: true });
 
-  const [endpoints, { limit }, tenantInfo, { tiers }] = await Promise.all([
+  const [endpoints, { limit }] = await Promise.all([
     db.webhookEndpoint.findMany({
       where: { tenantId: ctx.tenant.id, active: true },
       orderBy: { createdAt: 'desc' },
       select: { id: true, url: true, eventTypes: true, active: true, createdAt: true },
     }),
-    // The API's own count/limit (used already includes comprobify-web's
-    // reserved canonical-webhook slot) — the authoritative source for what
-    // the tenant's plan actually allows, see listWebhookEndpoints' comment.
+    // The API's own count/limit — the tenant's own self-service pool.
+    // comprobify-web's canonical webhook is minted through the admin-gated
+    // path and excluded entirely (comprobify migration 102, no more
+    // reserved-slot padding on top of the tier's own maxWebhookEndpoints),
+    // so this is the authoritative source for what the plan actually allows.
     listWebhookEndpoints({ apiKey: ctx.apiKey }),
-    getCurrentTenant({ apiKey: ctx.apiKey }),
-    listTiers(),
   ]);
 
-  // limit.max already folds in the reserved-for-frontend canonical-webhook
-  // slot (ADR-034), so a FREE/SOLO/LITE tenant (0 self-service webhooks) who
-  // hasn't activated the canonical webhook yet — or can't, e.g. on localhost
-  // where NEXT_PUBLIC_APP_URL fails the HTTPS check, see webhook-url.ts —
-  // still shows used < max and would otherwise be free to spend that
-  // reserved slot on a custom webhook of their own. Gate the custom-webhook
-  // form on the tier's own raw allowance instead, independent of whether the
-  // reserved slot happens to be free right now.
-  const currentTier = tiers.find((tier) => tier.name === tenantInfo.subscriptionTier);
-  const customWebhooksAllowed = currentTier ? currentTier.maxWebhookEndpoints > 0 : false;
+  // limit.max is the tier's own raw maxWebhookEndpoints (a plain passthrough
+  // as of comprobify migration 102), so a plain max === 0 check is enough to
+  // gate the custom-webhook form now; no separate tier lookup needed.
+  const customWebhooksAllowed = limit.max === null || limit.max > 0;
 
   const canonicalUrl = getCanonicalWebhookUrl();
   const canonicalAvailability: CanonicalAvailability =

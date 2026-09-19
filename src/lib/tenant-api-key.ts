@@ -1,7 +1,7 @@
 import 'server-only';
 import { db } from '@/lib/db';
-import { encrypt, decrypt, lastFour } from '@/lib/crypto';
-import { createTenantApiKey, revokeTenantApiKey } from '@/lib/api';
+import { encrypt, lastFour } from '@/lib/crypto';
+import { createReservedApiKey, listAdminApiKeys, revokeAdminApiKey } from '@/lib/admin-api';
 import { computeApiScopesForRole, isFullAccessScopeSet, sameScopes } from '@/lib/role-api-scopes';
 import type { Role } from '@/lib/rbac';
 import type { TenantApiKey } from '@prisma/client';
@@ -15,30 +15,15 @@ export function findMasterApiKeyRow(tenantId: string, environment: string) {
 }
 
 /**
- * True only when granting `role` would mint a brand-new TenantApiKey row —
- * i.e. it consumes one of the tier's maxApiKeys slots. Owner/Admin always
- * share the already-existing master key (never a new slot). A scopes-drift
- * remint (existing row, stale scopes) is a revoke-then-create wash on the
- * active count, not a new slot, so an existing row of any scope shape counts
- * as "no new key needed" here — see resolveApiKeyForRole's revoke-and-remint
- * path. Callers should check this *before* minting (ensureRoleApiKeyBestEffort
- * silently swallows a 402 API_KEY_LIMIT_REACHED from the mint itself).
+ * Finds, mints, or reconciles the key a role should authenticate with.
+ * Idempotent — safe to call eagerly on role assignment or lazily from
+ * requireContext(). `apiTenantId` is the API-side tenant id (Context.tenant.apiTenantId)
+ * — required for the admin-gated mint/revoke path below, which addresses a
+ * tenant by its API id, not comprobify-web's local one.
  */
-export async function roleNeedsNewApiKey(
-  tenantId: string,
-  environment: string,
-  role: Role,
-): Promise<boolean> {
-  if (isFullAccessScopeSet(computeApiScopesForRole(role))) return false;
-  const existing = await db.tenantApiKey.findFirst({
-    where: { tenantId, environment, isActive: true, isManaged: true, managedRole: role },
-  });
-  return !existing;
-}
-
-/** Finds, mints, or reconciles the key a role should authenticate with. Idempotent — safe to call eagerly on role assignment or lazily from requireContext(). */
 export async function resolveApiKeyForRole(
   tenantId: string,
+  apiTenantId: string,
   environment: string,
   role: Role,
 ): Promise<TenantApiKey | null> {
@@ -58,24 +43,25 @@ export async function resolveApiKeyForRole(
     // ROLE_API_SCOPES changed since this key was minted — the API has no
     // endpoint to update a key's scopes in place (immutable per key), so
     // revoke and remint rather than leaving a stale grant in place.
-    await revokeStaleManagedKey(tenantId, environment, existing);
+    await revokeStaleManagedKey(existing);
   }
 
-  return mintManagedKey(tenantId, environment, role, targetScopes);
+  return mintManagedKey(tenantId, apiTenantId, environment, role, targetScopes);
 }
 
-async function revokeStaleManagedKey(
-  tenantId: string,
-  environment: string,
-  row: TenantApiKey,
-): Promise<void> {
-  const master = await findMasterApiKeyRow(tenantId, environment);
-  if (master) {
-    try {
-      await revokeTenantApiKey({ apiKey: decrypt(master.encryptedKey) }, row.apiKeyId);
-    } catch {
-      // Best-effort — still deactivate the local row below either way.
-    }
+/**
+ * Revokes one managed key both locally and at the API. Reserved keys are
+ * invisible to (and rejected by) the tenant-facing DELETE /v1/keys/:id —
+ * comprobify's api-key.service.js's revokeKey() 404s any is_reserved row on
+ * purpose, so a per-role key's own scoped token can never authenticate this
+ * revocation either way. Use the admin-gated path, which needs no local
+ * credential at all — just the API-side key id.
+ */
+async function revokeStaleManagedKey(row: TenantApiKey): Promise<void> {
+  try {
+    await revokeAdminApiKey(row.apiKeyId);
+  } catch {
+    // Best-effort — still deactivate the local row below either way.
   }
   await db.tenantApiKey.update({
     where: { id: row.id },
@@ -85,13 +71,12 @@ async function revokeStaleManagedKey(
 
 async function mintManagedKey(
   tenantId: string,
+  apiTenantId: string,
   environment: string,
   role: Role,
   targetScopes: ReturnType<typeof computeApiScopesForRole>,
 ): Promise<TenantApiKey | null> {
-  const master = await findMasterApiKeyRow(tenantId, environment);
-  if (!master) return null;
-  const masterApiKey = decrypt(master.encryptedKey);
+  const label = `App — ${role}`;
 
   // Advisory lock keyed on (tenantId, environment, role) — serializes
   // concurrent mint attempts before any of them calls the real API, so a
@@ -107,21 +92,28 @@ async function mintManagedKey(
       });
       if (existing && sameScopes(existing.scopes, targetScopes)) return existing;
 
-      const created = await createTenantApiKey(
-        { apiKey: masterApiKey },
-        `App — ${role}`,
-        environment as 'sandbox' | 'production',
-        targetScopes,
-      );
+      const plainKey = await createReservedApiKey(apiTenantId, {
+        label,
+        environment: environment as 'sandbox' | 'production',
+        scopes: targetScopes,
+      });
+
+      // POST .../api-keys returns only the plaintext token (no id/scopes) —
+      // resolve metadata with a follow-up admin list call (Common Mistake #18).
+      // Filtered by label+environment (not just "newest") since a concurrent
+      // mint for a *different* role could otherwise race ahead of us in the list.
+      const adminKeys = await listAdminApiKeys(apiTenantId);
+      const created = adminKeys.find((k) => k.environment === environment && k.label === label);
+      if (!created) throw new Error('RESERVED_KEY_METADATA_MISSING');
 
       return tx.tenantApiKey.create({
         data: {
           tenantId,
           apiKeyId: created.id,
-          label: created.label,
+          label: created.label ?? label,
           environment: created.environment,
-          encryptedKey: encrypt(created.key),
-          lastFour: lastFour(created.key),
+          encryptedKey: encrypt(plainKey),
+          lastFour: lastFour(plainKey),
           isActive: true,
           isManaged: true,
           managedRole: role,

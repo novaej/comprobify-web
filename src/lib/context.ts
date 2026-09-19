@@ -23,12 +23,13 @@ import type { Role, Permission } from '@/lib/rbac';
 // banner state from the tenant's actual key count.
 async function resolveApiKeyRowOrRedirect(
   tenantId: string,
+  apiTenantId: string,
   environment: 'sandbox' | 'production',
   role: Role,
   locale: string,
 ) {
   try {
-    return await resolveApiKeyForRole(tenantId, environment, role);
+    return await resolveApiKeyForRole(tenantId, apiTenantId, environment, role);
   } catch (err) {
     if (err instanceof ApiError && err.code === 'API_KEY_LIMIT_REACHED') {
       redirect({ href: '/settings/api-keys?limitReached=1', locale });
@@ -39,7 +40,7 @@ async function resolveApiKeyRowOrRedirect(
 }
 
 export interface Context {
-  user: { id: string; email: string; firstName: string | null; lastName: string | null; emailVerified: boolean; role: Role };
+  user: { id: string; email: string; firstName: string | null; lastName: string | null; role: Role };
   tenant: { id: string; apiTenantId: string; ruc: string; businessName: string; tradeName: string | null; status: string; environment: 'sandbox' | 'production' };
   permissions: ReadonlySet<Permission>;
   // id is the local UUID PK; apiIssuerId is the API-side UUID sent as ApiCtx.issuerId.
@@ -114,7 +115,6 @@ export async function requireContext(opts?: { skipIssuer?: boolean }): Promise<C
     email: user.email,
     firstName: user.firstName,
     lastName: user.lastName,
-    emailVerified: user.emailVerified,
     role,
   };
 
@@ -130,7 +130,7 @@ export async function requireContext(opts?: { skipIssuer?: boolean }): Promise<C
 
   // 3. skipIssuer — return MinimalContext with just the active API key
   if (opts?.skipIssuer) {
-    const keyRow = await resolveApiKeyRowOrRedirect(tenant.id, tenantCtx.environment, role, locale);
+    const keyRow = await resolveApiKeyRowOrRedirect(tenant.id, tenant.apiTenantId, tenantCtx.environment, role, locale);
     if (!keyRow) {
       redirect({ href: '/settings/api-keys?missing=1', locale });
       return null as never;
@@ -184,7 +184,7 @@ export async function requireContext(opts?: { skipIssuer?: boolean }): Promise<C
   }
 
   // 6. Resolve active API key (see resolveApiKeyForRole — role-scoped, environment-matched, deterministic)
-  const keyRow = await resolveApiKeyRowOrRedirect(tenant.id, tenantCtx.environment, role, locale);
+  const keyRow = await resolveApiKeyRowOrRedirect(tenant.id, tenant.apiTenantId, tenantCtx.environment, role, locale);
   if (!keyRow) {
     redirect({ href: '/settings/api-keys?missing=1', locale });
     return null as never;

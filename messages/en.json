@@ -63,7 +63,7 @@
       "register": "Register",
       "accountDisabled": "Your account has been disabled by an administrator. Contact your administrator to regain access.",
       "idleTimeout": "Your session ended due to inactivity. Sign in again to continue.",
-      "lostApiKey": "Lost your API key?",
+      "lostApiKey": "Have a login but haven't connected your company?",
       "forgotPassword": "Forgot your password?"
     },
     "register": {
@@ -121,24 +121,22 @@
     "INVALID_OR_EXPIRED_RESET_TOKEN": "This password reset link is no longer valid or has expired. Request a new one."
   },
   "recoverAccount": {
-    "subtitle": "Recover access to your API key",
+    "subtitle": "Connect your login to your company",
     "backToLogin": "Back to sign in",
-    "description": "If you lost your API key, upload the same P12 certificate you used to register along with your email. If they match an existing account, a new key will be issued.",
+    "description": "If your Comprobify Web login isn't connected to your company — for example, if you registered with a different email than your company's, or registration was interrupted partway through — upload the P12 certificate and email you used to register your company. If they match, we'll connect your login to it automatically.",
+    "sideEffectNotice": "If your login is already connected to that company, we'll just confirm the connection — nothing else changes.",
     "fields": {
       "email": "Email address",
       "certFile": ".p12 file",
       "certPassword": "Certificate password"
     },
-    "submit": "Recover access",
+    "submit": "Connect",
     "submitting": "Checking...",
-    "genericMessage": "If that email and certificate match an existing account, a new key has been issued. If nothing changes, double-check the email and certificate are exactly what you used to register.",
-    "linkedMessage": "Your API key has been refreshed. Sign in to keep using the app normally. We also sent a notice email to the registered address.",
-    "unlinkedTitle": "API key recovered",
-    "unlinkedInstructions": "This account isn't linked to a user of this app yet. Sign in (or create an account) and use the \"Link existing account\" tab when setting up your company, pasting this key. We also sent a notice email to the registered address.",
-    "showOnce": "This key is only shown once. Save it somewhere safe.",
-    "show": "Show",
-    "hide": "Hide",
-    "copy": "Copy"
+    "genericMessage": "If that email and certificate match a registered company, your login will be connected to it. If you don't see any change, double-check the email and certificate are exactly what you used to register your company.",
+    "alreadyLinkedMessage": "Your login is already connected to this company. If you can't sign in, try recovering your password or contact us.",
+    "goToForgotPassword": "Recover password",
+    "justLinkedMessage": "We connected this company to the account with that email. Sign in to continue.",
+    "linkedMessage": "Your login was already connected to this company; we verified the connection. As part of this you'll need to verify your email again — check your inbox. Sign in to continue."
   },
   "sandbox": {
     "banner": "You are in sandbox mode — documents are sent to the SRI test environment.",
@@ -658,7 +656,8 @@
       "docType07": "Withholding receipt",
       "submit": "Activate test environment",
       "submitting": "Setting up...",
-      "agreementNotice": "In the next step we'll ask you to review and accept Comprobify's Terms of Service, Privacy Policy, and Data Processing Agreement."
+      "agreementNotice": "In the next step we'll ask you to review and accept Comprobify's Terms of Service, Privacy Policy, and Data Processing Agreement.",
+      "recoverAccountLink": "Connect with an existing company"
     },
     "environment": {
       "title": "Environment",
@@ -732,7 +731,6 @@
     "ALREADY_PRODUCTION": "Your account is already in production.",
     "ALREADY_VERIFIED": "Your email is already verified.",
     "ISSUER_NOT_CONFIGURED": "You must set up your company first.",
-    "EMAIL_NOT_VERIFIED": "You must verify your email address before activating production. Check your inbox.",
     "TOO_MANY_REQUESTS": "Too many attempts. Please wait a few minutes and try again.",
     "INVALID_SESSION_TIMEOUT": "The idle timeout must be between 5 and 480 minutes.",
     "UNEXPECTED_ERROR": "An unexpected error occurred. Please try again."
@@ -749,13 +747,18 @@
     "UNAUTHORIZED": "Unauthorized. Please verify your API key is valid.",
     "INSUFFICIENT_SCOPE": "This API key does not have permission to perform this action.",
     "SCOPE_ESCALATION_FORBIDDEN": "You cannot create an API key with more permissions than your own.",
-    "CONFLICT": "A record with that data already exists (RUC or email). If you already registered before, use the account recovery page.",
+    "CONFLICT": "A record with that data already exists (RUC or email). If that company is yours, connect your login to it from the recovery page.",
     "TOO_MANY_REQUESTS": "Too many requests. Please try again in a moment.",
     "QUOTA_EXCEEDED": "Monthly document quota reached. Please upgrade your plan.",
     "INTERNAL_ERROR": "Internal server error. Please contact support.",
     "VALIDATION_FAILED": "Please review the form fields and try again.",
     "ONLY_OWNER_CAN_GRANT_OWNER": "Only an Owner can grant the Owner role.",
     "USER_SEAT_LIMIT_REACHED": "You've reached your plan's user limit. Buy additional seats or upgrade your plan to invite more people.",
+    "USER_ALREADY_IN_TENANT": "That user is already part of your company.",
+    "USER_BELONGS_TO_ANOTHER_TENANT": "That email already belongs to a user at another company and can't be invited here.",
+    "USER_NOT_FOUND": "That user couldn't be found.",
+    "CANNOT_CHANGE_OWN_ROLE": "You can't change your own role.",
+    "CANNOT_REMOVE_SELF": "You can't remove yourself. Ask another Owner or Admin to do it.",
     "API_KEY_LIMIT_REACHED": "Your plan's API key limit has been reached. Revoke an unused key or upgrade your plan.",
     "SRI_SUBMISSION_FAILED": "The SRI returned an error. Review the detail messages.",
     "DOCUMENT_NOT_FOUND": "Document not found.",
@@ -807,9 +810,9 @@
     "API_KEY_REQUIRED": "Please enter your API key.",
     "EMAIL_REQUIRED": "Please enter your email address.",
     "NO_ISSUERS_FOUND": "That account has no active issuers. Check your API key and try again.",
+    "RECOVERY_ACCOUNT_NOT_FOUND": "We couldn't find an account associated with that email. Contact us to resolve this.",
     "TENANT_ALREADY_LINKED": "That API account has already been linked by another user. Ask your administrator to invite you from Users.",
     "DB_WRITE_FAILED": "Your company was registered but an internal error occurred while saving the configuration. Please contact support with your email address.",
-    "EMAIL_NOT_VERIFIED": "You must verify your email address before activating production.",
     "ALREADY_PRODUCTION": "Your account is already in production mode.",
     "WEBHOOK_ENDPOINT_LIMIT_REACHED": "You have reached the webhook endpoint limit for your plan.",
     "WEBHOOK_ENDPOINT_NOT_FOUND": "Webhook endpoint not found.",
@@ -838,7 +841,8 @@
     "WRONG_CURRENT_PASSWORD": "Current password is incorrect.",
     "PASSWORD_TOO_SHORT": "Password must be at least 8 characters.",
     "CANNOT_DISABLE_SELF": "You cannot disable your own account.",
-    "CANNOT_RESET_OWN_PASSWORD": "Use the account settings to change your own password."
+    "CANNOT_RESET_OWN_PASSWORD": "Use the account settings to change your own password.",
+    "RESERVED_KEY_NOT_FOUND": "That reserved key was not found, or has already been rotated."
   },
   "agreements": {
     "title": "Review and accept agreements",
@@ -939,14 +943,7 @@
   "onboarding": {
     "title": "Set up your company",
     "description": "Complete your company information to start issuing electronic invoices.",
-    "sriNotice": "Before continuing, make sure your RUC has the test (certification) environment enabled in the SRI portal. Without this step, SRI will reject the test invoices you issue from here.",
-    "createNewTab": "Create new company",
-    "linkExistingTab": "Link existing account",
-    "linkTitle": "Link your API account",
-    "linkDescription": "Already use the Comprobify API directly? Enter your existing API key to link that account to your user. Your API key isn't reused or stored — it's used once to confirm the link and create a new key dedicated to this app.",
-    "apiKey": "API key",
-    "linkSubmit": "Link account",
-    "linkSubmitting": "Linking..."
+    "sriNotice": "Before continuing, make sure your RUC has the test (certification) environment enabled in the SRI portal. Without this step, SRI will reject the test invoices you issue from here."
   },
   "issuerSelect": {
     "title": "Select an issue point",
@@ -1087,6 +1084,8 @@
     "createdSuccess": "API key \"{label}\" created successfully.",
     "showOnce": "Copy this key now. You won't be able to see it again.",
     "missingKeyWarning": "You have no active API keys. The system cannot authenticate requests until you create one.",
+    "keyUsage": "{used} of {limit} API keys used",
+    "keyUsageUnlimited": "{used} API keys used (unlimited)",
     "keyLimitReached": "You've reached your plan's API key limit ({used} of {limit}). Revoke an unused key or upgrade your plan to create more.",
     "noCustomAccess": "Your plan doesn't include custom API keys. Upgrade your plan to create one.",
     "table": {
@@ -1322,6 +1321,8 @@
       "httpsRequired": "Requires a public HTTPS URL — won't work with localhost in local development."
     },
     "empty": "No webhooks registered.",
+    "endpointUsage": "{used} of {limit} webhooks used",
+    "endpointUsageUnlimited": "{used} webhooks used (unlimited)",
     "limitReached": "You've reached your plan's webhook limit ({used} of {limit}). Remove an existing one or upgrade your plan to add more.",
     "noCustomAccess": "Your plan doesn't include custom webhooks. Upgrade your plan to add one.",
     "add": "Register webhook",
@@ -1817,7 +1818,8 @@
         "email": "Email",
         "tier": "Tier",
         "status": "Status",
-        "usage": "Usage"
+        "usage": "Usage",
+        "actions": "Actions"
       },
       "statuses": {
         "PENDING_VERIFICATION": "Pending",
@@ -1846,6 +1848,25 @@
           "UNPAID_BALANCE": "Unpaid balance",
           "OTHER": "Other reason"
         }
+      },
+      "rotateKeysTooltip": "Rotate API keys",
+      "keyRotation": {
+        "title": "Rotate API keys",
+        "description": "{tenant}'s reserved keys, used internally by the app. Rotating a key invalidates its current token immediately.",
+        "empty": "This tenant has no local reserved keys to rotate.",
+        "masterLabel": "Master key",
+        "columns": {
+          "label": "Key",
+          "environment": "Environment",
+          "lastUsed": "Last used",
+          "actions": "Actions"
+        },
+        "createdOn": "Created on {date}",
+        "neverUsed": "Never",
+        "rotate": "Rotate",
+        "rotating": "Rotating...",
+        "confirmRotate": "This immediately invalidates \"{label}\"'s current token. Anything still using it will stop authenticating until the app picks up the new key. Continue?",
+        "rotateSuccess": "Key rotated successfully."
       }
     },
     "payments": {

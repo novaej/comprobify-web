@@ -3,8 +3,8 @@
 import { headers } from 'next/headers';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
-import { registerTenant, resendVerificationEmail } from '@/lib/public-api';
-import { listTenantApiKeys, getCurrentTenant, listTenantIssuers, createTenantApiKey } from '@/lib/api';
+import { registerTenant } from '@/lib/public-api';
+import { listAdminApiKeys } from '@/lib/admin-api';
 import { extractForwardedIp } from '@/lib/client-forwarding';
 import { encrypt, lastFour } from '@/lib/crypto';
 import { writeCtxCookie } from '@/lib/context-cookie';
@@ -13,14 +13,10 @@ import { redirect } from '@/i18n/navigation';
 import { revalidatePath } from 'next/cache';
 import { ApiError } from '@/lib/errors';
 import { parseIntendedPlan } from '@/lib/subscription-tiers';
-import { ALL_API_SCOPES } from '@/lib/role-api-scopes';
 import { isUuid } from '@/lib/utils';
 import * as Sentry from '@sentry/nextjs';
 
-// `email` is only ever populated on an EMAIL_VERIFICATION_REQUIRED result from
-// linkExistingTenantAction, so the form can offer a resend button without the
-// user having to re-type the address the pasted API key belongs to.
-export type OnboardingResult = { error: string; email?: string } | null;
+export type OnboardingResult = { error: string } | null;
 
 export async function bootstrapTenantAction(formData: FormData): Promise<OnboardingResult> {
   const session = await auth();
@@ -112,9 +108,14 @@ export async function bootstrapTenantAction(formData: FormData): Promise<Onboard
     throw err;
   }
 
-  // Fetch key metadata to get the API-side key ID
-  const { keys } = await listTenantApiKeys({ apiKey: plainApiKey }).catch(() => ({ keys: [] }));
-  const keyRecord = keys[0];
+  // Fetch key metadata to get the API-side key ID. POST /v1/register mints
+  // this key `is_reserved` (comprobify migration 102 — see its own comment
+  // in registration.service.js), so it's invisible to the tenant-facing
+  // GET /v1/keys; resolve it via the admin listing instead, filtered by the
+  // fixed label register() always uses so a concurrent per-role mint for
+  // some other tenant can never be picked up by mistake.
+  const adminKeys = await listAdminApiKeys(apiTenantId).catch(() => []);
+  const keyRecord = adminKeys.find((k) => k.label === 'Initial master key' && k.environment === 'sandbox');
   if (!keyRecord) return { error: 'DB_WRITE_FAILED' };
 
   let newIssuerId: string;
@@ -186,164 +187,5 @@ export async function bootstrapTenantAction(formData: FormData): Promise<Onboard
   // The /agreements page lazily triggers document generation on first load, so timing
   // with the async registration task is not a concern.
   redirect({ href: '/agreements', locale });
-  return null;
-}
-
-/**
- * Links an existing Comprobify API account (registered directly via the API,
- * not through this app) to the current web session.
- *
- * The pasted API key is used once, in-memory, to:
- *   1. Resolve tenant identity (GET /v1/tenants/me) and issuer list (GET /v1/issuers).
- *   2. Mint a fresh, dedicated key for the web app (POST /v1/keys) — the pasted
- *      key itself is never stored, so it keeps working independently elsewhere.
- *
- * `Tenant.apiTenantId` is unique in the schema, so a given API tenant can only
- * be linked once. The first user to link becomes Owner; everyone else joins via
- * the existing invite flow (`/users`).
- */
-export async function linkExistingTenantAction(formData: FormData): Promise<OnboardingResult> {
-  const session = await auth();
-  if (!session?.user?.id || !isUuid(session.user.id)) return { error: 'UNAUTHORIZED' };
-
-  const userId = session.user.id;
-  const user = await db.user.findUnique({ where: { id: userId } });
-  if (!user) return { error: 'UNAUTHORIZED' };
-  if (user.tenantId) return { error: 'TENANT_ALREADY_EXISTS' };
-
-  const pastedApiKey = (formData.get('apiKey') as string | null)?.trim() ?? '';
-  if (!pastedApiKey) return { error: 'API_KEY_REQUIRED' };
-
-  let tenantInfo: Awaited<ReturnType<typeof getCurrentTenant>>;
-  let apiIssuers: Awaited<ReturnType<typeof listTenantIssuers>>;
-  try {
-    tenantInfo = await getCurrentTenant({ apiKey: pastedApiKey });
-    apiIssuers = await listTenantIssuers({ apiKey: pastedApiKey });
-  } catch (err) {
-    if (err instanceof ApiError) return { error: err.code };
-    throw err;
-  }
-
-  if (apiIssuers.length === 0) return { error: 'NO_ISSUERS_FOUND' };
-
-  const apiTenantId = tenantInfo.id;
-  const alreadyLinked = await db.tenant.findUnique({ where: { apiTenantId } });
-  if (alreadyLinked) return { error: 'TENANT_ALREADY_LINKED' };
-
-  let newKey: Awaited<ReturnType<typeof createTenantApiKey>>;
-  try {
-    // Explicit ALL_API_SCOPES — this becomes the tenant's master key, full-access regardless of the pasted key's own scopes.
-    newKey = await createTenantApiKey(
-      { apiKey: pastedApiKey },
-      'Comprobify Web',
-      tenantInfo.sandbox ? 'sandbox' : 'production',
-      ALL_API_SCOPES,
-    );
-  } catch (err) {
-    if (err instanceof ApiError) {
-      // Surface the tenant's email (already known from getCurrentTenant() above)
-      // so the form can offer a resend-verification button — at this point no
-      // local Tenant/session link exists yet for resendVerificationAction's
-      // requireContext() to resolve.
-      if (err.code === 'EMAIL_VERIFICATION_REQUIRED') {
-        return { error: err.code, email: tenantInfo.email };
-      }
-      return { error: err.code };
-    }
-    throw err;
-  }
-
-  const defaultIssuer = apiIssuers[0];
-  const environment = tenantInfo.sandbox ? 'sandbox' : 'production';
-
-  let defaultLocalIssuerId: string;
-  try {
-    defaultLocalIssuerId = await db.$transaction(async (tx): Promise<string> => {
-      const tenant = await tx.tenant.create({
-        data: {
-          apiTenantId,
-          ruc: defaultIssuer.ruc,
-          businessName: defaultIssuer.businessName,
-          tradeName: defaultIssuer.tradeName,
-          environment,
-          status: 'ACTIVE', // createTenantApiKey already required tenant.status === ACTIVE
-        },
-      });
-
-      await tx.tenantApiKey.create({
-        data: {
-          tenantId: tenant.id,
-          apiKeyId: newKey.id,
-          label: newKey.label,
-          environment: newKey.environment,
-          encryptedKey: encrypt(newKey.key),
-          lastFour: lastFour(newKey.key),
-          isActive: true,
-          isManaged: true, // minted with ALL_API_SCOPES above — the tenant's master key
-          scopes: newKey.scopes,
-        },
-      });
-
-      let firstLocalIssuerId: string | null = null;
-      for (const apiIssuer of apiIssuers) {
-        const issuer: { id: string } = await tx.issuer.create({
-          data: {
-            tenantId: tenant.id,
-            apiIssuerId: apiIssuer.id,
-            branchCode: apiIssuer.branchCode,
-            issuePointCode: apiIssuer.issuePointCode,
-            businessName: apiIssuer.businessName,
-            tradeName: apiIssuer.tradeName,
-            branchAddress: apiIssuer.branchAddress,
-            isDefault: firstLocalIssuerId === null,
-          },
-        });
-        if (firstLocalIssuerId === null) firstLocalIssuerId = issuer.id;
-      }
-
-      await tx.user.update({
-        where: { id: userId },
-        data: { tenantId: tenant.id, role: 'Owner' },
-      });
-
-      return firstLocalIssuerId as string;
-    });
-  } catch (err) {
-    // Sentry is a no-op locally (no DSN), so log too — otherwise this failure is
-    // invisible in dev and the user only sees the generic DB_WRITE_FAILED copy.
-    console.error('[onboarding] link-existing-tenant transaction failed', err);
-    Sentry.captureException(err, { extra: { apiTenantId } });
-    return { error: 'DB_WRITE_FAILED' };
-  }
-
-  await writeCtxCookie({ issuerId: defaultLocalIssuerId, v: 2 });
-
-  revalidatePath('/', 'layout');
-  const locale = await getLocale();
-  // Redirect to /agreements so the tenant can review and accept legal documents.
-  // getStatus() lazily generates per-tenant documents for any published template version,
-  // so it's safe even when this tenant was never through POST /v1/register.
-  redirect({ href: '/agreements', locale });
-  return null;
-}
-
-/**
- * Resends the verification email for a tenant hit mid-onboarding by
- * EMAIL_VERIFICATION_REQUIRED on linkExistingTenantAction — no local Tenant
- * row exists yet at that point, so resendVerificationAction's requireContext()
- * has nothing to resolve. This calls the same public, unauthenticated
- * POST /v1/resend-verification endpoint directly by email instead.
- */
-export async function resendVerificationForLinkingAction(email: string): Promise<{ error: string } | null> {
-  const session = await auth();
-  if (!session?.user?.id || !isUuid(session.user.id)) return { error: 'UNAUTHORIZED' };
-
-  try {
-    const reqHeaders = await headers();
-    await resendVerificationEmail(email, undefined, { forwardedIp: extractForwardedIp(reqHeaders) });
-  } catch (err) {
-    if (err instanceof ApiError) return { error: err.code };
-    throw err;
-  }
   return null;
 }

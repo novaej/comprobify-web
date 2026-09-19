@@ -1429,11 +1429,14 @@ export async function updateTenantLanguage(ctx: ApiCtx, language: string): Promi
 // ── API key management ────────────────────────────────────────────────────────
 
 // Verified against: ../comprobify/src/controllers/api-key.controller.js → list()
-// Also returns the tenant's self-service pool usage (max already includes
-// comprobify-web's own reserved per-role-key allowance — see
-// reservedForFrontend on GET /v1/tiers and ADR-034), the same ceiling
-// createKey() enforces, so callers needing the cap (resolveTenantLimits())
-// don't have to reimplement that arithmetic.
+// Also returns the tenant's self-service pool usage. comprobify-web's own
+// reserved keys (master/per-role) are minted through the admin-gated path
+// (see tenant-api-key.ts) and excluded from both `keys` and `limit` entirely
+// — `limit.max` is the tier's own maxApiKeys, a plain passthrough as of
+// comprobify migration 102 (no more reserved-headroom padding on top, see
+// CLAUDE.md Common Mistake #64's history) — so callers needing the cap
+// (resolveTenantLimits()) read it straight from here without reimplementing
+// any arithmetic.
 export async function listTenantApiKeys(
   ctx: ApiCtx,
 ): Promise<{ keys: ApiKeyInfo[]; limit: { max: number | null; used: number } }> {
@@ -1605,10 +1608,11 @@ export async function registerWebhookEndpoint(
 }
 
 // Verified against webhook-endpoint.controller.js's list() — also returns the
-// tenant's self-service pool usage (max already includes comprobify-web's own
-// reserved canonical-webhook slot, see RESERVED_WEBHOOK_ENDPOINTS_FOR_FRONTEND
-// in subscription-tiers.js), so a plan's cap can be shown without the
-// frontend re-deriving it from the tier catalog itself.
+// tenant's self-service pool usage. comprobify-web's own canonical webhook is
+// minted through the admin-gated path (see activateCanonicalWebhookAction)
+// and excluded entirely — `limit.max` is the tier's own maxWebhookEndpoints,
+// a plain passthrough as of comprobify migration 102 — so a plan's cap can be
+// shown without the frontend re-deriving it from the tier catalog itself.
 export async function listWebhookEndpoints(
   ctx: ApiCtx,
 ): Promise<{ endpoints: ApiWebhookEndpoint[]; limit: { max: number | null; used: number } }> {

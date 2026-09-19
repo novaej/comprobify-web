@@ -31,7 +31,15 @@ Six columns rendered by `<UserManager>` (`src/components/user-manager.tsx`):
 
 ## Invite user
 
-A form at the top: email + role. Calls `inviteUserAction` → creates a `User` row with `inviteStatus: 'INVITED'`, mints a single-use invite token (`issueVerificationToken`, see `docs/site/screens/forgot-password.md` for the shared token mechanism) and emails a link containing it, and — best-effort — mints that role's own Comprobify API key up front (`ensureRoleApiKeyBestEffort` → `resolveApiKeyForRole`, see CLAUDE.md → "Per-role API key scopes") so it's ready before the invitee's first login. The invited user sets their password via `/complete-registration?token=...`.
+A form at the top: email + role. A persistent "X of Y cupos de usuario usados" counter sits above it (`seatLimit` prop, mirrored on `/settings/api-keys`/`/settings/webhooks` — see CLAUDE.md → "Tier limits: API-vs-WEB scoping"); at the seat cap the invite button disables and shows `seatLimitReached` with a link to `/settings/billing`.
+
+`inviteUserAction` looks up the submitted email against the local `User` table first:
+- **No match** — creates a new `User` row with `inviteStatus: 'INVITED'`.
+- **Matches an existing row with no `tenantId`** (an orphaned account — e.g. left behind after account recovery's `justLinked` auto-attach picked a different user, or a local data-loss incident under `User.tenant`'s `onDelete: SetNull`, see CLAUDE.md Common Mistake #68) — re-links that same `User` row to this tenant instead of erroring or creating a duplicate, clearing any stale `passwordHash` first.
+- **Matches a row already on a *different* tenant** — returns `USER_BELONGS_TO_ANOTHER_TENANT`, refuses to touch it.
+- **Matches a row already on *this* tenant** — returns `USER_ALREADY_IN_TENANT`.
+
+Either way a fresh invite proceeds: mints a single-use invite token (`issueVerificationToken`, see `docs/site/screens/forgot-password.md` for the shared token mechanism) and emails a link containing it, and — best-effort — mints that role's own Comprobify API key up front (`ensureRoleApiKeyBestEffort` → `resolveApiKeyForRole`, see CLAUDE.md → "Per-role API key scopes") so it's ready before the invitee's first login. The invited user sets their password via `/complete-registration?token=...`.
 
 ---
 

@@ -9,16 +9,25 @@ import { confirmEmailVerificationAction } from '@/app/actions/auth';
 
 interface VerifyEmailConfirmProps {
   token: string;
+  // Only consulted on first mount (see the useState initializer below) — a
+  // later parent re-render passing a different value must not retroactively
+  // flip a confirm that already succeeded. See verify-email/page.tsx.
+  initiallyValid: boolean;
 }
 
-export function VerifyEmailConfirm({ token }: VerifyEmailConfirmProps) {
+export function VerifyEmailConfirm({ token, initiallyValid }: VerifyEmailConfirmProps) {
   const t = useTranslations('verifyEmail');
   const tApiError = useTranslations('apiError');
   const [isPending, startTransition] = useTransition();
-  const [status, setStatus] = useState<'pending' | 'success' | 'error'>('pending');
+  const [status, setStatus] = useState<'pending' | 'success' | 'error'>(initiallyValid ? 'pending' : 'error');
   const [errorCode, setErrorCode] = useState<string | null>(null);
 
   function handleConfirm() {
+    // Guard against a second fire beating the disabled button's re-render —
+    // POST /v1/verify-email has no rate limit at all (a single-use token
+    // makes it a poor abuse vector), so this is purely to avoid a wasted
+    // duplicate call, not a shared-budget concern.
+    if (isPending) return;
     startTransition(async () => {
       const result = await confirmEmailVerificationAction(token);
       if (result?.error) {

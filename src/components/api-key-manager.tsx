@@ -136,6 +136,14 @@ export function ApiKeyManager({
         </div>
       )}
 
+      {customKeysAllowed && (
+        <p className="text-xs text-muted-foreground">
+          {maxApiKeys === null
+            ? t('keyUsageUnlimited', { used: activeKeyCount })
+            : t('keyUsage', { used: activeKeyCount, limit: maxApiKeys })}
+        </p>
+      )}
+
       {!customKeysAllowed ? (
         <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 text-sm text-amber-700 dark:text-amber-400">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />

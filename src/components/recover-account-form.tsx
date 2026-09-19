@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Link } from '@/i18n/navigation';
+import { logoutAction } from '@/app/actions/auth';
 import { recoverAccountAction, type RecoverAccountActionResult } from '@/app/actions/recovery';
-import { Check, Copy, Eye, EyeOff, MailCheck } from 'lucide-react';
+import { MailCheck } from 'lucide-react';
 
 type SuccessResult = Extract<RecoverAccountActionResult, { ok: true }>;
 
@@ -17,18 +18,14 @@ export function RecoverAccountForm() {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SuccessResult | null>(null);
-  const [showKey, setShowKey] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  function copyKey(value: string) {
-    navigator.clipboard.writeText(value).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    // Guard against a second fire beating the disabled button's re-render —
+    // this calls POST /v1/recover, which has its own strict, IP-keyed rate
+    // limit (5/hour, independent from register/resend-verification's own
+    // limiters — comprobify's 83c54ed).
+    if (isPending) return;
     const formData = new FormData(e.currentTarget);
     setError(null);
     startTransition(async () => {
@@ -42,57 +39,55 @@ export function RecoverAccountForm() {
   }
 
   if (result) {
-    if (!result.matched || result.linked) {
-      return (
-        <div className="space-y-4">
-          <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/40 p-4">
-            <MailCheck className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              {result.matched ? t('linkedMessage') : t('genericMessage')}
-            </p>
-          </div>
-          <Link
-            href="/login"
-            className="block text-center text-sm font-medium text-primary hover:underline underline-offset-4"
-          >
-            {t('backToLogin')}
-          </Link>
-        </div>
-      );
-    }
+    // recoverAccountAction is entirely session-independent (see its own doc
+    // comment) — a match never signs anyone in, it only ever mutates local
+    // data, so every outcome here lands on a message + "back to login",
+    // never a redirect. `outcome` is one of three things on a real match:
+    // 'alreadyLinked' (the common case — our local hint caught it before
+    // calling the API, so nothing was rotated), 'justLinked' (a genuinely
+    // new link was just created and attached to the matching existing
+    // login), or 'resynced' (the rare fallback — our hint missed, so the
+    // API actually rotated the key and forced re-verification while
+    // resyncing an already-existing link).
+    const message = !result.matched
+      ? t('genericMessage')
+      : result.outcome === 'alreadyLinked'
+        ? t('alreadyLinkedMessage')
+        : result.outcome === 'justLinked'
+          ? t('justLinkedMessage')
+          : t('linkedMessage');
 
-    // matched && !linked: show the recovered key once, for the user to paste
-    // into the "link existing account" tab after logging in.
     return (
       <div className="space-y-4">
-        <div className="space-y-2 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-500/30 dark:bg-green-500/10">
-          <p className="text-sm font-medium text-green-800 dark:text-green-300">{t('unlinkedTitle')}</p>
-          <p className="text-xs text-green-700 dark:text-green-400">{t('showOnce')}</p>
-          <div className="flex items-center gap-2">
-            <code className="min-w-0 flex-1 rounded bg-white/60 px-2 py-1 font-mono text-xs break-all dark:bg-black/20">
-              {showKey ? result.apiKey : '•'.repeat(40)}
-            </code>
-            <button
-              type="button"
-              onClick={() => setShowKey((v) => !v)}
-              aria-label={showKey ? t('hide') : t('show')}
-              className="shrink-0 text-green-700 dark:text-green-400"
-            >
-              {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </button>
+        <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/40 p-4">
+          <MailCheck className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+          <div className="space-y-2 text-sm text-muted-foreground">
+            <p>{message}</p>
+            {result.matched && result.outcome === 'alreadyLinked' && (
+              <Link
+                href="/forgot-password"
+                className="inline-block font-medium text-primary hover:underline underline-offset-4"
+              >
+                {t('goToForgotPassword')}
+              </Link>
+            )}
           </div>
-          <Button size="sm" variant="outline" onClick={() => copyKey(result.apiKey)}>
-            {copied ? <Check className="mr-1 h-3.5 w-3.5" /> : <Copy className="mr-1 h-3.5 w-3.5" />}
-            {t('copy')}
-          </Button>
         </div>
-        <p className="text-sm text-muted-foreground">{t('unlinkedInstructions')}</p>
-        <Link
-          href="/login"
-          className="block text-center text-sm font-medium text-primary hover:underline underline-offset-4"
-        >
-          {t('backToLogin')}
-        </Link>
+        {/* logoutAction, not a plain Link — recovery never checks who's
+            currently browsing (it matches by email+cert alone), so whoever
+            clicks this needs a clean slate regardless of what session
+            happens to be active. A plain Link to /login here would instead
+            hit /login's own "already authenticated → redirect away" logic
+            against the CURRENT session, which has nothing to do with the
+            account that was just recovered. */}
+        <form action={logoutAction}>
+          <button
+            type="submit"
+            className="block w-full text-center text-sm font-medium text-primary hover:underline underline-offset-4 cursor-pointer"
+          >
+            {t('backToLogin')}
+          </button>
+        </form>
       </div>
     );
   }
@@ -121,6 +116,8 @@ export function RecoverAccountForm() {
           disabled={isPending}
         />
       </div>
+
+      <p className="text-xs text-muted-foreground">{t('sideEffectNotice')}</p>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
