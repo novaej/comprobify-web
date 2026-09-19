@@ -8,6 +8,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [1.1.0] — 2026-09-19
+
 ### Added
 - **Persistent usage counters on `/settings/api-keys` and `/settings/webhooks`** — "X of Y used" (or "unlimited"), mirroring the seat-usage line already on `/users`, shown whenever the plan allows any self-service keys/webhooks at all.
 - **Pending-payments count badge in the admin nav**, mirroring the existing "Facturas pendientes" badge.
