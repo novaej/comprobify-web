@@ -13,6 +13,9 @@ import { issueVerificationToken, checkVerificationToken, consumeVerificationToke
 import type { PaidTier, BillingInterval } from '@/lib/subscription-tiers';
 import * as Sentry from '@sentry/nextjs';
 import { confirmEmailVerification } from '@/lib/public-api';
+import { requireContext } from '@/lib/context';
+import { getCurrentTenant } from '@/lib/api';
+import { reconcileTenantStatus } from '@/lib/tenant-status-sync';
 import { ApiError } from '@/lib/errors';
 
 export type AuthResult = { error: string } | null;
@@ -302,6 +305,21 @@ export async function resetPasswordAction(token: string, password: string): Prom
 export async function confirmEmailVerificationAction(token: string): Promise<{ error?: string }> {
   try {
     await confirmEmailVerification(token);
+    // Best-effort: this public flow can't tell which local tenant was just
+    // verified (the API returns only the email), but if this browser happens
+    // to be signed in, refresh *its* tenant's status mirror from live data so
+    // the layout's verification banner clears immediately. Live status, not an
+    // assumption — a different account's link just leaves it unchanged. Any
+    // failure (not signed in → requireContext redirects, API hiccup) is fine:
+    // the banner's "Ya lo verifiqué" button and the settings/billing/issuers
+    // reconciles cover it.
+    try {
+      const ctx = await requireContext({ skipIssuer: true });
+      const tenant = await getCurrentTenant({ apiKey: ctx.apiKey });
+      await reconcileTenantStatus(ctx.tenant.id, ctx.tenant.status, tenant.status);
+    } catch {
+      // intentionally ignored
+    }
     // Layout-adjacent UI (EmailVerificationNotice, ProductionPromotion's
     // button, billing-manager.tsx's SubscribeCard) all re-fetch live tenant
     // status on render — without this, a <Link> navigation there (soft

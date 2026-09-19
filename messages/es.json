@@ -721,11 +721,14 @@
     },
     "verification": {
       "title": "Verifica tu correo electrónico",
-      "description": "Revisa tu bandeja de entrada y haz clic en el enlace de verificación. Necesitas verificar tu correo para poder activar el ambiente de producción.",
+      "description": "Revisa tu bandeja de entrada y haz clic en el enlace de verificación. Hasta que lo hagas no podrás activar producción ni contratar un plan.",
       "resend": "Reenviar correo de verificación",
       "sending": "Enviando...",
       "sent": "Correo enviado. Revisa tu bandeja de entrada.",
-      "cooldown": "Reenviar en {seconds}s"
+      "cooldown": "Reenviar en {seconds}s",
+      "checkStatus": "Ya lo verifiqué",
+      "checking": "Comprobando...",
+      "stillPending": "Aún no vemos la verificación. Haz clic en el enlace del correo e inténtalo de nuevo."
     }
   },
   "settingsError": {

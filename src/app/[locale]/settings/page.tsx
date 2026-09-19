@@ -1,6 +1,5 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { ProductionPromotion } from '@/components/production-promotion';
-import { EmailVerificationNotice } from '@/components/email-verification-notice';
 import { SessionTimeoutSettings } from '@/components/session-timeout-settings';
 import { PageHeader } from '@/components/page-header';
 import { requireContext } from '@/lib/context';
@@ -8,6 +7,7 @@ import { listIssuerDocumentTypes, getMySubscriptions, getAgreementStatus, getCur
 import { listTiers } from '@/lib/public-api';
 import { Link } from '@/i18n/navigation';
 import { db } from '@/lib/db';
+import { reconcileTenantStatus } from '@/lib/tenant-status-sync';
 import { Webhook, Bell, ChevronRight, CreditCard, User, KeyRound } from 'lucide-react';
 
 export default async function SettingsPage({
@@ -88,6 +88,8 @@ export default async function SettingsPage({
   ]);
   const agreementsAccepted = !agreementStatus?.needsAcceptance;
   const isEmailVerified = tenantInfo ? tenantInfo.status !== 'PENDING_VERIFICATION' : true;
+  // The layout's verification banner reads the local mirror — keep it honest.
+  if (tenantInfo) await reconcileTenantStatus(ctx.tenant.id, ctx.tenant.status, tenantInfo.status);
 
   const tenantSecurity = canManageTenant
     ? await db.tenant.findUnique({
@@ -101,8 +103,6 @@ export default async function SettingsPage({
       <PageHeader title={t('title')} />
 
       <div className="space-y-4">
-        {hasIssuer && !isEmailVerified && canManageTenant && <EmailVerificationNotice />}
-
         {hasIssuer && (
           <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
             <div className="flex items-center justify-between">

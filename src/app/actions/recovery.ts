@@ -8,6 +8,7 @@ import { listAdminApiKeys } from '@/lib/admin-api';
 import { extractForwardedIp } from '@/lib/client-forwarding';
 import { encrypt, lastFour } from '@/lib/crypto';
 import { ApiError } from '@/lib/errors';
+import { reconcileTenantStatus } from '@/lib/tenant-status-sync';
 import * as Sentry from '@sentry/nextjs';
 
 export type RecoverAccountActionResult =
@@ -129,6 +130,9 @@ export async function recoverAccountAction(formData: FormData): Promise<RecoverA
     return { error: 'DB_WRITE_FAILED' };
   }
 
+  // The full path also re-demoted the tenant to PENDING_VERIFICATION API-side.
+  await reconcileTenantStatus(localTenant.id, localTenant.status, 'PENDING_VERIFICATION');
+
   return { ok: true, matched: true, outcome: 'resynced' };
 }
 
@@ -203,7 +207,9 @@ async function autoLinkRecoveredTenant(
           businessName: defaultIssuer.businessName,
           tradeName: defaultIssuer.tradeName,
           environment: result.environment,
-          status: 'ACTIVE', // recover() already required the tenant's email to be verified
+          // recover() demotes the tenant to PENDING_VERIFICATION on this path (fresh
+          // verification email, same as resend) — mirror that so the layout banner shows.
+          status: 'PENDING_VERIFICATION',
         },
       });
 

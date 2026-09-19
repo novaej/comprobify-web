@@ -721,11 +721,14 @@
     },
     "verification": {
       "title": "Verify your email address",
-      "description": "Check your inbox and click the verification link. You need to verify your email before activating the production environment.",
+      "description": "Check your inbox and click the verification link. Until you do, you can't activate production or subscribe to a plan.",
       "resend": "Resend verification email",
       "sending": "Sending...",
       "sent": "Email sent. Check your inbox.",
-      "cooldown": "Resend in {seconds}s"
+      "cooldown": "Resend in {seconds}s",
+      "checkStatus": "I already verified",
+      "checking": "Checking...",
+      "stillPending": "We don't see the verification yet. Click the link in the email and try again."
     }
   },
   "settingsError": {
