@@ -686,7 +686,17 @@
       "resending": "Reenviando...",
       "resendSent": "Correo de verificación enviado. Revisa tu bandeja de entrada.",
       "agreementRequired": "Debes revisar y aceptar los acuerdos legales antes de activar producción.",
-      "agreementRequiredLink": "Revisar y aceptar acuerdos"
+      "agreementRequiredLink": "Revisar y aceptar acuerdos",
+      "keys": {
+        "title": "Tus nuevas API keys de producción",
+        "description": "Al activar producción, tus API keys de sandbox fueron reemplazadas por claves nuevas. Actualiza con ellas cualquier sistema que las use (Postman, tu ERP, etc.).",
+        "showOnce": "Copia estas claves ahora. No podrás verlas de nuevo.",
+        "show": "Mostrar clave",
+        "hide": "Ocultar clave",
+        "copy": "Copiar",
+        "continue": "Ya copié mis claves",
+        "continuing": "Continuando..."
+      }
     },
     "account": {
       "title": "Cuenta",

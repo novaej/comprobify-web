@@ -892,10 +892,13 @@ export interface ApiAgreementStatus {
 }
 
 // Verified against: ../comprobify/src/routes/tenants.routes.js → GET /v1/tenants/agreements
+// Every /v1/tenants/agreements* route is frontend-only (requireInternalService,
+// comprobify 6f6e7df) — hence the secret header, same as acceptAgreements below.
 export async function getAgreementStatus(ctx: ApiCtx): Promise<ApiAgreementStatus> {
   const result = await request<{ ok: true; agreements: ApiAgreementStatus }>(
     '/v1/tenants/agreements',
     { apiKey: ctx.apiKey },
+    { headers: buildClientForwardingHeaders({}) },
   );
   return result.agreements;
 }
@@ -984,6 +987,9 @@ export async function promoteTenant(
         ...(tier && { tier }),
         ...(tier && billingInterval && { billingInterval }),
       }),
+      // Frontend-only since comprobify 6f6e7df (ADR-035 addendum): the response
+      // carries every mirrored key's plaintext. Secret only — no visitor IP/UA.
+      headers: buildClientForwardingHeaders({}),
     },
   );
 }

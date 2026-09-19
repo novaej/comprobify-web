@@ -686,7 +686,17 @@
       "resending": "Sending...",
       "resendSent": "Verification email sent. Check your inbox.",
       "agreementRequired": "You must review and accept the legal agreements before activating production.",
-      "agreementRequiredLink": "Review and accept agreements"
+      "agreementRequiredLink": "Review and accept agreements",
+      "keys": {
+        "title": "Your new production API keys",
+        "description": "When you activated production, your sandbox API keys were replaced with new ones. Update any system that uses them (Postman, your ERP, etc.).",
+        "showOnce": "Copy these keys now. You will not be able to see them again.",
+        "show": "Show key",
+        "hide": "Hide key",
+        "copy": "Copy",
+        "continue": "I've copied my keys",
+        "continuing": "Continuing..."
+      }
     },
     "account": {
       "title": "Account",
