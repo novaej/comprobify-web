@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import { resendVerificationAction, refreshTenantStatusAction } from '@/app/actions/tenant';
+import { resendVerificationAction } from '@/app/actions/tenant';
 import { MailCheck, MailWarning } from 'lucide-react';
 
 const RESEND_COOLDOWN_SECONDS = 60;
@@ -10,14 +10,14 @@ const RESEND_COOLDOWN_SECONDS = 60;
 // Rendered by [locale]/layout.tsx on every authenticated page (Owner only)
 // while the tenant is pending email verification — a fresh signup, or an
 // account recovered via /recover-account, which the API always re-demotes.
+// The layout itself live-checks status while pending, so this banner clears
+// on the very next reload/navigation once verified — no "check now" button.
 export function EmailVerificationNotice() {
   const t = useTranslations('settings.verification');
-  const tError = useTranslations('settingsError');
+  const tError = useTranslations('apiError');
   const [isPending, startTransition] = useTransition();
-  const [isChecking, startCheckTransition] = useTransition();
   const [sent, setSent] = useState(false);
   const [verified, setVerified] = useState(false);
-  const [stillPending, setStillPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
 
@@ -29,14 +29,6 @@ export function EmailVerificationNotice() {
 
   if (verified) return null;
 
-  function showError(code: string) {
-    setError(
-      tError.has(code as Parameters<typeof tError>[0])
-        ? tError(code as Parameters<typeof tError>[0])
-        : code
-    );
-  }
-
   function handleResend() {
     // Guard against a second fire beating the disabled button's re-render —
     // this calls POST /v1/resend-verification, which has its own strict,
@@ -44,31 +36,22 @@ export function EmailVerificationNotice() {
     // limiters — comprobify's 83c54ed).
     if (isPending || cooldown > 0) return;
     setError(null);
-    setStillPending(false);
-    setCooldown(RESEND_COOLDOWN_SECONDS);
     startTransition(async () => {
       const result = await resendVerificationAction();
       if (!result) {
         setSent(true);
+        setCooldown(RESEND_COOLDOWN_SECONDS);
       } else if (result.error === 'ALREADY_VERIFIED') {
         // The local status mirror just hadn't caught up yet (e.g. verified in
         // another tab) — treat it as verified rather than showing an error.
         setVerified(true);
       } else {
-        showError(result.error);
+        setError(
+          tError.has(result.error as Parameters<typeof tError>[0])
+            ? tError(result.error as Parameters<typeof tError>[0])
+            : result.error
+        );
       }
-    });
-  }
-
-  function handleCheck() {
-    if (isChecking) return;
-    setError(null);
-    setStillPending(false);
-    startCheckTransition(async () => {
-      const result = await refreshTenantStatusAction();
-      if ('error' in result) showError(result.error);
-      else if (result.verified) setVerified(true);
-      else setStillPending(true);
     });
   }
 
@@ -87,27 +70,15 @@ export function EmailVerificationNotice() {
             {t('sent')}
           </p>
         )}
-        {stillPending && <p className="pt-1 text-xs">{t('stillPending')}</p>}
         {error && <p className="pt-1 text-xs text-destructive">{error}</p>}
       </div>
-      <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1">
-        {!sent && (
-          <button
-            onClick={handleResend}
-            disabled={isPending || cooldown > 0}
-            className="cursor-pointer text-xs font-medium underline underline-offset-4 hover:opacity-80 disabled:opacity-50"
-          >
-            {isPending ? t('sending') : cooldown > 0 ? t('cooldown', { seconds: cooldown }) : t('resend')}
-          </button>
-        )}
-        <button
-          onClick={handleCheck}
-          disabled={isChecking}
-          className="cursor-pointer text-xs font-medium underline underline-offset-4 hover:opacity-80 disabled:opacity-50"
-        >
-          {isChecking ? t('checking') : t('checkStatus')}
-        </button>
-      </div>
+      <button
+        onClick={handleResend}
+        disabled={isPending || cooldown > 0}
+        className="shrink-0 cursor-pointer text-xs font-medium underline underline-offset-4 hover:opacity-80 disabled:opacity-50"
+      >
+        {isPending ? t('sending') : cooldown > 0 ? t('cooldown', { seconds: cooldown }) : t('resend')}
+      </button>
     </div>
   );
 }

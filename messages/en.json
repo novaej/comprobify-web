@@ -725,10 +725,7 @@
       "resend": "Resend verification email",
       "sending": "Sending...",
       "sent": "Email sent. Check your inbox.",
-      "cooldown": "Resend in {seconds}s",
-      "checkStatus": "I already verified",
-      "checking": "Checking...",
-      "stillPending": "We don't see the verification yet. Click the link in the email and try again."
+      "cooldown": "Resend in {seconds}s"
     }
   },
   "settingsError": {
@@ -754,6 +751,7 @@
     "ADMIN_API_UNREACHABLE": "Could not connect to the admin API. Check that the service is running and COMPROBIFY_ADMIN_SECRET is correct.",
     "API_UNREACHABLE": "Could not connect to the service. Please try again in a few minutes.",
     "APP_URL_NOT_CONFIGURED": "This feature isn't available in this environment.",
+    "INTERNAL_SERVICE_ONLY": "This feature isn't available in this environment. Contact support.",
     "BAD_REQUEST": "The request is invalid. Please review the data entered.",
     "NOT_FOUND": "The requested resource does not exist.",
     "FORBIDDEN": "You do not have permission to perform this action.",

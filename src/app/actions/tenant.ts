@@ -3,7 +3,7 @@
 import { headers } from 'next/headers';
 import { db } from '@/lib/db';
 import { requirePermission, requireContext, type MinimalContext } from '@/lib/context';
-import { promoteTenant, updateTenantLanguage, getCurrentTenant } from '@/lib/api';
+import { promoteTenant, updateTenantLanguage } from '@/lib/api';
 import { listAdminApiKeys } from '@/lib/admin-api';
 import { resendVerificationEmail as publicResendVerificationEmail } from '@/lib/public-api';
 import { extractForwardedIp } from '@/lib/client-forwarding';
@@ -258,20 +258,4 @@ export async function resendVerificationAction(): Promise<VerificationResult> {
     throw err;
   }
   return null;
-}
-
-// Backs the banner's "Ya lo verifiqué" button: the verification link can be
-// opened on another device/session (or an admin can verify the tenant), none
-// of which touch this session's local mirror, so let the user re-check live.
-export async function refreshTenantStatusAction(): Promise<{ verified: boolean } | { error: string }> {
-  const ctx = await requireContext({ skipIssuer: true });
-  try {
-    const tenant = await getCurrentTenant({ apiKey: ctx.apiKey });
-    await reconcileTenantStatus(ctx.tenant.id, ctx.tenant.status, tenant.status);
-    revalidatePath('/', 'layout');
-    return { verified: tenant.status !== 'PENDING_VERIFICATION' };
-  } catch (err) {
-    if (err instanceof ApiError) return { error: err.code };
-    throw err;
-  }
 }

@@ -21,7 +21,10 @@ import { auth } from '@/auth';
 import { db } from '@/lib/db';
 import { isUuid } from '@/lib/utils';
 import { hasPermission, type Role } from '@/lib/rbac';
-import { isUnverifiedStatus } from '@/lib/tenant-status-sync';
+import { isUnverifiedStatus, reconcileTenantStatus } from '@/lib/tenant-status-sync';
+import { findMasterApiKeyRow } from '@/lib/tenant-api-key';
+import { decrypt } from '@/lib/crypto';
+import { getCurrentTenant } from '@/lib/api';
 import { readCtxCookie } from '@/lib/context-cookie';
 import { visibleNotificationOr } from '@/lib/notification-visibility';
 import { resolveIdleTimeoutMinutes } from '@/lib/session-timeout';
@@ -96,6 +99,24 @@ async function getLayoutProps(userId: string): Promise<LayoutProps | null> {
   });
 
   if (!user?.active || !user?.tenant) return null;
+
+  // Live-checked only while the mirror says pending — zero extra cost for the
+  // normal (verified) case, but self-clears on the very next render once the
+  // tenant is actually verified, with no manual "check now" button needed.
+  let needsEmailVerification = false;
+  if (isUnverifiedStatus(user.tenant.status) && hasPermission(user.role as Role, 'tenant.manage')) {
+    needsEmailVerification = true;
+    const keyRow = await findMasterApiKeyRow(user.tenant.id, user.tenant.environment);
+    if (keyRow) {
+      try {
+        const tenantInfo = await getCurrentTenant({ apiKey: decrypt(keyRow.encryptedKey) });
+        await reconcileTenantStatus(user.tenant.id, user.tenant.status, tenantInfo.status);
+        needsEmailVerification = tenantInfo.status === 'PENDING_VERIFICATION';
+      } catch {
+        // API hiccup — fall back to the mirror's (possibly stale) value rather than hide it.
+      }
+    }
+  }
 
   const ctxCookie = await readCtxCookie();
   const allIssuers = user.tenant.issuers.map((i) => ({
@@ -202,9 +223,7 @@ async function getLayoutProps(userId: string): Promise<LayoutProps | null> {
     environment: user.tenant.environment as 'sandbox' | 'production',
     isSuspended: user.tenant.status === 'SUSPENDED',
     isPastDue: user.tenant.status === 'PAST_DUE',
-    // Only someone who can act on it (the resend goes out under the Owner's own login).
-    needsEmailVerification:
-      isUnverifiedStatus(user.tenant.status) && hasPermission(user.role as Role, 'tenant.manage'),
+    needsEmailVerification,
     tenantName: user.tenant.businessName,
     currentIssuer,
     issuers: displayIssuers,

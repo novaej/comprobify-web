@@ -725,10 +725,7 @@
       "resend": "Reenviar correo de verificación",
       "sending": "Enviando...",
       "sent": "Correo enviado. Revisa tu bandeja de entrada.",
-      "cooldown": "Reenviar en {seconds}s",
-      "checkStatus": "Ya lo verifiqué",
-      "checking": "Comprobando...",
-      "stillPending": "Aún no vemos la verificación. Haz clic en el enlace del correo e inténtalo de nuevo."
+      "cooldown": "Reenviar en {seconds}s"
     }
   },
   "settingsError": {
@@ -754,6 +751,7 @@
     "ADMIN_API_UNREACHABLE": "No se pudo conectar con la API de administración. Verifique que el servicio esté activo y que COMPROBIFY_ADMIN_SECRET sea correcto.",
     "API_UNREACHABLE": "No se pudo conectar con el servicio. Inténtalo de nuevo en unos minutos.",
     "APP_URL_NOT_CONFIGURED": "Esta función no está disponible en este entorno.",
+    "INTERNAL_SERVICE_ONLY": "Esta función no está disponible en este entorno. Contacta a soporte.",
     "BAD_REQUEST": "La solicitud no es válida. Revise los datos ingresados.",
     "NOT_FOUND": "El recurso solicitado no existe.",
     "FORBIDDEN": "No tiene permisos para realizar esta acción.",

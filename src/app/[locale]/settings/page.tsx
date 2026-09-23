@@ -34,6 +34,7 @@ export default async function SettingsPage({
   const canReadApiKeys = ctx.permissions.has('apikeys.read');
   const canManageTenant = ctx.permissions.has('tenant.manage');
   const canPromoteTenant = ctx.permissions.has('tenant.promote');
+  const isOwnerOrAdmin = ctx.user.role === 'Owner' || ctx.user.role === 'Admin';
 
   const activeIssuers = await db.issuer.findMany({
     where: { tenantId, active: true },
@@ -74,7 +75,8 @@ export default async function SettingsPage({
           .then((subs) => subs.find((s) => s.status !== 'CANCELLED' && s.status !== 'EXPIRED') ?? null)
           .catch(() => null)
       : Promise.resolve(null),
-    canManageTenant
+    // "Documentos legales" card below is Owner/Admin only.
+    isOwnerOrAdmin
       ? getAgreementStatus({ apiKey: ctx.apiKey }).catch(() => null)
       : Promise.resolve(null),
     // Email verification is a fact about the tenant (tenant.status at the
@@ -152,7 +154,7 @@ export default async function SettingsPage({
           <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
         </Link>
 
-        {canManageTenant && agreementStatus?.hasPublishedAgreements && (
+        {isOwnerOrAdmin && agreementStatus?.hasPublishedAgreements && (
           <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
             <h2 className="text-sm font-semibold">{t('legalDocs.title')}</h2>
             <p className="mt-1 text-xs text-muted-foreground">{t('legalDocs.description')}</p>
