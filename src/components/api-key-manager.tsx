@@ -330,15 +330,17 @@ export function ApiKeyManager({
                         {k.requestCount.toLocaleString('es-EC')}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <button
-                          type="button"
-                          onClick={() => setExpandedId((id) => (id === k.id ? null : k.id))}
-                          className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                        >
-                          <BarChart3 className="h-3.5 w-3.5" />
-                          {t('usageChart.viewUsage')}
-                          {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                        </button>
+                        {!k.isManaged && (
+                          <button
+                            type="button"
+                            onClick={() => setExpandedId((id) => (id === k.id ? null : k.id))}
+                            className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                          >
+                            <BarChart3 className="h-3.5 w-3.5" />
+                            {t('usageChart.viewUsage')}
+                            {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                          </button>
+                        )}
                       </td>
                       {canManage && (
                         <td className="px-4 py-3 text-right">
@@ -357,7 +359,7 @@ export function ApiKeyManager({
                         </td>
                       )}
                     </tr>
-                    {isExpanded && (
+                    {isExpanded && !k.isManaged && (
                       <tr className={k.isActive ? '' : 'opacity-50'}>
                         <td colSpan={columnCount} className="bg-muted/10 px-4 py-3">
                           <ApiKeyUsageChart keyId={k.id} />
