@@ -1123,6 +1123,7 @@
     "scopeLabels": {
       "documents:read": "Read documents",
       "documents:write": "Create documents",
+      "documents:void": "Void documents",
       "issuers:read": "Read issuers",
       "issuers:write": "Manage issuers",
       "keys:manage": "Manage API keys",

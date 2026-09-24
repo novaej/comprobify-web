@@ -1228,6 +1228,7 @@
     "scopeLabels": {
       "documents:read": "Leer comprobantes",
       "documents:write": "Crear comprobantes",
+      "documents:void": "Anular comprobantes",
       "issuers:read": "Leer emisores",
       "issuers:write": "Administrar emisores",
       "keys:manage": "Administrar API keys",
