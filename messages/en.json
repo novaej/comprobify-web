@@ -686,7 +686,17 @@
       "resending": "Sending...",
       "resendSent": "Verification email sent. Check your inbox.",
       "agreementRequired": "You must review and accept the legal agreements before activating production.",
-      "agreementRequiredLink": "Review and accept agreements"
+      "agreementRequiredLink": "Review and accept agreements",
+      "keys": {
+        "title": "Your new production API keys",
+        "description": "When you activated production, your sandbox API keys were replaced with new ones. Update any system that uses them (Postman, your ERP, etc.).",
+        "showOnce": "Copy these keys now. You will not be able to see them again.",
+        "show": "Show key",
+        "hide": "Hide key",
+        "copy": "Copy",
+        "continue": "I've copied my keys",
+        "continuing": "Continuing..."
+      }
     },
     "account": {
       "title": "Account",
@@ -711,7 +721,7 @@
     },
     "verification": {
       "title": "Verify your email address",
-      "description": "Check your inbox and click the verification link. You need to verify your email before activating the production environment.",
+      "description": "Check your inbox and click the verification link. Until you do, you can't activate production or subscribe to a plan.",
       "resend": "Resend verification email",
       "sending": "Sending...",
       "sent": "Email sent. Check your inbox.",
@@ -741,6 +751,7 @@
     "ADMIN_API_UNREACHABLE": "Could not connect to the admin API. Check that the service is running and COMPROBIFY_ADMIN_SECRET is correct.",
     "API_UNREACHABLE": "Could not connect to the service. Please try again in a few minutes.",
     "APP_URL_NOT_CONFIGURED": "This feature isn't available in this environment.",
+    "INTERNAL_SERVICE_ONLY": "This feature isn't available in this environment. Contact support.",
     "BAD_REQUEST": "The request is invalid. Please review the data entered.",
     "NOT_FOUND": "The requested resource does not exist.",
     "FORBIDDEN": "You do not have permission to perform this action.",
@@ -1066,6 +1077,9 @@
     "title": "API Keys",
     "description": "Create keys to connect Postman, your ERP, or any custom system to the Comprobify API.",
     "empty": "No API keys.",
+    "emptyActive": "No active API keys.",
+    "showRevoked": "Show revoked keys ({count})",
+    "hideRevoked": "Hide revoked keys ({count})",
     "show": "Show key",
     "hide": "Hide key",
     "appKeyBadge": "Used by the app",
@@ -1088,6 +1102,7 @@
     "keyUsageUnlimited": "{used} API keys used (unlimited)",
     "keyLimitReached": "You've reached your plan's API key limit ({used} of {limit}). Revoke an unused key or upgrade your plan to create more.",
     "noCustomAccess": "Your plan doesn't include custom API keys. Upgrade your plan to create one.",
+    "emailNotVerified": "Verify your email address to create API keys. The account owner can resend the verification email from the notice at the top of the page.",
     "table": {
       "label": "Label",
       "environment": "Environment",
@@ -1111,6 +1126,7 @@
     "scopeLabels": {
       "documents:read": "Read documents",
       "documents:write": "Create documents",
+      "documents:void": "Void documents",
       "issuers:read": "Read issuers",
       "issuers:write": "Manage issuers",
       "keys:manage": "Manage API keys",
@@ -1325,6 +1341,7 @@
     "endpointUsageUnlimited": "{used} webhooks used (unlimited)",
     "limitReached": "You've reached your plan's webhook limit ({used} of {limit}). Remove an existing one or upgrade your plan to add more.",
     "noCustomAccess": "Your plan doesn't include custom webhooks. Upgrade your plan to add one.",
+    "emailNotVerified": "Verify your email address to register your own webhooks. The account owner can resend the verification email from the notice at the top of the page.",
     "add": "Register webhook",
     "delete": "Delete",
     "confirmDelete": "Delete this endpoint? It will stop receiving notifications immediately.",

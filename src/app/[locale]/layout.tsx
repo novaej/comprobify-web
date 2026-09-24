@@ -12,6 +12,7 @@ import { SandboxBanner } from '@/components/sandbox-banner';
 import { StagingDeploymentBanner } from '@/components/staging-deployment-banner';
 import { SuspendedBanner } from '@/components/suspended-banner';
 import { PastDueBanner } from '@/components/past-due-banner';
+import { EmailVerificationNotice } from '@/components/email-verification-notice';
 import { CertExpiryBanner } from '@/components/cert-expiry-banner';
 import { AgreementPendingBanner } from '@/components/agreement-pending-banner';
 import { NotificationSync } from '@/components/notification-sync';
@@ -19,7 +20,11 @@ import { TopBar } from '@/components/top-bar';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
 import { isUuid } from '@/lib/utils';
-import type { Role } from '@/lib/rbac';
+import { hasPermission, type Role } from '@/lib/rbac';
+import { isUnverifiedStatus, reconcileTenantStatus } from '@/lib/tenant-status-sync';
+import { findMasterApiKeyRow } from '@/lib/tenant-api-key';
+import { decrypt } from '@/lib/crypto';
+import { getCurrentTenant } from '@/lib/api';
 import { readCtxCookie } from '@/lib/context-cookie';
 import { visibleNotificationOr } from '@/lib/notification-visibility';
 import { resolveIdleTimeoutMinutes } from '@/lib/session-timeout';
@@ -49,6 +54,7 @@ interface LayoutProps {
   environment: 'sandbox' | 'production';
   isSuspended: boolean;
   isPastDue: boolean;
+  needsEmailVerification: boolean;
   tenantName: string | null;
   currentIssuer: { id: string; apiIssuerId: string; name: string; branchCode: string; issuePointCode: string } | null;
   issuers: Array<{ id: string; apiIssuerId: string; name: string; branchCode: string; issuePointCode: string }>;
@@ -93,6 +99,24 @@ async function getLayoutProps(userId: string): Promise<LayoutProps | null> {
   });
 
   if (!user?.active || !user?.tenant) return null;
+
+  // Live-checked only while the mirror says pending — zero extra cost for the
+  // normal (verified) case, but self-clears on the very next render once the
+  // tenant is actually verified, with no manual "check now" button needed.
+  let needsEmailVerification = false;
+  if (isUnverifiedStatus(user.tenant.status) && hasPermission(user.role as Role, 'tenant.manage')) {
+    needsEmailVerification = true;
+    const keyRow = await findMasterApiKeyRow(user.tenant.id, user.tenant.environment);
+    if (keyRow) {
+      try {
+        const tenantInfo = await getCurrentTenant({ apiKey: decrypt(keyRow.encryptedKey) });
+        await reconcileTenantStatus(user.tenant.id, user.tenant.status, tenantInfo.status);
+        needsEmailVerification = tenantInfo.status === 'PENDING_VERIFICATION';
+      } catch {
+        // API hiccup — fall back to the mirror's (possibly stale) value rather than hide it.
+      }
+    }
+  }
 
   const ctxCookie = await readCtxCookie();
   const allIssuers = user.tenant.issuers.map((i) => ({
@@ -199,6 +223,7 @@ async function getLayoutProps(userId: string): Promise<LayoutProps | null> {
     environment: user.tenant.environment as 'sandbox' | 'production',
     isSuspended: user.tenant.status === 'SUSPENDED',
     isPastDue: user.tenant.status === 'PAST_DUE',
+    needsEmailVerification,
     tenantName: user.tenant.businessName,
     currentIssuer,
     issuers: displayIssuers,
@@ -281,6 +306,7 @@ export default async function LocaleLayout({
                 <main className="flex-1 overflow-y-auto p-4 md:p-8">
                   <SuspendedBanner isSuspended={layoutProps.isSuspended} />
                   <PastDueBanner isPastDue={layoutProps.isPastDue} />
+                  {layoutProps.needsEmailVerification && <EmailVerificationNotice />}
                   <StagingDeploymentBanner />
                   <SandboxBanner environment={layoutProps.environment} />
                   {layoutProps.certAlert && (

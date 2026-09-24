@@ -7,7 +7,7 @@ import { createTenantApiKeyAction, revokeTenantApiKeyAction } from '@/app/action
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { AlertTriangle, BarChart3, Check, ChevronDown, ChevronUp, Copy, Eye, EyeOff, ExternalLink, Key, Lock, Plus } from 'lucide-react';
+import { AlertTriangle, BarChart3, Check, ChevronDown, ChevronUp, Copy, Eye, EyeOff, ExternalLink, Key, Lock, MailWarning, Plus } from 'lucide-react';
 import { toastApiError } from '@/lib/api-error-toast';
 import { ApiKeyUsageChart } from '@/components/api-key-usage-chart';
 import { ALL_API_SCOPES, type ApiKeyScope } from '@/lib/role-api-scopes';
@@ -40,6 +40,7 @@ export function ApiKeyManager({
   activeKeyCount,
   maxApiKeys,
   customKeysAllowed,
+  emailVerified,
 }: {
   keys: ApiKeyRow[];
   canManage: boolean;
@@ -60,6 +61,8 @@ export function ApiKeyManager({
    * could otherwise spend on self-service keys of their own.
    */
   customKeysAllowed: boolean;
+  /** POST /v1/keys needs a verified email. */
+  emailVerified: boolean;
 }) {
   const t = useTranslations('apiKeys');
   const tRole = useTranslations('users');
@@ -73,6 +76,7 @@ export function ApiKeyManager({
   const [copied, setCopied] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [revokeTarget, setRevokeTarget] = useState<ApiKeyRow | null>(null);
+  const [showRevoked, setShowRevoked] = useState(false);
 
   function copy(value: string, slot: string) {
     navigator.clipboard.writeText(value);
@@ -125,7 +129,141 @@ export function ApiKeyManager({
 
   const curlSnippet = `curl ${apiBaseUrl}/v1/documents \\\n  -H "Authorization: Bearer ${createdKey?.key ?? t('usage.keyPlaceholder')}"`;
   const atKeyLimit = maxApiKeys !== null && activeKeyCount >= maxApiKeys;
-  const createDisabled = atKeyLimit || !customKeysAllowed;
+  const createDisabled = atKeyLimit || !customKeysAllowed || !emailVerified;
+
+  const activeKeys = keys.filter((k) => k.isActive);
+  const revokedKeys = keys.filter((k) => !k.isActive);
+
+  function renderKeysTable(rows: ApiKeyRow[]) {
+    return (
+          <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-max text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/40">
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('table.label')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('table.scopes')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('table.environment')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('table.lastFour')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('table.status')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('table.created')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('table.lastUsed')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('table.requests')}</th>
+                    <th className="px-4 py-3" />
+                    {canManage && <th className="px-4 py-3" />}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {rows.map((k) => {
+                    const isExpanded = expandedId === k.id;
+                    const columnCount = 9 + (canManage ? 1 : 0);
+                    const isFullAccess = ALL_API_SCOPES.every((s) => k.scopes.includes(s));
+                    return (
+                      <Fragment key={k.id}>
+                      <tr className={k.isActive ? '' : 'opacity-50'}>
+                        <td className="px-4 py-3 font-medium">
+                          <div className="flex flex-col gap-1">
+                            <span className="flex items-center gap-2">
+                              <Key className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                              {k.label}
+                            </span>
+                            {k.isManaged && (
+                              <span className="inline-flex w-fit items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-normal text-muted-foreground">
+                                <Lock className="h-3 w-3" />
+                                {k.managedRole ? t('appKeyBadgeRole', { role: tRole(`role.${k.managedRole}`) }) : t('appKeyBadge')}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          {k.scopes.length === 0 ? (
+                            <span className="text-muted-foreground">—</span>
+                          ) : isFullAccess ? (
+                            <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                              {t('fullAccess')}
+                            </span>
+                          ) : (
+                            <span className="flex flex-wrap gap-1">
+                              {k.scopes.map((scope) => (
+                                <span
+                                  key={scope}
+                                  title={t.has(`scopeLabels.${scope}`) ? t(`scopeLabels.${scope}` as never) : undefined}
+                                  className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground"
+                                >
+                                  {scope}
+                                </span>
+                              ))}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">{k.environment}</td>
+                        <td className="px-4 py-3 font-mono text-muted-foreground">••••{k.lastFour}</td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                              k.isActive
+                                ? 'bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400'
+                                : 'bg-muted text-muted-foreground'
+                            }`}
+                          >
+                            {k.isActive ? t('status.active') : t('status.revoked')}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
+                          {new Date(k.createdAt).toLocaleDateString('es-EC')}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
+                          {k.lastUsedAt ? new Date(k.lastUsedAt).toLocaleDateString('es-EC') : t('table.neverUsed')}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
+                          {k.requestCount.toLocaleString('es-EC')}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          {!k.isManaged && (
+                            <button
+                              type="button"
+                              onClick={() => setExpandedId((id) => (id === k.id ? null : k.id))}
+                              className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                            >
+                              <BarChart3 className="h-3.5 w-3.5" />
+                              {t('usageChart.viewUsage')}
+                              {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                            </button>
+                          )}
+                        </td>
+                        {canManage && (
+                          <td className="px-4 py-3 text-right">
+                            {k.isActive &&
+                              (k.isManaged ? (
+                                <span className="text-xs text-muted-foreground">{t('appKeyLocked')}</span>
+                              ) : (
+                                <button
+                                  onClick={() => setRevokeTarget(k)}
+                                  disabled={isPending}
+                                  className="text-xs text-destructive hover:underline disabled:opacity-50"
+                                >
+                                  {t('revoke')}
+                                </button>
+                              ))}
+                          </td>
+                        )}
+                      </tr>
+                      {isExpanded && !k.isManaged && (
+                        <tr className={k.isActive ? '' : 'opacity-50'}>
+                          <td colSpan={columnCount} className="bg-muted/10 px-4 py-3">
+                            <ApiKeyUsageChart keyId={k.id} />
+                          </td>
+                        </tr>
+                      )}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -148,6 +286,11 @@ export function ApiKeyManager({
         <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 text-sm text-amber-700 dark:text-amber-400">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           {t('noCustomAccess')}
+        </div>
+      ) : !emailVerified ? (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 text-sm text-amber-700 dark:text-amber-400">
+          <MailWarning className="mt-0.5 h-4 w-4 shrink-0" />
+          {t('emailNotVerified')}
         </div>
       ) : atKeyLimit && (
         <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 text-sm text-amber-700 dark:text-amber-400">
@@ -236,132 +379,23 @@ export function ApiKeyManager({
           </Button>
         ))}
 
-      {keys.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{t('empty')}</p>
+      {activeKeys.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{keys.length === 0 ? t('empty') : t('emptyActive')}</p>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-max text-sm">
-              <thead>
-                <tr className="border-b border-border bg-muted/40">
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('table.label')}</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('table.scopes')}</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('table.environment')}</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('table.lastFour')}</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('table.status')}</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('table.created')}</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('table.lastUsed')}</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('table.requests')}</th>
-                  <th className="px-4 py-3" />
-                  {canManage && <th className="px-4 py-3" />}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {keys.map((k) => {
-                  const isExpanded = expandedId === k.id;
-                  const columnCount = 9 + (canManage ? 1 : 0);
-                  const isFullAccess = ALL_API_SCOPES.every((s) => k.scopes.includes(s));
-                  return (
-                    <Fragment key={k.id}>
-                    <tr className={k.isActive ? '' : 'opacity-50'}>
-                      <td className="px-4 py-3 font-medium">
-                        <div className="flex flex-col gap-1">
-                          <span className="flex items-center gap-2">
-                            <Key className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                            {k.label}
-                          </span>
-                          {k.isManaged && (
-                            <span className="inline-flex w-fit items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-normal text-muted-foreground">
-                              <Lock className="h-3 w-3" />
-                              {k.managedRole ? t('appKeyBadgeRole', { role: tRole(`role.${k.managedRole}`) }) : t('appKeyBadge')}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        {k.scopes.length === 0 ? (
-                          <span className="text-muted-foreground">—</span>
-                        ) : isFullAccess ? (
-                          <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                            {t('fullAccess')}
-                          </span>
-                        ) : (
-                          <span className="flex flex-wrap gap-1">
-                            {k.scopes.map((scope) => (
-                              <span
-                                key={scope}
-                                title={t.has(`scopeLabels.${scope}`) ? t(`scopeLabels.${scope}` as never) : undefined}
-                                className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground"
-                              >
-                                {scope}
-                              </span>
-                            ))}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">{k.environment}</td>
-                      <td className="px-4 py-3 font-mono text-muted-foreground">••••{k.lastFour}</td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                            k.isActive
-                              ? 'bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400'
-                              : 'bg-muted text-muted-foreground'
-                          }`}
-                        >
-                          {k.isActive ? t('status.active') : t('status.revoked')}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
-                        {new Date(k.createdAt).toLocaleDateString('es-EC')}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
-                        {k.lastUsedAt ? new Date(k.lastUsedAt).toLocaleDateString('es-EC') : t('table.neverUsed')}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
-                        {k.requestCount.toLocaleString('es-EC')}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <button
-                          type="button"
-                          onClick={() => setExpandedId((id) => (id === k.id ? null : k.id))}
-                          className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                        >
-                          <BarChart3 className="h-3.5 w-3.5" />
-                          {t('usageChart.viewUsage')}
-                          {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                        </button>
-                      </td>
-                      {canManage && (
-                        <td className="px-4 py-3 text-right">
-                          {k.isActive &&
-                            (k.isManaged ? (
-                              <span className="text-xs text-muted-foreground">{t('appKeyLocked')}</span>
-                            ) : (
-                              <button
-                                onClick={() => setRevokeTarget(k)}
-                                disabled={isPending}
-                                className="text-xs text-destructive hover:underline disabled:opacity-50"
-                              >
-                                {t('revoke')}
-                              </button>
-                            ))}
-                        </td>
-                      )}
-                    </tr>
-                    {isExpanded && (
-                      <tr className={k.isActive ? '' : 'opacity-50'}>
-                        <td colSpan={columnCount} className="bg-muted/10 px-4 py-3">
-                          <ApiKeyUsageChart keyId={k.id} />
-                        </td>
-                      </tr>
-                    )}
-                    </Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+        renderKeysTable(activeKeys)
+      )}
+
+      {revokedKeys.length > 0 && (
+        <div className="space-y-3">
+          <button
+            type="button"
+            onClick={() => setShowRevoked((v) => !v)}
+            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          >
+            {showRevoked ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            {t(showRevoked ? 'hideRevoked' : 'showRevoked', { count: revokedKeys.length })}
+          </button>
+          {showRevoked && renderKeysTable(revokedKeys)}
         </div>
       )}
 

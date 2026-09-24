@@ -7,7 +7,7 @@ import { registerWebhookAction, deleteWebhookAction, activateCanonicalWebhookAct
 import { toastApiError } from '@/lib/api-error-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { AlertTriangle, Plus, Webhook, Trash2, ChevronDown, ChevronUp, Bell } from 'lucide-react';
+import { AlertTriangle, Plus, Webhook, Trash2, ChevronDown, ChevronUp, Bell, MailWarning } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const ALL_EVENT_TYPES = [
@@ -39,6 +39,8 @@ interface WebhookManagerProps {
   maxEndpoints: number | null;
   /** Whether the tenant's own tier sells any self-service webhook slots at all (FREE/SOLO/LITE currently don't). */
   customWebhooksAllowed: boolean;
+  /** Registering a custom endpoint needs a verified email (the canonical in-app webhook is exempt). */
+  emailVerified: boolean;
 }
 
 export function WebhookManager({
@@ -48,6 +50,7 @@ export function WebhookManager({
   usedEndpoints,
   maxEndpoints,
   customWebhooksAllowed,
+  emailVerified,
 }: WebhookManagerProps) {
   const t = useTranslations('webhooks');
   const tError = useTranslations('apiError');
@@ -61,7 +64,7 @@ export function WebhookManager({
   const [showEventPicker, setShowEventPicker] = useState(false);
 
   const atEndpointLimit = maxEndpoints !== null && usedEndpoints >= maxEndpoints;
-  const customWebhookDisabled = atEndpointLimit || !customWebhooksAllowed;
+  const customWebhookDisabled = atEndpointLimit || !customWebhooksAllowed || !emailVerified;
 
   function handleActivateCanonical() {
     startTransition(async () => {
@@ -143,6 +146,11 @@ export function WebhookManager({
         <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 text-sm text-amber-700 dark:text-amber-400">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           {t('noCustomAccess')}
+        </div>
+      ) : !emailVerified ? (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 text-sm text-amber-700 dark:text-amber-400">
+          <MailWarning className="mt-0.5 h-4 w-4 shrink-0" />
+          {t('emailNotVerified')}
         </div>
       ) : atEndpointLimit && (
         <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 text-sm text-amber-700 dark:text-amber-400">

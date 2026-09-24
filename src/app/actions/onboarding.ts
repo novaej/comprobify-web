@@ -128,7 +128,7 @@ export async function bootstrapTenantAction(formData: FormData): Promise<Onboard
           businessName,
           tradeName,
           environment: 'sandbox',
-          status: isEmailVerified ? 'ACTIVE' : 'PENDING',
+          status: isEmailVerified ? 'ACTIVE' : 'PENDING_VERIFICATION',
           intendedTier: intendedPlan?.tier,
           intendedBillingInterval: intendedPlan?.interval,
         },

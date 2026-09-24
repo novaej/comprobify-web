@@ -7,9 +7,12 @@ import 'server-only';
 //     overrides req.ip with X-Forwarded-Visitor-Ip when the secret matches;
 //     a missing/wrong secret there just leaves req.ip resolution unchanged.
 //   - src/middleware/require-internal-service.js: a hard gate on
-//     POST /v1/register, /recover, /resend-verification, and /verify-email —
-//     fails CLOSED (403 INTERNAL_SERVICE_ONLY) without a valid secret,
-//     regardless of whether a visitor IP was ever resolved.
+//     POST /v1/register, /recover, /resend-verification, and /verify-email,
+//     every subscription/payment mutation, and (comprobify 6f6e7df) POST
+//     /v1/tenants/promote plus every agreement route (GET /v1/agreements*,
+//     GET/POST /v1/tenants/agreements*) — fails CLOSED (403
+//     INTERNAL_SERVICE_ONLY) without a valid secret, regardless of whether a
+//     visitor IP was ever resolved.
 // So the secret must be sent whenever it's configured, independent of
 // whether forwardedIp is present — see buildClientForwardingHeaders below.
 

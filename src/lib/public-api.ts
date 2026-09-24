@@ -258,7 +258,8 @@ export async function resendVerificationEmail(
 }
 
 // Verified against: ../comprobify/src/controllers/agreement.controller.js → list()
-// and ../comprobify/src/routes/agreements.routes.js → GET /v1/agreements (public, no auth)
+// and ../comprobify/src/routes/agreements.routes.js → GET /v1/agreements (no tenant auth,
+// but frontend-only since comprobify 6f6e7df — requireInternalService, so the secret is required)
 export interface ApiAgreementInfo {
   documentType: 'TERMS' | 'PRIVACY' | 'DPA';
   version: string;
@@ -266,7 +267,9 @@ export interface ApiAgreementInfo {
 }
 
 export async function listAgreements(): Promise<ApiAgreementInfo[]> {
-  const result = await publicRequest<{ ok: true; documents: ApiAgreementInfo[] }>('/v1/agreements');
+  const result = await publicRequest<{ ok: true; documents: ApiAgreementInfo[] }>('/v1/agreements', {
+    headers: buildClientForwardingHeaders({}),
+  });
   return result.documents;
 }
 

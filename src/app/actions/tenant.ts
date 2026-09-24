@@ -8,6 +8,7 @@ import { listAdminApiKeys } from '@/lib/admin-api';
 import { resendVerificationEmail as publicResendVerificationEmail } from '@/lib/public-api';
 import { extractForwardedIp } from '@/lib/client-forwarding';
 import { encrypt, lastFour } from '@/lib/crypto';
+import { reconcileTenantStatus } from '@/lib/tenant-status-sync';
 import { isValidIdleTimeoutMinutes } from '@/lib/session-timeout';
 import { revalidatePath } from 'next/cache';
 import { redirect } from '@/i18n/navigation';
@@ -19,6 +20,17 @@ import * as Sentry from '@sentry/nextjs';
 
 export type TenantResult = { error: string } | null;
 export type VerificationResult = { error: string } | null;
+
+// `newKeys` holds the one-time plaintext of the tenant's own (non-reserved)
+// keys, minted fresh at promotion since their sandbox tokens were revoked.
+// When present the action deliberately does NOT revalidate/redirect — the
+// promotion card unmounts the moment the layout refreshes to production, taking
+// the reveal dialog (and the only copy of these tokens) with it. The client
+// calls finishPromotionAction() once the user has copied them.
+export type PromoteActionResult =
+  | { error: string }
+  | { newKeys: { label: string; key: string }[]; goToBilling: boolean }
+  | null;
 
 // Each field is only written when the caller actually passed it — omitting a
 // key must leave that column untouched, not null it out. `sessionIdleTimeoutMinutes:
@@ -56,7 +68,7 @@ export async function promoteTenantAction(
   initialSequentials: { issuerId: string; documentType: string; sequential: number }[] = [],
   tier?: PaidTier,
   billingInterval?: BillingInterval,
-): Promise<TenantResult> {
+): Promise<PromoteActionResult> {
   await requirePermission('tenant.promote', { skipIssuer: true });
   const ctx = await requireContext({ skipIssuer: true });
 
@@ -94,9 +106,11 @@ export async function promoteTenantAction(
   // doesn't depend on any particular key's scopes.
   const masterLabel = existingSandboxKeys.find((row) => row.isManaged && !row.managedRole)?.label;
   const adminKeys = await listAdminApiKeys(ctx.tenant.apiTenantId).catch(() => []);
-  const keyInfoByLabel: Record<string, { id: string; scopes: string[] }> = {};
+  const keyInfoByLabel: Record<string, { id: string; scopes: string[]; isReserved: boolean }> = {};
   for (const k of adminKeys) {
-    if (k.environment === 'production' && k.label) keyInfoByLabel[k.label] = { id: k.id, scopes: k.scopes };
+    if (k.environment === 'production' && k.label) {
+      keyInfoByLabel[k.label] = { id: k.id, scopes: k.scopes, isReserved: k.isReserved };
+    }
   }
 
   // The API has already promoted the tenant and revoked its sandbox keys by
@@ -168,12 +182,38 @@ export async function promoteTenantAction(
     });
   });
 
+  // The API returns reserved keys' plaintext too (this app's own key is reserved,
+  // and the API includes them for a reserved caller) — those must never reach the
+  // browser. Fail closed: reveal only keys both the API and the local mirror
+  // agree are the tenant's own.
+  const newKeys = result.apiKeys
+    .filter((key) => {
+      const info = keyInfoByLabel[key.label];
+      return info && !info.isReserved && !managedByLabel[key.label]?.isManaged;
+    })
+    .map((key) => ({ label: key.label, key: key.apiKey }));
+
+  if (newKeys.length > 0) {
+    return { newKeys, goToBilling: Boolean(result.subscription) };
+  }
+
+  await finishPromotion(Boolean(result.subscription));
+  return null;
+}
+
+// Second half of promotion for the reveal-keys path: the client calls this once
+// the user has copied their keys, so the layout refresh can't unmount the dialog early.
+export async function finishPromotionAction(goToBilling: boolean): Promise<void> {
+  await requirePermission('tenant.promote', { skipIssuer: true });
+  await finishPromotion(goToBilling);
+}
+
+async function finishPromotion(goToBilling: boolean): Promise<void> {
   revalidatePath('/', 'layout');
-  if (result.subscription) {
+  if (goToBilling) {
     const locale = await getLocale();
     redirect({ href: '/settings/billing', locale });
   }
-  return null;
 }
 
 export async function updateLanguageAction(language: string): Promise<TenantResult> {
@@ -207,7 +247,14 @@ export async function resendVerificationAction(): Promise<VerificationResult> {
       forwardedIp: extractForwardedIp(reqHeaders),
     });
   } catch (err) {
-    if (err instanceof ApiError) return { error: err.code };
+    if (err instanceof ApiError) {
+      if (err.code === 'ALREADY_VERIFIED') {
+        // The layout banner's mirror was stale — the tenant is already active.
+        await reconcileTenantStatus(ctx.tenant.id, ctx.tenant.status, 'ACTIVE');
+        revalidatePath('/', 'layout');
+      }
+      return { error: err.code };
+    }
     throw err;
   }
   return null;

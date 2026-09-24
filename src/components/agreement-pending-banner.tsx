@@ -2,21 +2,32 @@
 
 import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import { Link, usePathname } from '@/i18n/navigation';
+import { Link } from '@/i18n/navigation';
 import { AlertTriangle, X } from 'lucide-react';
 import { getAgreementStatusAction } from '@/app/actions/agreements';
 
+export const AGREEMENTS_ACCEPTED_EVENT = 'comprobify:agreements-accepted';
+
+// Checked once per mount, not per navigation — the layout (and this banner)
+// persists across soft navigations, and refetching on every route change burned
+// the API's per-key read rate limit. Acceptance hides it via AGREEMENTS_ACCEPTED_EVENT.
 export function AgreementPendingBanner() {
   const t = useTranslations('agreementBanner');
-  const pathname = usePathname();
   const [pending, setPending] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     getAgreementStatusAction().then((result) => {
-      setPending(!('error' in result) && result.needsAcceptance);
+      if (!cancelled) setPending(!('error' in result) && result.needsAcceptance);
     });
-  }, [pathname]);
+    const onAccepted = () => setPending(false);
+    window.addEventListener(AGREEMENTS_ACCEPTED_EVENT, onAccepted);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(AGREEMENTS_ACCEPTED_EVENT, onAccepted);
+    };
+  }, []);
 
   if (!pending || dismissed) return null;
 

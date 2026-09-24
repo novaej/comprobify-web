@@ -9,6 +9,7 @@ import { promoteTenantAction } from '@/app/actions/tenant';
 import { resendVerificationAction } from '@/app/actions/tenant';
 import { AlertTriangle, Info, MailCheck, FileWarning } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
+import { PromotionKeysDialog } from '@/components/promotion-keys-dialog';
 import type { ApiTierInfo } from '@/lib/public-api';
 import { resolveTierTotal, type PaidTier, type BillingInterval } from '@/lib/subscription-tiers';
 
@@ -49,6 +50,10 @@ export function ProductionPromotion({
   const [confirming, setConfirming] = useState(false);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [resendSent, setResendSent] = useState(false);
+  const [revealedKeys, setRevealedKeys] = useState<{
+    keys: { label: string; key: string }[];
+    goToBilling: boolean;
+  } | null>(null);
 
   // Sequentials keyed by apiIssuerId → documentType → number
   const [sequentials, setSequentials] = useState<Record<string, Record<string, number>>>(
@@ -106,6 +111,8 @@ export function ProductionPromotion({
       if (result && 'error' in result) {
         setConfirming(false);
         setErrorCode(result.error);
+      } else if (result && 'newKeys' in result) {
+        setRevealedKeys({ keys: result.newKeys, goToBilling: result.goToBilling });
       }
     });
   }
@@ -124,6 +131,10 @@ export function ProductionPromotion({
         setErrorCode(result.error);
       }
     });
+  }
+
+  if (revealedKeys) {
+    return <PromotionKeysDialog keys={revealedKeys.keys} goToBilling={revealedKeys.goToBilling} />;
   }
 
   if (confirming) {

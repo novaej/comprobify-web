@@ -6,6 +6,7 @@ import { useRouter } from '@/i18n/navigation';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { acceptAgreementsAction } from '@/app/actions/agreements';
+import { AGREEMENTS_ACCEPTED_EVENT } from '@/components/agreement-pending-banner';
 import { ExternalLink, CheckCircle2, Clock, FileTextIcon, Printer } from 'lucide-react';
 import type { ApiOutdatedAgreement } from '@/lib/api';
 
@@ -47,6 +48,7 @@ export function AgreementAcceptance({ outdated }: { outdated: ApiOutdatedAgreeme
         );
         return;
       }
+      window.dispatchEvent(new Event(AGREEMENTS_ACCEPTED_EVENT));
       router.push('/settings');
     });
   }

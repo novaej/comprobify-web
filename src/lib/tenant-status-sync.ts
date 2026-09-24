@@ -4,16 +4,26 @@ import { ApiError } from '@/lib/errors';
 
 // Tenant.status is a display-only cache of the API's real tenant status —
 // it exists purely so [locale]/layout.tsx can render SuspendedBanner/
-// PastDueBanner without an extra API call on every page load. It is NEVER a
-// security boundary: requireContext() never gates anything on it, and every
-// write the API actually blocks (SUSPENDED/PAST_DUE) is enforced API-side by
-// require-not-suspended.js/require-past-due.js, not by anything read here.
+// PastDueBanner/EmailVerificationNotice without an extra API call on every
+// page load. It is NEVER a security boundary: requireContext() never gates
+// anything on it, and every write the API actually blocks (SUSPENDED/
+// PAST_DUE/PENDING_VERIFICATION) is enforced API-side, not by anything read
+// here. Actual verification gates (promotion, subscribing) still read live
+// tenant status — see settings/page.tsx, settings/billing/page.tsx.
 //
 // writeTenantStatus() is the only place that writes this column — both
 // public functions below go through it, so there is exactly one write path
 // to reason about, not two independently-evolving ones.
 async function writeTenantStatus(tenantId: string, status: string): Promise<void> {
   await db.tenant.update({ where: { id: tenantId }, data: { status } }).catch(() => {});
+}
+
+// Whether the mirror says the tenant still has to verify its email. 'PENDING'
+// is a legacy value bootstrapTenantAction used to write for an unverified
+// signup (the API's real value is PENDING_VERIFICATION) — still present on
+// old rows until reconcileTenantStatus() corrects them, so accept both.
+export function isUnverifiedStatus(status: string): boolean {
+  return status === 'PENDING_VERIFICATION' || status === 'PENDING';
 }
 
 const STATUS_BY_ERROR_CODE: Record<string, string> = {

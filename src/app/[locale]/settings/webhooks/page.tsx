@@ -4,7 +4,8 @@ import { db } from '@/lib/db';
 import { PageHeader } from '@/components/page-header';
 import { WebhookManager } from '@/components/webhook-manager';
 import { getCanonicalWebhookUrl, isPubliclyReachableHttpsUrl } from '@/lib/webhook-url';
-import { listWebhookEndpoints } from '@/lib/api';
+import { listWebhookEndpoints, getCurrentTenant } from '@/lib/api';
+import { reconcileTenantStatus } from '@/lib/tenant-status-sync';
 import type { CanonicalAvailability } from '@/components/webhook-manager';
 
 export default async function WebhooksPage({
@@ -19,7 +20,7 @@ export default async function WebhooksPage({
 
   const ctx = await requirePermission('webhooks.manage', { skipIssuer: true });
 
-  const [endpoints, { limit }] = await Promise.all([
+  const [endpoints, { limit }, tenantInfo] = await Promise.all([
     db.webhookEndpoint.findMany({
       where: { tenantId: ctx.tenant.id, active: true },
       orderBy: { createdAt: 'desc' },
@@ -31,7 +32,12 @@ export default async function WebhooksPage({
     // reserved-slot padding on top of the tier's own maxWebhookEndpoints),
     // so this is the authoritative source for what the plan actually allows.
     listWebhookEndpoints({ apiKey: ctx.apiKey }),
+    // Registering a custom endpoint requires a verified email (comprobify
+    // c75d7f9). Read live and fail open — the API stays the real gate.
+    getCurrentTenant({ apiKey: ctx.apiKey }).catch(() => null),
   ]);
+  const emailVerified = tenantInfo ? tenantInfo.status !== 'PENDING_VERIFICATION' : true;
+  if (tenantInfo) await reconcileTenantStatus(ctx.tenant.id, ctx.tenant.status, tenantInfo.status);
 
   // limit.max is the tier's own raw maxWebhookEndpoints (a plain passthrough
   // as of comprobify migration 102), so a plain max === 0 check is enough to
@@ -64,6 +70,7 @@ export default async function WebhooksPage({
         usedEndpoints={limit.used}
         maxEndpoints={limit.max}
         customWebhooksAllowed={customWebhooksAllowed}
+        emailVerified={emailVerified}
       />
     </div>
   );

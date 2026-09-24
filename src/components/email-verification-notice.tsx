@@ -7,9 +7,14 @@ import { MailCheck, MailWarning } from 'lucide-react';
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
+// Rendered by [locale]/layout.tsx on every authenticated page (Owner only)
+// while the tenant is pending email verification — a fresh signup, or an
+// account recovered via /recover-account, which the API always re-demotes.
+// The layout itself live-checks status while pending, so this banner clears
+// on the very next reload/navigation once verified — no "check now" button.
 export function EmailVerificationNotice() {
   const t = useTranslations('settings.verification');
-  const tError = useTranslations('settingsError');
+  const tError = useTranslations('apiError');
   const [isPending, startTransition] = useTransition();
   const [sent, setSent] = useState(false);
   const [verified, setVerified] = useState(false);
@@ -31,15 +36,14 @@ export function EmailVerificationNotice() {
     // limiters — comprobify's 83c54ed).
     if (isPending || cooldown > 0) return;
     setError(null);
-    setCooldown(RESEND_COOLDOWN_SECONDS);
     startTransition(async () => {
       const result = await resendVerificationAction();
       if (!result) {
         setSent(true);
+        setCooldown(RESEND_COOLDOWN_SECONDS);
       } else if (result.error === 'ALREADY_VERIFIED') {
-        // The page's own tenant-status check just hadn't caught up yet
-        // (e.g. verified in another tab) — treat it as verified rather than
-        // showing this as an error.
+        // The local status mirror just hadn't caught up yet (e.g. verified in
+        // another tab) — treat it as verified rather than showing an error.
         setVerified(true);
       } else {
         setError(
@@ -52,33 +56,29 @@ export function EmailVerificationNotice() {
   }
 
   return (
-    <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-500/30 dark:bg-yellow-500/10">
-      <div className="flex items-start gap-3">
-        <MailWarning className="mt-0.5 h-4 w-4 shrink-0 text-yellow-600 dark:text-yellow-300" />
-        <div className="space-y-1 flex-1">
-          <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300">
-            {t('title')}
+    <div
+      role="alert"
+      className="mb-6 flex flex-col gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 sm:flex-row sm:items-center dark:text-amber-300"
+    >
+      <MailWarning className="hidden h-4 w-4 shrink-0 sm:block" aria-hidden />
+      <div className="flex-1 space-y-0.5">
+        <p className="font-medium">{t('title')}</p>
+        <p className="text-xs opacity-90">{t('description')}</p>
+        {sent && (
+          <p className="flex items-center gap-1.5 pt-1 text-xs">
+            <MailCheck className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            {t('sent')}
           </p>
-          <p className="text-xs text-yellow-700 dark:text-yellow-400">
-            {t('description')}
-          </p>
-          {sent ? (
-            <p className="flex items-center gap-1.5 text-xs text-yellow-700 dark:text-yellow-400 pt-1">
-              <MailCheck className="h-3.5 w-3.5 shrink-0" />
-              {t('sent')}
-            </p>
-          ) : (
-            <button
-              onClick={handleResend}
-              disabled={isPending || cooldown > 0}
-              className="cursor-pointer pt-1 text-xs font-medium text-yellow-800 underline underline-offset-4 hover:text-yellow-900 disabled:opacity-50 dark:text-yellow-300 dark:hover:text-yellow-200"
-            >
-              {isPending ? t('sending') : cooldown > 0 ? t('cooldown', { seconds: cooldown }) : t('resend')}
-            </button>
-          )}
-          {error && <p className="text-xs text-destructive pt-1">{error}</p>}
-        </div>
+        )}
+        {error && <p className="pt-1 text-xs text-destructive">{error}</p>}
       </div>
+      <button
+        onClick={handleResend}
+        disabled={isPending || cooldown > 0}
+        className="shrink-0 cursor-pointer text-xs font-medium underline underline-offset-4 hover:opacity-80 disabled:opacity-50"
+      >
+        {isPending ? t('sending') : cooldown > 0 ? t('cooldown', { seconds: cooldown }) : t('resend')}
+      </button>
     </div>
   );
 }

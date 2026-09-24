@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireContext } from '@/lib/context';
+import { buildClientForwardingHeaders } from '@/lib/client-forwarding';
 
 export async function GET(
   _req: NextRequest,
@@ -25,7 +26,8 @@ export async function GET(
   }
 
   const res = await fetch(`${apiUrl}/v1/tenants/agreements/${encodeURIComponent(type)}`, {
-    headers: { Authorization: `Bearer ${apiKey}` },
+    // requireInternalService gates every /v1/tenants/agreements* route (comprobify 6f6e7df).
+    headers: { Authorization: `Bearer ${apiKey}`, ...buildClientForwardingHeaders({}) },
     cache: 'no-store',
   });
 

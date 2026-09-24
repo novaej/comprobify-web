@@ -1,6 +1,5 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { ProductionPromotion } from '@/components/production-promotion';
-import { EmailVerificationNotice } from '@/components/email-verification-notice';
 import { SessionTimeoutSettings } from '@/components/session-timeout-settings';
 import { PageHeader } from '@/components/page-header';
 import { requireContext } from '@/lib/context';
@@ -8,6 +7,7 @@ import { listIssuerDocumentTypes, getMySubscriptions, getAgreementStatus, getCur
 import { listTiers } from '@/lib/public-api';
 import { Link } from '@/i18n/navigation';
 import { db } from '@/lib/db';
+import { reconcileTenantStatus } from '@/lib/tenant-status-sync';
 import { Webhook, Bell, ChevronRight, CreditCard, User, KeyRound } from 'lucide-react';
 
 export default async function SettingsPage({
@@ -34,6 +34,7 @@ export default async function SettingsPage({
   const canReadApiKeys = ctx.permissions.has('apikeys.read');
   const canManageTenant = ctx.permissions.has('tenant.manage');
   const canPromoteTenant = ctx.permissions.has('tenant.promote');
+  const isOwnerOrAdmin = ctx.user.role === 'Owner' || ctx.user.role === 'Admin';
 
   const activeIssuers = await db.issuer.findMany({
     where: { tenantId, active: true },
@@ -74,7 +75,8 @@ export default async function SettingsPage({
           .then((subs) => subs.find((s) => s.status !== 'CANCELLED' && s.status !== 'EXPIRED') ?? null)
           .catch(() => null)
       : Promise.resolve(null),
-    canManageTenant
+    // "Documentos legales" card below is Owner/Admin only.
+    isOwnerOrAdmin
       ? getAgreementStatus({ apiKey: ctx.apiKey }).catch(() => null)
       : Promise.resolve(null),
     // Email verification is a fact about the tenant (tenant.status at the
@@ -88,6 +90,8 @@ export default async function SettingsPage({
   ]);
   const agreementsAccepted = !agreementStatus?.needsAcceptance;
   const isEmailVerified = tenantInfo ? tenantInfo.status !== 'PENDING_VERIFICATION' : true;
+  // The layout's verification banner reads the local mirror — keep it honest.
+  if (tenantInfo) await reconcileTenantStatus(ctx.tenant.id, ctx.tenant.status, tenantInfo.status);
 
   const tenantSecurity = canManageTenant
     ? await db.tenant.findUnique({
@@ -101,8 +105,6 @@ export default async function SettingsPage({
       <PageHeader title={t('title')} />
 
       <div className="space-y-4">
-        {hasIssuer && !isEmailVerified && canManageTenant && <EmailVerificationNotice />}
-
         {hasIssuer && (
           <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
             <div className="flex items-center justify-between">
@@ -152,7 +154,7 @@ export default async function SettingsPage({
           <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
         </Link>
 
-        {canManageTenant && agreementStatus?.hasPublishedAgreements && (
+        {isOwnerOrAdmin && agreementStatus?.hasPublishedAgreements && (
           <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
             <h2 className="text-sm font-semibold">{t('legalDocs.title')}</h2>
             <p className="mt-1 text-xs text-muted-foreground">{t('legalDocs.description')}</p>
