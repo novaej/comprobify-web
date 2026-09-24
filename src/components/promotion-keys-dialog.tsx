@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { AlertTriangle, Check, Copy, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,18 @@ export function PromotionKeysDialog({
   const [isPending, startTransition] = useTransition();
   const [visible, setVisible] = useState<Set<number>>(() => new Set());
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const confirmedRef = useRef(false);
+
+  // Warn on reload/close — the keys only exist in this dialog's memory.
+  useEffect(() => {
+    function onBeforeUnload(e: BeforeUnloadEvent) {
+      if (confirmedRef.current) return;
+      e.preventDefault();
+      e.returnValue = '';
+    }
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, []);
 
   function toggleVisible(index: number) {
     setVisible((prev) => {
@@ -47,6 +59,7 @@ export function PromotionKeysDialog({
 
   function handleDone() {
     if (isPending) return;
+    confirmedRef.current = true;
     startTransition(async () => {
       await finishPromotionAction(goToBilling);
     });
