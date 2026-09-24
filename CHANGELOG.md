@@ -8,6 +8,25 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-09-23
+
+### Added
+- **Promotion reveals the tenant's own production API keys once.** Promotion re-mints every sandbox key, so a tenant's Postman/ERP keys used to silently stop working. A non-dismissible copy dialog now shows the new production tokens for the tenant's own keys (never the app's reserved ones), with a browser warning if they try to leave before copying.
+- **Pending-verification banner on every page (Owner).** Previously only visible on `/settings`. Recovered accounts, which the API re-demotes to `PENDING_VERIFICATION`, now see it too. It clears on the next reload or navigation once verified; the manual "Ya lo verifiqué" button is gone.
+- **API key and custom webhook creation disabled until the email is verified**, with a hint, instead of failing on submit.
+- **Revoked API keys hidden behind a toggle** on `/settings/api-keys`.
+
+### Changed
+- **`X-Internal-Service-Secret` is now sent on promotion and every legal-agreement call**, required by the API (comprobify 6f6e7df). Deploy this before the matching API change.
+- **"Documentos legales" on `/settings` is visible to Owner and Admin** (was Owner only).
+- **No usage chart for app-managed API keys.**
+- Dependencies: `dotenv` 18, plus minor updates to `@sentry/nextjs`, `@tanstack/react-query`, `lucide-react` and `@types/node`.
+
+### Fixed
+- **The agreements banner refetched on every navigation**, exhausting the API's per-key read rate limit (429). It now checks once per page load.
+- **Resend verification email:** the countdown started even on a failed resend, the button disappeared after one successful send, and `RESEND_COOLDOWN` showed as a raw code.
+- **Missing messages:** `INTERNAL_SERVICE_ONLY` rendered as a raw code, and the `documents:void` scope label was missing, which crashed the create-key scope picker.
+
 ## [1.1.0] — 2026-09-19
 
 ### Added
