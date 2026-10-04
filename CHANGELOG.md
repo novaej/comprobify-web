@@ -8,6 +8,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [1.2.1] — 2026-10-04
+
+### Changed
+- **Dependencies:** `@sentry/nextjs` 11 (`withSentryConfig` is now imported from `@sentry/nextjs/config`), `next` 16.3.6, `axios` 1.20, plus routine minor/patch updates.
+- **Branch address hint** in the "Nuevo emisor" dialog: when left empty, the issuer's main address is used.
+
+### Fixed
+- **Registration failed without a main address.** The API now requires `mainAddress` on `POST /v1/register` (comprobify 31d1b61); the onboarding form and action now require it too. Apply comprobify migration 104 before deploying.
+
 ## [1.2.0] — 2026-09-23
 
 ### Added
