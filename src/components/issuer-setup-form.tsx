@@ -98,8 +98,8 @@ export function IssuerSetupForm({
           <Input id="tradeName" name="tradeName" disabled={isPending} />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="mainAddress">{t('mainAddress')}</Label>
-          <Input id="mainAddress" name="mainAddress" disabled={isPending} />
+          <Label htmlFor="mainAddress">{t('mainAddress')} *</Label>
+          <Input id="mainAddress" name="mainAddress" required maxLength={300} disabled={isPending} />
         </div>
       </div>
 

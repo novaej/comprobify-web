@@ -40,7 +40,7 @@ export async function bootstrapTenantAction(formData: FormData): Promise<Onboard
     formData.get('intendedBillingInterval') as string | null,
   );
 
-  if (!ruc || !businessName) return { error: 'REQUIRED_FIELDS' };
+  if (!ruc || !businessName || !mainAddress) return { error: 'REQUIRED_FIELDS' };
 
   const certFile = formData.get('cert') as File | null;
   if (!certFile || certFile.size === 0) return { error: 'CERT_REQUIRED' };
