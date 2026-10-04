@@ -32,7 +32,7 @@ export interface IssuerRegistrationFields {
   ruc: string;
   businessName: string;
   tradeName?: string;
-  mainAddress?: string;
+  mainAddress: string;
   branchCode: string;
   issuePointCode: string;
   emissionType: string;
@@ -69,7 +69,7 @@ export async function registerTenant(
   form.append('ruc', fields.ruc);
   form.append('businessName', fields.businessName);
   if (fields.tradeName) form.append('tradeName', fields.tradeName);
-  if (fields.mainAddress) form.append('mainAddress', fields.mainAddress);
+  form.append('mainAddress', fields.mainAddress);
   form.append('branchCode', fields.branchCode);
   form.append('issuePointCode', fields.issuePointCode);
   form.append('environment', '1');

@@ -218,6 +218,7 @@ export function CreateIssuerDialog({ issuers, allowedDocumentTypes }: { issuers:
                 onChange={(e) => setBranchAddress(e.target.value)}
                 disabled={isPending}
               />
+              <p className="text-xs text-muted-foreground">{tCreate('branchAddressHint')}</p>
             </div>
 
             <div className="space-y-1.5">
