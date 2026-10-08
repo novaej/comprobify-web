@@ -1,6 +1,6 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { requirePermission } from '@/lib/context';
-import { db } from '@/lib/db';
+import { withTenant } from '@/lib/db';
 import { PageHeader } from '@/components/page-header';
 import { WebhookManager } from '@/components/webhook-manager';
 import { getCanonicalWebhookUrl, isPubliclyReachableHttpsUrl } from '@/lib/webhook-url';
@@ -21,11 +21,11 @@ export default async function WebhooksPage({
   const ctx = await requirePermission('webhooks.manage', { skipIssuer: true });
 
   const [endpoints, { limit }, tenantInfo] = await Promise.all([
-    db.webhookEndpoint.findMany({
+    withTenant(ctx.tenant.id, (tx) => tx.webhookEndpoint.findMany({
       where: { tenantId: ctx.tenant.id, active: true },
       orderBy: { createdAt: 'desc' },
       select: { id: true, url: true, eventTypes: true, active: true, createdAt: true },
-    }),
+    })),
     // The API's own count/limit — the tenant's own self-service pool.
     // comprobify-web's canonical webhook is minted through the admin-gated
     // path and excluded entirely (comprobify migration 102, no more

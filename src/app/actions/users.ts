@@ -1,6 +1,6 @@
 'use server';
 
-import { db } from '@/lib/db';
+import { db, withTenant } from '@/lib/db';
 import { requirePermission } from '@/lib/context';
 import { revalidatePath } from 'next/cache';
 import { getLocale, getTranslations } from 'next-intl/server';
@@ -153,7 +153,7 @@ export async function removeUserAction(userId: string): Promise<UsersResult> {
     where: { id: userId },
     data: { tenantId: null, role: null, inviteStatus: 'ACTIVE' },
   });
-  await db.userIssuerAccess.deleteMany({ where: { userId } });
+  await withTenant(ctx.tenant.id, (tx) => tx.userIssuerAccess.deleteMany({ where: { userId } }));
   revalidatePath('/users');
   return null;
 }
@@ -169,12 +169,12 @@ export async function setUserIssuerAccessAction(
   if (!user || user.tenantId !== ctx.tenant.id) return { error: 'USER_NOT_FOUND' };
 
   // Verify all issuer IDs belong to this tenant
-  const issuers = await db.issuer.findMany({
+  const issuers = await withTenant(ctx.tenant.id, (tx) => tx.issuer.findMany({
     where: { id: { in: issuerIds }, tenantId: ctx.tenant.id, active: true },
-  });
+  }));
   if (issuers.length !== issuerIds.length) return { error: 'ISSUER_NOT_FOUND' };
 
-  await db.$transaction(async (tx) => {
+  await withTenant(ctx.tenant.id, async (tx) => {
     await tx.userIssuerAccess.deleteMany({ where: { userId } });
     if (issuerIds.length > 0) {
       await tx.userIssuerAccess.createMany({
@@ -236,12 +236,12 @@ export async function updateUserAction(
 
   if (data.issuerIds !== undefined) {
     if (data.issuerIds.length > 0) {
-      const issuers = await db.issuer.findMany({
+      const issuers = await withTenant(ctx.tenant.id, (tx) => tx.issuer.findMany({
         where: { id: { in: data.issuerIds }, tenantId: ctx.tenant.id, active: true },
-      });
+      }));
       if (issuers.length !== data.issuerIds.length) return { error: 'ISSUER_NOT_FOUND' };
     }
-    await db.$transaction(async (tx) => {
+    await withTenant(ctx.tenant.id, async (tx) => {
       await tx.userIssuerAccess.deleteMany({ where: { userId } });
       if (data.issuerIds!.length > 0) {
         await tx.userIssuerAccess.createMany({

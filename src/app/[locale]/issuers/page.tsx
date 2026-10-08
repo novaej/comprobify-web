@@ -1,6 +1,6 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { requirePermission } from '@/lib/context';
-import { db } from '@/lib/db';
+import { withTenant } from '@/lib/db';
 import { listIssuerDocumentTypes, listTenantIssuers, getCurrentTenant, getIssuerSequentials } from '@/lib/api';
 import type { ApiIssuerSequential } from '@/lib/api';
 import { listTiers } from '@/lib/public-api';
@@ -25,23 +25,23 @@ export default async function IssuersPage({
   const isOwnerOrAdmin = ctx.user.role === 'Owner' || ctx.user.role === 'Admin';
   let accessibleIds: string[] | null = null;
   if (!isOwnerOrAdmin) {
-    const userAccess = await db.userIssuerAccess.findMany({
+    const userAccess = await withTenant(ctx.tenant.id, (tx) => tx.userIssuerAccess.findMany({
       where: { tenantId: ctx.tenant.id, userId: ctx.user.id },
       select: { issuerId: true },
-    });
+    }));
     accessibleIds = userAccess.map((a) => a.issuerId);
   }
 
   // Includes inactive issuers for Owner/Admin so a deactivated one can be shown
   // (greyed out) with a way to reactivate it.
-  const issuers = await db.issuer.findMany({
+  const issuers = await withTenant(ctx.tenant.id, (tx) => tx.issuer.findMany({
     where: {
       tenantId: ctx.tenant.id,
       ...(accessibleIds !== null ? { id: { in: accessibleIds } } : {}),
       ...(accessibleIds !== null ? { active: true } : {}),
     },
     orderBy: [{ active: 'desc' }, { isDefault: 'desc' }, { createdAt: 'asc' }],
-  });
+  }));
   const activeIssuers = issuers.filter((i) => i.active);
 
   const [documentTypesPerIssuer, sequentialsPerIssuer, apiIssuers, tenantInfo, tiersResult] = await Promise.all([

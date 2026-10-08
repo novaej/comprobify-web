@@ -1,6 +1,6 @@
 import 'server-only';
 import { auth } from '@/auth';
-import { db } from '@/lib/db';
+import { db, withTenant } from '@/lib/db';
 import { decrypt } from '@/lib/crypto';
 import { readCtxCookie } from '@/lib/context-cookie';
 import { resolveApiKeyForRole } from '@/lib/tenant-api-key';
@@ -150,7 +150,9 @@ export async function requireContext(opts?: { skipIssuer?: boolean }): Promise<C
     // Non-admin users with no issuer assignments go to a dedicated page that
     // explains the situation and tells them to contact their admin.
     if (role !== 'Owner' && role !== 'Admin') {
-      const accessCount = await db.userIssuerAccess.count({ where: { userId: user.id } });
+      const accessCount = await withTenant(tenant.id, (tx) =>
+        tx.userIssuerAccess.count({ where: { userId: user.id } }),
+      );
       if (accessCount === 0) {
         redirect({ href: '/no-issuer-assigned', locale });
         return null as never;
@@ -161,7 +163,19 @@ export async function requireContext(opts?: { skipIssuer?: boolean }): Promise<C
   }
 
   // 5. Verify issuer belongs to this tenant, is active, and user has access
-  const issuer = await db.issuer.findUnique({ where: { id: issuerId } });
+  const { issuer, accessCount, permitted } = await withTenant(tenant.id, async (tx) => {
+    const issuer = await tx.issuer.findUnique({ where: { id: issuerId } });
+    if (!issuer || issuer.tenantId !== tenant.id || !issuer.active || role === 'Owner' || role === 'Admin') {
+      return { issuer, accessCount: null, permitted: null };
+    }
+    return {
+      issuer,
+      accessCount: await tx.userIssuerAccess.count({ where: { userId: user.id } }),
+      permitted: await tx.userIssuerAccess.findUnique({
+        where: { userId_issuerId: { userId: user.id, issuerId: issuer.id } },
+      }),
+    };
+  });
 
   if (!issuer || issuer.tenantId !== tenant.id || !issuer.active) {
     redirect({ href: '/issuer/select', locale });
@@ -169,14 +183,10 @@ export async function requireContext(opts?: { skipIssuer?: boolean }): Promise<C
   }
 
   if (role !== 'Owner' && role !== 'Admin') {
-    const accessCount = await db.userIssuerAccess.count({ where: { userId: user.id } });
     if (accessCount === 0) {
       redirect({ href: '/no-issuer-assigned', locale });
       return null as never;
     }
-    const permitted = await db.userIssuerAccess.findUnique({
-      where: { userId_issuerId: { userId: user.id, issuerId: issuer.id } },
-    });
     if (!permitted) {
       redirect({ href: '/issuer/select', locale });
       return null as never;

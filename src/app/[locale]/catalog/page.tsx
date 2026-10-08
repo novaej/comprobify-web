@@ -1,5 +1,5 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
-import { db } from '@/lib/db';
+import { withTenant } from '@/lib/db';
 import { requirePermission } from '@/lib/context';
 import { ProductCatalog } from '@/components/product-catalog';
 import { PageHeader } from '@/components/page-header';
@@ -16,11 +16,11 @@ export default async function CatalogPage({
   const t = await getTranslations('catalog');
   const ctx = await requirePermission('catalog.manage', { skipIssuer: true });
 
-  const rows = await db.product.findMany({
+  const rows = await withTenant(ctx.tenant.id, (tx) => tx.product.findMany({
     where: { tenantId: ctx.tenant.id },
     orderBy: { createdAt: 'desc' },
     select: { id: true, mainCode: true, auxCode: true, description: true, unitPrice: true, taxOption: true },
-  });
+  }));
 
   const products: CatalogProduct[] = rows.map((r) => ({
     ...r,

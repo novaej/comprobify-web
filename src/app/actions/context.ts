@@ -1,6 +1,6 @@
 'use server';
 
-import { db } from '@/lib/db';
+import { withTenant } from '@/lib/db';
 import { requireContext } from '@/lib/context';
 import { writeCtxCookie, clearCtxCookie } from '@/lib/context-cookie';
 import { revalidatePath } from 'next/cache';
@@ -12,7 +12,7 @@ export type ContextResult = { error: string } | null;
 export async function selectIssuerAction(issuerId: string): Promise<ContextResult> {
   const ctx = await requireContext({ skipIssuer: true });
 
-  const issuer = await db.issuer.findUnique({ where: { id: issuerId } });
+  const issuer = await withTenant(ctx.tenant.id, (tx) => tx.issuer.findUnique({ where: { id: issuerId } }));
   if (!issuer || issuer.tenantId !== ctx.tenant.id || !issuer.active) {
     return { error: 'ISSUER_NOT_FOUND' };
   }
@@ -27,7 +27,7 @@ export async function selectIssuerAndRedirectAction(issuerId: string): Promise<v
   const ctx = await requireContext({ skipIssuer: true });
   const locale = await getLocale();
 
-  const issuer = await db.issuer.findUnique({ where: { id: issuerId } });
+  const issuer = await withTenant(ctx.tenant.id, (tx) => tx.issuer.findUnique({ where: { id: issuerId } }));
   if (!issuer || issuer.tenantId !== ctx.tenant.id || !issuer.active) {
     redirect({ href: '/issuer/select', locale });
   }

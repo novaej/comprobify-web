@@ -1,6 +1,6 @@
 'use server';
 
-import { db } from '@/lib/db';
+import { withTenant } from '@/lib/db';
 import { requirePermission } from '@/lib/context';
 import { createTenantApiKey, revokeTenantApiKey, getTenantApiKeyUsage, type ApiKeyDailyUsage } from '@/lib/api';
 import { encrypt, lastFour } from '@/lib/crypto';
@@ -33,7 +33,7 @@ export async function createTenantApiKeyAction(label: string, scopes?: ApiKeySco
     throw err;
   }
 
-  await db.tenantApiKey.create({
+  await withTenant(ctx.tenant.id, (tx) => tx.tenantApiKey.create({
     data: {
       tenantId: ctx.tenant.id,
       apiKeyId: created.id,
@@ -45,7 +45,7 @@ export async function createTenantApiKeyAction(label: string, scopes?: ApiKeySco
       isActive: true,
       scopes: created.scopes,
     },
-  });
+  }));
 
   revalidatePath('/settings/api-keys');
   return { key: created.key, label: created.label };
@@ -55,7 +55,7 @@ export async function revokeTenantApiKeyAction(id: string): Promise<ApiKeyResult
   await requirePermission('apikeys.manage', { skipIssuer: true });
   const ctx = await (await import('@/lib/context')).requireContext({ skipIssuer: true });
 
-  const keyRow = await db.tenantApiKey.findUnique({ where: { id } });
+  const keyRow = await withTenant(ctx.tenant.id, (tx) => tx.tenantApiKey.findUnique({ where: { id } }));
   if (!keyRow || keyRow.tenantId !== ctx.tenant.id) return { error: 'NOT_FOUND' };
   if (!keyRow.isActive) return { error: 'ALREADY_REVOKED' };
 
@@ -70,10 +70,10 @@ export async function revokeTenantApiKeyAction(id: string): Promise<ApiKeyResult
     throw err;
   }
 
-  await db.tenantApiKey.update({
+  await withTenant(ctx.tenant.id, (tx) => tx.tenantApiKey.update({
     where: { id },
     data: { isActive: false, revokedAt: new Date() },
-  });
+  }));
 
   revalidatePath('/settings/api-keys');
   return null;
@@ -83,7 +83,7 @@ export async function getTenantApiKeyUsageAction(id: string, days?: number): Pro
   await requirePermission('apikeys.read', { skipIssuer: true });
   const ctx = await (await import('@/lib/context')).requireContext({ skipIssuer: true });
 
-  const keyRow = await db.tenantApiKey.findUnique({ where: { id } });
+  const keyRow = await withTenant(ctx.tenant.id, (tx) => tx.tenantApiKey.findUnique({ where: { id } }));
   if (!keyRow || keyRow.tenantId !== ctx.tenant.id) return { error: 'NOT_FOUND' };
 
   try {

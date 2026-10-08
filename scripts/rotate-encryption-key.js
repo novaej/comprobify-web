@@ -219,6 +219,9 @@ async function main() {
 
   try {
     await client.query('BEGIN');
+    // Cross-tenant by design: tenant_api_keys and webhook_endpoints are protected by
+    // fail-closed RLS (ADR-010), which would otherwise show this script zero rows.
+    await client.query("SELECT set_config('app.rls_system', 'on', true), set_config('app.rls_reason', 'rotate-encryption-key', true)");
 
     // No isActive/active filter on either table — a revoked TenantApiKey or
     // an inactive WebhookEndpoint still holds real credential material at
@@ -243,7 +246,8 @@ async function main() {
       }
 
       if (!dryRun) {
-        await client.query('UPDATE tenant_api_keys SET encrypted_key = $1 WHERE id = $2', [reEncrypted, row.id]);
+        const res = await client.query('UPDATE tenant_api_keys SET encrypted_key = $1 WHERE id = $2', [reEncrypted, row.id]);
+        if (res.rowCount !== 1) throw new Error(`tenant_api_keys row ${row.id} was not updated (RLS context missing?)`);
       }
     }
 
@@ -256,7 +260,8 @@ async function main() {
       }
 
       if (!dryRun) {
-        await client.query('UPDATE webhook_endpoints SET encrypted_secret = $1 WHERE id = $2', [reEncrypted, row.id]);
+        const res = await client.query('UPDATE webhook_endpoints SET encrypted_secret = $1 WHERE id = $2', [reEncrypted, row.id]);
+        if (res.rowCount !== 1) throw new Error(`webhook_endpoints row ${row.id} was not updated (RLS context missing?)`);
       }
     }
 

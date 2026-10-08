@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { requirePermission } from '@/lib/context';
-import { db } from '@/lib/db';
+import { withTenant } from '@/lib/db';
 import { isUuid } from '@/lib/utils';
 import { listIssuerDocumentTypes, listTenantIssuers } from '@/lib/api';
 import { getIssuerSequentialsAction } from '@/app/actions/issuers';
@@ -22,9 +22,9 @@ export default async function IssuerEditPage({
   const issuerId = id;
   if (!isUuid(issuerId)) notFound();
 
-  const issuer = await db.issuer.findFirst({
+  const issuer = await withTenant(ctx.tenant.id, (tx) => tx.issuer.findFirst({
     where: { id: issuerId, tenantId: ctx.tenant.id, active: true },
-  });
+  }));
   if (!issuer) notFound();
 
   const [documentTypes, apiIssuers, sequentialsResult] = await Promise.all([

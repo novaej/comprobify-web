@@ -2,7 +2,7 @@
 
 import bcrypt from 'bcryptjs';
 import { signIn, signOut } from '@/auth';
-import { db } from '@/lib/db';
+import { db, withTenant } from '@/lib/db';
 import { AuthError } from 'next-auth';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
@@ -63,7 +63,6 @@ async function postLoginRedirect(email: string, locale: string): Promise<null> {
       role: true,
       inviteStatus: true,
       isSuperAdmin: true,
-      tenant: { select: { _count: { select: { issuers: { where: { active: true } } } } } },
     },
   });
 
@@ -79,12 +78,13 @@ async function postLoginRedirect(email: string, locale: string): Promise<null> {
   }
 
   // No tenant yet → onboarding
-  if (!user.tenantId || !user.tenant) {
+  if (!user.tenantId) {
     redirect({ href: '/onboarding/tenant', locale });
     return null;
   }
 
-  const totalIssuerCount = user.tenant._count.issuers;
+  const tenantId = user.tenantId;
+  const totalIssuerCount = await withTenant(tenantId, (tx) => tx.issuer.count({ where: { active: true } }));
 
   if (totalIssuerCount === 0) {
     redirect({ href: '/issuers?empty=true', locale });
@@ -96,11 +96,11 @@ async function postLoginRedirect(email: string, locale: string): Promise<null> {
   // Non-admin/owner users never see the issuer picker — auto-select their first assigned issuer.
   // If no assignment exists yet, send them to the dedicated no-issuer page.
   if (!isAdminLike) {
-    const access = await db.userIssuerAccess.findMany({
+    const access = await withTenant(tenantId, (tx) => tx.userIssuerAccess.findMany({
       where: { userId: user.id, issuer: { active: true } },
       select: { issuerId: true },
       take: 1,
-    });
+    }));
     if (access.length === 0) {
       redirect({ href: '/no-issuer-assigned', locale });
       return null;
@@ -112,10 +112,10 @@ async function postLoginRedirect(email: string, locale: string): Promise<null> {
 
   // Admin/Owner: auto-select when there is only one issuer, show picker for multiple.
   if (totalIssuerCount === 1) {
-    const issuer = await db.issuer.findFirst({
-      where: { tenantId: user.tenantId, active: true },
+    const issuer = await withTenant(tenantId, (tx) => tx.issuer.findFirst({
+      where: { tenantId, active: true },
       select: { id: true },
-    });
+    }));
     if (issuer) await writeCtxCookie({ issuerId: issuer.id, v: 2 });
     redirect({ href: '/dashboard', locale });
     return null;

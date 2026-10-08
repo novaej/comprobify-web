@@ -1,6 +1,6 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { requirePermission } from '@/lib/context';
-import { db } from '@/lib/db';
+import { withTenant } from '@/lib/db';
 import { PageHeader } from '@/components/page-header';
 import { ApiKeyManager } from '@/components/api-key-manager';
 import { listTenantApiKeys, getCurrentTenant } from '@/lib/api';
@@ -20,10 +20,10 @@ export default async function ApiKeysPage({
   const ctx = await requirePermission('apikeys.read', { skipIssuer: true });
 
   const [keys, { keys: apiKeyInfos, limit: apiKeyLimit }, tenantInfo] = await Promise.all([
-    db.tenantApiKey.findMany({
+    withTenant(ctx.tenant.id, (tx) => tx.tenantApiKey.findMany({
       where: { tenantId: ctx.tenant.id },
       orderBy: { createdAt: 'desc' },
-    }),
+    })),
     // Lifetime lastUsedAt/requestCount live only on the API side — the local
     // TenantApiKey mirror has no columns for them. `limit` is the tenant's
     // own self-service pool (comprobify-web's reserved master/per-role keys

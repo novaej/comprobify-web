@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from 'crypto';
 import { Prisma } from '@prisma/client';
-import { db } from '@/lib/db';
+import { db, withTenant } from '@/lib/db';
 import { decrypt } from '@/lib/crypto';
 import { revalidatePath } from 'next/cache';
 import type { NextRequest } from 'next/server';
@@ -100,10 +100,10 @@ export async function POST(request: NextRequest): Promise<Response> {
     return new Response('ok', { status: 200 });
   }
 
-  const webhookEndpoint = await db.webhookEndpoint.findFirst({
+  const webhookEndpoint = await withTenant(tenant.id, (tx) => tx.webhookEndpoint.findFirst({
     where: { tenantId: tenant.id, active: true },
     select: { encryptedSecret: true },
-  });
+  }));
 
   if (!webhookEndpoint) {
     return new Response('ok', { status: 200 });
@@ -144,7 +144,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   //    notification read before anyone had actually seen it — see CLAUDE.md
   //    Common Mistake #51.
   try {
-    await db.notification.upsert({
+    await withTenant(tenant.id, (tx) => tx.notification.upsert({
       where: {
         tenantId_apiNotificationId: {
           tenantId: tenant.id,
@@ -175,7 +175,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         apiReadAt: data.readAt ? new Date(data.readAt) : null,
         expiresAt: data.expiresAt ? new Date(data.expiresAt) : null,
       },
-    });
+    }));
   } catch (err) {
     console.error('[webhook] upsert error', err);
     return new Response('Internal error', { status: 500 });

@@ -1,5 +1,5 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
-import { db } from '@/lib/db';
+import { withTenant } from '@/lib/db';
 import { requirePermission } from '@/lib/context';
 import { ClientCatalog } from '@/components/client-catalog';
 import { PageHeader } from '@/components/page-header';
@@ -16,11 +16,11 @@ export default async function ClientsPage({
   const t = await getTranslations('clients');
   const ctx = await requirePermission('clients.manage', { skipIssuer: true });
 
-  const clients: SavedClient[] = await db.client.findMany({
+  const clients: SavedClient[] = await withTenant(ctx.tenant.id, (tx) => tx.client.findMany({
     where: { tenantId: ctx.tenant.id },
     orderBy: { name: 'asc' },
     select: { id: true, idType: true, idNumber: true, name: true, email: true, address: true },
-  });
+  }));
 
   return (
     <div>

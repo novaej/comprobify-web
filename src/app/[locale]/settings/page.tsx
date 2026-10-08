@@ -6,7 +6,7 @@ import { requireContext } from '@/lib/context';
 import { listIssuerDocumentTypes, getMySubscriptions, getAgreementStatus, getCurrentTenant } from '@/lib/api';
 import { listTiers } from '@/lib/public-api';
 import { Link } from '@/i18n/navigation';
-import { db } from '@/lib/db';
+import { db, withTenant } from '@/lib/db';
 import { reconcileTenantStatus } from '@/lib/tenant-status-sync';
 import { Webhook, Bell, ChevronRight, CreditCard, User, KeyRound } from 'lucide-react';
 
@@ -36,10 +36,10 @@ export default async function SettingsPage({
   const canPromoteTenant = ctx.permissions.has('tenant.promote');
   const isOwnerOrAdmin = ctx.user.role === 'Owner' || ctx.user.role === 'Admin';
 
-  const activeIssuers = await db.issuer.findMany({
+  const activeIssuers = await withTenant(tenantId, (tx) => tx.issuer.findMany({
     where: { tenantId, active: true },
     orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
-  });
+  }));
   const hasIssuer = activeIssuers.length > 0;
 
   const issuersForPromotion = environment === 'sandbox' && canPromoteTenant

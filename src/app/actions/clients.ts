@@ -1,6 +1,6 @@
 'use server';
 
-import { db } from '@/lib/db';
+import { withTenant } from '@/lib/db';
 import { requirePermission } from '@/lib/context';
 import { revalidatePath } from 'next/cache';
 
@@ -30,7 +30,7 @@ async function requireTenantId(): Promise<string> {
 
 export async function createClientAction(input: ClientInput): Promise<ClientResult> {
   const tenantId = await requireTenantId();
-  await db.client.create({
+  await withTenant(tenantId, (tx) => tx.client.create({
     data: {
       tenantId,
       idType: input.idType,
@@ -39,14 +39,14 @@ export async function createClientAction(input: ClientInput): Promise<ClientResu
       email: input.email.trim(),
       address: input.address?.trim() || null,
     },
-  });
+  }));
   revalidatePath('/clients');
   return null;
 }
 
 export async function updateClientAction(id: string, input: ClientInput): Promise<ClientResult> {
   const tenantId = await requireTenantId();
-  await db.client.updateMany({
+  await withTenant(tenantId, (tx) => tx.client.updateMany({
     where: { id, tenantId },
     data: {
       idType: input.idType,
@@ -55,14 +55,14 @@ export async function updateClientAction(id: string, input: ClientInput): Promis
       email: input.email.trim(),
       address: input.address?.trim() || null,
     },
-  });
+  }));
   revalidatePath('/clients');
   return null;
 }
 
 export async function deleteClientAction(id: string): Promise<ClientResult> {
   const tenantId = await requireTenantId();
-  await db.client.deleteMany({ where: { id, tenantId } });
+  await withTenant(tenantId, (tx) => tx.client.deleteMany({ where: { id, tenantId } }));
   revalidatePath('/clients');
   return null;
 }

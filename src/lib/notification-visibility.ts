@@ -1,6 +1,6 @@
 import 'server-only';
 import { Prisma } from '@prisma/client';
-import { db } from '@/lib/db';
+import { withTenant } from '@/lib/db';
 import { readCtxCookie } from '@/lib/context-cookie';
 
 /**
@@ -25,10 +25,12 @@ export async function visibleNotificationOr(
     return [{ issuerId: null }, { issuerId: activeApiIssuerId }];
   }
 
-  const access = await db.userIssuerAccess.findMany({
-    where: { tenantId, userId },
-    select: { issuer: { select: { apiIssuerId: true } } },
-  });
+  const access = await withTenant(tenantId, (tx) =>
+    tx.userIssuerAccess.findMany({
+      where: { tenantId, userId },
+      select: { issuer: { select: { apiIssuerId: true } } },
+    }),
+  );
   const apiIssuerIds = access.map((a) => a.issuer.apiIssuerId);
 
   const or: Prisma.NotificationWhereInput[] = [{ issuerId: null }];
@@ -49,9 +51,11 @@ export async function visibleNotificationOr(
 export async function getActiveApiIssuerId(tenantId: string): Promise<string | null> {
   const ctxCookie = await readCtxCookie();
   if (!ctxCookie) return null;
-  const issuer = await db.issuer.findFirst({
-    where: { id: ctxCookie.issuerId, tenantId },
-    select: { apiIssuerId: true },
-  });
+  const issuer = await withTenant(tenantId, (tx) =>
+    tx.issuer.findFirst({
+      where: { id: ctxCookie.issuerId, tenantId },
+      select: { apiIssuerId: true },
+    }),
+  );
   return issuer?.apiIssuerId ?? null;
 }

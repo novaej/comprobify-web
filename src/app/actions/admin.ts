@@ -1,6 +1,6 @@
 'use server';
 
-import { db } from '@/lib/db';
+import { db, withTenant } from '@/lib/db';
 import { requireSuperAdmin } from '@/lib/admin-context';
 import {
   updateTenantTier,
@@ -267,10 +267,13 @@ export interface AdminReservedApiKeyRow {
 export async function listReservedApiKeysAction(apiTenantId: string): Promise<{ keys: AdminReservedApiKeyRow[] }> {
   await requireSuperAdmin();
 
-  const localRows = await db.tenantApiKey.findMany({
-    where: { tenant: { apiTenantId }, isActive: true, isManaged: true },
+  // Scoped to the target tenant (not asSystem): the admin acts on one tenant at a time.
+  const targetTenant = await db.tenant.findUnique({ where: { apiTenantId }, select: { id: true } });
+  if (!targetTenant) return { keys: [] };
+  const localRows = await withTenant(targetTenant.id, (tx) => tx.tenantApiKey.findMany({
+    where: { isActive: true, isManaged: true },
     orderBy: { createdAt: 'asc' },
-  });
+  }));
   if (localRows.length === 0) return { keys: [] };
   // Master key (managedRole: null) first, then per-role keys — sorted in JS
   // since Prisma's null-ordering for an orderBy field isn't consistent
@@ -307,9 +310,11 @@ export async function rotateReservedApiKeyAction(
   // this also doubles as the safety check the admin replace endpoint itself
   // doesn't perform (it'll happily "rotate" any active key it's given,
   // reserved or not).
-  const localRow = await db.tenantApiKey.findFirst({
-    where: { apiKeyId, isActive: true, isManaged: true, tenant: { apiTenantId } },
-  });
+  const targetTenant = await db.tenant.findUnique({ where: { apiTenantId }, select: { id: true } });
+  if (!targetTenant) return { error: 'RESERVED_KEY_NOT_FOUND' };
+  const localRow = await withTenant(targetTenant.id, (tx) => tx.tenantApiKey.findFirst({
+    where: { apiKeyId, isActive: true, isManaged: true },
+  }));
   if (!localRow) return { error: 'RESERVED_KEY_NOT_FOUND' };
 
   let plainKey: string;
@@ -343,12 +348,12 @@ export async function rotateReservedApiKeyAction(
   }
 
   try {
-    await db.$transaction([
-      db.tenantApiKey.update({
+    await withTenant(localRow.tenantId, async (tx) => {
+      await tx.tenantApiKey.update({
         where: { id: localRow.id },
         data: { isActive: false, revokedAt: new Date() },
-      }),
-      db.tenantApiKey.create({
+      });
+      await tx.tenantApiKey.create({
         data: {
           tenantId: localRow.tenantId,
           apiKeyId: rotated.id,
@@ -361,8 +366,8 @@ export async function rotateReservedApiKeyAction(
           managedRole: localRow.managedRole,
           scopes: rotated.scopes,
         },
-      }),
-    ]);
+      });
+    });
   } catch (err) {
     console.error('[admin] failed to persist rotated key', err);
     Sentry.captureException(err, { extra: { apiTenantId, apiKeyId } });
