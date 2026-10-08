@@ -20,7 +20,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 - `scripts/rotate-encryption-key.js` sets the system RLS context itself and fails if any row is not updated.
 - `docs/guides/database-backups.md`: dump as `doadmin`, not the app role (RLS applies to the table owner).
 - Wrong-password logins no longer print an Auth.js stack trace.
-- **Dependencies:** `next` 16.4.0, `sharp` 0.35.5, plus routine updates to dev-tool transitives (`@modelcontextprotocol/sdk`, `solid-js`, `seroval`).
+- **Dependencies:** `next` 16.4.0, `sharp` 0.35.5, plus transitive updates (`@modelcontextprotocol/sdk`, `solid-js`, `seroval`) and two security patches: `source-map-js` 1.2.2 (DoS in malicious source maps, CVE-2026-93749) and `proxy-addr` 2.0.8 (CVE-2026-90711).
 
 ### Deploy notes
 - The Row-Level Security migration applies at container start (`start:deploy`), followed by the boot guard. The production app role was verified as non-superuser without `BYPASSRLS`. Rollback: `prisma/rollback/add_row_level_security_down.sql`. `RLS_GUARD=warn` overrides the guard in an emergency.
