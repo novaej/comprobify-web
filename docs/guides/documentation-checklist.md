@@ -30,6 +30,24 @@ When making changes to `comprobify-web`, update the corresponding documentation 
 
 ---
 
+### Adding a Database Table
+
+**Code files:**
+- ✅ `prisma/schema.prisma` + a migration generated with `prisma migrate dev`
+- ✅ `prisma/rls-tables.json` — add the table to `protected` or to `exempt` with a reason
+- ✅ If protected: a policy in the migration (`ENABLE` + `FORCE ROW LEVEL SECURITY`, `FOR ALL`, `USING` and `WITH CHECK`) and an insert spec in `tests/integration/rls-fail-closed.test.ts`
+
+**Documentation files:**
+1. **`docs/adr/010-row-level-security.md`** — scope table if the classification is notable
+2. **`CLAUDE.md`** — protected-table list in rule 12 and the "Row-Level Security" Key Pattern
+3. **`CHANGELOG.md`**
+
+**Checklist:**
+- [ ] Classified in `rls-tables.json` (the catalog test fails otherwise)
+- [ ] Policy + integration test spec, or an exemption reason
+
+---
+
 ### Adding a Server Action
 
 **Code files:**

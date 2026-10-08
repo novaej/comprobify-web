@@ -105,6 +105,21 @@ psql postgres -c "ALTER ROLE comprobify_web_app CREATEDB;"
 
 Connection string: `postgresql://comprobify_web_app:changeme@localhost/comprobify_web_local`
 
+> **The database role must not be a superuser or have `BYPASSRLS`** (ADR-010). Superusers bypass Row-Level Security silently, so every policy would do nothing. The `comprobify_web_app` role above is a plain `LOGIN` role, which is correct; do not run the app as Docker's `postgres` user. Check with:
+>
+> ```bash
+> psql "$DATABASE_URL" -c "SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user;"
+> # both columns must be f
+> ```
+>
+> **Test database** (for `npm run test:integration`, which refuses any database whose name does not end in `_test`):
+>
+> ```bash
+> docker exec -it postgres16 psql -U postgres -c "CREATE DATABASE comprobify_web_test OWNER comprobify_web_app;"
+> DATABASE_URL=postgresql://comprobify_web_app:changeme@localhost:5432/comprobify_web_test npx prisma migrate deploy
+> DATABASE_URL=postgresql://comprobify_web_app:changeme@localhost:5432/comprobify_web_test npm run test:integration
+> ```
+
 ### Option C — Cloud (Neon, Supabase)
 
 Create a free project on [Neon](https://neon.tech) or [Supabase](https://supabase.com). Both give you a ready-to-use connection string.
@@ -126,6 +141,8 @@ npx prisma studio
 ```
 
 ---
+
+The same migration step creates the Row-Level Security policies on the tenant-owned tables (`20261008000000_add_row_level_security`). From then on, application code reaches those tables only through `withTenant()` / `asSystem()` in `src/lib/db.ts`. If you query the local database by hand as the app role you will see zero rows from those tables; run `SELECT set_config('app.rls_system', 'on', false);` first in that psql session, or connect as an admin role.
 
 ## 5. Run the dev server
 

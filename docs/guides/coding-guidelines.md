@@ -147,6 +147,18 @@ If you use a broad `try/catch` around the entire action body, you must re-throw 
 }
 ```
 
+### Reading or writing the app's own database
+
+Tenant-owned tables are protected by fail-closed Row-Level Security (ADR-010). Wrap every access in `withTenant(ctx.tenant.id, (tx) => ...)` from `src/lib/db.ts`; a query outside a wrapper sees no rows and cannot insert. Keep the callback short (it holds a pooled connection), do not nest wrappers, and do not call external APIs inside it. Group the queries a screen needs in one wrapper or a `Promise.all` of wrappers.
+
+```ts
+const products = await withTenant(ctx.tenant.id, (tx) =>
+  tx.product.findMany({ where: { tenantId: ctx.tenant.id } }),
+);
+```
+
+`db` (the plain client) only exposes `user`, `tenant`, `verificationToken` and `agreementDraft`. Loading a protected relation through one of them (`include: { issuerAccess }`) must also run inside `withTenant`, using `tx.user...`. `asSystem(reason, ...)` is only for cross-tenant work that has no tenant yet (onboarding, recovery, scripts); justify any new use in review. Adding a table? Classify it in `prisma/rls-tables.json` and add a policy migration (see CLAUDE.md Common Mistake #72).
+
 Call it from a Client Component:
 ```tsx
 'use client';
