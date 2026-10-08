@@ -8,6 +8,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [1.3.0] — 2026-10-08
+
 ### Added
 - **Fail-closed Row-Level Security on the tenant-owned tables** (ADR-010). Postgres now enforces tenant isolation on `tenant_api_keys`, `issuers`, `user_issuer_access`, `products`, `clients`, `document_templates`, `notifications`, `notification_reads` and `webhook_endpoints`: a query without a tenant context sees no rows and cannot insert, and cross-tenant access needs an explicit `asSystem()` context. Policies are `FORCE`d with an explicit `WITH CHECK`. Rollback SQL in `prisma/rollback/`.
 - **Boot-time role guard** (`scripts/check-db-role.js`, run by `start:deploy`): the app refuses to start if its database role is a superuser or has `BYPASSRLS`, or a protected table is not RLS-enabled and forced. `RLS_GUARD=warn` overrides it.
@@ -18,6 +20,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 - `scripts/rotate-encryption-key.js` sets the system RLS context itself and fails if any row is not updated.
 - `docs/guides/database-backups.md`: dump as `doadmin`, not the app role (RLS applies to the table owner).
 - Wrong-password logins no longer print an Auth.js stack trace.
+- **Dependencies:** `next` 16.4.0, `sharp` 0.35.5, plus routine updates to dev-tool transitives (`@modelcontextprotocol/sdk`, `solid-js`, `seroval`).
+
+### Deploy notes
+- The Row-Level Security migration applies at container start (`start:deploy`), followed by the boot guard. The production app role was verified as non-superuser without `BYPASSRLS`. Rollback: `prisma/rollback/add_row_level_security_down.sql`. `RLS_GUARD=warn` overrides the guard in an emergency.
 
 ## [1.2.1] — 2026-10-04
 
