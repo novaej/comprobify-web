@@ -37,6 +37,13 @@ async function reset() {
         END LOOP;
       END $$
     `);
+    // Functions survive a table drop; the RLS migration would otherwise be re-run
+    // against stale helpers. CREATE OR REPLACE makes that harmless, but a reset
+    // should really start clean.
+    await client.query(`
+      DROP FUNCTION IF EXISTS public.app_is_system();
+      DROP FUNCTION IF EXISTS public.app_current_tenant_id();
+    `);
     console.log('Tables dropped.');
   } finally {
     client.release();

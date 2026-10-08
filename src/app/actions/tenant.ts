@@ -1,7 +1,7 @@
 'use server';
 
 import { headers } from 'next/headers';
-import { db } from '@/lib/db';
+import { db, withTenant } from '@/lib/db';
 import { requirePermission, requireContext, type MinimalContext } from '@/lib/context';
 import { promoteTenant, updateTenantLanguage } from '@/lib/api';
 import { listAdminApiKeys } from '@/lib/admin-api';
@@ -88,9 +88,9 @@ export async function promoteTenantAction(
   // comprobify mirrors each sandbox key's scopes into its production equivalent
   // by label; carry isManaged/managedRole over the same way so per-role keys
   // keep their self-revocation protection after promotion.
-  const existingSandboxKeys = await db.tenantApiKey.findMany({
+  const existingSandboxKeys = await withTenant(ctx.tenant.id, (tx) => tx.tenantApiKey.findMany({
     where: { tenantId: ctx.tenant.id, isActive: true },
-  });
+  }));
   const managedByLabel: Record<string, { isManaged: boolean; managedRole: string | null }> = {};
   for (const row of existingSandboxKeys) {
     managedByLabel[row.label] = { isManaged: row.isManaged, managedRole: row.managedRole };
@@ -137,7 +137,7 @@ export async function promoteTenantAction(
     return { error: 'PROMOTION_KEY_SYNC_FAILED' };
   }
 
-  await db.$transaction(async (tx) => {
+  await withTenant(ctx.tenant.id, async (tx) => {
     // Revoke all existing sandbox keys
     await tx.tenantApiKey.updateMany({
       where: { tenantId: ctx.tenant.id, isActive: true },

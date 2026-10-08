@@ -11,8 +11,10 @@
     "build": "next build",
     "build:deploy": "prisma generate && next build",
     "start": "next start",
-    "start:deploy": "prisma migrate deploy && next start",
+    "start:deploy": "prisma migrate deploy && node scripts/check-db-role.js && next start",
     "type-check": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:integration": "vitest run --config vitest.integration.config.mts",
     "migrate": "prisma migrate dev",
     "db:reset": "node scripts/db-reset.js",
     "db:seed": "node prisma/seed.js"
@@ -61,6 +63,7 @@
     "prisma": "^7.10.0",
     "shadcn": "^4.21.1",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^5.0.3"
   }
 }

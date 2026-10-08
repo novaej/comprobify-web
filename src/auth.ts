@@ -50,6 +50,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   // traffic for domains actually configured for this app - not a blanket
   // "trust any Host header" exposure.
   trustHost: true,
+  // A wrong password is expected user input, already surfaced as INVALID_CREDENTIALS
+  // by loginAction; Auth.js would otherwise dump a stack trace for every attempt.
+  logger: {
+    error(error) {
+      if ((error as { type?: string }).type === 'CredentialsSignin') return;
+      console.error(error);
+    },
+  },
   session: { strategy: 'jwt' },
   pages: { signIn: '/login' },
   providers: [

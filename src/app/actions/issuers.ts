@@ -1,6 +1,6 @@
 'use server';
 
-import { db } from '@/lib/db';
+import { withTenant } from '@/lib/db';
 import { requirePermission } from '@/lib/context';
 import {
   createIssuer,
@@ -44,11 +44,11 @@ export async function createBranchAction(formData: FormData): Promise<IssuersRes
 
   const sourceLocalIssuerId = (formData.get('sourceLocalIssuerId') as string | null)?.trim();
   const sourceIssuer = sourceLocalIssuerId
-    ? await db.issuer.findFirst({ where: { id: sourceLocalIssuerId, tenantId: ctx.tenant.id, active: true } })
-    : await db.issuer.findFirst({
+    ? await withTenant(ctx.tenant.id, (tx) => tx.issuer.findFirst({ where: { id: sourceLocalIssuerId, tenantId: ctx.tenant.id, active: true } }))
+    : await withTenant(ctx.tenant.id, (tx) => tx.issuer.findFirst({
         where: { tenantId: ctx.tenant.id, active: true },
         orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
-      });
+      }));
   if (!sourceIssuer) return { error: 'ISSUER_NOT_FOUND' };
 
   const branchCode = mode === 'issuePoint'
@@ -84,7 +84,7 @@ export async function createBranchAction(formData: FormData): Promise<IssuersRes
   // than form input — the API always inherits these from the source issuer
   // regardless of what's sent, so writing form input here could silently
   // diverge from what the API actually stored.
-  await db.issuer.create({
+  await withTenant(ctx.tenant.id, (tx) => tx.issuer.create({
     data: {
       tenantId: ctx.tenant.id,
       apiIssuerId: apiIssuer.id, // API ids are UUID strings — never Number() them
@@ -95,7 +95,7 @@ export async function createBranchAction(formData: FormData): Promise<IssuersRes
       branchAddress: apiIssuer.branchAddress,
       isDefault: false,
     },
-  });
+  }));
 
   revalidatePath('/issuers');
   revalidatePath('/', 'layout');
@@ -108,7 +108,7 @@ export async function updateIssuerAction(
 ): Promise<IssuersResult> {
   const ctx = await requirePermission('issuers.manage', { skipIssuer: true });
 
-  const issuer = await db.issuer.findUnique({ where: { id: issuerId } });
+  const issuer = await withTenant(ctx.tenant.id, (tx) => tx.issuer.findUnique({ where: { id: issuerId } }));
   if (!issuer || issuer.tenantId !== ctx.tenant.id) return { error: 'ISSUER_NOT_FOUND' };
 
   let apiIssuer;
@@ -119,10 +119,10 @@ export async function updateIssuerAction(
     throw err;
   }
 
-  await db.issuer.update({
+  await withTenant(ctx.tenant.id, (tx) => tx.issuer.update({
     where: { id: issuerId },
     data: { tradeName: apiIssuer.tradeName, branchAddress: apiIssuer.branchAddress },
-  });
+  }));
 
   revalidatePath('/issuers');
   revalidatePath(`/issuers/${issuerId}`);
@@ -138,7 +138,7 @@ export async function updateIssuerAction(
 export async function removeIssuerAction(issuerId: string): Promise<IssuersResult> {
   const ctx = await requirePermission('issuers.manage', { skipIssuer: true });
 
-  const issuer = await db.issuer.findUnique({ where: { id: issuerId } });
+  const issuer = await withTenant(ctx.tenant.id, (tx) => tx.issuer.findUnique({ where: { id: issuerId } }));
   if (!issuer || issuer.tenantId !== ctx.tenant.id) return { error: 'ISSUER_NOT_FOUND' };
 
   try {
@@ -148,15 +148,15 @@ export async function removeIssuerAction(issuerId: string): Promise<IssuersResul
     throw err;
   }
 
-  await db.issuer.update({ where: { id: issuerId }, data: { active: false } });
+  await withTenant(ctx.tenant.id, (tx) => tx.issuer.update({ where: { id: issuerId }, data: { active: false } }));
 
   if (issuer.isDefault) {
-    const next = await db.issuer.findFirst({
+    const next = await withTenant(ctx.tenant.id, (tx) => tx.issuer.findFirst({
       where: { tenantId: ctx.tenant.id, active: true, id: { not: issuerId } },
       orderBy: { createdAt: 'asc' },
-    });
+    }));
     if (next) {
-      await db.issuer.update({ where: { id: next.id }, data: { isDefault: true } });
+      await withTenant(ctx.tenant.id, (tx) => tx.issuer.update({ where: { id: next.id }, data: { isDefault: true } }));
     }
   }
 
@@ -174,7 +174,7 @@ export async function removeIssuerAction(issuerId: string): Promise<IssuersResul
 export async function activateIssuerAction(issuerId: string): Promise<IssuersResult> {
   const ctx = await requirePermission('issuers.manage', { skipIssuer: true });
 
-  const issuer = await db.issuer.findUnique({ where: { id: issuerId } });
+  const issuer = await withTenant(ctx.tenant.id, (tx) => tx.issuer.findUnique({ where: { id: issuerId } }));
   if (!issuer || issuer.tenantId !== ctx.tenant.id) return { error: 'ISSUER_NOT_FOUND' };
 
   try {
@@ -184,7 +184,7 @@ export async function activateIssuerAction(issuerId: string): Promise<IssuersRes
     throw err;
   }
 
-  await db.issuer.update({ where: { id: issuerId }, data: { active: true } });
+  await withTenant(ctx.tenant.id, (tx) => tx.issuer.update({ where: { id: issuerId }, data: { active: true } }));
 
   revalidatePath('/issuers');
   revalidatePath('/', 'layout');
@@ -194,7 +194,7 @@ export async function activateIssuerAction(issuerId: string): Promise<IssuersRes
 export async function setIssuerCanIssueAction(issuerId: string, canIssue: boolean): Promise<IssuersResult> {
   const ctx = await requirePermission('issuers.manage', { skipIssuer: true });
 
-  const issuer = await db.issuer.findUnique({ where: { id: issuerId } });
+  const issuer = await withTenant(ctx.tenant.id, (tx) => tx.issuer.findUnique({ where: { id: issuerId } }));
   if (!issuer || issuer.tenantId !== ctx.tenant.id) return { error: 'ISSUER_NOT_FOUND' };
 
   try {
@@ -215,7 +215,7 @@ export async function getIssuerSequentialsAction(
 ): Promise<{ sequentials: ApiIssuerSequential[] } | { error: string }> {
   const ctx = await requirePermission('issuers.manage', { skipIssuer: true });
 
-  const issuer = await db.issuer.findUnique({ where: { id: issuerId } });
+  const issuer = await withTenant(ctx.tenant.id, (tx) => tx.issuer.findUnique({ where: { id: issuerId } }));
   if (!issuer || issuer.tenantId !== ctx.tenant.id) return { error: 'ISSUER_NOT_FOUND' };
 
   try {
@@ -235,7 +235,7 @@ export async function setIssuerSequentialAction(
 ): Promise<IssuersResult> {
   const ctx = await requirePermission('issuers.manage', { skipIssuer: true });
 
-  const issuer = await db.issuer.findUnique({ where: { id: issuerId } });
+  const issuer = await withTenant(ctx.tenant.id, (tx) => tx.issuer.findUnique({ where: { id: issuerId } }));
   if (!issuer || issuer.tenantId !== ctx.tenant.id) return { error: 'ISSUER_NOT_FOUND' };
 
   try {
@@ -252,7 +252,7 @@ export async function setIssuerSequentialAction(
 export async function addDocumentTypeAction(issuerId: string, code: string): Promise<IssuersResult> {
   const ctx = await requirePermission('issuers.manage', { skipIssuer: true });
 
-  const issuer = await db.issuer.findUnique({ where: { id: issuerId } });
+  const issuer = await withTenant(ctx.tenant.id, (tx) => tx.issuer.findUnique({ where: { id: issuerId } }));
   if (!issuer || issuer.tenantId !== ctx.tenant.id) return { error: 'ISSUER_NOT_FOUND' };
 
   try {
@@ -269,7 +269,7 @@ export async function addDocumentTypeAction(issuerId: string, code: string): Pro
 export async function removeDocumentTypeAction(issuerId: string, code: string): Promise<IssuersResult> {
   const ctx = await requirePermission('issuers.manage', { skipIssuer: true });
 
-  const issuer = await db.issuer.findUnique({ where: { id: issuerId } });
+  const issuer = await withTenant(ctx.tenant.id, (tx) => tx.issuer.findUnique({ where: { id: issuerId } }));
   if (!issuer || issuer.tenantId !== ctx.tenant.id) return { error: 'ISSUER_NOT_FOUND' };
 
   try {
@@ -286,7 +286,7 @@ export async function removeDocumentTypeAction(issuerId: string, code: string): 
 export async function updateIssuerLogoAction(issuerId: string, formData: FormData): Promise<IssuersResult> {
   const ctx = await requirePermission('issuers.manage', { skipIssuer: true });
 
-  const issuer = await db.issuer.findUnique({ where: { id: issuerId } });
+  const issuer = await withTenant(ctx.tenant.id, (tx) => tx.issuer.findUnique({ where: { id: issuerId } }));
   if (!issuer || issuer.tenantId !== ctx.tenant.id) return { error: 'ISSUER_NOT_FOUND' };
 
   const logoFile = formData.get('logo') as File | null;
@@ -309,7 +309,7 @@ export async function updateIssuerLogoAction(issuerId: string, formData: FormDat
 export async function renewIssuerCertificateAction(issuerId: string, formData: FormData): Promise<IssuersResult> {
   const ctx = await requirePermission('issuers.manage', { skipIssuer: true });
 
-  const issuer = await db.issuer.findUnique({ where: { id: issuerId } });
+  const issuer = await withTenant(ctx.tenant.id, (tx) => tx.issuer.findUnique({ where: { id: issuerId } }));
   if (!issuer || issuer.tenantId !== ctx.tenant.id) return { error: 'ISSUER_NOT_FOUND' };
 
   const certFile = formData.get('cert') as File | null;

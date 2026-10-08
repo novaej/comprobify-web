@@ -1,5 +1,5 @@
 import 'server-only';
-import { db } from '@/lib/db';
+import { withTenant } from '@/lib/db';
 import { encrypt, lastFour } from '@/lib/crypto';
 import { createReservedApiKey, listAdminApiKeys, revokeAdminApiKey } from '@/lib/admin-api';
 import { computeApiScopesForRole, isFullAccessScopeSet, sameScopes } from '@/lib/role-api-scopes';
@@ -8,10 +8,12 @@ import type { TenantApiKey } from '@prisma/client';
 
 /** The tenant's full-access key — used directly by Owner/Admin, and as the minting authority for narrower per-role keys. */
 export function findMasterApiKeyRow(tenantId: string, environment: string) {
-  return db.tenantApiKey.findFirst({
-    where: { tenantId, environment, isActive: true, isManaged: true, managedRole: null },
-    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-  });
+  return withTenant(tenantId, (tx) =>
+    tx.tenantApiKey.findFirst({
+      where: { tenantId, environment, isActive: true, isManaged: true, managedRole: null },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    }),
+  );
 }
 
 /**
@@ -33,10 +35,12 @@ export async function resolveApiKeyForRole(
     return findMasterApiKeyRow(tenantId, environment);
   }
 
-  const existing = await db.tenantApiKey.findFirst({
-    where: { tenantId, environment, isActive: true, isManaged: true, managedRole: role },
-    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-  });
+  const existing = await withTenant(tenantId, (tx) =>
+    tx.tenantApiKey.findFirst({
+      where: { tenantId, environment, isActive: true, isManaged: true, managedRole: role },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    }),
+  );
 
   if (existing) {
     if (sameScopes(existing.scopes, targetScopes)) return existing;
@@ -63,10 +67,12 @@ async function revokeStaleManagedKey(row: TenantApiKey): Promise<void> {
   } catch {
     // Best-effort — still deactivate the local row below either way.
   }
-  await db.tenantApiKey.update({
-    where: { id: row.id },
-    data: { isActive: false, revokedAt: new Date() },
-  });
+  await withTenant(row.tenantId, (tx) =>
+    tx.tenantApiKey.update({
+      where: { id: row.id },
+      data: { isActive: false, revokedAt: new Date() },
+    }),
+  );
 }
 
 async function mintManagedKey(
@@ -81,7 +87,8 @@ async function mintManagedKey(
   // Advisory lock keyed on (tenantId, environment, role) — serializes
   // concurrent mint attempts before any of them calls the real API, so a
   // race can't mint multiple orphaned real keys (confirmed happening without this).
-  return db.$transaction(
+  return withTenant(
+    tenantId,
     async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('tenant_api_key_mint'), hashtext(${`${tenantId}:${environment}:${role}`}))`;
 

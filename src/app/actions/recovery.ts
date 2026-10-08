@@ -1,7 +1,7 @@
 'use server';
 
 import { headers } from 'next/headers';
-import { db } from '@/lib/db';
+import { db, asSystem, withTenant } from '@/lib/db';
 import { recoverAccount, type RecoverAccountResult } from '@/lib/public-api';
 import { listTenantIssuers } from '@/lib/api';
 import { listAdminApiKeys } from '@/lib/admin-api';
@@ -105,12 +105,12 @@ export async function recoverAccountAction(formData: FormData): Promise<RecoverA
   if (!keyRecord) return { error: 'DB_WRITE_FAILED' };
 
   try {
-    await db.$transaction([
-      db.tenantApiKey.updateMany({
+    await withTenant(localTenant.id, async (tx) => {
+      await tx.tenantApiKey.updateMany({
         where: { tenantId: localTenant.id, environment: result.environment, isActive: true },
         data: { isActive: false, revokedAt: new Date() },
-      }),
-      db.tenantApiKey.create({
+      });
+      await tx.tenantApiKey.create({
         data: {
           tenantId: localTenant.id,
           apiKeyId: keyRecord.id,
@@ -122,8 +122,8 @@ export async function recoverAccountAction(formData: FormData): Promise<RecoverA
           isManaged: true, // updateMany above revoked every other key, so this becomes the new master key
           scopes: keyRecord.scopes,
         },
-      }),
-    ]);
+      });
+    });
   } catch (err) {
     console.error('[recovery] failed to persist recovered key', err);
     Sentry.captureException(err, { extra: { apiTenantId } });
@@ -199,7 +199,7 @@ async function autoLinkRecoveredTenant(
   const defaultIssuer = apiIssuers[0];
 
   try {
-    await db.$transaction(async (tx) => {
+    await asSystem('recovery: attach recovered tenant, key and issuers to an existing login', async (tx) => {
       const tenant = await tx.tenant.create({
         data: {
           apiTenantId,

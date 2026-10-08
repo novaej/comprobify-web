@@ -14,7 +14,7 @@ import {
   updateNotificationPreferences,
   type NotificationPreference,
 } from '@/lib/api';
-import { db } from '@/lib/db';
+import { db, withTenant } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 import { ApiError } from '@/lib/errors';
 import * as Sentry from '@sentry/nextjs';
@@ -48,21 +48,21 @@ export async function markNotificationReadAction(notificationId: string): Promis
   // Only the fields needed for this check are selected — reads aren't
   // fetched here since they'd be stale the moment the upsert below writes
   // a new one; re-queried fresh in step 3 instead.
-  const notificationMeta = await db.notification.findUnique({
+  const notificationMeta = await withTenant(tenantId, (tx) => tx.notification.findUnique({
     where: { id: notificationId },
     select: { tenantId: true, apiReadAt: true, apiNotificationId: true, issuerId: true },
-  });
+  }));
 
   if (!notificationMeta || notificationMeta.tenantId !== tenantId) {
     return; // Not our notification.
   }
 
   // 2. Upsert per-user read row.
-  await db.notificationRead.upsert({
+  await withTenant(tenantId, (tx) => tx.notificationRead.upsert({
     where: { notificationId_userId: { notificationId, userId } },
     create: { notificationId, userId },
     update: {},
-  });
+  }));
 
   if (notificationMeta.apiReadAt) {
     return; // Already marked read at API level.
@@ -71,10 +71,10 @@ export async function markNotificationReadAction(notificationId: string): Promis
   // 3. Count eligible users for this notification, and re-fetch reads fresh
   // now that the upsert above has landed (a copy taken before it would
   // permanently undercount by one — the caller's own just-written read).
-  const reads = await db.notificationRead.findMany({
+  const reads = await withTenant(tenantId, (tx) => tx.notificationRead.findMany({
     where: { notificationId },
     select: { userId: true },
-  });
+  }));
   const notification = { ...notificationMeta, reads };
   let eligibleCount: number;
   if (notification.issuerId === null) {
@@ -87,7 +87,7 @@ export async function markNotificationReadAction(notificationId: string): Promis
     // Issuer.id before querying UserIssuerAccess, which stores the local FK.
     const localIssuerId = await resolveLocalIssuerId(tenantId, notification.issuerId);
     const accessCount = localIssuerId
-      ? await db.userIssuerAccess.count({ where: { tenantId, issuerId: localIssuerId } })
+      ? await withTenant(tenantId, (tx) => tx.userIssuerAccess.count({ where: { tenantId, issuerId: localIssuerId } }))
       : 0;
     // Owners/admins + access users may overlap — use a set via raw query is ideal,
     // but for safety we take the max of the two, knowing createMany skipDuplicates
@@ -101,10 +101,10 @@ export async function markNotificationReadAction(notificationId: string): Promis
   if (notification.reads.length >= eligibleCount) {
     try {
       await markNotificationRead({ apiKey: ctx.apiKey }, notification.apiNotificationId);
-      await db.notification.update({
+      await withTenant(tenantId, (tx) => tx.notification.update({
         where: { id: notificationId },
         data: { apiReadAt: new Date() },
-      });
+      }));
     } catch {
       // Non-fatal: the notification stays locally read; will sync on next poll.
     }
@@ -124,11 +124,11 @@ export async function catchUpNotificationsAction(): Promise<{ upserted: number }
   const tenantId = ctx.tenant.id;
 
   // Find the highest API notification id we already have.
-  const latest = await db.notification.findFirst({
+  const latest = await withTenant(tenantId, (tx) => tx.notification.findFirst({
     where: { tenantId },
     orderBy: { apiCreatedAt: 'desc' },
     select: { apiNotificationId: true },
-  });
+  }));
 
   const sinceId = latest?.apiNotificationId;
 
@@ -154,7 +154,7 @@ export async function catchUpNotificationsAction(): Promise<{ upserted: number }
   let upserted = 0;
   for (const n of notifications) {
     try {
-      await db.notification.upsert({
+      await withTenant(tenantId, (tx) => tx.notification.upsert({
         where: {
           tenantId_apiNotificationId: { tenantId, apiNotificationId: n.id },
         },
@@ -180,7 +180,7 @@ export async function catchUpNotificationsAction(): Promise<{ upserted: number }
           apiReadAt: n.readAt ? new Date(n.readAt) : null,
           expiresAt: n.expiresAt ? new Date(n.expiresAt) : null,
         },
-      });
+      }));
     } catch (err) {
       // Concurrent catchUp calls can both attempt to INSERT the same notification.
       // Skip the duplicate — the other call already handled it.
@@ -214,7 +214,7 @@ export async function getUnreadCountAction(): Promise<number> {
   //   - not marked read at API level
   //   - visible to this user (tenant-level, or issuer-scoped with access)
   //   - this user has NOT read it (no NotificationRead row)
-  const count = await db.notification.count({
+  const count = await withTenant(tenantId, (tx) => tx.notification.count({
     where: {
       tenantId,
       apiReadAt: null,
@@ -227,7 +227,7 @@ export async function getUnreadCountAction(): Promise<number> {
         none: { userId },
       },
     },
-  });
+  }));
 
   return count;
 }
@@ -265,7 +265,7 @@ export async function listNotificationsAction(): Promise<{
   const activeApiIssuerId = await getActiveApiIssuerId(tenantId);
   const visibility = await visibleNotificationOr(tenantId, userId, ctx.user.role, activeApiIssuerId);
 
-  const notifications = await db.notification.findMany({
+  const notifications = await withTenant(tenantId, (tx) => tx.notification.findMany({
     where: {
       tenantId,
       AND: [
@@ -283,7 +283,7 @@ export async function listNotificationsAction(): Promise<{
         select: { userId: true },
       },
     },
-  });
+  }));
 
   return {
     notifications: notifications.map((n) => ({
@@ -349,9 +349,9 @@ export async function updatePreferencesAction(
  * never directly comparable — see CLAUDE.md Common Mistake #20.
  */
 async function resolveLocalIssuerId(tenantId: string, apiIssuerId: string): Promise<string | null> {
-  const issuer = await db.issuer.findFirst({
+  const issuer = await withTenant(tenantId, (tx) => tx.issuer.findFirst({
     where: { tenantId, apiIssuerId },
     select: { id: true },
-  });
+  }));
   return issuer?.id ?? null;
 }

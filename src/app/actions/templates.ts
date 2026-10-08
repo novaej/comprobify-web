@@ -1,6 +1,6 @@
 'use server';
 
-import { db } from '@/lib/db';
+import { withTenant } from '@/lib/db';
 import { requireContext, requirePermission } from '@/lib/context';
 import { revalidatePath } from 'next/cache';
 import type { InvoiceFormData } from './invoice';
@@ -29,11 +29,11 @@ const INVOICE_DOCUMENT_TYPE = '01';
 
 export async function listInvoiceTemplatesAction(): Promise<SavedDocumentTemplate[]> {
   const tenantId = await requireTenantId();
-  const rows = await db.documentTemplate.findMany({
+  const rows = await withTenant(tenantId, (tx) => tx.documentTemplate.findMany({
     where: { tenantId, documentType: INVOICE_DOCUMENT_TYPE },
     orderBy: { name: 'asc' },
     select: { id: true, name: true, data: true },
-  });
+  }));
   return rows.map((r) => ({ id: r.id, name: r.name, data: r.data as unknown as InvoiceFormData }));
 }
 
@@ -42,18 +42,18 @@ export async function saveInvoiceTemplateAction(name: string, data: InvoiceFormD
   const trimmed = name.trim();
   if (!trimmed) return { error: 'REQUIRED_FIELDS' };
 
-  await db.documentTemplate.upsert({
+  await withTenant(tenantId, (tx) => tx.documentTemplate.upsert({
     where: { tenantId_documentType_name: { tenantId, documentType: INVOICE_DOCUMENT_TYPE, name: trimmed } },
     create: { tenantId, documentType: INVOICE_DOCUMENT_TYPE, name: trimmed, data: data as unknown as Prisma.InputJsonValue },
     update: { data: data as unknown as Prisma.InputJsonValue },
-  });
+  }));
   revalidatePath('/invoices/new');
   return null;
 }
 
 export async function deleteInvoiceTemplateAction(id: string): Promise<TemplateResult> {
   const tenantId = await requireTenantIdForCreate();
-  await db.documentTemplate.deleteMany({ where: { id, tenantId, documentType: INVOICE_DOCUMENT_TYPE } });
+  await withTenant(tenantId, (tx) => tx.documentTemplate.deleteMany({ where: { id, tenantId, documentType: INVOICE_DOCUMENT_TYPE } }));
   revalidatePath('/invoices/new');
   return null;
 }

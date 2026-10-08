@@ -7,7 +7,7 @@ import {
   deleteWebhookEndpoint,
 } from '@/lib/api';
 import { createReservedWebhookEndpoint } from '@/lib/admin-api';
-import { db } from '@/lib/db';
+import { withTenant } from '@/lib/db';
 import { encrypt } from '@/lib/crypto';
 import { ApiError } from '@/lib/errors';
 import { getCanonicalWebhookUrl } from '@/lib/webhook-url';
@@ -35,7 +35,7 @@ export async function registerWebhookAction(
       eventTypes,
     );
 
-    await db.webhookEndpoint.create({
+    await withTenant(ctx.tenant.id, (tx) => tx.webhookEndpoint.create({
       data: {
         tenantId: ctx.tenant.id,
         apiEndpointId: endpoint.id,
@@ -44,7 +44,7 @@ export async function registerWebhookAction(
         eventTypes: endpoint.eventTypes,
         active: endpoint.active,
       },
-    });
+    }));
   } catch (err) {
     if (err instanceof ApiError) return { error: err.code };
     throw err;
@@ -60,7 +60,7 @@ export async function registerWebhookAction(
 export async function deleteWebhookAction(localId: string): Promise<WebhookActionResult> {
   const ctx = await requirePermission('webhooks.manage', { skipIssuer: true });
 
-  const endpoint = await db.webhookEndpoint.findUnique({ where: { id: localId } });
+  const endpoint = await withTenant(ctx.tenant.id, (tx) => tx.webhookEndpoint.findUnique({ where: { id: localId } }));
   if (!endpoint || endpoint.tenantId !== ctx.tenant.id) {
     return { error: 'WEBHOOK_ENDPOINT_NOT_FOUND' };
   }
@@ -72,10 +72,10 @@ export async function deleteWebhookAction(localId: string): Promise<WebhookActio
     throw err;
   }
 
-  await db.webhookEndpoint.update({
+  await withTenant(ctx.tenant.id, (tx) => tx.webhookEndpoint.update({
     where: { id: localId },
     data: { active: false },
-  });
+  }));
 
   revalidatePath('/settings/webhooks');
   return null;
@@ -95,11 +95,11 @@ export async function listWebhooksAction(): Promise<{
 }> {
   const ctx = await requirePermission('webhooks.manage', { skipIssuer: true });
 
-  const endpoints = await db.webhookEndpoint.findMany({
+  const endpoints = await withTenant(ctx.tenant.id, (tx) => tx.webhookEndpoint.findMany({
     where: { tenantId: ctx.tenant.id, active: true },
     orderBy: { createdAt: 'desc' },
     select: { id: true, url: true, eventTypes: true, active: true, createdAt: true },
-  });
+  }));
 
   return { endpoints };
 }
@@ -130,25 +130,25 @@ export async function activateCanonicalWebhookAction(): Promise<WebhookActionRes
 
   const ctx = await requirePermission('webhooks.manage', { skipIssuer: true });
 
-  const existing = await db.webhookEndpoint.findFirst({
+  const existing = await withTenant(ctx.tenant.id, (tx) => tx.webhookEndpoint.findFirst({
     where: { tenantId: ctx.tenant.id, url: receiveUrl },
-  });
+  }));
   if (existing?.active) return null;
 
   try {
     if (existing) {
       await updateWebhookEndpoint({ apiKey: ctx.apiKey }, existing.apiEndpointId, { active: true });
-      await db.webhookEndpoint.update({
+      await withTenant(ctx.tenant.id, (tx) => tx.webhookEndpoint.update({
         where: { id: existing.id },
         data: { active: true },
-      });
+      }));
     } else {
       const { endpoint, secret } = await createReservedWebhookEndpoint(ctx.tenant.apiTenantId, {
         url: receiveUrl,
         eventTypes: [], // subscribe to all event types
       });
 
-      await db.webhookEndpoint.create({
+      await withTenant(ctx.tenant.id, (tx) => tx.webhookEndpoint.create({
         data: {
           tenantId: ctx.tenant.id,
           apiEndpointId: endpoint.id,
@@ -157,7 +157,7 @@ export async function activateCanonicalWebhookAction(): Promise<WebhookActionRes
           eventTypes: endpoint.eventTypes,
           active: endpoint.active,
         },
-      });
+      }));
     }
   } catch (err) {
     if (err instanceof ApiError) return { error: err.code };

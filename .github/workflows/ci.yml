@@ -27,6 +27,21 @@ jobs:
   build:
     name: Type-check and audit
     runs-on: ubuntu-latest
+    # Throwaway Postgres for the RLS integration tests (ADR-010). Its POSTGRES_USER is a
+    # superuser, which bypasses RLS - so the tests connect as a separate non-superuser role
+    # created below, exactly like the real app role.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v7
 
@@ -46,6 +61,18 @@ jobs:
 
       - name: Type-check
         run: npm run type-check
+
+      # Real-Postgres RLS tests: migrate a *_test database as a non-superuser that owns
+      # it (same shape as production's app role), then run them against it.
+      - name: RLS integration tests
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -c "CREATE ROLE app_ci LOGIN PASSWORD 'app_ci' NOSUPERUSER NOBYPASSRLS"
+          psql -h localhost -U postgres -c "CREATE DATABASE comprobify_web_test OWNER app_ci"
+          export DATABASE_URL=postgresql://app_ci:app_ci@localhost:5432/comprobify_web_test
+          npx prisma migrate deploy
+          npm run test:integration
 
       - name: Audit production dependencies
         continue-on-error: true

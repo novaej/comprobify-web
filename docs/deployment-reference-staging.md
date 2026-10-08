@@ -82,7 +82,7 @@ Plus two infra-only Secrets that have no runtime `.env` entry at all — `DROPLE
 
 ## Database setup
 
-This app's Prisma schema does not use PostgreSQL row-level security — tenant isolation is enforced at the application layer. There are also no separate schemas; everything lives in `public`, managed through `prisma/migrations/` and applied via `prisma migrate deploy` at container startup (not image-build time — the GitHub Actions runner has no route to the database).
+Tenant-owned tables are protected by fail-closed PostgreSQL row-level security (ADR-010, `docs/adr/010-row-level-security.md`): the app role in `DATABASE_URL` must not be a superuser or have `BYPASSRLS` (check: `SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user;` returns `f | f`), and `scripts/check-db-role.js` enforces it at every boot. Dump as `doadmin`, not the app role. There are no separate schemas; everything lives in `public`, managed through `prisma/migrations/` and applied via `prisma migrate deploy` at container startup (not image-build time — the GitHub Actions runner has no route to the database).
 
 Staging's database is **DigitalOcean Managed Postgres, shared with the Comprobify API** (confirmed consistently in both this repo's and the `comprobify` repo's `docs/deployment.md`) — not a Neon project. Neon is still the planned provider for a future, independent **production** database (see `comprobify/docs/deployment.md`'s "Production status" section), but that hasn't been provisioned yet and doesn't apply to staging.
 

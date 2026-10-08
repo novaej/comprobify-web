@@ -2,7 +2,7 @@ import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { InvoiceForm } from '@/components/invoice-form';
 import { PageHeader } from '@/components/page-header';
 import { requirePermission } from '@/lib/context';
-import { db } from '@/lib/db';
+import { withTenant } from '@/lib/db';
 import {
   listCatalogIdTypes,
   listCatalogPaymentMethods,
@@ -87,16 +87,16 @@ export default async function NewInvoicePage({
     listCatalogPaymentMethods(apiCtx),
     listCatalogTaxRates(apiCtx),
     listCatalogTermUnits(apiCtx),
-    db.product.findMany({
+    withTenant(tenant.id, (tx) => tx.product.findMany({
       where: { tenantId: tenant.id },
       orderBy: { mainCode: 'asc' },
       select: { id: true, mainCode: true, auxCode: true, description: true, unitPrice: true, taxOption: true },
-    }),
-    db.client.findMany({
+    })),
+    withTenant(tenant.id, (tx) => tx.client.findMany({
       where: { tenantId: tenant.id },
       orderBy: { name: 'asc' },
       select: { id: true, idType: true, idNumber: true, name: true, email: true, address: true },
-    }),
+    })),
     listInvoiceTemplatesAction(),
     listTenantIssuers({ apiKey }).catch(() => []),
   ]);

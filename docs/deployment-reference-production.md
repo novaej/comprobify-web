@@ -87,7 +87,7 @@ Plus two infra-only Secrets with no runtime `.env` entry — `DROPLET_IP` (the T
 
 ## Database setup
 
-Same tenant-isolation model as staging (application-layer, no PostgreSQL RLS, no separate schemas — see `docs/deployment-reference-staging.md`'s "Database setup" section). Migrations apply the same way, via `prisma migrate deploy` at container startup.
+Same tenant-isolation model as staging (fail-closed PostgreSQL RLS on the tenant-owned tables, ADR-010, no separate schemas — see `docs/deployment-reference-staging.md`'s "Database setup" section). **Before the first production deploy that includes the RLS migration:** confirm the production app role is not a superuser and has no `BYPASSRLS` (`SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = '<role>';`), rehearse the migration on a restored production dump locally, and keep `prisma/rollback/add_row_level_security_down.sql` at hand. Migrations apply the same way, via `prisma migrate deploy` at container startup.
 
 **Decided: shares the same DigitalOcean Managed Postgres cluster as the Comprobify API's own production database** — same pattern staging already uses (see `docs/deployment-reference-staging.md`'s own "Database setup" section), not a dedicated cluster or a different provider. This is the exact scenario the Comprobify API repo's own `docs/deployment-reference-production.md` flagged in advance, in its "Database setup" section: *"If this cluster ends up shared with comprobify-web's own production database, confirm with whoever owns that project's schema/role plan before changing grants — a change intended for comprobify's `public`/`sandbox` schemas should not accidentally widen or narrow access to whatever schema(s) comprobify-web uses on the same cluster."*
 

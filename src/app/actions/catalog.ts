@@ -1,6 +1,6 @@
 'use server';
 
-import { db } from '@/lib/db';
+import { withTenant } from '@/lib/db';
 import { requirePermission } from '@/lib/context';
 import { revalidatePath } from 'next/cache';
 
@@ -30,17 +30,17 @@ async function requireTenantId(): Promise<string> {
 
 export async function listProductsAction(): Promise<CatalogProduct[]> {
   const tenantId = await requireTenantId();
-  const rows = await db.product.findMany({
+  const rows = await withTenant(tenantId, (tx) => tx.product.findMany({
     where: { tenantId },
     orderBy: { createdAt: 'desc' },
     select: { id: true, mainCode: true, auxCode: true, description: true, unitPrice: true, taxOption: true },
-  });
+  }));
   return rows.map((r) => ({ ...r, unitPrice: r.unitPrice.toString() }));
 }
 
 export async function createProductAction(input: CatalogProductInput): Promise<CatalogResult> {
   const tenantId = await requireTenantId();
-  await db.product.create({
+  await withTenant(tenantId, (tx) => tx.product.create({
     data: {
       tenantId,
       mainCode: input.mainCode.trim().slice(0, 25),
@@ -49,14 +49,14 @@ export async function createProductAction(input: CatalogProductInput): Promise<C
       unitPrice: input.unitPrice,
       taxOption: input.taxOption,
     },
-  });
+  }));
   revalidatePath('/catalog');
   return null;
 }
 
 export async function updateProductAction(id: string, input: CatalogProductInput): Promise<CatalogResult> {
   const tenantId = await requireTenantId();
-  await db.product.updateMany({
+  await withTenant(tenantId, (tx) => tx.product.updateMany({
     where: { id, tenantId },
     data: {
       mainCode: input.mainCode.trim().slice(0, 25),
@@ -65,14 +65,14 @@ export async function updateProductAction(id: string, input: CatalogProductInput
       unitPrice: input.unitPrice,
       taxOption: input.taxOption,
     },
-  });
+  }));
   revalidatePath('/catalog');
   return null;
 }
 
 export async function deleteProductAction(id: string): Promise<CatalogResult> {
   const tenantId = await requireTenantId();
-  await db.product.deleteMany({ where: { id, tenantId } });
+  await withTenant(tenantId, (tx) => tx.product.deleteMany({ where: { id, tenantId } }));
   revalidatePath('/catalog');
   return null;
 }

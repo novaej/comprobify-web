@@ -18,7 +18,7 @@ import { AgreementPendingBanner } from '@/components/agreement-pending-banner';
 import { NotificationSync } from '@/components/notification-sync';
 import { TopBar } from '@/components/top-bar';
 import { auth } from '@/auth';
-import { db } from '@/lib/db';
+import { db, withTenant } from '@/lib/db';
 import { isUuid } from '@/lib/utils';
 import { hasPermission, type Role } from '@/lib/rbac';
 import { isUnverifiedStatus, reconcileTenantStatus } from '@/lib/tenant-status-sync';
@@ -88,17 +88,21 @@ async function getLayoutProps(userId: string): Promise<LayoutProps | null> {
           environment: true,
           status: true,
           sessionIdleTimeoutMinutes: true,
-          issuers: {
-            where: { active: true },
-            orderBy: [{ isDefault: 'desc' as const }, { createdAt: 'asc' as const }],
-            select: { id: true, apiIssuerId: true, businessName: true, tradeName: true, branchCode: true, issuePointCode: true },
-          },
         },
       },
     },
   });
 
   if (!user?.active || !user?.tenant) return null;
+
+  const layoutTenantId = user.tenant.id;
+  const tenantIssuers = await withTenant(layoutTenantId, (tx) =>
+    tx.issuer.findMany({
+      where: { active: true },
+      orderBy: [{ isDefault: 'desc' as const }, { createdAt: 'asc' as const }],
+      select: { id: true, apiIssuerId: true, businessName: true, tradeName: true, branchCode: true, issuePointCode: true },
+    }),
+  );
 
   // Live-checked only while the mirror says pending — zero extra cost for the
   // normal (verified) case, but self-clears on the very next render once the
@@ -119,7 +123,7 @@ async function getLayoutProps(userId: string): Promise<LayoutProps | null> {
   }
 
   const ctxCookie = await readCtxCookie();
-  const allIssuers = user.tenant.issuers.map((i) => ({
+  const allIssuers = tenantIssuers.map((i) => ({
     id: i.id,
     apiIssuerId: i.apiIssuerId,
     name: i.tradeName ?? i.businessName,
@@ -132,10 +136,12 @@ async function getLayoutProps(userId: string): Promise<LayoutProps | null> {
   let displayIssuers = allIssuers;
   let noIssuerAssigned = false;
   if (!isOwnerOrAdmin) {
-    const userAccess = await db.userIssuerAccess.findMany({
-      where: { tenantId: user.tenant.id, userId: userId },
-      select: { issuerId: true },
-    });
+    const userAccess = await withTenant(layoutTenantId, (tx) =>
+      tx.userIssuerAccess.findMany({
+        where: { tenantId: layoutTenantId, userId: userId },
+        select: { issuerId: true },
+      }),
+    );
     if (userAccess.length === 0) {
       noIssuerAssigned = true;
       displayIssuers = [];
@@ -156,7 +162,7 @@ async function getLayoutProps(userId: string): Promise<LayoutProps | null> {
   const canSeeBilling = user.role === 'Owner' || user.role === 'Admin';
   const activeApiIssuerId = currentIssuer?.apiIssuerId ?? null;
   const visibility = await visibleNotificationOr(tenantId, userId, user.role ?? '', activeApiIssuerId);
-  const notifications = await db.notification
+  const notifications = await withTenant(tenantId, (tx) => tx.notification
     .findMany({
       where: {
         tenantId,
@@ -172,7 +178,7 @@ async function getLayoutProps(userId: string): Promise<LayoutProps | null> {
       include: {
         reads: { where: { userId: userId }, select: { userId: true } },
       },
-    })
+    }))
     .catch(() => [] as Array<{
       id: string; tenantId: string; apiNotificationId: string;
       type: string; severity: string; title: string; message: string;

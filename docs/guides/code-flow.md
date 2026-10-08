@@ -229,6 +229,7 @@ Browser request
 | Page load | `proxy.ts` → `[locale]/layout.tsx` → `page.tsx` → `context.ts` → `api.ts` |
 | Form submit | `form.tsx` (client) → `actions/*.ts` (server action) → `context.ts` → `api.ts` |
 | Status polling | `invoice-polling.tsx` (client) → `app/api/.../route.ts` → `context.ts` → Comprobify API |
+| Database access | Every query on a tenant-owned table runs through `withTenant(tenantId, ...)` / `asSystem(reason, ...)` in `src/lib/db.ts` (ADR-010); Postgres RLS returns nothing for a query with no tenant context |
 | Webhook receive | `app/api/webhooks/receive/route.ts` → HMAC verify → `db.notification.upsert` → fan-out reads |
 | Notifications (catch-up) | `notification-sync.tsx` (client) → `catchUpNotificationsAction` → `GET /api/notifications` → upsert |
 | Complete registration | `verification-token.ts` (`issueVerificationToken`) → email link → `complete-registration/page.tsx` (`checkInviteToken`) → `CompleteRegistrationForm` → `completeRegistrationAction` (`consumeVerificationToken`) → `signIn` |

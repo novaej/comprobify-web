@@ -1,0 +1,21 @@
+{
+  "_comment": "Single source of truth for RLS coverage (ADR-010). Read by scripts/check-db-role.js and tests/integration/rls-fail-closed.test.ts. A new table must be added to `protected` (with a policy in a migration) or to `exempt` with a reason - the catalog test fails otherwise.",
+  "protected": [
+    "tenant_api_keys",
+    "issuers",
+    "user_issuer_access",
+    "products",
+    "clients",
+    "document_templates",
+    "notifications",
+    "notification_reads",
+    "webhook_endpoints"
+  ],
+  "exempt": {
+    "tenants": "The tenant's own row, read before any tenant context exists (login, session bootstrap, webhook tenant lookup, admin list).",
+    "users": "Identity table: login, registration, password reset, invites and session bootstrap all happen before a tenant is known.",
+    "verification_tokens": "Holds SHA-256 token hashes only and is reached by possessing the token; every flow using it is pre-tenant.",
+    "agreement_drafts": "Global, super-admin-only, unpublished legal text; no tenant path reads it.",
+    "_prisma_migrations": "Prisma's own bookkeeping table."
+  }
+}

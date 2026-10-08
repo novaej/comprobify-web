@@ -1,6 +1,6 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { requireContext } from '@/lib/context';
-import { db } from '@/lib/db';
+import { withTenant } from '@/lib/db';
 import { IssuerSelectList } from '@/components/issuer-select-list';
 import { LogoLockupStacked } from '@/components/logo';
 
@@ -18,21 +18,21 @@ export default async function IssuerSelectPage({
   const isOwnerOrAdmin = ctx.user.role === 'Owner' || ctx.user.role === 'Admin';
   let issuerIds: string[] | null = null;
   if (!isOwnerOrAdmin) {
-    const access = await db.userIssuerAccess.findMany({
+    const access = await withTenant(ctx.tenant.id, (tx) => tx.userIssuerAccess.findMany({
       where: { tenantId: ctx.tenant.id, userId: ctx.user.id },
       select: { issuerId: true },
-    });
+    }));
     issuerIds = access.map((a) => a.issuerId);
   }
 
-  const issuers = await db.issuer.findMany({
+  const issuers = await withTenant(ctx.tenant.id, (tx) => tx.issuer.findMany({
     where: {
       tenantId: ctx.tenant.id,
       active: true,
       ...(issuerIds !== null ? { id: { in: issuerIds } } : {}),
     },
     orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
-  });
+  }));
 
   return (
     <div className="min-h-screen bg-muted/40 flex items-start justify-center p-4 pt-12">

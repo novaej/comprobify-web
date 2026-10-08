@@ -2,7 +2,7 @@
 
 import { headers } from 'next/headers';
 import { auth } from '@/auth';
-import { db } from '@/lib/db';
+import { db, asSystem } from '@/lib/db';
 import { registerTenant } from '@/lib/public-api';
 import { listAdminApiKeys } from '@/lib/admin-api';
 import { extractForwardedIp } from '@/lib/client-forwarding';
@@ -120,7 +120,7 @@ export async function bootstrapTenantAction(formData: FormData): Promise<Onboard
 
   let newIssuerId: string;
   try {
-    newIssuerId = await db.$transaction(async (tx) => {
+    newIssuerId = await asSystem('onboarding: create tenant, first key and issuer', async (tx) => {
       const tenant = await tx.tenant.create({
         data: {
           apiTenantId,
