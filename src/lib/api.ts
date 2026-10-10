@@ -580,12 +580,16 @@ export async function retrySingleEmail(
   ctx: ApiCtx,
   accessKey: string,
   force = false
-): Promise<void> {
-  await request(
+): Promise<{ sent: boolean; reason?: string }> {
+  // 200 with { sent: false, reason } is a normal outcome, not an error: reason is
+  // 'no_email' (buyer has no address), 'email_disabled' (EMAIL_PROVIDER=none) or
+  // 'already_sent' (only without force). Verified in comprobify's document-email.service.js.
+  const res = await request<{ ok: true; result: { sent: boolean; reason?: string } }>(
     `/v1/documents/${accessKey}/email-retry${force ? '?force=true' : ''}`,
     ctx,
     { method: 'POST' },
   );
+  return res.result;
 }
 
 // ── Catalog functions ─────────────────────────────────────────────────────────

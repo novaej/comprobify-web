@@ -8,6 +8,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Fixed
+- **`EMAIL_SKIPPED` document events showed as a raw code** in the Invoice Detail timeline. The API now writes them whenever sending is off (`EMAIL_PROVIDER=none`, comprobify 1.3.2) as well as when the buyer has no email; they now read "Correo omitido" with the recipient when there is one.
+- **"Reenviar correo" reported success when nothing was sent.** The API answers 200 with `sent: false` for a buyer with no email or when sending is off; the action now shows an error toast explaining why.
+
 ## [1.3.0] — 2026-10-08
 
 ### Added
