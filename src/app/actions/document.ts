@@ -117,7 +117,14 @@ export async function resendEmailAction(accessKey: string): Promise<ActionResult
   const ctx = await requirePermission('documents.manage');
   const apiCtx = { apiKey: ctx.apiKey, issuerId: ctx.issuer.apiIssuerId };
   try {
-    await retrySingleEmail(apiCtx, accessKey, true);
+    const result = await retrySingleEmail(apiCtx, accessKey, true);
+    if (!result.sent) {
+      // The API answers 200 when it deliberately sends nothing; don't toast "resent".
+      // These are app-level codes in the apiError namespace, not API error codes.
+      if (result.reason === 'no_email') return { error: 'EMAIL_NO_RECIPIENT' };
+      if (result.reason === 'email_disabled') return { error: 'EMAIL_DISABLED' };
+      return { error: 'EMAIL_NOT_SENT' };
+    }
     return null;
   } catch (err) {
     if (err instanceof ApiError) return { error: err.code };

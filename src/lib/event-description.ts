@@ -58,6 +58,11 @@ export function describeDocumentEvent(event: DocumentEvent, t: TFunc): EventDesc
     case 'EMAIL_SENT':
       return { title: detail.retried ? t('events.emailResent') : t('events.emailSent'), detail: str(detail.to) };
 
+    // Written when no email is sent: the buyer has no address, or sending is off
+    // (EMAIL_PROVIDER=none, comprobify 1.3.2). `to` is null in the first case.
+    case 'EMAIL_SKIPPED':
+      return { title: t('events.emailSkipped'), detail: str(detail.to) };
+
     case 'EMAIL_FAILED':
       return { title: t('events.emailFailed'), detail: str(detail.error) ?? str(detail.to) };
 
